@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award, FileText, Users, Calendar } from "lucide-react";
+import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award, FileText, Users, Calendar, Menu, Home, ChevronDown, ChevronRight } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import Settings from "./Settings";
@@ -11,6 +11,7 @@ import Riqas from "./Riqas";
 import StaffMembers from "./StaffMembers";
 import Schedule from "./Schedule";
 import ShiftTemplates from "./ShiftTemplates";
+import HomePage from "./HomePage";
 import { evaluateWestgard, zScore, RULE_DESCRIPTIONS } from "./westgard";
 
 const DEPT_PALETTE = ["#0F7173", "#B5473A", "#8A5A2B", "#5A6ACF", "#2F8F5B", "#B8860B", "#7A4FA3", "#C1432B"];
@@ -55,7 +56,8 @@ export default function App() {
   const [portalAccounts, setPortalAccounts] = useState([]);
   const [pinnedTables, setPinnedTables] = useState([]);
   const [allTables, setAllTables] = useState([]);
-  const [tab, setTab] = useState("dashboard");
+  const [tab, setTab] = useState("home");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -287,52 +289,44 @@ export default function App() {
         * { box-sizing: border-box; }
         button { font-family: inherit; cursor: pointer; }
         input, select, textarea { font-family: inherit; }
+        .app-sidebar { position: fixed; top: 0; left: 0; height: 100vh; width: 240px; transform: translateX(-100%); transition: transform 0.2s; z-index: 50; overflow-y: auto; }
+        .app-sidebar.open { transform: translateX(0); }
+        .app-sidebar-overlay { position: fixed; inset: 0; background: rgba(15,25,26,0.5); z-index: 40; }
+        .app-main { padding: 24px 20px 80px; max-width: 900px; margin: 0 auto; }
+        .app-topbar { display: flex; }
+        @media (min-width: 880px) {
+          .app-sidebar { transform: translateX(0); }
+          .app-sidebar-overlay { display: none !important; }
+          .app-main { margin-left: 240px; max-width: 1000px; }
+          .app-topbar { display: none !important; }
+        }
         @media print {
-          header, nav, .no-print { display: none !important; }
+          .app-sidebar, .app-topbar, .app-sidebar-overlay, .no-print { display: none !important; }
           body, html { background: #fff !important; }
-          main { padding: 0 !important; max-width: 100% !important; }
+          .app-main { padding: 0 !important; max-width: 100% !important; margin-left: 0 !important; }
           .print-area { border: none !important; }
           .print-area table { font-size: 10px !important; }
           .print-only { display: inline !important; }
         }
       `}</style>
 
-      <header style={{ borderBottom: "1px solid #D6DEDB", background: "#1B2B2E" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <FlaskConical size={22} color={config.theme_color || "#5FBFB0"} />
-            <div>
-              <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 17, letterSpacing: 0.2 }}>{config.app_title || "QC Log"}</div>
-              <div style={{ color: "#8FA39E", fontSize: 12, fontFamily: "'IBM Plex Mono', monospace" }}>{config.app_subtitle || "Rabia Hospital · Quality Control"}</div>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <NavBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={<LayoutGrid size={15} />} label="QC Entry" />
-            <NavBtn active={tab === "staff"} onClick={() => setTab("staff")} icon={<Users size={15} />} label="Staff" />
-            <NavBtn active={tab === "schedule"} onClick={() => setTab("schedule")} icon={<Calendar size={15} />} label="Schedule" />
-            {(role === "admin" || role === "super") && <NavBtn active={tab === "shifts"} onClick={() => setTab("shifts")} icon={<Calendar size={15} />} label="Shifts" />}
-            {(role === "admin" || role === "super") && <NavBtn active={tab === "grid"} onClick={() => setTab("grid")} icon={<Grid3x3 size={15} />} label="Monthly grid" />}
-            {(role === "admin" || role === "super") && <NavBtn active={tab === "controls"} onClick={() => setTab("controls")} icon={<PackageCheck size={15} />} label="Controls" />}
-            {(role === "admin" || role === "super") && <NavBtn active={tab === "riqas"} onClick={() => setTab("riqas")} icon={<Award size={15} />} label="RIQAS" />}
-            {(role === "admin" || role === "super") && <NavBtn active={tab === "chart"} onClick={() => setTab("chart")} icon={<BarChart3 size={15} />} label="Chart" />}
-            {(role === "admin" || role === "super") && <NavBtn active={tab === "export"} onClick={() => setTab("export")} icon={<Download size={15} />} label="Export" />}
-            {(role === "admin" || role === "super") && (
-              <NavBtn active={tab === "approvals"} onClick={() => setTab("approvals")} icon={<ClipboardCheck size={15} />} label={`Approvals${pendingItems.length ? ` (${pendingItems.length})` : ""}`} />
-            )}
-            {(role === "admin" || role === "super") && <NavBtn active={tab === "settings"} onClick={() => setTab("settings")} icon={<SlidersHorizontal size={15} />} label="Settings" />}
-            {role === "super" && <NavBtn active={tab === "owner"} onClick={() => setTab("owner")} icon={<Award size={15} />} label="Owner" />}
-            {(role === "admin" || role === "super") && <NavBtn active={tab === "tables"} onClick={() => setTab("tables")} icon={<Table2 size={15} />} label="Tables" />}
-            {(role === "admin" || role === "super") && <NavBtn active={tab === "files"} onClick={() => setTab("files")} icon={<FolderOpen size={15} />} label="Files" />}
-            {pinnedTables.map((t) => (
-              <NavBtn key={t.id} active={tab === `pinned:${t.id}`} onClick={() => setTab(`pinned:${t.id}`)} icon={<Table2 size={15} />} label={t.title} />
-            ))}
-            <button onClick={logout} title="Log out" style={{ background: "transparent", border: "1px solid #39494A", color: "#8FA39E", borderRadius: 7, padding: "7px 9px" }}><LogOut size={14} /></button>
-          </div>
-        </div>
-      </header>
+      <div className="app-topbar" style={{ background: "#1B2B2E", padding: "14px 16px", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 30 }}>
+        <button onClick={() => setSidebarOpen(true)} style={{ background: "none", border: "none", color: "#F0F3F2" }}><Menu size={22} /></button>
+        <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 15 }}>{config.app_title || "QC Log"}</div>
+        <button onClick={logout} style={{ background: "none", border: "none", color: "#8FA39E" }}><LogOut size={18} /></button>
+      </div>
 
-      <main style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px" }}>
-        {tab === "dashboard" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} />}
+      {sidebarOpen && <div className="app-sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+      <AppSidebar
+        config={config} role={role} username={username} tab={tab}
+        onNavigate={(k) => { setTab(k); setSidebarOpen(false); }}
+        onLogout={logout} pendingCount={pendingItems.length} pinnedTables={pinnedTables}
+        className={sidebarOpen ? "app-sidebar open" : "app-sidebar"}
+      />
+
+      <main className="app-main">
+        {tab === "home" && <HomePage username={username} role={role} config={config} panels={panels} activeEntries={activeEntries} pendingCount={pendingItems.length} onNavigate={setTab} />}
+        {tab === "qc" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} />}
         {tab === "staff" && <StaffMembers departments={config.departments || []} role={role} />}
         {tab === "schedule" && <Schedule departments={config.departments || []} role={role} username={username} />}
         {tab === "shifts" && (role === "admin" || role === "super") && <ShiftTemplates role={role} />}
@@ -455,6 +449,107 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
 
 function NavBtn({ active, onClick, icon, label }) {
   return <button onClick={onClick} style={{ background: active ? "#2A3B3D" : "transparent", color: active ? "#F0F3F2" : "#8FA39E", border: "none", borderRadius: 7, padding: "7px 12px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>{icon} {label}</button>;
+}
+
+function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pendingCount, pinnedTables, className }) {
+  const isAdmin = role === "admin" || role === "super";
+  const [openGroups, setOpenGroups] = useState({ qc: true, schedule: true, settings: false, tables: true });
+  const toggleGroup = (k) => setOpenGroups((g) => ({ ...g, [k]: !g[k] }));
+
+  const qcItems = [
+    { key: "qc", label: "QC Entry", icon: LayoutGrid, show: true },
+    { key: "grid", label: "Monthly grid", icon: Grid3x3, show: isAdmin },
+    { key: "chart", label: "Charts", icon: BarChart3, show: isAdmin },
+    { key: "riqas", label: "RIQAS", icon: Award, show: isAdmin },
+    { key: "approvals", label: `Approvals${pendingCount ? ` (${pendingCount})` : ""}`, icon: ClipboardCheck, show: isAdmin },
+    { key: "controls", label: "Controls", icon: PackageCheck, show: isAdmin },
+    { key: "export", label: "Export", icon: Download, show: isAdmin },
+  ].filter((i) => i.show);
+
+  const scheduleItems = [
+    { key: "schedule", label: "Schedule", icon: Calendar, show: true },
+    { key: "shifts", label: "Shift templates", icon: Calendar, show: isAdmin },
+  ].filter((i) => i.show);
+
+  const settingsItems = [
+    { key: "settings", label: "Settings", icon: SlidersHorizontal, show: isAdmin },
+    { key: "owner", label: "Owner", icon: Award, show: role === "super" },
+  ].filter((i) => i.show);
+
+  return (
+    <div className={className} style={{ background: "#1B2B2E", display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "18px 16px", borderBottom: "1px solid #2A3B3D" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <FlaskConical size={22} color={config.theme_color || "#5FBFB0"} />
+          <div>
+            <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 15 }}>{config.app_title || "QC Log"}</div>
+            <div style={{ color: "#8FA39E", fontSize: 10.5, fontFamily: "'IBM Plex Mono', monospace" }}>{username}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
+        <SideItem icon={<Home size={15} />} label="Dashboard" active={tab === "home"} onClick={() => onNavigate("home")} />
+
+        <SideGroup icon="🧪" label="Quality Control" open={openGroups.qc} onToggle={() => toggleGroup("qc")}>
+          {qcItems.map((i) => <SideItem key={i.key} icon={<i.icon size={14} />} label={i.label} active={tab === i.key} onClick={() => onNavigate(i.key)} indent />)}
+        </SideGroup>
+
+        <SideItem icon={<Users size={15} />} label="Staff" active={tab === "staff"} onClick={() => onNavigate("staff")} />
+
+        <SideGroup icon="📅" label="Schedule" open={openGroups.schedule} onToggle={() => toggleGroup("schedule")}>
+          {scheduleItems.map((i) => <SideItem key={i.key} icon={<i.icon size={14} />} label={i.label} active={tab === i.key} onClick={() => onNavigate(i.key)} indent />)}
+        </SideGroup>
+
+        {isAdmin && (
+          <SideGroup icon="📋" label="Tables" open={openGroups.tables} onToggle={() => toggleGroup("tables")}>
+            <SideItem icon={<Table2 size={14} />} label="All tables" active={tab === "tables"} onClick={() => onNavigate("tables")} indent />
+            {pinnedTables.map((t) => (
+              <SideItem key={t.id} icon={<Table2 size={14} />} label={t.title} active={tab === `pinned:${t.id}`} onClick={() => onNavigate(`pinned:${t.id}`)} indent />
+            ))}
+          </SideGroup>
+        )}
+        {!isAdmin && pinnedTables.map((t) => (
+          <SideItem key={t.id} icon={<Table2 size={15} />} label={t.title} active={tab === `pinned:${t.id}`} onClick={() => onNavigate(`pinned:${t.id}`)} />
+        ))}
+
+        {isAdmin && <SideItem icon={<FolderOpen size={15} />} label="Files" active={tab === "files"} onClick={() => onNavigate("files")} />}
+
+        {settingsItems.length > 0 && (
+          <SideGroup icon="⚙" label="Settings" open={openGroups.settings} onToggle={() => toggleGroup("settings")}>
+            {settingsItems.map((i) => <SideItem key={i.key} icon={<i.icon size={14} />} label={i.label} active={tab === i.key} onClick={() => onNavigate(i.key)} indent />)}
+          </SideGroup>
+        )}
+      </div>
+
+      <div style={{ padding: 12, borderTop: "1px solid #2A3B3D" }}>
+        <button onClick={onLogout} style={{ width: "100%", background: "transparent", border: "1px solid #39494A", color: "#8FA39E", borderRadius: 7, padding: "9px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <LogOut size={14} /> Log out
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SideGroup({ icon, label, open, onToggle, children }) {
+  return (
+    <div>
+      <button onClick={onToggle} style={{ width: "100%", background: "transparent", border: "none", color: "#F0F3F2", padding: "8px 10px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 8, borderRadius: 7 }}>
+        <span>{icon}</span>
+        <span style={{ flex: 1, textAlign: "left" }}>{label}</span>
+        {open ? <ChevronDown size={14} color="#8FA39E" /> : <ChevronRight size={14} color="#8FA39E" />}
+      </button>
+      {open && <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>{children}</div>}
+    </div>
+  );
+}
+
+function SideItem({ icon, label, active, onClick, indent }) {
+  return (
+    <button onClick={onClick} style={{ width: "100%", background: active ? "#2A3B3D" : "transparent", border: "none", color: active ? "#F0F3F2" : "#8FA39E", padding: "8px 10px", paddingLeft: indent ? 30 : 10, fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, borderRadius: 7, textAlign: "left" }}>
+      {icon} {label}
+    </button>
+  );
 }
 
 function reviewSummary(entry) {
