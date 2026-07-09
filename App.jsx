@@ -676,7 +676,7 @@ function Dashboard({ panels, entries, baselines, role, busy, onSubmit, onDelete,
         panel={panel}
         entries={entries.filter((e) => e.panel_id === panel.id)}
         baselines={baselines}
-        role={role} busy={busy} onSubmit={onSubmit} onDelete={onDelete}
+        role={role} busy={busy} onSubmit={onSubmit} onDelete={onDelete} profiles={profiles}
         onBack={() => setSelectedPanelId(null)}
       />
     );
@@ -711,7 +711,7 @@ function Dashboard({ panels, entries, baselines, role, busy, onSubmit, onDelete,
   );
 }
 
-function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, onBack }) {
+function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, onBack, profiles }) {
   const [date, setDate] = useState(todayISO());
   const [editing, setEditing] = useState(false);
   const [values, setValues] = useState({});
