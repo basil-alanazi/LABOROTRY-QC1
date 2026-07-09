@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award, FileText } from "lucide-react";
+import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award, FileText, Users, Calendar } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import Settings from "./Settings";
@@ -8,6 +8,9 @@ import CustomTables from "./CustomTables";
 import Files from "./Files";
 import LeveyJennings from "./Charts";
 import Riqas from "./Riqas";
+import StaffMembers from "./StaffMembers";
+import Schedule from "./Schedule";
+import ShiftTemplates from "./ShiftTemplates";
 import { evaluateWestgard, zScore, RULE_DESCRIPTIONS } from "./westgard";
 
 const DEPT_PALETTE = ["#0F7173", "#B5473A", "#8A5A2B", "#5A6ACF", "#2F8F5B", "#B8860B", "#7A4FA3", "#C1432B"];
@@ -290,6 +293,7 @@ export default function App() {
           main { padding: 0 !important; max-width: 100% !important; }
           .print-area { border: none !important; }
           .print-area table { font-size: 10px !important; }
+          .print-only { display: inline !important; }
         }
       `}</style>
 
@@ -304,18 +308,21 @@ export default function App() {
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <NavBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={<LayoutGrid size={15} />} label="QC Entry" />
+            <NavBtn active={tab === "staff"} onClick={() => setTab("staff")} icon={<Users size={15} />} label="Staff" />
+            <NavBtn active={tab === "schedule"} onClick={() => setTab("schedule")} icon={<Calendar size={15} />} label="Schedule" />
+            {(role === "admin" || role === "super") && <NavBtn active={tab === "shifts"} onClick={() => setTab("shifts")} icon={<Calendar size={15} />} label="Shifts" />}
             {(role === "admin" || role === "super") && <NavBtn active={tab === "grid"} onClick={() => setTab("grid")} icon={<Grid3x3 size={15} />} label="Monthly grid" />}
             {(role === "admin" || role === "super") && <NavBtn active={tab === "controls"} onClick={() => setTab("controls")} icon={<PackageCheck size={15} />} label="Controls" />}
             {(role === "admin" || role === "super") && <NavBtn active={tab === "riqas"} onClick={() => setTab("riqas")} icon={<Award size={15} />} label="RIQAS" />}
-            <NavBtn active={tab === "chart"} onClick={() => setTab("chart")} icon={<BarChart3 size={15} />} label="Chart" />
-            <NavBtn active={tab === "export"} onClick={() => setTab("export")} icon={<Download size={15} />} label="Export" />
+            {(role === "admin" || role === "super") && <NavBtn active={tab === "chart"} onClick={() => setTab("chart")} icon={<BarChart3 size={15} />} label="Chart" />}
+            {(role === "admin" || role === "super") && <NavBtn active={tab === "export"} onClick={() => setTab("export")} icon={<Download size={15} />} label="Export" />}
             {(role === "admin" || role === "super") && (
               <NavBtn active={tab === "approvals"} onClick={() => setTab("approvals")} icon={<ClipboardCheck size={15} />} label={`Approvals${pendingItems.length ? ` (${pendingItems.length})` : ""}`} />
             )}
             {(role === "admin" || role === "super") && <NavBtn active={tab === "settings"} onClick={() => setTab("settings")} icon={<SlidersHorizontal size={15} />} label="Settings" />}
             {role === "super" && <NavBtn active={tab === "owner"} onClick={() => setTab("owner")} icon={<Award size={15} />} label="Owner" />}
-            <NavBtn active={tab === "tables"} onClick={() => setTab("tables")} icon={<Table2 size={15} />} label="Tables" />
-            <NavBtn active={tab === "files"} onClick={() => setTab("files")} icon={<FolderOpen size={15} />} label="Files" />
+            {(role === "admin" || role === "super") && <NavBtn active={tab === "tables"} onClick={() => setTab("tables")} icon={<Table2 size={15} />} label="Tables" />}
+            {(role === "admin" || role === "super") && <NavBtn active={tab === "files"} onClick={() => setTab("files")} icon={<FolderOpen size={15} />} label="Files" />}
             {pinnedTables.map((t) => (
               <NavBtn key={t.id} active={tab === `pinned:${t.id}`} onClick={() => setTab(`pinned:${t.id}`)} icon={<Table2 size={15} />} label={t.title} />
             ))}
@@ -326,19 +333,22 @@ export default function App() {
 
       <main style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px" }}>
         {tab === "dashboard" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} />}
+        {tab === "staff" && <StaffMembers departments={config.departments || []} role={role} />}
+        {tab === "schedule" && <Schedule departments={config.departments || []} role={role} username={username} />}
+        {tab === "shifts" && (role === "admin" || role === "super") && <ShiftTemplates role={role} />}
         {tab === "grid" && (role === "admin" || role === "super") && <MonthlyGrid panels={panels} entries={activeEntries} controlLots={controlLots} />}
         {tab === "controls" && (role === "admin" || role === "super") && <ControlStock panels={panels} entries={activeEntries} controlLots={controlLots} onRecalculate={recalculateAllColors} busy={busy} />}
         {tab === "riqas" && (role === "admin" || role === "super") && <Riqas departments={config.departments || []} role={role} username={username} />}
-        {tab === "chart" && <LeveyJennings panels={panels} entries={activeEntries} baselines={baselines} />}
-        {tab === "export" && <ExportPage panels={panels} entries={activeEntries} />}
+        {tab === "chart" && (role === "admin" || role === "super") && <LeveyJennings panels={panels} entries={activeEntries} baselines={baselines} />}
+        {tab === "export" && (role === "admin" || role === "super") && <ExportPage panels={panels} entries={activeEntries} />}
         {tab === "approvals" && (role === "admin" || role === "super") && <Approvals items={pendingItems} panels={panels} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk} />}
         {tab === "settings" && (role === "admin" || role === "super") && <Settings config={config} panels={panels} role={role} staffAccounts={staffAccounts} username={username} baselines={baselines} reload={() => { ensureConfig(); loadAll(); }} />}
         {tab === "owner" && role === "super" && <OwnerSettings config={config} reload={() => { ensureConfig(); loadAll(); }} />}
-        {tab === "tables" && <CustomTables departments={config.departments || []} role={role} username={username} onReload={loadAll} />}
-        {tab === "files" && <Files role={role} username={username} />}
+        {tab === "tables" && (role === "admin" || role === "super") && <CustomTables role={role} username={username} onReload={loadAll} />}
+        {tab === "files" && (role === "admin" || role === "super") && <Files role={role} username={username} />}
         {tab.startsWith("pinned:") && (() => {
           const t = pinnedTables.find((x) => `pinned:${x.id}` === tab);
-          return t ? <CustomTables departments={config.departments || []} role={role} username={username} openTableId={t.id} onReload={loadAll} /> : null;
+          return t ? <CustomTables role={role} username={username} openTableId={t.id} onReload={loadAll} /> : null;
         })()}
         {error && <div style={{ position: "fixed", bottom: 16, left: "50%", transform: "translateX(-50%)", background: "#C1432B", color: "#fff", padding: "10px 18px", borderRadius: 8, fontSize: 14 }}>{error}</div>}
       </main>
@@ -388,9 +398,9 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
     if (p.key === "riqas") return <Riqas departments={config.departments || []} role={effectiveRole} username={username} />;
     if (p.key === "chart") return <LeveyJennings panels={panels} entries={entries} baselines={baselines} />;
     if (p.key === "export") return <ExportPage panels={panels} entries={entries} />;
-    if (p.key === "tables") return <CustomTables departments={config.departments || []} role={effectiveRole} username={username} />;
+    if (p.key === "tables") return <CustomTables role={effectiveRole} username={username} />;
     if (p.key === "files") return <Files role={effectiveRole} username={username} />;
-    if (p.key.startsWith("table:")) return <CustomTables departments={config.departments || []} role={effectiveRole} username={username} openTableId={p.tableId} />;
+    if (p.key.startsWith("table:")) return <CustomTables role={effectiveRole} username={username} openTableId={p.tableId} />;
     return null;
   }
 
