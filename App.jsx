@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck } from "lucide-react";
+import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import Settings from "./Settings";
 import CustomTables from "./CustomTables";
 import Files from "./Files";
 import LeveyJennings from "./Charts";
+import Riqas from "./Riqas";
 import { evaluateWestgard, zScore, RULE_DESCRIPTIONS } from "./westgard";
 
 const DEPT_PALETTE = ["#0F7173", "#B5473A", "#8A5A2B", "#5A6ACF", "#2F8F5B", "#B8860B", "#7A4FA3", "#C1432B"];
@@ -244,6 +245,7 @@ export default function App() {
             <NavBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={<LayoutGrid size={15} />} label="QC Entry" />
             {(role === "admin" || role === "super") && <NavBtn active={tab === "grid"} onClick={() => setTab("grid")} icon={<Grid3x3 size={15} />} label="Monthly grid" />}
             {(role === "admin" || role === "super") && <NavBtn active={tab === "controls"} onClick={() => setTab("controls")} icon={<PackageCheck size={15} />} label="Controls" />}
+            {(role === "admin" || role === "super") && <NavBtn active={tab === "riqas"} onClick={() => setTab("riqas")} icon={<Award size={15} />} label="RIQAS" />}
             <NavBtn active={tab === "chart"} onClick={() => setTab("chart")} icon={<BarChart3 size={15} />} label="Chart" />
             <NavBtn active={tab === "export"} onClick={() => setTab("export")} icon={<Download size={15} />} label="Export" />
             {(role === "admin" || role === "super") && (
@@ -261,6 +263,7 @@ export default function App() {
         {tab === "dashboard" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} />}
         {tab === "grid" && (role === "admin" || role === "super") && <MonthlyGrid panels={panels} entries={activeEntries} controlLots={controlLots} />}
         {tab === "controls" && (role === "admin" || role === "super") && <ControlStock panels={panels} entries={activeEntries} controlLots={controlLots} />}
+        {tab === "riqas" && (role === "admin" || role === "super") && <Riqas departments={config.departments || []} role={role} username={username} />}
         {tab === "chart" && <LeveyJennings panels={panels} entries={activeEntries} baselines={baselines} />}
         {tab === "export" && <ExportPage panels={panels} entries={activeEntries} />}
         {tab === "approvals" && (role === "admin" || role === "super") && <Approvals items={pendingItems} panels={panels} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk} />}
