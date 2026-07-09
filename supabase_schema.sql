@@ -159,6 +159,19 @@ create policy "allow all staff_accounts" on staff_accounts for all using (true) 
 alter table staff_accounts add column if not exists must_change_password boolean not null default true;
 alter table portal_accounts add column if not exists must_change_password boolean not null default true;
 
+-- Free-text daily department assignment per employee (independent of the
+-- fixed department list in Settings — type anything here).
+create table if not exists department_assignments (
+  id uuid primary key default gen_random_uuid(),
+  staff_id uuid references staff_members(id) on delete cascade,
+  date date not null,
+  department_name text not null default '',
+  created_at timestamptz default now(),
+  unique(staff_id, date)
+);
+alter table department_assignments enable row level security;
+create policy "allow all department_assignments" on department_assignments for all using (true) with check (true);
+
 -- History of every control lot ever used on a panel, with its expiry date.
 create table if not exists qc_control_lots (
   id uuid primary key default gen_random_uuid(),
