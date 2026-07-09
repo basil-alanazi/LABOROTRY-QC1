@@ -779,7 +779,7 @@ function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, 
             {(panel.analytes || []).map((a) => {
               const val = entry?.values?.[a.name];
               const color = entry?.colors?.[a.name];
-              const m = color ? COLOR_META[color] : null;
+              const m = color ? (COLOR_META[color] || COLOR_META.pending) : null;
               const rev = entry?.reviews?.[a.name];
               const baseline = baselines.find((b) => b.panel_id === panel.id && b.analyte_name === a.name && b.lot_number === panel.lot_number);
               return (
@@ -948,7 +948,7 @@ function MonthlyGrid({ panels, entries, controlLots, profiles }) {
                       const e = entryFor(day);
                       const val = e?.values?.[a.name];
                       const color = e?.colors?.[a.name];
-                      const m = color ? COLOR_META[color] : null;
+                      const m = color ? (COLOR_META[color] || COLOR_META.pending) : null;
                       return (
                         <td key={day} title={e?.flags?.[a.name]?.map((f) => RULE_DESCRIPTIONS[f]).join("; ") || ""} style={{ textAlign: "center", padding: "5px 4px", borderBottom: "1px solid #EEF2F0", background: m ? m.bg : "transparent", color: m ? m.fg : "#1B2B2E", fontWeight: m ? 700 : 400 }}>
                           {val ?? ""}
@@ -1154,7 +1154,7 @@ function ApprovalEntryCard({ entry, analytes, panel, onReview, onReviewBulk, pro
       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
         {analytes.map((name) => {
           const color = entry.colors?.[name] || "pending";
-          const m = COLOR_META[color];
+          const m = COLOR_META[color] || COLOR_META.pending;
           const flags = entry.flags?.[name] || [];
           return (
             <label key={name} style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 13, background: "#F7F9F8", borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>
