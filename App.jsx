@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen } from "lucide-react";
+import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, Ruler } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import Settings from "./Settings";
@@ -39,6 +39,7 @@ export default function App() {
   const [role, setRole] = useState(() => localStorage.getItem("qc_role") || null);
   const [username, setUsername] = useState(() => localStorage.getItem("qc_username") || "");
   const [panels, setPanels] = useState(null);
+  const [baselines, setBaselines] = useState([]);
   const [entries, setEntries] = useState(null);
   const [staffAccounts, setStaffAccounts] = useState([]);
   const [tab, setTab] = useState("dashboard");
@@ -59,6 +60,7 @@ export default function App() {
     const { data: p, error: e1 } = await supabase.from("qc_panels").select("*").eq("deleted", false).order("name");
     const { data: e, error: e2 } = await supabase.from("qc_entries").select("*").order("date", { ascending: false });
     const { data: s } = await supabase.from("staff_accounts").select("*").order("username");
+    const { data: b } = await supabase.from("qc_baselines").select("*").eq("active", true);
     if (e1 || e2) {
       setError("Could not connect to the database. Check Supabase settings.");
       setPanels([]);
@@ -68,6 +70,7 @@ export default function App() {
     setPanels(p || []);
     setEntries(e || []);
     setStaffAccounts(s || []);
+    setBaselines(b || []);
   }
 
   useEffect(() => {
@@ -125,13 +128,14 @@ export default function App() {
   }
 
   // Submit (or overwrite) the whole day's panel entry — one row per panel per date.
-  async function submitEntry(panel, date, valuesInput, note, existingEntryId) {
+  async function submitEntry(panel, date, valuesInput, note, existingEntry) {
     setBusy(true);
     try {
       const lot = panel.lot_number || "";
       const values = {};
       const colors = {};
       const flags = {};
+      const reviews = { ...(existingEntry?.reviews || {}) };
       for (const analyte of panel.analytes || []) {
         const raw = valuesInput[analyte.name];
         if (raw === undefined || raw === "" || raw === null) continue;
@@ -140,17 +144,21 @@ export default function App() {
         const { color, flags: f } = await evaluateAnalyte(panel, analyte.name, lot, value, date);
         colors[analyte.name] = color;
         flags[analyte.name] = f;
+        const prevValue = existingEntry?.values?.[analyte.name];
+        if (prevValue === undefined || prevValue !== value) {
+          reviews[analyte.name] = { status: "pending", note: "", by: null, at: null };
+        }
       }
 
-      if (existingEntryId) {
+      if (existingEntry) {
         await supabase.from("qc_entries").update({
-          values, colors, flags, note: note || "", edited_by: username, edited_at: new Date().toISOString(),
-          review_status: "pending", review_note: "", reviewed_by: null, reviewed_at: null,
-        }).eq("id", existingEntryId);
-        await logActivity("edit", `${panel.name} — ${date} (resubmitted for review)`);
+          values, colors, flags, note: note || "", edited_by: username, edited_at: new Date().toISOString(), reviews,
+        }).eq("id", existingEntry.id);
+        await logActivity("edit", `${panel.name} — ${date} (edited by ${username})`);
       } else {
+        for (const name of Object.keys(values)) reviews[name] = { status: "pending", note: "", by: null, at: null };
         await supabase.from("qc_entries").insert({
-          panel_id: panel.id, date, lot_number: lot, values, colors, flags, done_by: username, note: note || "",
+          panel_id: panel.id, date, lot_number: lot, values, colors, flags, reviews, done_by: username, note: note || "",
         });
         await logActivity("add", `${panel.name} — ${date}`);
       }
@@ -169,18 +177,28 @@ export default function App() {
     loadAll();
   }
 
-  async function reviewEntry(entry, decision, note) {
+  // Approve or decline ONE analyte's result within a day's entry — the rest are untouched.
+  async function reviewAnalyte(entry, analyteName, decision, note) {
     if (role !== "admin" && role !== "super") return;
-    await supabase.from("qc_entries").update({
-      review_status: decision, review_note: note || "", reviewed_by: username, reviewed_at: new Date().toISOString(),
-    }).eq("id", entry.id);
+    const reviews = { ...(entry.reviews || {}) };
+    reviews[analyteName] = { status: decision, note: note || "", by: username, at: new Date().toISOString() };
+    await supabase.from("qc_entries").update({ reviews }).eq("id", entry.id);
     const panel = panels.find((p) => p.id === entry.panel_id);
-    await logActivity(decision, `${panel ? panel.name : "Unknown"} — ${entry.date} → ${decision.toUpperCase()}`);
+    await logActivity(decision, `${panel ? panel.name : "Unknown"} — ${entry.date} — ${analyteName} → ${decision.toUpperCase()}`);
     loadAll();
   }
 
   const activeEntries = useMemo(() => (entries || []).filter((e) => !e.deleted), [entries]);
-  const pendingApprovals = useMemo(() => activeEntries.filter((e) => e.review_status === "pending"), [activeEntries]);
+  const pendingItems = useMemo(() => {
+    const items = [];
+    activeEntries.forEach((e) => {
+      Object.keys(e.values || {}).forEach((analyteName) => {
+        const status = e.reviews?.[analyteName]?.status || "pending";
+        if (status === "pending") items.push({ entry: e, analyteName });
+      });
+    });
+    return items;
+  }, [activeEntries]);
 
   if (!config || panels === null || entries === null) {
     return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "IBM Plex Mono, monospace", color: "#4A5A5C" }}>Loading…</div>;
@@ -206,11 +224,12 @@ export default function App() {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <NavBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={<LayoutGrid size={15} />} label="Today" />
+            <NavBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={<LayoutGrid size={15} />} label="QC Entry" />
             <NavBtn active={tab === "grid"} onClick={() => setTab("grid")} icon={<Grid3x3 size={15} />} label="Monthly grid" />
+            <NavBtn active={tab === "ranges"} onClick={() => setTab("ranges")} icon={<Ruler size={15} />} label="Ranges" />
             <NavBtn active={tab === "export"} onClick={() => setTab("export")} icon={<Download size={15} />} label="Export" />
             {(role === "admin" || role === "super") && (
-              <NavBtn active={tab === "approvals"} onClick={() => setTab("approvals")} icon={<ClipboardCheck size={15} />} label={`Approvals${pendingApprovals.length ? ` (${pendingApprovals.length})` : ""}`} />
+              <NavBtn active={tab === "approvals"} onClick={() => setTab("approvals")} icon={<ClipboardCheck size={15} />} label={`Approvals${pendingItems.length ? ` (${pendingItems.length})` : ""}`} />
             )}
             {(role === "admin" || role === "super") && <NavBtn active={tab === "settings"} onClick={() => setTab("settings")} icon={<SlidersHorizontal size={15} />} label="Settings" />}
             <NavBtn active={tab === "tables"} onClick={() => setTab("tables")} icon={<Table2 size={15} />} label="Tables" />
@@ -221,10 +240,11 @@ export default function App() {
       </header>
 
       <main style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px" }}>
-        {tab === "dashboard" && <Dashboard panels={panels} entries={activeEntries} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} />}
+        {tab === "dashboard" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} />}
         {tab === "grid" && <MonthlyGrid panels={panels} entries={activeEntries} />}
+        {tab === "ranges" && <Ranges panels={panels} baselines={baselines} entries={activeEntries} />}
         {tab === "export" && <ExportPage panels={panels} entries={activeEntries} />}
-        {tab === "approvals" && (role === "admin" || role === "super") && <Approvals pending={pendingApprovals} panels={panels} onReview={reviewEntry} />}
+        {tab === "approvals" && (role === "admin" || role === "super") && <Approvals items={pendingItems} panels={panels} onReview={reviewAnalyte} />}
         {tab === "settings" && (role === "admin" || role === "super") && <Settings config={config} panels={panels} role={role} staffAccounts={staffAccounts} reload={() => { ensureConfig(); loadAll(); }} />}
         {tab === "tables" && <CustomTables departments={config.departments || []} role={role} username={username} />}
         {tab === "files" && <Files role={role} username={username} />}
@@ -238,15 +258,35 @@ function NavBtn({ active, onClick, icon, label }) {
   return <button onClick={onClick} style={{ background: active ? "#2A3B3D" : "transparent", color: active ? "#F0F3F2" : "#8FA39E", border: "none", borderRadius: 7, padding: "7px 12px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>{icon} {label}</button>;
 }
 
-function ReviewBadge({ status }) {
-  const map = { pending: { fg: "#B8860B", bg: "#FBF3DF", label: "Pending review" }, approved: { fg: "#2F6B4F", bg: "#E8F2EC", label: "Approved" }, declined: { fg: "#C1432B", bg: "#FBEAE6", label: "Declined" } };
+function reviewSummary(entry) {
+  const names = Object.keys(entry.values || {});
+  let approved = 0, declined = 0, pending = 0;
+  names.forEach((n) => {
+    const st = entry.reviews?.[n]?.status || "pending";
+    if (st === "approved") approved++;
+    else if (st === "declined") declined++;
+    else pending++;
+  });
+  return { approved, declined, pending, total: names.length };
+}
+
+function ReviewSummaryBadge({ entry }) {
+  const s = reviewSummary(entry);
+  if (s.total === 0) return null;
+  if (s.declined > 0) return <span style={{ fontSize: 10, fontWeight: 700, color: "#C1432B", background: "#FBEAE6", padding: "3px 8px", borderRadius: 4 }}>{s.declined} declined</span>;
+  if (s.pending > 0) return <span style={{ fontSize: 10, fontWeight: 700, color: "#B8860B", background: "#FBF3DF", padding: "3px 8px", borderRadius: 4 }}>{s.pending} pending review</span>;
+  return <span style={{ fontSize: 10, fontWeight: 700, color: "#2F6B4F", background: "#E8F2EC", padding: "3px 8px", borderRadius: 4 }}>All approved</span>;
+}
+
+function AnalyteReviewBadge({ status }) {
+  const map = { pending: { bg: "#FBF3DF", fg: "#B8860B", label: "Pending" }, approved: { bg: "#E8F2EC", fg: "#2F6B4F", label: "Approved" }, declined: { bg: "#FBEAE6", fg: "#C1432B", label: "Declined" } };
   const m = map[status] || map.pending;
-  return <span style={{ fontSize: 10, fontWeight: 700, color: m.fg, background: m.bg, padding: "3px 8px", borderRadius: 4 }}>{m.label}</span>;
+  return <span style={{ fontSize: 9.5, fontWeight: 700, color: m.fg, background: m.bg, padding: "2px 6px", borderRadius: 4 }}>{m.label}</span>;
 }
 
 // ---------- Dashboard (today's entry) ----------
 
-function Dashboard({ panels, entries, role, busy, onSubmit, onDelete }) {
+function Dashboard({ panels, entries, baselines, role, busy, onSubmit, onDelete }) {
   const today = todayISO();
   const [selectedPanelId, setSelectedPanelId] = useState(null);
   const departments = [...new Set(panels.map((p) => p.department))];
@@ -262,6 +302,7 @@ function Dashboard({ panels, entries, role, busy, onSubmit, onDelete }) {
       <PanelPage
         panel={panel}
         entries={entries.filter((e) => e.panel_id === panel.id)}
+        baselines={baselines}
         role={role} busy={busy} onSubmit={onSubmit} onDelete={onDelete}
         onBack={() => setSelectedPanelId(null)}
       />
@@ -286,7 +327,7 @@ function Dashboard({ panels, entries, role, busy, onSubmit, onDelete }) {
                     <div style={{ fontWeight: 700, fontSize: 14.5 }}>{panel.name}</div>
                     <div style={{ fontSize: 11.5, color: "#8A9694" }}>lot {panel.lot_number || "—"} · {(panel.analytes || []).length} analytes</div>
                   </div>
-                  {todaysEntry ? <ReviewBadge status={todaysEntry.review_status} /> : <span style={{ fontSize: 11.5, color: "#B8860B", fontWeight: 600 }}>Not entered today</span>}
+                  {todaysEntry ? <ReviewSummaryBadge entry={todaysEntry} /> : <span style={{ fontSize: 11.5, color: "#B8860B", fontWeight: 600 }}>Not entered today</span>}
                 </button>
               );
             })}
@@ -297,7 +338,7 @@ function Dashboard({ panels, entries, role, busy, onSubmit, onDelete }) {
   );
 }
 
-function PanelPage({ panel, entries, role, busy, onSubmit, onDelete, onBack }) {
+function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, onBack }) {
   const [date, setDate] = useState(todayISO());
   const [editing, setEditing] = useState(false);
   const [values, setValues] = useState({});
@@ -312,8 +353,21 @@ function PanelPage({ panel, entries, role, busy, onSubmit, onDelete, onBack }) {
   }, [date, entry?.id]);
 
   function submit() {
-    onSubmit(panel, date, values, note, entry ? entry.id : null);
+    onSubmit(panel, date, values, note, entry || null);
     setEditing(false);
+  }
+
+  // Quick live preview color as you type — a single-point check against the
+  // baseline (mean/SD). The final saved color also runs the full Westgard
+  // multirule check on the server side once you save.
+  function livePreviewColor(analyteName, raw) {
+    if (raw === undefined || raw === "" || raw === null || isNaN(Number(raw))) return null;
+    const baseline = baselines.find((b) => b.panel_id === panel.id && b.analyte_name === analyteName && b.lot_number === panel.lot_number);
+    if (!baseline) return null;
+    const z = zScore(Number(raw), baseline.mean, baseline.sd);
+    if (Math.abs(z) >= 3) return "red";
+    if (Math.abs(z) >= 2) return "orange";
+    return "green";
   }
 
   const showForm = !entry || editing;
@@ -335,14 +389,9 @@ function PanelPage({ panel, entries, role, busy, onSubmit, onDelete, onBack }) {
       {entry && !editing && (
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <ReviewBadge status={entry.review_status} />
-            <span style={{ fontSize: 11.5, color: "#8A9694" }}>by {entry.done_by}{entry.reviewed_by ? ` · reviewed by ${entry.reviewed_by}` : ""}</span>
+            <ReviewSummaryBadge entry={entry} />
+            <span style={{ fontSize: 11.5, color: "#8A9694" }}>entered by {entry.done_by}{entry.edited_by ? ` · last edited by ${entry.edited_by}` : ""}</span>
           </div>
-          {entry.review_status === "declined" && entry.review_note && (
-            <div style={{ background: "#FBEAE6", border: "1px solid #C1432B33", borderRadius: 7, padding: "8px 12px", fontSize: 12.5, color: "#8A2E1F", marginBottom: 10 }}>
-              Declined: {entry.review_note}
-            </div>
-          )}
         </div>
       )}
 
@@ -352,7 +401,8 @@ function PanelPage({ panel, entries, role, busy, onSubmit, onDelete, onBack }) {
             <tr style={{ background: "#F0F3F2" }}>
               <th style={{ padding: "8px 12px", textAlign: "left" }}>Item</th>
               <th style={{ padding: "8px 12px", textAlign: "left" }}>Result</th>
-              {!showForm && <th style={{ padding: "8px 12px", textAlign: "left" }}>Status</th>}
+              {!showForm && <th style={{ padding: "8px 12px", textAlign: "left" }}>Westgard</th>}
+              {!showForm && <th style={{ padding: "8px 12px", textAlign: "left" }}>Review</th>}
             </tr>
           </thead>
           <tbody>
@@ -360,17 +410,46 @@ function PanelPage({ panel, entries, role, busy, onSubmit, onDelete, onBack }) {
               const val = entry?.values?.[a.name];
               const color = entry?.colors?.[a.name];
               const m = color ? COLOR_META[color] : null;
+              const rev = entry?.reviews?.[a.name];
               return (
                 <tr key={a.name} style={{ borderTop: "1px solid #EEF2F0" }}>
                   <td style={{ padding: "7px 12px", fontWeight: 600 }}>{a.name}{a.unit ? <span style={{ color: "#8A9694", fontWeight: 400 }}> ({a.unit})</span> : ""}</td>
                   <td style={{ padding: "7px 12px" }}>
                     {showForm ? (
-                      <input type="number" value={values[a.name] ?? ""} onChange={(e) => setValues((v) => ({ ...v, [a.name]: e.target.value }))} style={{ ...inputStyle, padding: "6px 8px", fontSize: 13, width: 120 }} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <input
+                          type="number"
+                          value={values[a.name] ?? ""}
+                          onChange={(e) => setValues((v) => ({ ...v, [a.name]: e.target.value }))}
+                          style={{
+                            ...inputStyle, padding: "6px 8px", fontSize: 13, width: 120,
+                            borderColor: livePreviewColor(a.name, values[a.name]) ? COLOR_META[livePreviewColor(a.name, values[a.name])].fg : "#C7D1CE",
+                            background: livePreviewColor(a.name, values[a.name]) ? COLOR_META[livePreviewColor(a.name, values[a.name])].bg : "#fff",
+                            borderWidth: 2,
+                          }}
+                        />
+                        {livePreviewColor(a.name, values[a.name]) && (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: COLOR_META[livePreviewColor(a.name, values[a.name])].fg }}>
+                            {livePreviewColor(a.name, values[a.name])}
+                          </span>
+                        )}
+                      </div>
                     ) : (val ?? "—")}
                   </td>
                   {!showForm && (
                     <td style={{ padding: "7px 12px" }}>
                       {m ? <span title={(entry.flags?.[a.name] || []).map((f) => RULE_DESCRIPTIONS[f]).join("; ")} style={{ fontSize: 11, background: m.bg, color: m.fg, padding: "3px 8px", borderRadius: 5, fontWeight: 700 }}>{color}</span> : ""}
+                    </td>
+                  )}
+                  {!showForm && (
+                    <td style={{ padding: "7px 12px" }}>
+                      {val === undefined ? "" : (
+                        <>
+                          <AnalyteReviewBadge status={rev?.status || "pending"} />
+                          {rev?.status === "declined" && rev?.note && <div style={{ fontSize: 10.5, color: "#8A2E1F", marginTop: 2 }}>{rev.note}</div>}
+                          {rev?.by && <div style={{ fontSize: 10, color: "#8A9694", marginTop: 2 }}>by {rev.by}</div>}
+                        </>
+                      )}
                     </td>
                   )}
                 </tr>
@@ -391,7 +470,7 @@ function PanelPage({ panel, entries, role, busy, onSubmit, onDelete, onBack }) {
       ) : (
         <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
           <button onClick={() => setEditing(true)} style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 6, padding: "6px 12px", fontSize: 12 }}>
-            {entry.review_status === "declined" ? "Edit & resubmit" : "Edit this entry"}
+            {reviewSummary(entry).declined > 0 ? "Edit & resubmit" : "Edit this entry"}
           </button>
           {(role === "admin" || role === "super") && (
             <button onClick={() => onDelete(entry)} style={{ background: "none", border: "1px solid #C1432B", color: "#C1432B", borderRadius: 6, padding: "6px 12px", fontSize: 12 }}><Trash2 size={12} /></button>
@@ -435,7 +514,7 @@ function MonthlyGrid({ panels, entries }) {
     dayList.forEach((day) => {
       const e = entryFor(day);
       doneRow[day] = e?.done_by || "";
-      reviewRow[day] = e?.review_status === "approved" ? e.reviewed_by : "";
+      reviewRow[day] = e ? `${reviewSummary(e).approved}/${reviewSummary(e).total}` : "";
     });
     rows.push(doneRow, reviewRow);
     const sheet = XLSX.utils.json_to_sheet(rows);
@@ -498,7 +577,7 @@ function MonthlyGrid({ panels, entries }) {
                   <td style={{ position: "sticky", left: 0, background: "#F7F9F8", padding: "5px 10px", fontWeight: 700 }}>Reviewed by</td>
                   {dayList.map((day) => {
                     const e = entryFor(day);
-                    return <td key={day} style={{ textAlign: "center", padding: "5px 4px", fontSize: 10 }}>{e?.review_status === "approved" ? e.reviewed_by : ""}</td>;
+                    return <td key={day} style={{ textAlign: "center", padding: "5px 4px", fontSize: 10 }}>{e ? `${reviewSummary(e).approved}/${reviewSummary(e).total}` : ""}</td>;
                   })}
                 </tr>
               </tbody>
@@ -511,6 +590,49 @@ function MonthlyGrid({ panels, entries }) {
 }
 
 // ---------- Approvals ----------
+
+function Ranges({ panels, baselines, entries }) {
+  if (panels.length === 0) return <div style={{ textAlign: "center", padding: "60px 20px", color: "#8A9694" }}>No QC panels set up yet.</div>;
+  return (
+    <div>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Normal ranges (Westgard)</h2>
+      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Mean/SD are either set manually in Settings, or calculated automatically once 20 results exist for a lot. Everything below updates live as you enter results.</div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {panels.map((p) => (
+          <div key={p.id} style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "14px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <div style={{ fontWeight: 700, fontSize: 14.5 }}>{p.name}</div>
+              <div style={{ fontSize: 11.5, color: "#8A9694" }}>lot {p.lot_number || "—"}</div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {(p.analytes || []).map((a) => {
+                const baseline = baselines.find((b) => b.panel_id === p.id && b.analyte_name === a.name && b.lot_number === p.lot_number);
+                const count = entries.filter((e) => e.panel_id === p.id && e.lot_number === p.lot_number && e.values?.[a.name] !== undefined).length;
+                return (
+                  <div key={a.name} style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7F9F8", borderRadius: 7, padding: "8px 12px", flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, minWidth: 60 }}>{a.name}</div>
+                    {baseline ? (
+                      <>
+                        <div style={{ fontSize: 12.5 }}>Mean <b>{baseline.mean.toFixed(2)}</b> {a.unit}</div>
+                        <div style={{ fontSize: 12.5 }}>SD <b>{baseline.sd.toFixed(2)}</b></div>
+                        <div style={{ fontSize: 12.5, color: "#2F6B4F" }}>Normal (±2SD): {(baseline.mean - 2 * baseline.sd).toFixed(2)}–{(baseline.mean + 2 * baseline.sd).toFixed(2)}</div>
+                        <div style={{ fontSize: 12.5, color: "#C1432B" }}>Reject (±3SD): {(baseline.mean - 3 * baseline.sd).toFixed(2)}–{(baseline.mean + 3 * baseline.sd).toFixed(2)}</div>
+                        <div style={{ fontSize: 11, color: "#8A9694" }}>{baseline.point_count === 0 ? "set manually" : `from ${baseline.point_count} results`}</div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: 12.5, color: "#B8860B" }}>Establishing baseline — {count}/20 results so far</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function ExportPage({ panels, entries }) {
   const [dateFrom, setDateFrom] = useState(firstOfMonth());
@@ -538,7 +660,7 @@ function ExportPage({ panels, entries }) {
       const reviewRow = { Item: "Reviewed by" };
       panelEntries.forEach((e) => {
         doneRow[e.date] = e.done_by;
-        reviewRow[e.date] = e.review_status === "approved" ? e.reviewed_by : "";
+        reviewRow[e.date] = `${reviewSummary(e).approved}/${reviewSummary(e).total}`;
       });
       rows.push(doneRow, reviewRow);
       const sheet = XLSX.utils.json_to_sheet(rows.length ? rows : [{ Item: "No data in this range" }]);
@@ -583,44 +705,40 @@ function ExportPage({ panels, entries }) {
   );
 }
 
-function Approvals({ pending, panels, onReview }) {
-  if (pending.length === 0) return <div style={{ textAlign: "center", padding: "60px 20px", color: "#8A9694", fontSize: 13.5 }}>Nothing waiting for review. 🎉</div>;
+function Approvals({ items, panels, onReview }) {
+  if (items.length === 0) return <div style={{ textAlign: "center", padding: "60px 20px", color: "#8A9694", fontSize: 13.5 }}>Nothing waiting for review. 🎉</div>;
   return (
     <div>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Approvals</h2>
-      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>A note is required to decline, and also required to approve a day that isn't all-green.</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {[...pending].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).map((e) => (
-          <ApprovalRow key={e.id} entry={e} panel={panels.find((p) => p.id === e.panel_id)} onReview={onReview} />
+      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Review each result on its own. A note is required to decline, and also required to approve a non-green result.</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {[...items].sort((a, b) => new Date(b.entry.created_at) - new Date(a.entry.created_at)).map(({ entry, analyteName }) => (
+          <ApprovalRow key={`${entry.id}-${analyteName}`} entry={entry} analyteName={analyteName} panel={panels.find((p) => p.id === entry.panel_id)} onReview={onReview} />
         ))}
       </div>
     </div>
   );
 }
 
-function ApprovalRow({ entry, panel, onReview }) {
+function ApprovalRow({ entry, analyteName, panel, onReview }) {
   const [note, setNote] = useState("");
-  const worst = Object.values(entry.colors || {}).reduce((max, c) => Math.max(max, colorRank[c] ?? 0), 0);
-  const needsNote = worst > 0;
+  const color = entry.colors?.[analyteName] || "pending";
+  const needsNote = (colorRank[color] ?? 0) > 0;
+  const value = entry.values?.[analyteName];
 
   return (
     <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "12px 16px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
-        <div style={{ fontWeight: 700, fontSize: 14 }}>{panel ? panel.name : "Unknown"}</div>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>{panel ? panel.name : "Unknown"} — {analyteName}</div>
+        <div style={{ fontSize: 12 }}>{value}{panel?.analytes?.find((a) => a.name === analyteName)?.unit}</div>
+        <span style={{ fontSize: 10.5, background: COLOR_META[color].bg, color: COLOR_META[color].fg, padding: "3px 8px", borderRadius: 5, fontWeight: 700 }}>{color}</span>
         <div style={{ fontSize: 12, color: "#8A9694" }}>{entry.date} · by {entry.done_by}</div>
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-        {Object.entries(entry.values || {}).map(([name, val]) => {
-          const color = entry.colors?.[name] || "pending";
-          const m = COLOR_META[color];
-          return <span key={name} style={{ fontSize: 12, background: m.bg, color: m.fg, padding: "3px 8px", borderRadius: 5, fontWeight: 600 }}>{name}: {val}</span>;
-        })}
-      </div>
-      {needsNote && <div style={{ fontSize: 11.5, color: "#8A2E1F", marginBottom: 6 }}>This day has a non-green result — a note is required even to approve it.</div>}
+      {needsNote && <div style={{ fontSize: 11.5, color: "#8A2E1F", marginBottom: 6 }}>This result isn't green — a note is required even to approve it.</div>}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={needsNote ? "Note (required)" : "Note (optional)"} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
-        <button disabled={needsNote && !note.trim()} onClick={() => onReview(entry, "approved", note)} style={{ background: "#2F6B4F", color: "#fff", border: "none", borderRadius: 6, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, opacity: needsNote && !note.trim() ? 0.5 : 1, display: "flex", alignItems: "center", gap: 4 }}><Check size={13} /> Approve</button>
-        <button disabled={!note.trim()} onClick={() => onReview(entry, "declined", note)} style={{ background: "#C1432B", color: "#fff", border: "none", borderRadius: 6, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, opacity: !note.trim() ? 0.5 : 1, display: "flex", alignItems: "center", gap: 4 }}><X size={13} /> Decline</button>
+        <button disabled={needsNote && !note.trim()} onClick={() => onReview(entry, analyteName, "approved", note)} style={{ background: "#2F6B4F", color: "#fff", border: "none", borderRadius: 6, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, opacity: needsNote && !note.trim() ? 0.5 : 1, display: "flex", alignItems: "center", gap: 4 }}><Check size={13} /> Approve</button>
+        <button disabled={!note.trim()} onClick={() => onReview(entry, analyteName, "declined", note)} style={{ background: "#C1432B", color: "#fff", border: "none", borderRadius: 6, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, opacity: !note.trim() ? 0.5 : 1, display: "flex", alignItems: "center", gap: 4 }}><X size={13} /> Decline</button>
       </div>
     </div>
   );

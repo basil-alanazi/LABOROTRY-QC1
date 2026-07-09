@@ -41,6 +41,7 @@ create table if not exists qc_entries (
   values jsonb not null default '{}'::jsonb,  -- {"Glu": 92, "UA": 5.6, ...}
   colors jsonb not null default '{}'::jsonb,  -- {"Glu": "green", "UA": "orange", ...}
   flags jsonb not null default '{}'::jsonb,   -- {"Glu": ["1-2s (warning)"], ...}
+  reviews jsonb not null default '{}'::jsonb, -- {"Glu": {"status":"approved","note":"","by":"basil","at":"..."}}
   done_by text not null,           -- auto-filled from the logged-in user who submitted
   review_status text not null default 'pending', -- pending | approved | declined
   review_note text not null default '',

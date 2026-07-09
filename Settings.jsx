@@ -6,7 +6,7 @@ const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7
 const labelStyle = { fontSize: 12.5, fontWeight: 600, color: "#516361" };
 
 function emptyAnalyte() {
-  return { name: "", unit: "" };
+  return { name: "", unit: "", mean: "", sd: "" };
 }
 
 export default function Settings({ config, panels, role, staffAccounts, reload }) {
@@ -30,6 +30,22 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
   const [msg, setMsg] = useState("");
   const [editingLotId, setEditingLotId] = useState(null);
   const [editLot, setEditLot] = useState("");
+  const [baselineEditId, setBaselineEditId] = useState(null);
+  const [baselineValues, setBaselineValues] = useState({});
+
+  async function saveManualBaselines(panel) {
+    for (const [analyteName, v] of Object.entries(baselineValues)) {
+      if (v.mean === "" || v.sd === "") continue;
+      await supabase.from("qc_baselines").update({ active: false }).eq("panel_id", panel.id).eq("analyte_name", analyteName).eq("lot_number", panel.lot_number).eq("active", true);
+      await supabase.from("qc_baselines").insert({
+        panel_id: panel.id, analyte_name: analyteName, lot_number: panel.lot_number,
+        mean: Number(v.mean), sd: Number(v.sd), point_count: 0,
+      });
+    }
+    setBaselineEditId(null);
+    setBaselineValues({});
+    reload();
+  }
 
   async function addStaffAccount() {
     if (!newStaff.username || !newStaff.password) return;
@@ -67,7 +83,18 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
 
   async function addPanel() {
     if (!form.name || analytes.some((l) => !l.name)) return;
-    await supabase.from("qc_panels").insert({ ...form, analytes });
+    const cleanAnalytes = analytes.map(({ name, unit }) => ({ name, unit }));
+    const { data: newPanel } = await supabase.from("qc_panels").insert({ ...form, analytes: cleanAnalytes }).select().single();
+    if (newPanel) {
+      for (const a of analytes) {
+        if (a.mean !== "" && a.sd !== "" && form.lot_number) {
+          await supabase.from("qc_baselines").insert({
+            panel_id: newPanel.id, analyte_name: a.name, lot_number: form.lot_number,
+            mean: Number(a.mean), sd: Number(a.sd), point_count: 0,
+          });
+        }
+      }
+    }
     setForm({ name: "", department: departments[0] || "", device: "", lot_number: "" });
     setAnalytes([emptyAnalyte()]);
     reload();
@@ -143,10 +170,13 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
         </div>
 
         <div style={{ fontSize: 11.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 6 }}>ANALYTES (rows in the grid)</div>
+        <div style={{ fontSize: 11, color: "#8A9694", marginBottom: 6 }}>Mean/SD are optional — leave blank to let Westgard build the baseline automatically from the first 20 results.</div>
         {analytes.map((l, i) => (
           <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
             <input placeholder="Name, e.g. Glu" value={l.name} onChange={(e) => updateAnalyte(i, "name", e.target.value)} style={{ ...inputStyle, flex: 2, marginTop: 0 }} />
-            <input placeholder="Unit (optional)" value={l.unit} onChange={(e) => updateAnalyte(i, "unit", e.target.value)} style={{ ...inputStyle, flex: 1, marginTop: 0 }} />
+            <input placeholder="Unit" value={l.unit} onChange={(e) => updateAnalyte(i, "unit", e.target.value)} style={{ ...inputStyle, flex: 1, marginTop: 0 }} />
+            <input placeholder="Mean (optional)" type="number" value={l.mean} onChange={(e) => updateAnalyte(i, "mean", e.target.value)} style={{ ...inputStyle, width: 100, marginTop: 0 }} />
+            <input placeholder="SD (optional)" type="number" value={l.sd} onChange={(e) => updateAnalyte(i, "sd", e.target.value)} style={{ ...inputStyle, width: 90, marginTop: 0 }} />
             {analytes.length > 1 && (
               <button onClick={() => removeAnalyteRow(i)} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={15} /></button>
             )}
@@ -184,9 +214,26 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
                 <>
                   <div style={{ fontSize: 12, color: "#516361" }}>Current lot: <b>{p.lot_number || "—"}</b></div>
                   <button onClick={() => { setEditingLotId(p.id); setEditLot(p.lot_number || ""); }} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 12, fontWeight: 600 }}>Change lot (new baseline)</button>
+                  <button onClick={() => { setBaselineEditId(p.id); setBaselineValues({}); }} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 12, fontWeight: 600 }}>Set mean/SD manually</button>
                 </>
               )}
             </div>
+            {baselineEditId === p.id && (
+              <div style={{ marginTop: 10, background: "#F7F9F8", borderRadius: 7, padding: 10 }}>
+                <div style={{ fontSize: 11, color: "#8A9694", marginBottom: 6 }}>Applies to lot <b>{p.lot_number || "—"}</b>. Leave blank for analytes you don't want to set manually.</div>
+                {(p.analytes || []).map((a) => (
+                  <div key={a.name} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+                    <div style={{ width: 70, fontSize: 12.5, fontWeight: 600 }}>{a.name}</div>
+                    <input placeholder="Mean" type="number" value={baselineValues[a.name]?.mean ?? ""} onChange={(e) => setBaselineValues((b) => ({ ...b, [a.name]: { ...b[a.name], mean: e.target.value } }))} style={{ ...inputStyle, width: 90, marginTop: 0 }} />
+                    <input placeholder="SD" type="number" value={baselineValues[a.name]?.sd ?? ""} onChange={(e) => setBaselineValues((b) => ({ ...b, [a.name]: { ...b[a.name], sd: e.target.value } }))} style={{ ...inputStyle, width: 80, marginTop: 0 }} />
+                  </div>
+                ))}
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button onClick={() => saveManualBaselines(p)} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 12 }}>Save baselines</button>
+                  <button onClick={() => setBaselineEditId(null)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "6px 14px", fontSize: 12 }}>Cancel</button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
