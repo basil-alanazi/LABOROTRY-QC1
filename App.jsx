@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, Ruler } from "lucide-react";
+import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, Ruler, BarChart3 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import Settings from "./Settings";
 import CustomTables from "./CustomTables";
 import Files from "./Files";
+import LeveyJennings from "./Charts";
 import { evaluateWestgard, zScore, RULE_DESCRIPTIONS } from "./westgard";
 
 const DEPT_PALETTE = ["#0F7173", "#B5473A", "#8A5A2B", "#5A6ACF", "#2F8F5B", "#B8860B", "#7A4FA3", "#C1432B"];
@@ -188,6 +189,19 @@ export default function App() {
     loadAll();
   }
 
+  async function reviewAnalytesBulk(entry, analyteNames, decision, note) {
+    if (role !== "admin" && role !== "super") return;
+    const reviews = { ...(entry.reviews || {}) };
+    const at = new Date().toISOString();
+    analyteNames.forEach((name) => {
+      reviews[name] = { status: decision, note: note || "", by: username, at };
+    });
+    await supabase.from("qc_entries").update({ reviews }).eq("id", entry.id);
+    const panel = panels.find((p) => p.id === entry.panel_id);
+    await logActivity(decision, `${panel ? panel.name : "Unknown"} — ${entry.date} — ${analyteNames.join(", ")} → ${decision.toUpperCase()}`);
+    loadAll();
+  }
+
   const activeEntries = useMemo(() => (entries || []).filter((e) => !e.deleted), [entries]);
   const pendingItems = useMemo(() => {
     const items = [];
@@ -227,6 +241,7 @@ export default function App() {
             <NavBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={<LayoutGrid size={15} />} label="QC Entry" />
             <NavBtn active={tab === "grid"} onClick={() => setTab("grid")} icon={<Grid3x3 size={15} />} label="Monthly grid" />
             <NavBtn active={tab === "ranges"} onClick={() => setTab("ranges")} icon={<Ruler size={15} />} label="Ranges" />
+            <NavBtn active={tab === "chart"} onClick={() => setTab("chart")} icon={<BarChart3 size={15} />} label="Chart" />
             <NavBtn active={tab === "export"} onClick={() => setTab("export")} icon={<Download size={15} />} label="Export" />
             {(role === "admin" || role === "super") && (
               <NavBtn active={tab === "approvals"} onClick={() => setTab("approvals")} icon={<ClipboardCheck size={15} />} label={`Approvals${pendingItems.length ? ` (${pendingItems.length})` : ""}`} />
@@ -243,8 +258,9 @@ export default function App() {
         {tab === "dashboard" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} />}
         {tab === "grid" && <MonthlyGrid panels={panels} entries={activeEntries} />}
         {tab === "ranges" && <Ranges panels={panels} baselines={baselines} entries={activeEntries} />}
+        {tab === "chart" && <LeveyJennings panels={panels} entries={activeEntries} baselines={baselines} />}
         {tab === "export" && <ExportPage panels={panels} entries={activeEntries} />}
-        {tab === "approvals" && (role === "admin" || role === "super") && <Approvals items={pendingItems} panels={panels} onReview={reviewAnalyte} />}
+        {tab === "approvals" && (role === "admin" || role === "super") && <Approvals items={pendingItems} panels={panels} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk} />}
         {tab === "settings" && (role === "admin" || role === "super") && <Settings config={config} panels={panels} role={role} staffAccounts={staffAccounts} reload={() => { ensureConfig(); loadAll(); }} />}
         {tab === "tables" && <CustomTables departments={config.departments || []} role={role} username={username} />}
         {tab === "files" && <Files role={role} username={username} />}
@@ -705,40 +721,80 @@ function ExportPage({ panels, entries }) {
   );
 }
 
-function Approvals({ items, panels, onReview }) {
-  if (items.length === 0) return <div style={{ textAlign: "center", padding: "60px 20px", color: "#8A9694", fontSize: 13.5 }}>Nothing waiting for review. 🎉</div>;
+function Approvals({ items, panels, onReview, onReviewBulk }) {
+  const groups = useMemo(() => {
+    const map = {};
+    items.forEach(({ entry, analyteName }) => {
+      if (!map[entry.id]) map[entry.id] = { entry, analytes: [] };
+      map[entry.id].analytes.push(analyteName);
+    });
+    return Object.values(map).sort((a, b) => new Date(b.entry.created_at) - new Date(a.entry.created_at));
+  }, [items]);
+
+  if (groups.length === 0) return <div style={{ textAlign: "center", padding: "60px 20px", color: "#8A9694", fontSize: 13.5 }}>Nothing waiting for review. 🎉</div>;
   return (
     <div>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Approvals</h2>
-      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Review each result on its own. A note is required to decline, and also required to approve a non-green result.</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {[...items].sort((a, b) => new Date(b.entry.created_at) - new Date(a.entry.created_at)).map(({ entry, analyteName }) => (
-          <ApprovalRow key={`${entry.id}-${analyteName}`} entry={entry} analyteName={analyteName} panel={panels.find((p) => p.id === entry.panel_id)} onReview={onReview} />
+      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>All items are pre-selected — just click Approve to accept everything, or untick what you don't want and Decline it.</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {groups.map(({ entry, analytes }) => (
+          <ApprovalEntryCard key={entry.id} entry={entry} analytes={analytes} panel={panels.find((p) => p.id === entry.panel_id)} onReview={onReview} onReviewBulk={onReviewBulk} />
         ))}
       </div>
     </div>
   );
 }
 
-function ApprovalRow({ entry, analyteName, panel, onReview }) {
+function ApprovalEntryCard({ entry, analytes, panel, onReview, onReviewBulk }) {
+  const [selected, setSelected] = useState(() => new Set(analytes));
   const [note, setNote] = useState("");
-  const color = entry.colors?.[analyteName] || "pending";
-  const needsNote = (colorRank[color] ?? 0) > 0;
-  const value = entry.values?.[analyteName];
+
+  function toggle(name) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  }
+
+  const selectedNames = analytes.filter((n) => selected.has(n));
+  const needsNote = selectedNames.some((n) => (colorRank[entry.colors?.[n]] ?? 0) > 0);
 
   return (
     <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "12px 16px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
-        <div style={{ fontWeight: 700, fontSize: 14 }}>{panel ? panel.name : "Unknown"} — {analyteName}</div>
-        <div style={{ fontSize: 12 }}>{value}{panel?.analytes?.find((a) => a.name === analyteName)?.unit}</div>
-        <span style={{ fontSize: 10.5, background: COLOR_META[color].bg, color: COLOR_META[color].fg, padding: "3px 8px", borderRadius: 5, fontWeight: 700 }}>{color}</span>
+        <div style={{ fontWeight: 700, fontSize: 14 }}>{panel ? panel.name : "Unknown"}</div>
         <div style={{ fontSize: 12, color: "#8A9694" }}>{entry.date} · by {entry.done_by}</div>
       </div>
-      {needsNote && <div style={{ fontSize: 11.5, color: "#8A2E1F", marginBottom: 6 }}>This result isn't green — a note is required even to approve it.</div>}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+        {analytes.map((name) => {
+          const color = entry.colors?.[name] || "pending";
+          const m = COLOR_META[color];
+          return (
+            <label key={name} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, background: "#F7F9F8", borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>
+              <input type="checkbox" checked={selected.has(name)} onChange={() => toggle(name)} />
+              <span style={{ fontWeight: 600, flex: 1 }}>{name}</span>
+              <span>{entry.values?.[name]}{panel?.analytes?.find((a) => a.name === name)?.unit}</span>
+              <span style={{ fontSize: 10, background: m.bg, color: m.fg, padding: "2px 7px", borderRadius: 4, fontWeight: 700 }}>{color}</span>
+            </label>
+          );
+        })}
+      </div>
+
+      {needsNote && <div style={{ fontSize: 11.5, color: "#8A2E1F", marginBottom: 6 }}>A selected result isn't green — a note is required even to approve it.</div>}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={needsNote ? "Note (required)" : "Note (optional)"} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
-        <button disabled={needsNote && !note.trim()} onClick={() => onReview(entry, analyteName, "approved", note)} style={{ background: "#2F6B4F", color: "#fff", border: "none", borderRadius: 6, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, opacity: needsNote && !note.trim() ? 0.5 : 1, display: "flex", alignItems: "center", gap: 4 }}><Check size={13} /> Approve</button>
-        <button disabled={!note.trim()} onClick={() => onReview(entry, analyteName, "declined", note)} style={{ background: "#C1432B", color: "#fff", border: "none", borderRadius: 6, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, opacity: !note.trim() ? 0.5 : 1, display: "flex", alignItems: "center", gap: 4 }}><X size={13} /> Decline</button>
+        <button
+          disabled={selectedNames.length === 0 || (needsNote && !note.trim())}
+          onClick={() => onReviewBulk(entry, selectedNames, "approved", note)}
+          style={{ background: "#2F6B4F", color: "#fff", border: "none", borderRadius: 6, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, opacity: selectedNames.length === 0 || (needsNote && !note.trim()) ? 0.5 : 1, display: "flex", alignItems: "center", gap: 4 }}
+        ><Check size={13} /> Approve selected ({selectedNames.length})</button>
+        <button
+          disabled={selectedNames.length === 0 || !note.trim()}
+          onClick={() => onReviewBulk(entry, selectedNames, "declined", note)}
+          style={{ background: "#C1432B", color: "#fff", border: "none", borderRadius: 6, padding: "8px 14px", fontSize: 12.5, fontWeight: 700, opacity: selectedNames.length === 0 || !note.trim() ? 0.5 : 1, display: "flex", alignItems: "center", gap: 4 }}
+        ><X size={13} /> Decline selected ({selectedNames.length})</button>
       </div>
     </div>
   );

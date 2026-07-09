@@ -6,7 +6,21 @@ const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7
 const labelStyle = { fontSize: 12.5, fontWeight: 600, color: "#516361" };
 
 function emptyAnalyte() {
-  return { name: "", unit: "", mean: "", sd: "" };
+  return { name: "", unit: "", mean: "", sd: "", rangeLow: "", rangeHigh: "" };
+}
+
+// Accepts either Mean+SD directly, or a Normal Range (Low-High) which is
+// converted assuming the range represents roughly ±2 SD around the mean.
+function resolveMeanSd(a) {
+  const mean = a.mean ?? "", sd = a.sd ?? "", rangeLow = a.rangeLow ?? "", rangeHigh = a.rangeHigh ?? "";
+  if (mean !== "" && sd !== "") return { mean: Number(mean), sd: Number(sd) };
+  if (rangeLow !== "" && rangeHigh !== "") {
+    const low = Number(rangeLow), high = Number(rangeHigh);
+    const computedMean = (low + high) / 2;
+    const computedSd = (high - low) / 4;
+    return { mean: computedMean, sd: computedSd || 0.0001 };
+  }
+  return { mean: null, sd: null };
 }
 
 export default function Settings({ config, panels, role, staffAccounts, reload }) {
@@ -32,14 +46,39 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
   const [editLot, setEditLot] = useState("");
   const [baselineEditId, setBaselineEditId] = useState(null);
   const [baselineValues, setBaselineValues] = useState({});
+  const [editPanelId, setEditPanelId] = useState(null);
+  const [editPanelForm, setEditPanelForm] = useState({ name: "", department: "", device: "" });
+  const [editPanelAnalytes, setEditPanelAnalytes] = useState([]);
+
+  function startEditPanel(p) {
+    setEditPanelId(p.id);
+    setEditPanelForm({ name: p.name, department: p.department, device: p.device || "" });
+    setEditPanelAnalytes((p.analytes || []).map((a) => ({ ...a })));
+  }
+  function updateEditAnalyte(i, key, value) {
+    setEditPanelAnalytes((ls) => ls.map((l, idx) => (idx === i ? { ...l, [key]: value } : l)));
+  }
+  function addEditAnalyteRow() {
+    setEditPanelAnalytes((ls) => [...ls, { name: "", unit: "" }]);
+  }
+  function removeEditAnalyteRow(i) {
+    setEditPanelAnalytes((ls) => ls.filter((_, idx) => idx !== i));
+  }
+  async function savePanelEdit() {
+    const cleanAnalytes = editPanelAnalytes.map((a) => ({ name: a.name, unit: a.unit })).filter((a) => a.name);
+    await supabase.from("qc_panels").update({ ...editPanelForm, analytes: cleanAnalytes }).eq("id", editPanelId);
+    setEditPanelId(null);
+    reload();
+  }
 
   async function saveManualBaselines(panel) {
     for (const [analyteName, v] of Object.entries(baselineValues)) {
-      if (v.mean === "" || v.sd === "") continue;
+      const { mean, sd } = resolveMeanSd(v);
+      if (mean === null) continue;
       await supabase.from("qc_baselines").update({ active: false }).eq("panel_id", panel.id).eq("analyte_name", analyteName).eq("lot_number", panel.lot_number).eq("active", true);
       await supabase.from("qc_baselines").insert({
         panel_id: panel.id, analyte_name: analyteName, lot_number: panel.lot_number,
-        mean: Number(v.mean), sd: Number(v.sd), point_count: 0,
+        mean, sd, point_count: 0,
       });
     }
     setBaselineEditId(null);
@@ -87,10 +126,11 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
     const { data: newPanel } = await supabase.from("qc_panels").insert({ ...form, analytes: cleanAnalytes }).select().single();
     if (newPanel) {
       for (const a of analytes) {
-        if (a.mean !== "" && a.sd !== "" && form.lot_number) {
+        const { mean, sd } = resolveMeanSd(a);
+        if (mean !== null && sd !== null && form.lot_number) {
           await supabase.from("qc_baselines").insert({
             panel_id: newPanel.id, analyte_name: a.name, lot_number: form.lot_number,
-            mean: Number(a.mean), sd: Number(a.sd), point_count: 0,
+            mean, sd, point_count: 0,
           });
         }
       }
@@ -170,16 +210,27 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
         </div>
 
         <div style={{ fontSize: 11.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 6 }}>ANALYTES (rows in the grid)</div>
-        <div style={{ fontSize: 11, color: "#8A9694", marginBottom: 6 }}>Mean/SD are optional — leave blank to let Westgard build the baseline automatically from the first 20 results.</div>
+        <div style={{ fontSize: 11, color: "#8A9694", marginBottom: 6 }}>
+          Fill in EITHER "Normal Range (Low–High)" OR "Mean/SD" — whichever you have. Leave both blank to let Westgard build the baseline automatically from the first 20 results.
+        </div>
         {analytes.map((l, i) => (
-          <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
-            <input placeholder="Name, e.g. Glu" value={l.name} onChange={(e) => updateAnalyte(i, "name", e.target.value)} style={{ ...inputStyle, flex: 2, marginTop: 0 }} />
-            <input placeholder="Unit" value={l.unit} onChange={(e) => updateAnalyte(i, "unit", e.target.value)} style={{ ...inputStyle, flex: 1, marginTop: 0 }} />
-            <input placeholder="Mean (optional)" type="number" value={l.mean} onChange={(e) => updateAnalyte(i, "mean", e.target.value)} style={{ ...inputStyle, width: 100, marginTop: 0 }} />
-            <input placeholder="SD (optional)" type="number" value={l.sd} onChange={(e) => updateAnalyte(i, "sd", e.target.value)} style={{ ...inputStyle, width: 90, marginTop: 0 }} />
-            {analytes.length > 1 && (
-              <button onClick={() => removeAnalyteRow(i)} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={15} /></button>
-            )}
+          <div key={i} style={{ border: "1px solid #E1E8E5", borderRadius: 7, padding: 8, marginBottom: 8 }}>
+            <div style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+              <input placeholder="Name, e.g. Glu" value={l.name} onChange={(e) => updateAnalyte(i, "name", e.target.value)} style={{ ...inputStyle, flex: 2, marginTop: 0 }} />
+              <input placeholder="Unit" value={l.unit} onChange={(e) => updateAnalyte(i, "unit", e.target.value)} style={{ ...inputStyle, flex: 1, marginTop: 0 }} />
+              {analytes.length > 1 && (
+                <button onClick={() => removeAnalyteRow(i)} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={15} /></button>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ fontSize: 10.5, color: "#8A9694", width: 95 }}>Normal Range</span>
+              <input placeholder="Low" type="number" value={l.rangeLow} onChange={(e) => updateAnalyte(i, "rangeLow", e.target.value)} style={{ ...inputStyle, width: 80, marginTop: 0 }} />
+              <span style={{ fontSize: 12, color: "#8A9694" }}>–</span>
+              <input placeholder="High" type="number" value={l.rangeHigh} onChange={(e) => updateAnalyte(i, "rangeHigh", e.target.value)} style={{ ...inputStyle, width: 80, marginTop: 0 }} />
+              <span style={{ fontSize: 11, color: "#C7D1CE" }}>or</span>
+              <input placeholder="Mean" type="number" value={l.mean} onChange={(e) => updateAnalyte(i, "mean", e.target.value)} style={{ ...inputStyle, width: 80, marginTop: 0 }} />
+              <input placeholder="SD" type="number" value={l.sd} onChange={(e) => updateAnalyte(i, "sd", e.target.value)} style={{ ...inputStyle, width: 70, marginTop: 0 }} />
+            </div>
           </div>
         ))}
         <button onClick={addAnalyteRow} style={{ background: "none", border: "1px dashed #C7D1CE", color: "#0F7173", borderRadius: 7, padding: "6px 12px", fontSize: 12.5, fontWeight: 600, marginTop: 4, marginBottom: 10 }}>+ Add another analyte</button>
@@ -198,11 +249,38 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <div style={{ flex: 1, fontWeight: 600, fontSize: 13.5 }}>{p.name}</div>
               <div style={{ fontSize: 12, color: "#7B8E8A" }}>{p.department}</div>
+              <button onClick={() => startEditPanel(p)} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 12, fontWeight: 600 }}>Edit panel</button>
               <button onClick={() => deletePanel(p.id)} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={15} /></button>
             </div>
             <div style={{ fontSize: 11.5, color: "#8A9694", marginTop: 4 }}>
               {(p.analytes || []).map((a) => a.name).join(", ")}
             </div>
+
+            {editPanelId === p.id && (
+              <div style={{ marginTop: 10, background: "#F7F9F8", borderRadius: 7, padding: 10 }}>
+                <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+                  <input placeholder="Panel name" value={editPanelForm.name} onChange={(e) => setEditPanelForm((f) => ({ ...f, name: e.target.value }))} style={{ ...inputStyle, flex: 2, minWidth: 160, marginTop: 0 }} />
+                  <select value={editPanelForm.department} onChange={(e) => setEditPanelForm((f) => ({ ...f, department: e.target.value }))} style={{ ...inputStyle, flex: 1, minWidth: 110, marginTop: 0 }}>
+                    {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <input placeholder="Device" value={editPanelForm.device} onChange={(e) => setEditPanelForm((f) => ({ ...f, device: e.target.value }))} style={{ ...inputStyle, flex: 1, minWidth: 110, marginTop: 0 }} />
+                </div>
+                <div style={{ fontSize: 11, color: "#8A9694", marginBottom: 6 }}>Add, rename, or remove analytes. Renaming an analyte starts a fresh Westgard baseline for it.</div>
+                {editPanelAnalytes.map((a, i) => (
+                  <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                    <input placeholder="Name" value={a.name} onChange={(e) => updateEditAnalyte(i, "name", e.target.value)} style={{ ...inputStyle, flex: 2, marginTop: 0 }} />
+                    <input placeholder="Unit" value={a.unit} onChange={(e) => updateEditAnalyte(i, "unit", e.target.value)} style={{ ...inputStyle, flex: 1, marginTop: 0 }} />
+                    <button onClick={() => removeEditAnalyteRow(i)} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={15} /></button>
+                  </div>
+                ))}
+                <button onClick={addEditAnalyteRow} style={{ background: "none", border: "1px dashed #C7D1CE", color: "#0F7173", borderRadius: 7, padding: "6px 12px", fontSize: 12.5, fontWeight: 600, marginBottom: 10 }}>+ Add analyte</button>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={savePanelEdit} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 12 }}>Save changes</button>
+                  <button onClick={() => setEditPanelId(null)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "6px 14px", fontSize: 12 }}>Cancel</button>
+                </div>
+              </div>
+            )}
+
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
               {editingLotId === p.id ? (
                 <>
@@ -224,8 +302,11 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
                 {(p.analytes || []).map((a) => (
                   <div key={a.name} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
                     <div style={{ width: 70, fontSize: 12.5, fontWeight: 600 }}>{a.name}</div>
-                    <input placeholder="Mean" type="number" value={baselineValues[a.name]?.mean ?? ""} onChange={(e) => setBaselineValues((b) => ({ ...b, [a.name]: { ...b[a.name], mean: e.target.value } }))} style={{ ...inputStyle, width: 90, marginTop: 0 }} />
-                    <input placeholder="SD" type="number" value={baselineValues[a.name]?.sd ?? ""} onChange={(e) => setBaselineValues((b) => ({ ...b, [a.name]: { ...b[a.name], sd: e.target.value } }))} style={{ ...inputStyle, width: 80, marginTop: 0 }} />
+                    <input placeholder="Low" type="number" value={baselineValues[a.name]?.rangeLow ?? ""} onChange={(e) => setBaselineValues((b) => ({ ...b, [a.name]: { mean: "", sd: "", rangeLow: "", rangeHigh: "", ...b[a.name], rangeLow: e.target.value } }))} style={{ ...inputStyle, width: 70, marginTop: 0 }} />
+                    <input placeholder="High" type="number" value={baselineValues[a.name]?.rangeHigh ?? ""} onChange={(e) => setBaselineValues((b) => ({ ...b, [a.name]: { mean: "", sd: "", rangeLow: "", rangeHigh: "", ...b[a.name], rangeHigh: e.target.value } }))} style={{ ...inputStyle, width: 70, marginTop: 0 }} />
+                    <span style={{ fontSize: 10, color: "#C7D1CE" }}>or</span>
+                    <input placeholder="Mean" type="number" value={baselineValues[a.name]?.mean ?? ""} onChange={(e) => setBaselineValues((b) => ({ ...b, [a.name]: { mean: "", sd: "", rangeLow: "", rangeHigh: "", ...b[a.name], mean: e.target.value } }))} style={{ ...inputStyle, width: 80, marginTop: 0 }} />
+                    <input placeholder="SD" type="number" value={baselineValues[a.name]?.sd ?? ""} onChange={(e) => setBaselineValues((b) => ({ ...b, [a.name]: { mean: "", sd: "", rangeLow: "", rangeHigh: "", ...b[a.name], sd: e.target.value } }))} style={{ ...inputStyle, width: 70, marginTop: 0 }} />
                   </div>
                 ))}
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
