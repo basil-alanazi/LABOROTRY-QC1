@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, Ruler, BarChart3 } from "lucide-react";
+import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import Settings from "./Settings";
@@ -240,7 +240,6 @@ export default function App() {
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <NavBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={<LayoutGrid size={15} />} label="QC Entry" />
             <NavBtn active={tab === "grid"} onClick={() => setTab("grid")} icon={<Grid3x3 size={15} />} label="Monthly grid" />
-            <NavBtn active={tab === "ranges"} onClick={() => setTab("ranges")} icon={<Ruler size={15} />} label="Ranges" />
             <NavBtn active={tab === "chart"} onClick={() => setTab("chart")} icon={<BarChart3 size={15} />} label="Chart" />
             <NavBtn active={tab === "export"} onClick={() => setTab("export")} icon={<Download size={15} />} label="Export" />
             {(role === "admin" || role === "super") && (
@@ -257,7 +256,6 @@ export default function App() {
       <main style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px" }}>
         {tab === "dashboard" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} />}
         {tab === "grid" && <MonthlyGrid panels={panels} entries={activeEntries} />}
-        {tab === "ranges" && <Ranges panels={panels} baselines={baselines} entries={activeEntries} />}
         {tab === "chart" && <LeveyJennings panels={panels} entries={activeEntries} baselines={baselines} />}
         {tab === "export" && <ExportPage panels={panels} entries={activeEntries} />}
         {tab === "approvals" && (role === "admin" || role === "super") && <Approvals items={pendingItems} panels={panels} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk} />}
@@ -416,8 +414,8 @@ function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, 
           <thead>
             <tr style={{ background: "#F0F3F2" }}>
               <th style={{ padding: "8px 12px", textAlign: "left" }}>Item</th>
+              <th style={{ padding: "8px 12px", textAlign: "left" }}>Normal Range</th>
               <th style={{ padding: "8px 12px", textAlign: "left" }}>Result</th>
-              {!showForm && <th style={{ padding: "8px 12px", textAlign: "left" }}>Westgard</th>}
               {!showForm && <th style={{ padding: "8px 12px", textAlign: "left" }}>Review</th>}
             </tr>
           </thead>
@@ -427,9 +425,13 @@ function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, 
               const color = entry?.colors?.[a.name];
               const m = color ? COLOR_META[color] : null;
               const rev = entry?.reviews?.[a.name];
+              const baseline = baselines.find((b) => b.panel_id === panel.id && b.analyte_name === a.name && b.lot_number === panel.lot_number);
               return (
                 <tr key={a.name} style={{ borderTop: "1px solid #EEF2F0" }}>
                   <td style={{ padding: "7px 12px", fontWeight: 600 }}>{a.name}{a.unit ? <span style={{ color: "#8A9694", fontWeight: 400 }}> ({a.unit})</span> : ""}</td>
+                  <td style={{ padding: "7px 12px", fontSize: 12, color: "#516361" }}>
+                    {baseline ? `${(baseline.mean - 2 * baseline.sd).toFixed(2)} – ${(baseline.mean + 2 * baseline.sd).toFixed(2)}` : <span style={{ color: "#B8860B" }}>establishing…</span>}
+                  </td>
                   <td style={{ padding: "7px 12px" }}>
                     {showForm ? (
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -444,19 +446,11 @@ function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, 
                             borderWidth: 2,
                           }}
                         />
-                        {livePreviewColor(a.name, values[a.name]) && (
-                          <span style={{ fontSize: 10, fontWeight: 700, color: COLOR_META[livePreviewColor(a.name, values[a.name])].fg }}>
-                            {livePreviewColor(a.name, values[a.name])}
-                          </span>
-                        )}
                       </div>
-                    ) : (val ?? "—")}
+                    ) : (
+                      val === undefined ? "—" : (m ? <span style={{ fontSize: 13, fontWeight: 700, color: m.fg, background: m.bg, padding: "3px 10px", borderRadius: 5 }}>{val}</span> : val)
+                    )}
                   </td>
-                  {!showForm && (
-                    <td style={{ padding: "7px 12px" }}>
-                      {m ? <span title={(entry.flags?.[a.name] || []).map((f) => RULE_DESCRIPTIONS[f]).join("; ")} style={{ fontSize: 11, background: m.bg, color: m.fg, padding: "3px 8px", borderRadius: 5, fontWeight: 700 }}>{color}</span> : ""}
-                    </td>
-                  )}
                   {!showForm && (
                     <td style={{ padding: "7px 12px" }}>
                       {val === undefined ? "" : (
@@ -607,49 +601,6 @@ function MonthlyGrid({ panels, entries }) {
 
 // ---------- Approvals ----------
 
-function Ranges({ panels, baselines, entries }) {
-  if (panels.length === 0) return <div style={{ textAlign: "center", padding: "60px 20px", color: "#8A9694" }}>No QC panels set up yet.</div>;
-  return (
-    <div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Normal ranges (Westgard)</h2>
-      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Mean/SD are either set manually in Settings, or calculated automatically once 20 results exist for a lot. Everything below updates live as you enter results.</div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {panels.map((p) => (
-          <div key={p.id} style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "14px 16px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <div style={{ fontWeight: 700, fontSize: 14.5 }}>{p.name}</div>
-              <div style={{ fontSize: 11.5, color: "#8A9694" }}>lot {p.lot_number || "—"}</div>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {(p.analytes || []).map((a) => {
-                const baseline = baselines.find((b) => b.panel_id === p.id && b.analyte_name === a.name && b.lot_number === p.lot_number);
-                const count = entries.filter((e) => e.panel_id === p.id && e.lot_number === p.lot_number && e.values?.[a.name] !== undefined).length;
-                return (
-                  <div key={a.name} style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7F9F8", borderRadius: 7, padding: "8px 12px", flexWrap: "wrap" }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, minWidth: 60 }}>{a.name}</div>
-                    {baseline ? (
-                      <>
-                        <div style={{ fontSize: 12.5 }}>Mean <b>{baseline.mean.toFixed(2)}</b> {a.unit}</div>
-                        <div style={{ fontSize: 12.5 }}>SD <b>{baseline.sd.toFixed(2)}</b></div>
-                        <div style={{ fontSize: 12.5, color: "#2F6B4F" }}>Normal (±2SD): {(baseline.mean - 2 * baseline.sd).toFixed(2)}–{(baseline.mean + 2 * baseline.sd).toFixed(2)}</div>
-                        <div style={{ fontSize: 12.5, color: "#C1432B" }}>Reject (±3SD): {(baseline.mean - 3 * baseline.sd).toFixed(2)}–{(baseline.mean + 3 * baseline.sd).toFixed(2)}</div>
-                        <div style={{ fontSize: 11, color: "#8A9694" }}>{baseline.point_count === 0 ? "set manually" : `from ${baseline.point_count} results`}</div>
-                      </>
-                    ) : (
-                      <div style={{ fontSize: 12.5, color: "#B8860B" }}>Establishing baseline — {count}/20 results so far</div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function ExportPage({ panels, entries }) {
   const [dateFrom, setDateFrom] = useState(firstOfMonth());
   const [dateTo, setDateTo] = useState(todayISO());
@@ -771,12 +722,18 @@ function ApprovalEntryCard({ entry, analytes, panel, onReview, onReviewBulk }) {
         {analytes.map((name) => {
           const color = entry.colors?.[name] || "pending";
           const m = COLOR_META[color];
+          const flags = entry.flags?.[name] || [];
           return (
-            <label key={name} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, background: "#F7F9F8", borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>
-              <input type="checkbox" checked={selected.has(name)} onChange={() => toggle(name)} />
-              <span style={{ fontWeight: 600, flex: 1 }}>{name}</span>
-              <span>{entry.values?.[name]}{panel?.analytes?.find((a) => a.name === name)?.unit}</span>
-              <span style={{ fontSize: 10, background: m.bg, color: m.fg, padding: "2px 7px", borderRadius: 4, fontWeight: 700 }}>{color}</span>
+            <label key={name} style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: 13, background: "#F7F9F8", borderRadius: 6, padding: "6px 10px", cursor: "pointer" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input type="checkbox" checked={selected.has(name)} onChange={() => toggle(name)} />
+                <span style={{ fontWeight: 600, flex: 1 }}>{name}</span>
+                <span>{entry.values?.[name]}{panel?.analytes?.find((a) => a.name === name)?.unit}</span>
+                <span style={{ fontSize: 10, background: m.bg, color: m.fg, padding: "2px 7px", borderRadius: 4, fontWeight: 700 }}>{color}</span>
+              </div>
+              {flags.length > 0 && (
+                <div style={{ fontSize: 10.5, color: "#8A2E1F", marginLeft: 24 }}>{flags.map((f) => RULE_DESCRIPTIONS[f] || f).join(" · ")}</div>
+              )}
             </label>
           );
         })}
