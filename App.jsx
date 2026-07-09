@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award, FileText, Users, Calendar, Menu, Home, ChevronDown, ChevronRight } from "lucide-react";
+import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award, FileText, Users, Calendar, Menu, Home, ChevronDown, ChevronRight, Wrench } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import Settings from "./Settings";
@@ -15,6 +15,8 @@ import HomePage from "./HomePage";
 import AuditTrail from "./AuditTrail";
 import SmartSearch from "./SmartSearch";
 import KPI from "./KPI";
+import Equipment from "./Equipment";
+import LotComparison from "./LotComparison";
 import { evaluateWestgard, zScore, RULE_DESCRIPTIONS } from "./westgard";
 
 const DEPT_PALETTE = ["#0F7173", "#B5473A", "#8A5A2B", "#5A6ACF", "#2F8F5B", "#B8860B", "#7A4FA3", "#C1432B"];
@@ -343,6 +345,8 @@ export default function App() {
         {tab === "settings" && (role === "admin" || role === "super") && <Settings config={config} panels={panels} role={role} staffAccounts={staffAccounts} username={username} baselines={baselines} reload={() => { ensureConfig(); loadAll(); }} />}
         {tab === "audit" && (role === "admin" || role === "super") && <AuditTrail />}
         {tab === "kpi" && (role === "admin" || role === "super") && <KPI panels={panels} entries={activeEntries} baselines={baselines} />}
+        {tab === "equipment" && (role === "admin" || role === "super") && <Equipment departments={config.departments || []} role={role} username={username} />}
+        {tab === "lotcompare" && (role === "admin" || role === "super") && <LotComparison panels={panels} />}
         {tab === "owner" && role === "super" && <OwnerSettings config={config} reload={() => { ensureConfig(); loadAll(); }} />}
         {tab === "tables" && (role === "admin" || role === "super") && <CustomTables role={role} username={username} onReload={loadAll} />}
         {tab === "files" && (role === "admin" || role === "super") && <Files role={role} username={username} />}
@@ -471,6 +475,7 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
     { key: "approvals", label: `Approvals${pendingCount ? ` (${pendingCount})` : ""}`, icon: ClipboardCheck, show: isAdmin },
     { key: "controls", label: "Controls", icon: PackageCheck, show: isAdmin },
     { key: "export", label: "Export", icon: Download, show: isAdmin },
+    { key: "lotcompare", label: "Lot comparison", icon: Grid3x3, show: isAdmin },
   ].filter((i) => i.show);
 
   const scheduleItems = [
@@ -506,6 +511,7 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
         </SideGroup>
 
         <SideItem icon={<Users size={15} />} label="Staff" active={tab === "staff"} onClick={() => onNavigate("staff")} />
+        {isAdmin && <SideItem icon={<Wrench size={15} />} label="Equipment" active={tab === "equipment"} onClick={() => onNavigate("equipment")} />}
 
         <SideGroup icon="📅" label="Schedule" open={openGroups.schedule} onToggle={() => toggleGroup("schedule")}>
           {scheduleItems.map((i) => <SideItem key={i.key} icon={<i.icon size={14} />} label={i.label} active={tab === i.key} onClick={() => onNavigate(i.key)} indent />)}
