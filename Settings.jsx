@@ -76,10 +76,11 @@ export default function Settings({ config, panels, role, staffAccounts, username
     for (const [analyteName, v] of Object.entries(baselineValues)) {
       const { mean, sd } = resolveMeanSd(v);
       if (mean === null) continue;
+      const target_mean = v.target !== "" && v.target !== undefined ? Number(v.target) : null;
       await supabase.from("qc_baselines").update({ active: false }).eq("panel_id", panel.id).eq("analyte_name", analyteName).eq("lot_number", panel.lot_number).eq("active", true);
       await supabase.from("qc_baselines").insert({
         panel_id: panel.id, analyte_name: analyteName, lot_number: panel.lot_number,
-        mean, sd, point_count: 0,
+        mean, sd, target_mean, point_count: 0,
       });
     }
     setBaselineEditId(null);
@@ -311,7 +312,7 @@ export default function Settings({ config, panels, role, staffAccounts, username
                       const prefill = {};
                       (p.analytes || []).forEach((a) => {
                         const b = (baselines || []).find((x) => x.panel_id === p.id && x.analyte_name === a.name && x.lot_number === p.lot_number);
-                        if (b) prefill[a.name] = { mean: String(b.mean), sd: String(b.sd), rangeLow: "", rangeHigh: "" };
+                        if (b) prefill[a.name] = { mean: String(b.mean), sd: String(b.sd), rangeLow: "", rangeHigh: "", target: b.target_mean !== null && b.target_mean !== undefined ? String(b.target_mean) : "" };
                       });
                       setBaselineValues(prefill);
                     }}
@@ -330,7 +331,9 @@ export default function Settings({ config, panels, role, staffAccounts, username
                     <input placeholder="High" type="number" value={baselineValues[a.name]?.rangeHigh ?? ""} onChange={(e) => setBaselineValues((b) => ({ ...b, [a.name]: { mean: "", sd: "", rangeLow: "", rangeHigh: "", ...b[a.name], rangeHigh: e.target.value } }))} style={{ ...inputStyle, width: 70, marginTop: 0 }} />
                     <span style={{ fontSize: 10, color: "#C7D1CE" }}>or</span>
                     <input placeholder="Mean" type="number" value={baselineValues[a.name]?.mean ?? ""} onChange={(e) => setBaselineValues((b) => ({ ...b, [a.name]: { mean: "", sd: "", rangeLow: "", rangeHigh: "", ...b[a.name], mean: e.target.value } }))} style={{ ...inputStyle, width: 80, marginTop: 0 }} />
-                    <input placeholder="SD" type="number" value={baselineValues[a.name]?.sd ?? ""} onChange={(e) => setBaselineValues((b) => ({ ...b, [a.name]: { mean: "", sd: "", rangeLow: "", rangeHigh: "", ...b[a.name], sd: e.target.value } }))} style={{ ...inputStyle, width: 70, marginTop: 0 }} />
+                    <input placeholder="SD" type="number" value={baselineValues[a.name]?.sd ?? ""} onChange={(e) => setBaselineValues((b) => ({ ...b, [a.name]: { mean: "", sd: "", rangeLow: "", rangeHigh: "", target: "", ...b[a.name], sd: e.target.value } }))} style={{ ...inputStyle, width: 70, marginTop: 0 }} />
+                    <span style={{ fontSize: 10, color: "#C7D1CE" }}>·</span>
+                    <input placeholder="Target (optional)" type="number" value={baselineValues[a.name]?.target ?? ""} onChange={(e) => setBaselineValues((b) => ({ ...b, [a.name]: { mean: "", sd: "", rangeLow: "", rangeHigh: "", target: "", ...b[a.name], target: e.target.value } }))} style={{ ...inputStyle, width: 90, marginTop: 0 }} />
                   </div>
                 ))}
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>

@@ -58,7 +58,10 @@ export default function LeveyJennings({ panels, entries, baselines }) {
       ) : (
         <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 12 }}>
           <div style={{ fontSize: 12, color: "#8A9694", marginBottom: 10 }}>
-            Mean {baseline.mean.toFixed(2)} · SD {baseline.sd.toFixed(2)} · lot {panel.lot_number}
+            Mean {baseline.mean.toFixed(2)} · SD {baseline.sd.toFixed(2)} · CV {((baseline.sd / baseline.mean) * 100).toFixed(1)}% · lot {panel.lot_number}
+            {baseline.target_mean != null && (
+              <> · Bias {(((baseline.mean - baseline.target_mean) / baseline.target_mean) * 100).toFixed(1)}% (target {baseline.target_mean})</>
+            )}
           </div>
           <ResponsiveContainer width="100%" height={340}>
             <ScatterChart margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>

@@ -25,6 +25,7 @@ create table if not exists qc_baselines (
   lot_number text not null,
   mean numeric not null,
   sd numeric not null,
+  target_mean numeric,
   point_count int not null,
   established_at timestamptz not null default now(),
   active boolean not null default true
