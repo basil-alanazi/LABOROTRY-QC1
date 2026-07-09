@@ -14,7 +14,20 @@ const BUILT_IN_PAGES = [
   { key: "chart", label: "Chart" },
   { key: "export", label: "Export" },
   { key: "tables", label: "Tables (browse all)" },
+  { key: "staff", label: "Staff (roster + daily assignment)" },
+  { key: "schedule", label: "Schedule (+ Shift templates if admin)" },
+  { key: "equipment", label: "Equipment" },
+  { key: "lotcompare", label: "Lot comparison" },
+  { key: "kpi", label: "KPI" },
+  { key: "audit", label: "Audit trail" },
 ];
+
+// Suggested role presets — same permission system, just a quicker starting point.
+export const ROLE_PRESETS = {
+  "QC Admin": [{ page: "qc", level: "admin" }, { page: "controls", level: "admin" }, { page: "riqas", level: "admin" }, { page: "chart", level: "admin" }, { page: "grid", level: "admin" }],
+  "Staff Admin": [{ page: "staff", level: "admin" }, { page: "schedule", level: "admin" }],
+  "Registration Admin": [{ page: "tables", level: "admin" }, { page: "files", level: "admin" }],
+};
 
 export default function OwnerSettings({ config, reload }) {
   const [title, setTitle] = useState(config.app_title || "QC Log");
@@ -138,6 +151,12 @@ function AccountModal({ customTables, existing, onClose, onCreated }) {
     ...customTables.map((t) => ({ key: `table:${t.id}`, label: `Table: ${t.title}` })),
   ];
 
+  function applyPreset(name) {
+    const map = {};
+    ROLE_PRESETS[name].forEach((p) => { map[p.page] = p.level; });
+    setPerms(map);
+  }
+
   function setLevel(key, level) {
     setPerms((p) => {
       const next = { ...p };
@@ -168,6 +187,12 @@ function AccountModal({ customTables, existing, onClose, onCreated }) {
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <label style={{ ...labelStyle, flex: 1 }}>Username<input style={inputStyle} value={username} onChange={(e) => setUsername(e.target.value)} /></label>
           <label style={{ ...labelStyle, flex: 1 }}>Password<input style={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+        </div>
+
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+          {Object.keys(ROLE_PRESETS).map((name) => (
+            <button key={name} onClick={() => applyPreset(name)} style={{ background: "none", border: "1px dashed #C7D1CE", color: "#0F7173", borderRadius: 6, padding: "5px 10px", fontSize: 11.5, fontWeight: 600 }}>{name}</button>
+          ))}
         </div>
 
         <div style={{ fontSize: 11.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>PAGES & LEVEL</div>

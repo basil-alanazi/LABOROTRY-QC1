@@ -271,6 +271,9 @@ create table if not exists schedule_entries (
   date date not null,
   shift_code text not null default '',
   note text not null default '',
+  is_late boolean not null default false,
+  is_absent boolean not null default false,
+  is_sick boolean not null default false,
   created_at timestamptz default now(),
   unique(staff_id, date)
 );

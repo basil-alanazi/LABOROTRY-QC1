@@ -369,6 +369,12 @@ const PORTAL_PAGE_META = {
   chart: { label: "Chart", icon: BarChart3 },
   export: { label: "Export", icon: Download },
   tables: { label: "Tables", icon: Table2 },
+  staff: { label: "Staff", icon: Users },
+  schedule: { label: "Schedule", icon: Calendar },
+  equipment: { label: "Equipment", icon: Wrench },
+  lotcompare: { label: "Lot comparison", icon: Grid3x3 },
+  kpi: { label: "KPI", icon: BarChart3 },
+  audit: { label: "Audit trail", icon: ClipboardCheck },
 };
 
 function buildPortalPages(permissions, allTables) {
@@ -404,6 +410,12 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
     if (p.key === "export") return <ExportPage panels={panels} entries={entries} />;
     if (p.key === "tables") return <CustomTables role={effectiveRole} username={username} />;
     if (p.key === "files") return <Files role={effectiveRole} username={username} />;
+    if (p.key === "staff") return <StaffMembers departments={config.departments || []} role={effectiveRole} />;
+    if (p.key === "schedule") return <Schedule departments={config.departments || []} role={effectiveRole} username={username} />;
+    if (p.key === "equipment") return <Equipment departments={config.departments || []} role={effectiveRole} username={username} />;
+    if (p.key === "lotcompare") return <LotComparison panels={panels} />;
+    if (p.key === "kpi") return <KPI panels={panels} entries={entries} baselines={baselines} />;
+    if (p.key === "audit") return <AuditTrail />;
     if (p.key.startsWith("table:")) return <CustomTables role={effectiveRole} username={username} openTableId={p.tableId} />;
     return null;
   }
