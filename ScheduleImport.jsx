@@ -63,7 +63,7 @@ export default function ScheduleImport({ staff, month, onApply }) {
         <input type="file" accept=".xlsx,.xls,.csv,.docx" onChange={handleFile} disabled={busy} style={{ display: "none" }} />
       </label>
       <div style={{ fontSize: 10.5, color: "#8A9694", marginTop: 4 }}>
-        The file needs staff names (matching the names on the Staff page) and the days of the month, with each cell holding the shift code — you can also add L, A, or S in the same cell (e.g. "M L").
+        The file needs staff names (matching the names on the Staff page) and the days of the month, with each cell holding the shift code.
       </div>
       {error && (
         <div style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12, color: "#C1432B", marginTop: 6 }}>
@@ -87,7 +87,6 @@ export default function ScheduleImport({ staff, month, onApply }) {
                 <span style={{ flex: 1 }}>{e.staffName}</span>
                 <span style={{ width: 40, textAlign: "center", color: "#8A9694" }}>Day {e.day}</span>
                 <span style={{ width: 50, textAlign: "center", fontWeight: 700 }}>{e.shift_code || "—"}</span>
-                <span style={{ width: 60, color: "#B8860B" }}>{[e.is_late && "L", e.is_absent && "A", e.is_sick && "S"].filter(Boolean).join(" ")}</span>
                 <button onClick={() => removeEntry(i)} style={{ background: "none", border: "none", color: "#C1432B" }}><X size={13} /></button>
               </div>
             ))}

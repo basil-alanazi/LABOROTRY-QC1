@@ -35,23 +35,15 @@ function parseDayCell(raw) {
   return null;
 }
 
-// Parses a cell's raw text into { shift_code, is_late, is_absent, is_sick }.
-// Accepts "M", "M L", "M-L-A", "OFF", etc. Flags are standalone L/A/S tokens.
+// Parses a cell's raw text into a shift code, e.g. "M", "OFF". Only the
+// first token is used, so any extra text after it (old L/A/S markers,
+// notes, etc.) is ignored.
 function parseCellValue(raw) {
   const str = String(raw ?? "").trim();
   if (!str) return null;
-  const tokens = str.split(/[\s\-\/,]+/).filter(Boolean);
-  let shift_code = "";
-  let is_late = false, is_absent = false, is_sick = false;
-  tokens.forEach((t) => {
-    const up = t.toUpperCase();
-    if (up === "L") is_late = true;
-    else if (up === "A") is_absent = true;
-    else if (up === "S") is_sick = true;
-    else if (!shift_code) shift_code = t;
-  });
-  if (!shift_code && !is_late && !is_absent && !is_sick) return null;
-  return { shift_code: shift_code || "", is_late, is_absent, is_sick };
+  const shift_code = str.split(/[\s\-\/,]+/).filter(Boolean)[0] || "";
+  if (!shift_code) return null;
+  return { shift_code };
 }
 
 // Detects orientation and extracts entries. Scans the first few rows/columns

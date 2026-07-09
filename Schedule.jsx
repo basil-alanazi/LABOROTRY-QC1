@@ -32,7 +32,7 @@ export default function Schedule({ departments, role, username }) {
   const canEdit = role === "admin" || role === "super";
 
   async function loadAll() {
-    const { data: s } = await supabase.from("staff_members").select("*").eq("deleted", false).order("full_name");
+    const { data: s } = await supabase.from("staff_members").select("*").eq("deleted", false).order("sort_order", { ascending: true, nullsFirst: false }).order("full_name");
     const { data: sh } = await supabase.from("shift_templates").select("*").eq("deleted", false).order("code");
     const { data: e } = await supabase.from("schedule_entries").select("*");
     const { data: b } = await supabase.from("break_sessions").select("*").in("date", [todayISO(), yesterdayISO()]);
@@ -69,25 +69,12 @@ export default function Schedule({ departments, role, username }) {
     loadAll();
   }
 
-  async function toggleFlag(staffId, date, flag) {
-    const existing = entryFor(staffId, date);
-    if (existing) {
-      await supabase.from("schedule_entries").update({ [flag]: !existing[flag] }).eq("id", existing.id);
-    } else {
-      await supabase.from("schedule_entries").insert({ staff_id: staffId, date, [flag]: true });
-    }
-    loadAll();
-  }
-
   async function importScheduleEntries(parsedEntries) {
     const [year, mo] = month.split("-");
     const rows = parsedEntries.map((e) => ({
       staff_id: e.staffId,
       date: `${year}-${mo}-${String(e.day).padStart(2, "0")}`,
       shift_code: e.shift_code || "",
-      is_late: !!e.is_late,
-      is_absent: !!e.is_absent,
-      is_sick: !!e.is_sick,
     }));
     await supabase.from("schedule_entries").upsert(rows, { onConflict: "staff_id,date" });
     loadAll();
@@ -139,11 +126,8 @@ export default function Schedule({ departments, role, username }) {
 
   function summaryFor(member) {
     const monthEntries = (entries || []).filter((e) => e.staff_id === member.id && e.date.startsWith(month));
-    let working = 0, off = 0, vacation = 0, totalHours = 0, nightShifts = 0, late = 0, absent = 0, sick = 0;
+    let working = 0, off = 0, vacation = 0, totalHours = 0, nightShifts = 0;
     monthEntries.forEach((e) => {
-      if (e.is_late) late++;
-      if (e.is_absent) absent++;
-      if (e.is_sick) sick++;
       const s = shiftByCode[e.shift_code];
       if (!s) return;
       if (s.code === "OFF") off++;
@@ -154,7 +138,7 @@ export default function Schedule({ departments, role, username }) {
         if (s.night_shift) nightShifts++;
       }
     });
-    return { working, off, vacation, totalHours: Math.round(totalHours * 100) / 100, nightShifts, late, absent, sick };
+    return { working, off, vacation, totalHours: Math.round(totalHours * 100) / 100, nightShifts };
   }
 
   function exportPDF() { window.print(); }
@@ -215,7 +199,6 @@ export default function Schedule({ departments, role, username }) {
 
       <div className="no-print" style={{ marginBottom: 16 }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={inputStyle} />
-        {canEdit && <span style={{ fontSize: 11, color: "#8A9694", marginLeft: 10 }}>Under each shift: L = Late, A = Absent, S = Sick — click to toggle.</span>}
         {canEdit && staff.length > 0 && (
           <div style={{ marginTop: 12 }}>
             <ScheduleImport staff={staff} month={month} onApply={importScheduleEntries} />
@@ -267,13 +250,6 @@ export default function Schedule({ departments, role, username }) {
                             <span style={{ fontWeight: 700, fontSize: 10.5, color: hasShift ? "#fff" : "#1B2B2E" }}>{entry?.shift_code || ""}</span>
                           )}
                           <span className="print-only" style={{ display: "none", fontWeight: 700, fontSize: 10.5, color: hasShift ? "#fff" : "#1B2B2E" }}>{entry?.shift_code || ""}</span>
-                          {canEdit && (
-                            <div className="no-print" style={{ display: "flex", justifyContent: "center", gap: 2, marginTop: 1 }}>
-                              <FlagBtn label="L" active={!!entry?.is_late} onClick={() => toggleFlag(m.id, dateStr, "is_late")} color="#B8860B" title="Late" />
-                              <FlagBtn label="A" active={!!entry?.is_absent} onClick={() => toggleFlag(m.id, dateStr, "is_absent")} color="#C1432B" title="Absent" />
-                              <FlagBtn label="S" active={!!entry?.is_sick} onClick={() => toggleFlag(m.id, dateStr, "is_sick")} color="#7A4FA3" title="Sick" />
-                            </div>
-                          )}
                         </td>
                       );
                     })}
@@ -288,9 +264,6 @@ export default function Schedule({ departments, role, username }) {
                 ["Vacation", (m) => summaryFor(m).vacation],
                 ["Total Hours", (m) => summaryFor(m).totalHours],
                 ["Night Shifts", (m) => summaryFor(m).nightShifts],
-                ["Late Arrivals", (m) => summaryFor(m).late],
-                ["Absent Days", (m) => summaryFor(m).absent],
-                ["Sick Leave", (m) => summaryFor(m).sick],
               ].map(([label, fn]) => (
                 <tr key={label}>
                   <td style={{ position: "sticky", left: 0, background: "#F7F9F8", padding: "4px 8px", fontWeight: 700, borderTop: "1px solid #C7D1CE" }}>{label}</td>
@@ -314,14 +287,6 @@ export default function Schedule({ departments, role, username }) {
         </div>
       </div>
     </div>
-  );
-}
-
-function FlagBtn({ label, active, onClick, color, title }) {
-  return (
-    <button onClick={onClick} title={title} style={{ width: 14, height: 14, fontSize: 8, fontWeight: 700, borderRadius: 3, border: "1px solid " + (active ? color : "rgba(255,255,255,0.6)"), background: active ? color : "rgba(255,255,255,0.35)", color: active ? "#fff" : "#1B2B2E", padding: 0, lineHeight: "12px" }}>
-      {label}
-    </button>
   );
 }
 

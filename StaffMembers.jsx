@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { todayISO } from "./scheduleUtils";
 import StaffImport from "./StaffImport";
@@ -13,25 +13,43 @@ export default function StaffMembers({ departments, role }) {
   const canEdit = role === "admin" || role === "super";
 
   async function loadAll() {
-    const { data } = await supabase.from("staff_members").select("*").eq("deleted", false).order("full_name");
+    const { data } = await supabase.from("staff_members").select("*").eq("deleted", false).order("sort_order", { ascending: true, nullsFirst: false }).order("full_name");
     setStaff(data || []);
   }
   useEffect(() => { loadAll(); }, []);
 
+  function nextSortOrder() {
+    const max = (staff || []).reduce((m, s) => Math.max(m, s.sort_order || 0), 0);
+    return max;
+  }
+
   async function addStaff() {
     if (!form.full_name) return;
-    await supabase.from("staff_members").insert(form);
+    await supabase.from("staff_members").insert({ ...form, sort_order: nextSortOrder() + 1 });
     setForm({ full_name: "", job_number: "", department: departments?.[0] || "" });
     loadAll();
   }
   async function addStaffBulk(rows) {
     if (!rows.length) return;
-    await supabase.from("staff_members").insert(rows);
+    const start = nextSortOrder();
+    const withOrder = rows.map((r, i) => ({ ...r, sort_order: start + i + 1 }));
+    await supabase.from("staff_members").insert(withOrder);
     loadAll();
   }
   async function removeStaff(id) {
     if (!confirm("Remove this employee from the roster? Their past schedule history stays.")) return;
     await supabase.from("staff_members").update({ deleted: true }).eq("id", id);
+    loadAll();
+  }
+
+  async function moveStaff(index, direction) {
+    const target = index + direction;
+    if (target < 0 || target >= staff.length) return;
+    const a = staff[index], b = staff[target];
+    const aOrder = a.sort_order ?? index + 1;
+    const bOrder = b.sort_order ?? target + 1;
+    await supabase.from("staff_members").update({ sort_order: bOrder }).eq("id", a.id);
+    await supabase.from("staff_members").update({ sort_order: aOrder }).eq("id", b.id);
     loadAll();
   }
 
@@ -69,8 +87,14 @@ export default function StaffMembers({ departments, role }) {
             <div style={{ textAlign: "center", padding: "40px 20px", color: "#8A9694" }}>No employees added yet.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {staff.map((s) => (
+              {staff.map((s, i) => (
                 <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "10px 14px" }}>
+                  {canEdit && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      <button onClick={() => moveStaff(i, -1)} disabled={i === 0} style={{ background: "none", border: "none", color: i === 0 ? "#D6DEDB" : "#516361", padding: 0, cursor: i === 0 ? "default" : "pointer" }}><ChevronUp size={14} /></button>
+                      <button onClick={() => moveStaff(i, 1)} disabled={i === staff.length - 1} style={{ background: "none", border: "none", color: i === staff.length - 1 ? "#D6DEDB" : "#516361", padding: 0, cursor: i === staff.length - 1 ? "default" : "pointer" }}><ChevronDown size={14} /></button>
+                    </div>
+                  )}
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{s.full_name}</div>
                     <div style={{ fontSize: 11.5, color: "#8A9694" }}>{s.job_number ? `#${s.job_number} · ` : ""}{s.department}</div>
