@@ -222,6 +222,9 @@ create policy "allow all riqas_cycles" on riqas_cycles for all using (true) with
 alter table app_config add column if not exists app_title text not null default 'QC Log';
 alter table app_config add column if not exists app_subtitle text not null default 'Rabia Hospital · Quality Control';
 alter table app_config add column if not exists theme_color text not null default '#0F7173';
+alter table app_config add column if not exists logo_url text not null default '';
+alter table app_config add column if not exists sidebar_color text not null default '#1B2B2E';
+alter table app_config add column if not exists page_bg_color text not null default '#F0F3F2';
 
 -- Custom tables can be pinned to the main navigation as their own page.
 alter table custom_tables add column if not exists pinned boolean not null default false;

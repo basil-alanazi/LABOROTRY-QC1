@@ -299,7 +299,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F0F3F2", fontFamily: "'IBM Plex Sans', sans-serif", color: "#1B2B2E" }}>
+    <div style={{ minHeight: "100vh", background: config.page_bg_color || "#F0F3F2", fontFamily: "'IBM Plex Sans', sans-serif", color: "#1B2B2E" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
         * { box-sizing: border-box; }
@@ -326,7 +326,7 @@ export default function App() {
         }
       `}</style>
 
-      <div className="app-topbar" style={{ background: "#1B2B2E", padding: "14px 16px", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 30 }}>
+      <div className="app-topbar" style={{ background: config.sidebar_color || "#1B2B2E", padding: "14px 16px", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 30 }}>
         <button onClick={() => setSidebarOpen(true)} style={{ background: "none", border: "none", color: "#F0F3F2" }}><Menu size={22} /></button>
         <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 15 }}>{config.app_title || "QC Log"}</div>
         <button onClick={logout} style={{ background: "none", border: "none", color: "#8FA39E" }}><LogOut size={18} /></button>
@@ -448,17 +448,17 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F0F3F2", fontFamily: "'IBM Plex Sans', sans-serif", color: "#1B2B2E" }}>
+    <div style={{ minHeight: "100vh", background: config.page_bg_color || "#F0F3F2", fontFamily: "'IBM Plex Sans', sans-serif", color: "#1B2B2E" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
         * { box-sizing: border-box; }
         button { font-family: inherit; cursor: pointer; }
         input, select, textarea { font-family: inherit; }
       `}</style>
-      <header style={{ borderBottom: "1px solid #D6DEDB", background: "#1B2B2E" }}>
+      <header style={{ borderBottom: "1px solid #D6DEDB", background: config.sidebar_color || "#1B2B2E" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <FlaskConical size={22} color={config.theme_color || "#5FBFB0"} />
+            (config.logo_url ? <img src={config.logo_url} alt="logo" style={{ width: 26, height: 26, borderRadius: 6, objectFit: "cover" }} /> : <FlaskConical size={22} color={config.theme_color || "#5FBFB0"} />)
             <div>
               <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 17 }}>{config.app_title || "QC Log"}</div>
               <div style={{ color: "#8FA39E", fontSize: 12 }}>{username}</div>
@@ -536,10 +536,10 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
   ].filter((i) => i.show && notHidden(i.key));
 
   return (
-    <div className={className} style={{ background: "#1B2B2E", display: "flex", flexDirection: "column" }}>
+    <div className={className} style={{ background: config.sidebar_color || "#1B2B2E", display: "flex", flexDirection: "column" }}>
       <div style={{ padding: "18px 16px", borderBottom: "1px solid #2A3B3D" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <FlaskConical size={22} color={config.theme_color || "#5FBFB0"} />
+          (config.logo_url ? <img src={config.logo_url} alt="logo" style={{ width: 26, height: 26, borderRadius: 6, objectFit: "cover" }} /> : <FlaskConical size={22} color={config.theme_color || "#5FBFB0"} />)
           <div>
             <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 15 }}>{config.app_title || "QC Log"}</div>
             <div style={{ color: "#8FA39E", fontSize: 10.5, fontFamily: "'IBM Plex Mono', monospace" }}>{signatureFor(username, profiles)}</div>

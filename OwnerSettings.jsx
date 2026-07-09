@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save, Upload } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
 const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 14, boxSizing: "border-box" };
@@ -36,6 +36,10 @@ export default function OwnerSettings({ config, reload }) {
   const [title, setTitle] = useState(config.app_title || "QC Log");
   const [subtitle, setSubtitle] = useState(config.app_subtitle || "");
   const [color, setColor] = useState(config.theme_color || "#0F7173");
+  const [sidebarColor, setSidebarColor] = useState(config.sidebar_color || "#1B2B2E");
+  const [pageBgColor, setPageBgColor] = useState(config.page_bg_color || "#F0F3F2");
+  const [logoUrl, setLogoUrl] = useState(config.logo_url || "");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [hiddenPages, setHiddenPages] = useState(config.hidden_pages || []);
   const [msg, setMsg] = useState("");
 
@@ -55,10 +59,32 @@ export default function OwnerSettings({ config, reload }) {
   useEffect(() => { loadExtras(); }, []);
 
   async function saveBranding() {
-    const { error } = await supabase.from("app_config").update({ app_title: title, app_subtitle: subtitle, theme_color: color, hidden_pages: hiddenPages }).eq("id", 1);
+    const { error } = await supabase.from("app_config").update({
+      app_title: title, app_subtitle: subtitle, theme_color: color,
+      sidebar_color: sidebarColor, page_bg_color: pageBgColor, logo_url: logoUrl,
+      hidden_pages: hiddenPages,
+    }).eq("id", 1);
     setMsg(error ? "Could not save." : "Saved.");
     reload();
     setTimeout(() => setMsg(""), 2500);
+  }
+
+  async function uploadLogo(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const path = `logo-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const { error: upErr } = await supabase.storage.from("attachments").upload(path, file);
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("attachments").getPublicUrl(path);
+      setLogoUrl(data.publicUrl);
+    } catch (err) {
+      alert("Could not upload logo — check your Supabase Storage setup.");
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = "";
+    }
   }
 
   function toggleHidden(key) {
@@ -87,12 +113,42 @@ export default function OwnerSettings({ config, reload }) {
       <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 16, display: "flex", flexDirection: "column", gap: 12, marginBottom: 30 }}>
         <label style={labelStyle}>App name (shown at the top)<input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} /></label>
         <label style={labelStyle}>Subtitle<input style={inputStyle} value={subtitle} onChange={(e) => setSubtitle(e.target.value)} /></label>
-        <label style={labelStyle}>Accent color
+        <label style={labelStyle}>Accent color (buttons, highlights)
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
             <input type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ width: 44, height: 36, border: "1px solid #C7D1CE", borderRadius: 6, padding: 2 }} />
             <input style={{ ...inputStyle, flex: 1 }} value={color} onChange={(e) => setColor(e.target.value)} />
           </div>
         </label>
+
+        <label style={labelStyle}>Sidebar color
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+            <input type="color" value={sidebarColor} onChange={(e) => setSidebarColor(e.target.value)} style={{ width: 44, height: 36, border: "1px solid #C7D1CE", borderRadius: 6, padding: 2 }} />
+            <input style={{ ...inputStyle, flex: 1 }} value={sidebarColor} onChange={(e) => setSidebarColor(e.target.value)} />
+          </div>
+        </label>
+
+        <label style={labelStyle}>Page background color
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+            <input type="color" value={pageBgColor} onChange={(e) => setPageBgColor(e.target.value)} style={{ width: 44, height: 36, border: "1px solid #C7D1CE", borderRadius: 6, padding: 2 }} />
+            <input style={{ ...inputStyle, flex: 1 }} value={pageBgColor} onChange={(e) => setPageBgColor(e.target.value)} />
+          </div>
+        </label>
+
+        <div>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: "#516361", marginBottom: 6 }}>Logo</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {logoUrl ? (
+              <img src={logoUrl} alt="logo" style={{ width: 44, height: 44, borderRadius: 8, objectFit: "cover", border: "1px solid #E1E8E5" }} />
+            ) : (
+              <div style={{ width: 44, height: 44, borderRadius: 8, background: "#F0F3F2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#8A9694" }}>none</div>
+            )}
+            <label style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 7, padding: "8px 12px", fontSize: 12.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <Upload size={13} /> {uploadingLogo ? "Uploading…" : "Upload logo image"}
+              <input type="file" accept="image/*" onChange={uploadLogo} disabled={uploadingLogo} style={{ display: "none" }} />
+            </label>
+            {logoUrl && <button onClick={() => setLogoUrl("")} style={{ background: "none", border: "none", color: "#C1432B", fontSize: 12 }}>Remove</button>}
+          </div>
+        </div>
 
         <div>
           <div style={{ fontSize: 12.5, fontWeight: 600, color: "#516361", marginBottom: 6 }}>Hide these pages from everyone (including admins)</div>
