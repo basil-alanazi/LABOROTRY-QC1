@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { shiftDurationHours } from "./scheduleUtils";
+import ShiftTemplateImport from "./ShiftTemplateImport";
 
 const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 10px", fontSize: 13, boxSizing: "border-box" };
 
@@ -62,6 +63,17 @@ export default function ShiftTemplates({ role }) {
     loadAll();
   }
 
+  async function saveShiftsBulk(rows) {
+    if (!rows.length) return;
+    const toInsert = rows.map((r) => ({
+      code: r.code, name: r.name, start_time: r.is_off ? "" : r.start_time, end_time: r.is_off ? "" : r.end_time,
+      color: r.color, night_shift: !!r.night_shift, is_off: !!r.is_off,
+      total_hours: r.is_off ? 0 : shiftDurationHours(r.start_time, r.end_time),
+    }));
+    await supabase.from("shift_templates").insert(toInsert);
+    loadAll();
+  }
+
   async function updateShift(id, fields) {
     if (fields.start_time !== undefined || fields.end_time !== undefined) {
       const s = shifts.find((x) => x.id === id);
@@ -90,6 +102,12 @@ export default function ShiftTemplates({ role }) {
         )}
       </div>
       <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Define every shift code once here — every schedule and the shift key reads from this automatically.</div>
+
+      {canEdit && (
+        <div style={{ marginBottom: 20 }}>
+          <ShiftTemplateImport existingCodes={(shifts || []).map((s) => s.code)} onApply={saveShiftsBulk} />
+        </div>
+      )}
 
       {canEdit && (
         <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, marginBottom: 20 }}>
