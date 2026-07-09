@@ -1,0 +1,212 @@
+import React, { useState } from "react";
+import { Beaker, Activity, FlaskConical, Droplet, ArrowLeft } from "lucide-react";
+
+const inputStyle = { border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 14, boxSizing: "border-box", width: "100%" };
+const labelStyle = { fontSize: 12.5, fontWeight: 600, color: "#516361" };
+
+function num(v) {
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+}
+
+function ResultBox({ children }) {
+  return <div style={{ background: "#E8F2EC", border: "1px solid #2F6B4F33", borderRadius: 8, padding: "12px 16px", marginTop: 14, fontSize: 14, color: "#2F6B4F", fontWeight: 600 }}>{children}</div>;
+}
+function WarnBox({ children }) {
+  return <div style={{ background: "#FBF3DF", border: "1px solid #E9CE8A", borderRadius: 8, padding: "10px 14px", marginTop: 10, fontSize: 12.5, color: "#8A6416" }}>{children}</div>;
+}
+
+function LipidCalc() {
+  const [chol, setChol] = useState("");
+  const [tg, setTg] = useState("");
+  const [hdl, setHdl] = useState("");
+  const c = num(chol), t = num(tg), h = num(hdl);
+  const valid = c !== null && t !== null && h !== null;
+  const vldl = valid ? t / 5 : null;
+  const ldl = valid ? c - h - vldl : null;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+        <label style={labelStyle}>Total Cholesterol<input style={inputStyle} type="number" value={chol} onChange={(e) => setChol(e.target.value)} /></label>
+        <label style={labelStyle}>Triglycerides (TG)<input style={inputStyle} type="number" value={tg} onChange={(e) => setTg(e.target.value)} /></label>
+        <label style={labelStyle}>HDL<input style={inputStyle} type="number" value={hdl} onChange={(e) => setHdl(e.target.value)} /></label>
+      </div>
+      {valid && (
+        <ResultBox>
+          VLDL = {vldl.toFixed(1)} mg/dL &nbsp;·&nbsp; LDL (Friedewald) = {ldl.toFixed(1)} mg/dL
+        </ResultBox>
+      )}
+      {valid && t >= 400 && <WarnBox>TG ≥ 400 mg/dL — Friedewald formula isn't reliable at this level. A direct LDL measurement is recommended.</WarnBox>}
+    </div>
+  );
+}
+
+function AnionGapCalc() {
+  const [na, setNa] = useState("");
+  const [cl, setCl] = useState("");
+  const [hco3, setHco3] = useState("");
+  const n = num(na), c = num(cl), h = num(hco3);
+  const valid = n !== null && c !== null && h !== null;
+  const gap = valid ? n - (c + h) : null;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10 }}>
+        <label style={labelStyle}>Na⁺<input style={inputStyle} type="number" value={na} onChange={(e) => setNa(e.target.value)} /></label>
+        <label style={labelStyle}>Cl⁻<input style={inputStyle} type="number" value={cl} onChange={(e) => setCl(e.target.value)} /></label>
+        <label style={labelStyle}>HCO₃⁻<input style={inputStyle} type="number" value={hco3} onChange={(e) => setHco3(e.target.value)} /></label>
+      </div>
+      {valid && <ResultBox>Anion Gap = {gap.toFixed(1)} mmol/L {gap > 16 ? "(high)" : gap < 8 ? "(low)" : "(normal range ~8–16)"}</ResultBox>}
+    </div>
+  );
+}
+
+function BunCreatCalc() {
+  const [bun, setBun] = useState("");
+  const [creat, setCreat] = useState("");
+  const b = num(bun), c = num(creat);
+  const valid = b !== null && c !== null && c !== 0;
+  const ratio = valid ? b / c : null;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+        <label style={labelStyle}>BUN<input style={inputStyle} type="number" value={bun} onChange={(e) => setBun(e.target.value)} /></label>
+        <label style={labelStyle}>Creatinine<input style={inputStyle} type="number" value={creat} onChange={(e) => setCreat(e.target.value)} /></label>
+      </div>
+      {valid && <ResultBox>BUN/Creatinine Ratio = {ratio.toFixed(1)}</ResultBox>}
+    </div>
+  );
+}
+
+function UrineProteinCalc() {
+  const [protein, setProtein] = useState("");
+  const [creat, setCreat] = useState("");
+  const p = num(protein), c = num(creat);
+  const valid = p !== null && c !== null && c !== 0;
+  const ratio = valid ? p / c : null;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+        <label style={labelStyle}>Urine Protein<input style={inputStyle} type="number" value={protein} onChange={(e) => setProtein(e.target.value)} /></label>
+        <label style={labelStyle}>Urine Creatinine<input style={inputStyle} type="number" value={creat} onChange={(e) => setCreat(e.target.value)} /></label>
+      </div>
+      {valid && <ResultBox>Protein/Creatinine Ratio = {ratio.toFixed(2)}</ResultBox>}
+    </div>
+  );
+}
+
+function CkMbCalc() {
+  const [ckmb, setCkmb] = useState("");
+  const [cktotal, setCktotal] = useState("");
+  const m = num(ckmb), t = num(cktotal);
+  const valid = m !== null && t !== null && t !== 0;
+  const index = valid ? (m / t) * 100 : null;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+        <label style={labelStyle}>CK-MB<input style={inputStyle} type="number" value={ckmb} onChange={(e) => setCkmb(e.target.value)} /></label>
+        <label style={labelStyle}>CK Total<input style={inputStyle} type="number" value={cktotal} onChange={(e) => setCktotal(e.target.value)} /></label>
+      </div>
+      {valid && <ResultBox>CK-MB Index = {index.toFixed(1)}% {index > 25 ? "(suggests macro-CK or non-cardiac source)" : ""}</ResultBox>}
+    </div>
+  );
+}
+
+function TibcCalc() {
+  const [iron, setIron] = useState("");
+  const [tibc, setTibc] = useState("");
+  const i = num(iron), t = num(tibc);
+  const valid = i !== null && t !== null && t !== 0;
+  const sat = valid ? (i / t) * 100 : null;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+        <label style={labelStyle}>Serum Iron<input style={inputStyle} type="number" value={iron} onChange={(e) => setIron(e.target.value)} /></label>
+        <label style={labelStyle}>TIBC<input style={inputStyle} type="number" value={tibc} onChange={(e) => setTibc(e.target.value)} /></label>
+      </div>
+      {valid && <ResultBox>Transferrin Saturation = {sat.toFixed(1)}%</ResultBox>}
+    </div>
+  );
+}
+
+function DilutionCalc() {
+  const [volume, setVolume] = useState("");
+  const [factor, setFactor] = useState("");
+  const v = num(volume), f = num(factor);
+  const valid = v !== null && f !== null && f > 0;
+  const diluent = valid ? v * (f - 1) : null;
+  const total = valid ? v * f : null;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+        <label style={labelStyle}>Sample volume you have<input style={inputStyle} type="number" value={volume} onChange={(e) => setVolume(e.target.value)} /></label>
+        <label style={labelStyle}>Dilution factor (e.g. 2 for 1:2)<input style={inputStyle} type="number" value={factor} onChange={(e) => setFactor(e.target.value)} /></label>
+      </div>
+      {valid && (
+        <ResultBox>
+          Add {diluent.toFixed(2)} of diluent to your {v} of sample &nbsp;→&nbsp; total volume = {total.toFixed(2)}
+        </ResultBox>
+      )}
+    </div>
+  );
+}
+
+const CALCULATORS = [
+  { key: "lipid", label: "LDL / VLDL", icon: Activity, group: "Lipid Panel", desc: "From Total Cholesterol, TG, and HDL", Comp: LipidCalc },
+  { key: "aniongap", label: "Anion Gap", icon: Beaker, group: "Renal & Electrolytes", desc: "From Na, Cl, HCO₃", Comp: AnionGapCalc },
+  { key: "buncreat", label: "BUN/Creatinine Ratio", icon: Beaker, group: "Renal & Electrolytes", desc: "From BUN and Creatinine", Comp: BunCreatCalc },
+  { key: "urineprotein", label: "Urine Protein/Creatinine", icon: Beaker, group: "Renal & Electrolytes", desc: "From urine protein and creatinine", Comp: UrineProteinCalc },
+  { key: "ckmb", label: "CK-MB Index", icon: FlaskConical, group: "Chemistry", desc: "From CK-MB and CK Total", Comp: CkMbCalc },
+  { key: "tibc", label: "Transferrin Saturation", icon: FlaskConical, group: "Chemistry", desc: "From Serum Iron and TIBC", Comp: TibcCalc },
+  { key: "dilution", label: "Dilution", icon: Droplet, group: "Dilution", desc: "How much diluent to add", Comp: DilutionCalc },
+];
+
+export default function Calculators() {
+  const [open, setOpen] = useState(null);
+
+  if (open) {
+    const calc = CALCULATORS.find((c) => c.key === open);
+    const Comp = calc.Comp;
+    return (
+      <div>
+        <button onClick={() => setOpen(null)} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 13, fontWeight: 600, marginBottom: 14, display: "flex", alignItems: "center", gap: 4 }}><ArrowLeft size={14} /> Back to calculators</button>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{calc.label}</h2>
+        <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>{calc.desc}</div>
+        <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 18 }}>
+          <Comp />
+        </div>
+      </div>
+    );
+  }
+
+  const groups = [...new Set(CALCULATORS.map((c) => c.group))];
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Calculate</h2>
+      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Quick lab calculators — pick one.</div>
+      {groups.map((g) => (
+        <div key={g} style={{ marginBottom: 22 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>{g.toUpperCase()}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+            {CALCULATORS.filter((c) => c.group === g).map((c) => {
+              const Icon = c.icon;
+              return (
+                <button key={c.key} onClick={() => setOpen(c.key)} style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 12, padding: "18px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <Icon size={22} color="#0F7173" />
+                  <div style={{ fontWeight: 700, fontSize: 13, textAlign: "center" }}>{c.label}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
