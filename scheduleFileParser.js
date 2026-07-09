@@ -5,11 +5,15 @@ function normalize(s) {
 }
 
 // Fuzzy-matches a raw header cell against the known staff roster.
+// Partial (substring) matching is only attempted for strings of a
+// reasonable length — short strings like shift codes ("A", "C", "OFF")
+// would otherwise trivially match as a substring of almost any long name.
 function matchStaffName(raw, staffNames) {
   const norm = normalize(raw);
   if (!norm) return null;
   let exact = staffNames.find((n) => normalize(n) === norm);
   if (exact) return exact;
+  if (norm.length < 5) return null;
   let partial = staffNames.find((n) => norm.includes(normalize(n)) || normalize(n).includes(norm));
   return partial || null;
 }

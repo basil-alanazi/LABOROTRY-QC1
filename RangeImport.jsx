@@ -17,7 +17,8 @@ export default function RangeImport({ analyteNames, onApply }) {
     const norm = rawName.trim().toLowerCase();
     let exact = analyteNames.find((n) => n.toLowerCase() === norm);
     if (exact) return exact;
-    let partial = analyteNames.find((n) => norm.includes(n.toLowerCase()) || n.toLowerCase().includes(norm));
+    if (norm.length < 4) return null;
+    let partial = analyteNames.find((n) => n.length >= 4 && (norm.includes(n.toLowerCase()) || n.toLowerCase().includes(norm)));
     return partial || null;
   }
 
