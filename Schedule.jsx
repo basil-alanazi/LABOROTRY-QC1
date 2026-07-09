@@ -229,13 +229,13 @@ export default function Schedule({ departments, role, username }) {
                 const isFriday = weekday === "Fri";
                 return (
                   <tr key={d} style={{ background: isFriday ? "#F3ECE0" : "transparent" }}>
-                    <td style={{ position: "sticky", left: 0, background: isFriday ? "#F3ECE0" : "#fff", padding: "3px 8px", fontWeight: 600, borderBottom: "1px solid #EEF2F0" }}>{d} {weekday}</td>
+                    <td style={{ position: "sticky", left: 0, background: isFriday ? "#F3ECE0" : "#fff", padding: "3px 8px", fontWeight: 600, borderBottom: "1px solid #9CA8AC" }}>{d} {weekday}</td>
                     {staff.map((m) => {
                       const entry = entryFor(m.id, dateStr);
                       const shift = entry ? shiftByCode[entry.shift_code] : null;
                       const hasShift = !!(entry?.shift_code && shift);
                       return (
-                        <td key={m.id} style={{ padding: 2, textAlign: "center", borderBottom: "1px solid #EEF2F0", background: hasShift ? shift.color : "transparent" }}>
+                        <td key={m.id} style={{ padding: 2, textAlign: "center", borderBottom: "1px solid #9CA8AC", background: hasShift ? shift.color : "transparent" }}>
                           {canEdit ? (
                             <select
                               value={entry?.shift_code || ""}
