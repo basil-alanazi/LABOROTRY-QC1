@@ -156,6 +156,8 @@ create table if not exists staff_accounts (
 
 alter table staff_accounts enable row level security;
 create policy "allow all staff_accounts" on staff_accounts for all using (true) with check (true);
+alter table staff_accounts add column if not exists must_change_password boolean not null default true;
+alter table portal_accounts add column if not exists must_change_password boolean not null default true;
 
 -- History of every control lot ever used on a panel, with its expiry date.
 create table if not exists qc_control_lots (

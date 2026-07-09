@@ -12,6 +12,8 @@ import StaffMembers from "./StaffMembers";
 import Schedule from "./Schedule";
 import ShiftTemplates from "./ShiftTemplates";
 import HomePage from "./HomePage";
+import AuditTrail from "./AuditTrail";
+import SmartSearch from "./SmartSearch";
 import { evaluateWestgard, zScore, RULE_DESCRIPTIONS } from "./westgard";
 
 const DEPT_PALETTE = ["#0F7173", "#B5473A", "#8A5A2B", "#5A6ACF", "#2F8F5B", "#B8860B", "#7A4FA3", "#C1432B"];
@@ -109,6 +111,7 @@ export default function App() {
     setPermissions(newPermissions || []);
   }
   function logout() {
+    supabase.from("audit_log").insert({ action: "logout", entity: "auth", description: username, performed_by: username });
     localStorage.removeItem("qc_role");
     localStorage.removeItem("qc_username");
     localStorage.removeItem("qc_permissions");
@@ -337,6 +340,7 @@ export default function App() {
         {tab === "export" && (role === "admin" || role === "super") && <ExportPage panels={panels} entries={activeEntries} />}
         {tab === "approvals" && (role === "admin" || role === "super") && <Approvals items={pendingItems} panels={panels} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk} />}
         {tab === "settings" && (role === "admin" || role === "super") && <Settings config={config} panels={panels} role={role} staffAccounts={staffAccounts} username={username} baselines={baselines} reload={() => { ensureConfig(); loadAll(); }} />}
+        {tab === "audit" && (role === "admin" || role === "super") && <AuditTrail />}
         {tab === "owner" && role === "super" && <OwnerSettings config={config} reload={() => { ensureConfig(); loadAll(); }} />}
         {tab === "tables" && (role === "admin" || role === "super") && <CustomTables role={role} username={username} onReload={loadAll} />}
         {tab === "files" && (role === "admin" || role === "super") && <Files role={role} username={username} />}
@@ -473,6 +477,7 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
 
   const settingsItems = [
     { key: "settings", label: "Settings", icon: SlidersHorizontal, show: isAdmin },
+    { key: "audit", label: "Audit trail", icon: ClipboardCheck, show: isAdmin },
     { key: "owner", label: "Owner", icon: Award, show: role === "super" },
   ].filter((i) => i.show);
 
@@ -487,6 +492,8 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
           </div>
         </div>
       </div>
+
+      <SmartSearch onNavigate={onNavigate} />
 
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
         <SideItem icon={<Home size={15} />} label="Dashboard" active={tab === "home"} onClick={() => onNavigate("home")} />
