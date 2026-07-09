@@ -456,7 +456,14 @@ function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, 
                         />
                       </div>
                     ) : (
-                      val === undefined ? "—" : (m ? <span style={{ fontSize: 13, fontWeight: 700, color: m.fg, background: m.bg, padding: "3px 10px", borderRadius: 5 }}>{val}</span> : val)
+                      val === undefined ? "—" : (
+                        <div>
+                          {m ? <span style={{ fontSize: 13, fontWeight: 700, color: m.fg, background: m.bg, padding: "3px 10px", borderRadius: 5 }}>{val}</span> : val}
+                          {(color === "orange" || color === "red") && (entry.flags?.[a.name] || []).length > 0 && (
+                            <div style={{ fontSize: 10, color: "#8A2E1F", marginTop: 3 }}>{(entry.flags[a.name] || []).map((f) => RULE_DESCRIPTIONS[f] || f).join(" · ")}</div>
+                          )}
+                        </div>
+                      )
                     )}
                   </td>
                   {!showForm && (
