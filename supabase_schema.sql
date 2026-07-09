@@ -157,5 +157,19 @@ create table if not exists staff_accounts (
 alter table staff_accounts enable row level security;
 create policy "allow all staff_accounts" on staff_accounts for all using (true) with check (true);
 
+-- History of every control lot ever used on a panel, with its expiry date.
+create table if not exists qc_control_lots (
+  id uuid primary key default gen_random_uuid(),
+  panel_id uuid references qc_panels(id) on delete cascade,
+  lot_number text not null,
+  expiry_date date,
+  received_date date not null default current_date,
+  received_by text not null,
+  created_at timestamptz default now()
+);
+
+alter table qc_control_lots enable row level security;
+create policy "allow all qc_control_lots" on qc_control_lots for all using (true) with check (true);
+
 -- Note: this is an open (RLS "allow all") setup — fine for an internal lab tool
 -- with no patient data. Anyone with the app link and Supabase keys can read/write.

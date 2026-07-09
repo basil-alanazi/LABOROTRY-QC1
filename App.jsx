@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3 } from "lucide-react";
+import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import Settings from "./Settings";
@@ -41,6 +41,7 @@ export default function App() {
   const [username, setUsername] = useState(() => localStorage.getItem("qc_username") || "");
   const [panels, setPanels] = useState(null);
   const [baselines, setBaselines] = useState([]);
+  const [controlLots, setControlLots] = useState([]);
   const [entries, setEntries] = useState(null);
   const [staffAccounts, setStaffAccounts] = useState([]);
   const [tab, setTab] = useState("dashboard");
@@ -62,6 +63,7 @@ export default function App() {
     const { data: e, error: e2 } = await supabase.from("qc_entries").select("*").order("date", { ascending: false });
     const { data: s } = await supabase.from("staff_accounts").select("*").order("username");
     const { data: b } = await supabase.from("qc_baselines").select("*").eq("active", true);
+    const { data: cl } = await supabase.from("qc_control_lots").select("*").order("received_date", { ascending: false });
     if (e1 || e2) {
       setError("Could not connect to the database. Check Supabase settings.");
       setPanels([]);
@@ -72,6 +74,7 @@ export default function App() {
     setEntries(e || []);
     setStaffAccounts(s || []);
     setBaselines(b || []);
+    setControlLots(cl || []);
   }
 
   useEffect(() => {
@@ -239,7 +242,8 @@ export default function App() {
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <NavBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={<LayoutGrid size={15} />} label="QC Entry" />
-            <NavBtn active={tab === "grid"} onClick={() => setTab("grid")} icon={<Grid3x3 size={15} />} label="Monthly grid" />
+            {(role === "admin" || role === "super") && <NavBtn active={tab === "grid"} onClick={() => setTab("grid")} icon={<Grid3x3 size={15} />} label="Monthly grid" />}
+            {(role === "admin" || role === "super") && <NavBtn active={tab === "controls"} onClick={() => setTab("controls")} icon={<PackageCheck size={15} />} label="Controls" />}
             <NavBtn active={tab === "chart"} onClick={() => setTab("chart")} icon={<BarChart3 size={15} />} label="Chart" />
             <NavBtn active={tab === "export"} onClick={() => setTab("export")} icon={<Download size={15} />} label="Export" />
             {(role === "admin" || role === "super") && (
@@ -255,11 +259,12 @@ export default function App() {
 
       <main style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px" }}>
         {tab === "dashboard" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} />}
-        {tab === "grid" && <MonthlyGrid panels={panels} entries={activeEntries} />}
+        {tab === "grid" && (role === "admin" || role === "super") && <MonthlyGrid panels={panels} entries={activeEntries} controlLots={controlLots} />}
+        {tab === "controls" && (role === "admin" || role === "super") && <ControlStock panels={panels} entries={activeEntries} controlLots={controlLots} />}
         {tab === "chart" && <LeveyJennings panels={panels} entries={activeEntries} baselines={baselines} />}
         {tab === "export" && <ExportPage panels={panels} entries={activeEntries} />}
         {tab === "approvals" && (role === "admin" || role === "super") && <Approvals items={pendingItems} panels={panels} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk} />}
-        {tab === "settings" && (role === "admin" || role === "super") && <Settings config={config} panels={panels} role={role} staffAccounts={staffAccounts} reload={() => { ensureConfig(); loadAll(); }} />}
+        {tab === "settings" && (role === "admin" || role === "super") && <Settings config={config} panels={panels} role={role} staffAccounts={staffAccounts} username={username} baselines={baselines} reload={() => { ensureConfig(); loadAll(); }} />}
         {tab === "tables" && <CustomTables departments={config.departments || []} role={role} username={username} />}
         {tab === "files" && <Files role={role} username={username} />}
         {error && <div style={{ position: "fixed", bottom: 16, left: "50%", transform: "translateX(-50%)", background: "#C1432B", color: "#fff", padding: "10px 18px", borderRadius: 8, fontSize: 14 }}>{error}</div>}
@@ -493,7 +498,7 @@ function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, 
 
 // ---------- Monthly grid (matches the paper form) ----------
 
-function MonthlyGrid({ panels, entries }) {
+function MonthlyGrid({ panels, entries, controlLots }) {
   const [panelId, setPanelId] = useState(panels[0]?.id || "");
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const panel = panels.find((p) => p.id === panelId);
@@ -559,7 +564,16 @@ function MonthlyGrid({ panels, entries }) {
               <thead>
                 <tr>
                   <th style={{ position: "sticky", left: 0, background: "#F0F3F2", padding: "6px 10px", textAlign: "left", borderBottom: "1px solid #E1E8E5", minWidth: 90 }}>Item</th>
-                  {dayList.map((d) => <th key={d} style={{ padding: "6px 8px", borderBottom: "1px solid #E1E8E5", minWidth: 40 }}>{d}</th>)}
+                  {dayList.map((d) => {
+                    const dateStr = `${year}-${mo}-${String(d).padStart(2, "0")}`;
+                    const newLot = (controlLots || []).find((c) => c.panel_id === panelId && c.received_date === dateStr);
+                    return (
+                      <th key={d} style={{ padding: "6px 8px", borderBottom: "1px solid #E1E8E5", minWidth: 40 }}>
+                        {d}
+                        {newLot && <div title={`New lot: ${newLot.lot_number}`} style={{ fontSize: 8, fontWeight: 700, color: "#0F7173", background: "#EAF6F4", borderRadius: 3, padding: "1px 3px", marginTop: 2 }}>NEW LOT</div>}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -600,6 +614,55 @@ function MonthlyGrid({ panels, entries }) {
 }
 
 // ---------- Approvals ----------
+
+function ControlStock({ panels, entries, controlLots }) {
+  const today = todayISO();
+
+  function expiryStatus(dateStr) {
+    if (!dateStr) return { label: "no expiry set", color: "#8A9694", bg: "#F0F3F2" };
+    const days = Math.round((new Date(dateStr) - new Date(today)) / 86400000);
+    if (days < 0) return { label: `expired ${Math.abs(days)}d ago`, color: "#C1432B", bg: "#FBEAE6" };
+    if (days <= 14) return { label: `expires in ${days}d`, color: "#B8860B", bg: "#FBF3DF" };
+    return { label: `expires in ${days}d`, color: "#2F6B4F", bg: "#E8F2EC" };
+  }
+
+  if (panels.length === 0) return <div style={{ textAlign: "center", padding: "60px 20px", color: "#8A9694" }}>No QC panels set up yet.</div>;
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Control stock</h2>
+      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Current control lot, its expiry, and whether today's QC has been entered yet — for every device.</div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {panels.map((p) => {
+          const lots = controlLots.filter((c) => c.panel_id === p.id).sort((a, b) => new Date(b.received_date) - new Date(a.received_date));
+          const current = lots.find((c) => c.lot_number === p.lot_number) || lots[0];
+          const status = expiryStatus(current?.expiry_date);
+          const todaysEntry = entries.find((e) => e.panel_id === p.id && e.date === today);
+
+          return (
+            <div key={p.id} style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "14px 16px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14.5 }}>{p.name}</div>
+                  <div style={{ fontSize: 11.5, color: "#8A9694" }}>{p.device || "no device set"} · {p.department}</div>
+                </div>
+                {!todaysEntry && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#C1432B", background: "#FBEAE6", padding: "4px 10px", borderRadius: 5 }}>⚠ Today's QC not entered yet</span>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 12.5 }}>
+                <div><span style={{ color: "#8A9694" }}>Current lot: </span><b>{p.lot_number || "—"}</b></div>
+                <div><span style={{ color: "#8A9694" }}>Received: </span>{current?.received_date || "—"} {current?.received_by ? `by ${current.received_by}` : ""}</div>
+                <span style={{ fontWeight: 700, color: status.color, background: status.bg, padding: "3px 9px", borderRadius: 5 }}>{status.label}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function ExportPage({ panels, entries }) {
   const [dateFrom, setDateFrom] = useState(firstOfMonth());

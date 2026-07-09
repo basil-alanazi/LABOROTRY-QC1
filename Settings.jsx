@@ -23,9 +23,9 @@ function resolveMeanSd(a) {
   return { mean: null, sd: null };
 }
 
-export default function Settings({ config, panels, role, staffAccounts, reload }) {
+export default function Settings({ config, panels, role, staffAccounts, username, baselines, reload }) {
   const departments = config.departments || [];
-  const [form, setForm] = useState({ name: "", department: departments[0] || "", device: "", lot_number: "" });
+  const [form, setForm] = useState({ name: "", department: departments[0] || "", device: "", lot_number: "", lot_expiry: "" });
   const [analytes, setAnalytes] = useState([emptyAnalyte()]);
   const [bulkText, setBulkText] = useState("");
   const [newDept, setNewDept] = useState("");
@@ -44,6 +44,7 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
   const [msg, setMsg] = useState("");
   const [editingLotId, setEditingLotId] = useState(null);
   const [editLot, setEditLot] = useState("");
+  const [editLotExpiry, setEditLotExpiry] = useState("");
   const [baselineEditId, setBaselineEditId] = useState(null);
   const [baselineValues, setBaselineValues] = useState({});
   const [editPanelId, setEditPanelId] = useState(null);
@@ -122,9 +123,15 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
 
   async function addPanel() {
     if (!form.name || analytes.some((l) => !l.name)) return;
+    const { lot_expiry, ...panelFields } = form;
     const cleanAnalytes = analytes.map(({ name, unit }) => ({ name, unit }));
-    const { data: newPanel } = await supabase.from("qc_panels").insert({ ...form, analytes: cleanAnalytes }).select().single();
+    const { data: newPanel } = await supabase.from("qc_panels").insert({ ...panelFields, analytes: cleanAnalytes }).select().single();
     if (newPanel) {
+      if (form.lot_number) {
+        await supabase.from("qc_control_lots").insert({
+          panel_id: newPanel.id, lot_number: form.lot_number, expiry_date: lot_expiry || null, received_by: username,
+        });
+      }
       for (const a of analytes) {
         const { mean, sd } = resolveMeanSd(a);
         if (mean !== null && sd !== null && form.lot_number) {
@@ -135,7 +142,7 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
         }
       }
     }
-    setForm({ name: "", department: departments[0] || "", device: "", lot_number: "" });
+    setForm({ name: "", department: departments[0] || "", device: "", lot_number: "", lot_expiry: "" });
     setAnalytes([emptyAnalyte()]);
     reload();
   }
@@ -148,7 +155,11 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
 
   async function saveLot(id) {
     await supabase.from("qc_panels").update({ lot_number: editLot }).eq("id", id);
+    await supabase.from("qc_control_lots").insert({
+      panel_id: id, lot_number: editLot, expiry_date: editLotExpiry || null, received_by: username,
+    });
     setEditingLotId(null);
+    setEditLotExpiry("");
     reload();
   }
 
@@ -207,6 +218,7 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
           </select>
           <input placeholder="Device" value={form.device} onChange={(e) => setForm((f) => ({ ...f, device: e.target.value }))} style={{ ...inputStyle, flex: 1, minWidth: 120, marginTop: 0 }} />
           <input placeholder="Lot number" value={form.lot_number} onChange={(e) => setForm((f) => ({ ...f, lot_number: e.target.value }))} style={{ ...inputStyle, width: 120, marginTop: 0 }} />
+          <input type="date" placeholder="Lot expiry" value={form.lot_expiry} onChange={(e) => setForm((f) => ({ ...f, lot_expiry: e.target.value }))} style={{ ...inputStyle, width: 140, marginTop: 0 }} />
         </div>
 
         <div style={{ fontSize: 11.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 6 }}>ANALYTES (rows in the grid)</div>
@@ -284,21 +296,33 @@ export default function Settings({ config, panels, role, staffAccounts, reload }
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
               {editingLotId === p.id ? (
                 <>
-                  <input value={editLot} onChange={(e) => setEditLot(e.target.value)} style={{ ...inputStyle, width: 140, marginTop: 0 }} />
+                  <input placeholder="New lot number" value={editLot} onChange={(e) => setEditLot(e.target.value)} style={{ ...inputStyle, width: 140, marginTop: 0 }} />
+                  <input type="date" placeholder="Expiry date" value={editLotExpiry} onChange={(e) => setEditLotExpiry(e.target.value)} style={{ ...inputStyle, width: 150, marginTop: 0 }} />
                   <button onClick={() => saveLot(p.id)} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12 }}>Save</button>
                   <button onClick={() => setEditingLotId(null)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "6px 12px", fontSize: 12 }}>Cancel</button>
                 </>
               ) : (
                 <>
                   <div style={{ fontSize: 12, color: "#516361" }}>Current lot: <b>{p.lot_number || "—"}</b></div>
-                  <button onClick={() => { setEditingLotId(p.id); setEditLot(p.lot_number || ""); }} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 12, fontWeight: 600 }}>Change lot (new baseline)</button>
-                  <button onClick={() => { setBaselineEditId(p.id); setBaselineValues({}); }} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 12, fontWeight: 600 }}>Set mean/SD manually</button>
+                  <button onClick={() => { setEditingLotId(p.id); setEditLot(p.lot_number || ""); setEditLotExpiry(""); }} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 12, fontWeight: 600 }}>Change lot (new baseline)</button>
+                  <button
+                    onClick={() => {
+                      setBaselineEditId(p.id);
+                      const prefill = {};
+                      (p.analytes || []).forEach((a) => {
+                        const b = (baselines || []).find((x) => x.panel_id === p.id && x.analyte_name === a.name && x.lot_number === p.lot_number);
+                        if (b) prefill[a.name] = { mean: String(b.mean), sd: String(b.sd), rangeLow: "", rangeHigh: "" };
+                      });
+                      setBaselineValues(prefill);
+                    }}
+                    style={{ background: "none", border: "none", color: "#0F7173", fontSize: 12, fontWeight: 600 }}
+                  >Edit normal range</button>
                 </>
               )}
             </div>
             {baselineEditId === p.id && (
               <div style={{ marginTop: 10, background: "#F7F9F8", borderRadius: 7, padding: 10 }}>
-                <div style={{ fontSize: 11, color: "#8A9694", marginBottom: 6 }}>Applies to lot <b>{p.lot_number || "—"}</b>. Leave blank for analytes you don't want to set manually.</div>
+                <div style={{ fontSize: 11, color: "#8A9694", marginBottom: 6 }}>Applies to lot <b>{p.lot_number || "—"}</b>. Already-set analytes are pre-filled — just edit the numbers and save.</div>
                 {(p.analytes || []).map((a) => (
                   <div key={a.name} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
                     <div style={{ width: 70, fontSize: 12.5, fontWeight: 600 }}>{a.name}</div>
