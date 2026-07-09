@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award, FileText, Users, Calendar, Menu, Home, ChevronDown, ChevronRight, Wrench } from "lucide-react";
+import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award, FileText, Users, Calendar, Menu, Home, ChevronDown, ChevronRight, Wrench, MessageCircle, Bot } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import Settings from "./Settings";
@@ -17,6 +17,8 @@ import SmartSearch from "./SmartSearch";
 import KPI from "./KPI";
 import Equipment from "./Equipment";
 import LotComparison from "./LotComparison";
+import InternalChat from "./InternalChat";
+import SmartAssistant from "./SmartAssistant";
 import { evaluateWestgard, zScore, RULE_DESCRIPTIONS } from "./westgard";
 
 const DEPT_PALETTE = ["#0F7173", "#B5473A", "#8A5A2B", "#5A6ACF", "#2F8F5B", "#B8860B", "#7A4FA3", "#C1432B"];
@@ -332,6 +334,8 @@ export default function App() {
 
       <main className="app-main">
         {tab === "home" && <HomePage username={username} role={role} config={config} panels={panels} activeEntries={activeEntries} pendingCount={pendingItems.length} onNavigate={setTab} />}
+        {tab === "chat" && <InternalChat username={username} config={config} staffAccounts={staffAccounts} portalAccounts={portalAccounts} />}
+        {tab === "assistant" && <SmartAssistant panels={panels} entries={activeEntries} />}
         {tab === "qc" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} />}
         {tab === "staff" && <StaffMembers departments={config.departments || []} role={role} />}
         {tab === "schedule" && <Schedule departments={config.departments || []} role={role} username={username} />}
@@ -517,6 +521,8 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
 
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
         <SideItem icon={<Home size={15} />} label="Dashboard" active={tab === "home"} onClick={() => onNavigate("home")} />
+        <SideItem icon={<MessageCircle size={15} />} label="Chat" active={tab === "chat"} onClick={() => onNavigate("chat")} />
+        <SideItem icon={<Bot size={15} />} label="Assistant" active={tab === "assistant"} onClick={() => onNavigate("assistant")} />
 
         <SideGroup icon="🧪" label="Quality Control" open={openGroups.qc} onToggle={() => toggleGroup("qc")}>
           {qcItems.map((i) => <SideItem key={i.key} icon={<i.icon size={14} />} label={i.label} active={tab === i.key} onClick={() => onNavigate(i.key)} indent />)}

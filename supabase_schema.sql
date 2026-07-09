@@ -334,5 +334,17 @@ alter table equipment_events enable row level security;
 create policy "allow all equipment" on equipment for all using (true) with check (true);
 create policy "allow all equipment_events" on equipment_events for all using (true) with check (true);
 
+-- ===== Internal chat =====
+create table if not exists chat_messages (
+  id uuid primary key default gen_random_uuid(),
+  from_username text not null,
+  to_username text not null,
+  body text not null,
+  is_read boolean not null default false,
+  created_at timestamptz default now()
+);
+alter table chat_messages enable row level security;
+create policy "allow all chat_messages" on chat_messages for all using (true) with check (true);
+
 -- Note: this is an open (RLS "allow all") setup — fine for an internal lab tool
 -- with no patient data. Anyone with the app link and Supabase keys can read/write.

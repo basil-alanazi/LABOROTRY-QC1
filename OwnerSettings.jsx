@@ -36,13 +36,16 @@ export default function OwnerSettings({ config, reload }) {
   const [msg, setMsg] = useState("");
 
   const [accounts, setAccounts] = useState(null);
+  const [staffAccounts, setStaffAccounts] = useState([]);
   const [customTables, setCustomTables] = useState([]);
   const [showNewAccount, setShowNewAccount] = useState(false);
 
   async function loadExtras() {
     const { data: a } = await supabase.from("portal_accounts").select("*").order("username");
+    const { data: sa } = await supabase.from("staff_accounts").select("*").order("username");
     const { data: t } = await supabase.from("custom_tables").select("*").eq("deleted", false).order("title");
     setAccounts(a || []);
+    setStaffAccounts(sa || []);
     setCustomTables(t || []);
   }
   useEffect(() => { loadExtras(); }, []);
@@ -57,6 +60,13 @@ export default function OwnerSettings({ config, reload }) {
   async function deleteAccount(id) {
     if (!confirm("Remove this account?")) return;
     await supabase.from("portal_accounts").delete().eq("id", id);
+    loadExtras();
+  }
+
+  async function resetPassword(table, id, currentUsername) {
+    const newPw = prompt(`New password for ${currentUsername}:`);
+    if (!newPw) return;
+    await supabase.from(table).update({ password: newPw, must_change_password: true }).eq("id", id);
     loadExtras();
   }
 
@@ -79,6 +89,32 @@ export default function OwnerSettings({ config, reload }) {
           <Save size={14} /> Save branding
         </button>
         {msg && <div style={{ fontSize: 12.5, color: "#2F6B4F" }}>{msg}</div>}
+      </div>
+
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, letterSpacing: 0.3 }}>ALL ACCOUNTS & PASSWORDS</div>
+      <div style={{ fontSize: 12.5, color: "#7B8E8A", marginBottom: 12 }}>
+        Every individual login and its current password. Fixed accounts (staff/admin/owner) are managed from Settings — this covers the individual employee and custom accounts.
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 30 }}>
+        {staffAccounts.length === 0 && accounts.length === 0 && <div style={{ fontSize: 13, color: "#8A9694" }}>No individual accounts yet.</div>}
+        {staffAccounts.map((s) => (
+          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "9px 14px", fontSize: 12.5 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#516361", background: "#F0F3F2", padding: "2px 7px", borderRadius: 4 }}>STAFF</span>
+            <div style={{ flex: 1, fontWeight: 600 }}>{s.username}</div>
+            <div style={{ fontFamily: "monospace", color: "#8A9694" }}>{s.password}</div>
+            {s.must_change_password && <span style={{ fontSize: 10, color: "#B8860B" }}>must change on next login</span>}
+            <button onClick={() => resetPassword("staff_accounts", s.id, s.username)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 5, padding: "4px 8px", fontSize: 11 }}>Reset</button>
+          </div>
+        ))}
+        {accounts.map((a) => (
+          <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "9px 14px", fontSize: 12.5 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "#3E6ACF", background: "#E7F0FB", padding: "2px 7px", borderRadius: 4 }}>CUSTOM</span>
+            <div style={{ flex: 1, fontWeight: 600 }}>{a.username}</div>
+            <div style={{ fontFamily: "monospace", color: "#8A9694" }}>{a.password}</div>
+            {a.must_change_password && <span style={{ fontSize: 10, color: "#B8860B" }}>must change on next login</span>}
+            <button onClick={() => resetPassword("portal_accounts", a.id, a.username)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 5, padding: "4px 8px", fontSize: 11 }}>Reset</button>
+          </div>
+        ))}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
