@@ -131,7 +131,10 @@ function DailyAssignment({ staff, canEdit }) {
             <tr>
               <th style={{ position: "sticky", left: 0, background: "#F0F3F2", padding: "6px 8px", minWidth: 60, borderBottom: "1px solid #E1E8E5" }}>Day</th>
               {staff.map((m) => (
-                <th key={m.id} style={{ padding: "6px 6px", borderBottom: "1px solid #E1E8E5", minWidth: 110, fontSize: 10.5 }}>{m.full_name}</th>
+                <th key={m.id} style={{ padding: "6px 6px", borderBottom: "1px solid #E1E8E5", minWidth: 110, fontSize: 10.5 }}>
+                  <div>{m.full_name}</div>
+                  {m.job_number && <div style={{ fontWeight: 400, color: "#8A9694" }}>#{m.job_number}</div>}
+                </th>
               ))}
             </tr>
           </thead>

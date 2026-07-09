@@ -198,9 +198,9 @@ export default function Schedule({ departments, role, username }) {
               <tr>
                 <th style={{ position: "sticky", left: 0, background: "#F0F3F2", padding: "6px 8px", minWidth: 70, borderBottom: "1px solid #E1E8E5" }}>Day</th>
                 {staff.map((m) => (
-                  <th key={m.id} style={{ padding: "6px 6px", borderBottom: "1px solid #E1E8E5", minWidth: 50, writingMode: "vertical-rl", textOrientation: "mixed", fontSize: 10.5 }}>
-                    <div>{m.full_name}</div>
-                    <div style={{ fontWeight: 400, color: "#8A9694" }}>{m.job_number}</div>
+                  <th key={m.id} style={{ padding: "8px 6px", borderBottom: "1px solid #E1E8E5", minWidth: 40, writingMode: "vertical-rl", textOrientation: "mixed", fontSize: 10.5, whiteSpace: "nowrap" }}>
+                    <span style={{ fontWeight: 700 }}>{m.full_name}</span>
+                    {m.job_number && <span style={{ fontWeight: 400, color: "#8A9694" }}> · #{m.job_number}</span>}
                   </th>
                 ))}
               </tr>
