@@ -23,6 +23,7 @@ import CorrectiveAction from "./CorrectiveAction";
 import InternalChat from "./InternalChat";
 import SmartAssistant from "./SmartAssistant";
 import MyProfile from "./MyProfile";
+import ErrorBoundary from "./ErrorBoundary";
 import { loadProfilesMap, signatureFor } from "./userProfiles";
 import { evaluateWestgard, zScore, RULE_DESCRIPTIONS } from "./westgard";
 
@@ -341,6 +342,7 @@ export default function App() {
       />
 
       <main className="app-main">
+        <ErrorBoundary key={tab}>
         {tab === "home" && <HomePage username={username} role={role} config={config} panels={panels} activeEntries={activeEntries} pendingCount={pendingItems.length} onNavigate={setTab} profiles={profiles} />}
         {tab === "profile" && <MyProfile username={username} />}
         {tab === "chat" && <InternalChat username={username} config={config} staffAccounts={staffAccounts} portalAccounts={portalAccounts} />}
@@ -370,6 +372,7 @@ export default function App() {
           const t = pinnedTables.find((x) => `pinned:${x.id}` === tab);
           return t ? <CustomTables role={role} username={username} openTableId={t.id} onReload={loadAll} /> : null;
         })()}
+        </ErrorBoundary>
         {error && <div style={{ position: "fixed", bottom: 16, left: "50%", transform: "translateX(-50%)", background: "#C1432B", color: "#fff", padding: "10px 18px", borderRadius: 8, fontSize: 14 }}>{error}</div>}
       </main>
     </div>
