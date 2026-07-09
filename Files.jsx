@@ -75,7 +75,7 @@ export default function Files({ role, username }) {
               <FileIcon size={16} color="#8A9694" />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 600 }}>{f.filename}</div>
-                <div style={{ fontSize: 11.5, color: "#8A9694" }}>{f.description ? `${f.description} · ` : ""}by {f.uploaded_by} · {new Date(f.created_at).toLocaleDateString()}</div>
+                <div style={{ fontSize: 11.5, color: "#8A9694" }}>{f.description ? `${f.description} · ` : ""}by {f.uploaded_by} · {new Date(f.created_at).toLocaleDateString("en-US")}</div>
               </div>
               <a href={fileUrl(f.storage_path)} target="_blank" rel="noreferrer" style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 6, padding: "6px 10px", fontSize: 12, display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}><Download size={13} /> Open</a>
               {(role === "admin" || role === "super") && <button onClick={() => deleteFile(f)} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={15} /></button>}

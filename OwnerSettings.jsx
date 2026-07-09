@@ -34,6 +34,7 @@ const BUILT_IN_PAGES = [
   { key: "reject", label: "Reject Sample" },
   { key: "panic", label: "Panic Value" },
   { key: "corrective", label: "Corrective Action" },
+  { key: "infection", label: "Infection Disease" },
 ];
 
 // Suggested role presets — same permission system, just a quicker starting point.

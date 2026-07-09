@@ -32,7 +32,7 @@ export default function HomePage({ username, role, config, panels, activeEntries
     <div>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 22, fontWeight: 700 }}>{greeting(now.getHours())}, {signatureFor(username, profiles).split(" ")[0]} 👋</div>
-        <div style={{ fontSize: 13, color: "#8A9694", marginTop: 4 }}>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })} · {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+        <div style={{ fontSize: 13, color: "#8A9694", marginTop: 4 }}>{now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} · {now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 28 }}>

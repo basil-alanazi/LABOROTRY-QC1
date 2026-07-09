@@ -5,6 +5,7 @@ export default function RejectSample({ role, username }) {
   return (
     <RecordModule
       table="reject_samples"
+      moduleKey="reject"
       title="Reject Sample"
       description="Every rejected sample — reason, who rejected it, and what was done."
       role={role} username={username}

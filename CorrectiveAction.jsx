@@ -5,6 +5,7 @@ export default function CorrectiveAction({ role, username }) {
   return (
     <RecordModule
       table="corrective_actions"
+      moduleKey="corrective"
       title="Corrective Action"
       description="Issues found, root cause, and what was done to fix them."
       role={role} username={username}

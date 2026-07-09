@@ -57,7 +57,7 @@ export default function AuditTrail() {
                 <span style={{ fontSize: 10.5, fontWeight: 700, color: m.fg, background: m.bg, padding: "3px 8px", borderRadius: 5, textTransform: "uppercase" }}>{l.action}</span>
                 <span style={{ flex: 1 }}>{l.description}</span>
                 <span style={{ color: "#8A9694" }}>{l.performed_by}</span>
-                <span style={{ color: "#8A9694", fontSize: 11 }}>{new Date(l.performed_at).toLocaleString()}</span>
+                <span style={{ color: "#8A9694", fontSize: 11 }}>{new Date(l.performed_at).toLocaleString("en-US")}</span>
               </div>
             );
           })}

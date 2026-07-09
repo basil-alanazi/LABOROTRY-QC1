@@ -66,7 +66,7 @@ export default function KPI({ panels, entries, baselines }) {
   return (
     <div>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>KPI</h2>
-      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Lab-wide snapshot for {new Date().toLocaleString([], { month: "long", year: "numeric" })}.</div>
+      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Lab-wide snapshot for {new Date().toLocaleString("en-US", { month: "long", year: "numeric" })}.</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 24 }}>
         <StatCard label="QC results this month" value={stats.total} tone="neutral" />

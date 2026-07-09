@@ -195,7 +195,7 @@ export default function Schedule({ departments, role, username }) {
 
       {/* Live status */}
       <div className="no-print" style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>LIVE STATUS — {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>LIVE STATUS — {now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {staff.map((m) => {
             const live = liveStatusFor(m);

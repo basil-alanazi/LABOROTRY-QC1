@@ -5,6 +5,7 @@ export default function PanicValue({ role, username }) {
   return (
     <RecordModule
       table="panic_values"
+      moduleKey="panic"
       title="Panic Value"
       description="Critical results and physician notification tracking."
       role={role} username={username}

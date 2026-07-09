@@ -401,5 +401,38 @@ create policy "allow all corrective_actions" on corrective_actions for all using
 -- Owner can hide any page from everyone else, system-wide.
 alter table app_config add column if not exists hidden_pages jsonb not null default '[]'::jsonb;
 
+-- Lets each record module (Reject/Panic/Corrective/Infection) have extra
+-- fields added by the owner/admin at any time, without touching the code.
+create table if not exists module_custom_fields (
+  id uuid primary key default gen_random_uuid(),
+  module_key text not null,
+  field_key text not null,
+  field_label text not null,
+  created_at timestamptz default now()
+);
+alter table module_custom_fields enable row level security;
+create policy "allow all module_custom_fields" on module_custom_fields for all using (true) with check (true);
+
+alter table reject_samples add column if not exists extra_data jsonb not null default '{}'::jsonb;
+alter table panic_values add column if not exists extra_data jsonb not null default '{}'::jsonb;
+alter table corrective_actions add column if not exists extra_data jsonb not null default '{}'::jsonb;
+
+create table if not exists infection_diseases (
+  id uuid primary key default gen_random_uuid(),
+  date date not null default current_date,
+  patient_id text not null default '',
+  infection_type text not null default '',
+  ward_department text not null default '',
+  isolation_status text not null default '',
+  reported_by text not null default '',
+  action_taken text not null default '',
+  status text not null default 'active', -- active | resolved
+  extra_data jsonb not null default '{}'::jsonb,
+  deleted boolean not null default false,
+  created_at timestamptz default now()
+);
+alter table infection_diseases enable row level security;
+create policy "allow all infection_diseases" on infection_diseases for all using (true) with check (true);
+
 -- Note: this is an open (RLS "allow all") setup — fine for an internal lab tool
 -- with no patient data. Anyone with the app link and Supabase keys can read/write.

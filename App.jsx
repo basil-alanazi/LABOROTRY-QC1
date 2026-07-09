@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award, FileText, Users, Calendar, Menu, Home, ChevronDown, ChevronRight, Wrench, MessageCircle, Bot, User, AlertTriangle, Siren, ClipboardList, EyeOff } from "lucide-react";
+import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award, FileText, Users, Calendar, Menu, Home, ChevronDown, ChevronRight, Wrench, MessageCircle, Bot, User, AlertTriangle, Siren, ClipboardList, EyeOff, Biohazard } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import Settings from "./Settings";
@@ -20,6 +20,7 @@ import LotComparison from "./LotComparison";
 import RejectSample from "./RejectSample";
 import PanicValue from "./PanicValue";
 import CorrectiveAction from "./CorrectiveAction";
+import InfectionDisease from "./InfectionDisease";
 import InternalChat from "./InternalChat";
 import SmartAssistant from "./SmartAssistant";
 import MyProfile from "./MyProfile";
@@ -33,7 +34,7 @@ function deptColor(dept, list) {
   return DEPT_PALETTE[i % DEPT_PALETTE.length];
 }
 const todayISO = () => new Date().toISOString().slice(0, 10);
-const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString() : "");
+const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString("en-US") : "");
 function daysInMonth(month) {
   const [y, m] = month.split("-").map(Number);
   return new Date(y, m, 0).getDate();
@@ -364,6 +365,7 @@ export default function App() {
         {tab === "reject" && (role === "admin" || role === "super") && <RejectSample role={role} username={username} />}
         {tab === "panic" && (role === "admin" || role === "super") && <PanicValue role={role} username={username} />}
         {tab === "corrective" && (role === "admin" || role === "super") && <CorrectiveAction role={role} username={username} />}
+        {tab === "infection" && (role === "admin" || role === "super") && <InfectionDisease role={role} username={username} />}
         {tab === "lotcompare" && (role === "admin" || role === "super") && <LotComparison panels={panels} />}
         {tab === "owner" && role === "super" && <OwnerSettings config={config} reload={() => { ensureConfig(); loadAll(); }} />}
         {tab === "tables" && (role === "admin" || role === "super") && <CustomTables role={role} username={username} onReload={loadAll} />}
@@ -397,6 +399,7 @@ const PORTAL_PAGE_META = {
   reject: { label: "Reject Sample", icon: AlertTriangle },
   panic: { label: "Panic Value", icon: Siren },
   corrective: { label: "Corrective Action", icon: ClipboardList },
+  infection: { label: "Infection Disease", icon: Biohazard },
 };
 
 function buildPortalPages(permissions, allTables, hiddenPages) {
@@ -443,6 +446,7 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
     if (p.key === "reject") return <RejectSample role={effectiveRole} username={username} />;
     if (p.key === "panic") return <PanicValue role={effectiveRole} username={username} />;
     if (p.key === "corrective") return <CorrectiveAction role={effectiveRole} username={username} />;
+    if (p.key === "infection") return <InfectionDisease role={effectiveRole} username={username} />;
     if (p.key.startsWith("table:")) return <CustomTables role={effectiveRole} username={username} openTableId={p.tableId} />;
     return null;
   }
@@ -579,6 +583,7 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
           {notHidden("reject") && <SideItem icon={<AlertTriangle size={14} />} label="Reject Sample" active={tab === "reject"} onClick={() => onNavigate("reject")} indent />}
           {notHidden("panic") && <SideItem icon={<Siren size={14} />} label="Panic Value" active={tab === "panic"} onClick={() => onNavigate("panic")} indent />}
           {notHidden("corrective") && <SideItem icon={<ClipboardList size={14} />} label="Corrective Action" active={tab === "corrective"} onClick={() => onNavigate("corrective")} indent />}
+          {notHidden("infection") && <SideItem icon={<Biohazard size={14} />} label="Infection Disease" active={tab === "infection"} onClick={() => onNavigate("infection")} indent />}
         </SideGroup>
 
         <SideGroup icon="📅" label="Schedule" open={openGroups.schedule} onToggle={() => toggleGroup("schedule")}>

@@ -70,7 +70,7 @@ export default function InternalChat({ username, config, staffAccounts, portalAc
                 {messages.map((m) => (
                   <div key={m.id} style={{ alignSelf: m.from_username === username ? "flex-end" : "flex-start", maxWidth: "75%" }}>
                     <div style={{ background: m.from_username === username ? "#0F7173" : "#F0F3F2", color: m.from_username === username ? "#fff" : "#1B2B2E", padding: "7px 11px", borderRadius: 10, fontSize: 13 }}>{m.body}</div>
-                    <div style={{ fontSize: 9.5, color: "#8A9694", marginTop: 2, textAlign: m.from_username === username ? "right" : "left" }}>{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                    <div style={{ fontSize: 9.5, color: "#8A9694", marginTop: 2, textAlign: m.from_username === username ? "right" : "left" }}>{new Date(m.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
                   </div>
                 ))}
                 <div ref={bottomRef} />
