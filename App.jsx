@@ -256,6 +256,13 @@ export default function App() {
         * { box-sizing: border-box; }
         button { font-family: inherit; cursor: pointer; }
         input, select, textarea { font-family: inherit; }
+        @media print {
+          header, nav, .no-print { display: none !important; }
+          body, html { background: #fff !important; }
+          main { padding: 0 !important; max-width: 100% !important; }
+          .print-area { border: none !important; }
+          .print-area table { font-size: 10px !important; }
+        }
       `}</style>
 
       <header style={{ borderBottom: "1px solid #D6DEDB", background: "#1B2B2E" }}>
@@ -544,6 +551,8 @@ function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, 
 // ---------- Monthly grid (matches the paper form) ----------
 
 function MonthlyGrid({ panels, entries, controlLots }) {
+  const [search, setSearch] = useState("");
+  const filteredPanels = panels.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
   const [panelId, setPanelId] = useState(panels[0]?.id || "");
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const panel = panels.find((p) => p.id === panelId);
@@ -561,44 +570,48 @@ function MonthlyGrid({ panels, entries, controlLots }) {
 
   async function exportExcel() {
     const XLSX = await import("xlsx");
-    const rows = (panel.analytes || []).map((a) => {
-      const row = { Item: a.name };
-      dayList.forEach((day) => {
-        const e = entryFor(day);
-        row[day] = e?.values?.[a.name] ?? "";
-      });
-      return row;
+    // Build as an array-of-arrays so column order is guaranteed — plain
+    // objects with numeric-looking keys (the day numbers) get silently
+    // reordered by JS before "Item", which is what was hiding it.
+    const header = ["Item", ...dayList];
+    const aoa = [header];
+    (panel.analytes || []).forEach((a) => {
+      aoa.push([a.name, ...dayList.map((day) => entryFor(day)?.values?.[a.name] ?? "")]);
     });
-    const doneRow = { Item: "Done by" };
-    const reviewRow = { Item: "Reviewed by" };
-    dayList.forEach((day) => {
-      const e = entryFor(day);
-      doneRow[day] = e?.done_by || "";
-      reviewRow[day] = e ? lastReviewerLabel(e) : "";
-    });
-    rows.push(doneRow, reviewRow);
-    const sheet = XLSX.utils.json_to_sheet(rows);
+    aoa.push(["Done by", ...dayList.map((day) => entryFor(day)?.done_by || "")]);
+    aoa.push(["Reviewed by", ...dayList.map((day) => { const e = entryFor(day); return e ? lastReviewerLabel(e) : ""; })]);
+    const sheet = XLSX.utils.aoa_to_sheet(aoa);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, sheet, month);
     XLSX.writeFile(wb, `${panel.name.replace(/[^a-z0-9]/gi, "_")}-${month}.xlsx`);
   }
 
+  function exportPDF() {
+    window.print();
+  }
+
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }} className="no-print">
         <h2 style={{ fontSize: 20, fontWeight: 700 }}>Monthly grid</h2>
-        {panel && <button onClick={exportExcel} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Download size={14} /> Export Excel</button>}
+        {panel && (
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={exportPDF} style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 7, padding: "8px 12px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><FileText size={14} /> Save as PDF</button>
+            <button onClick={exportExcel} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Download size={14} /> Export Excel</button>
+          </div>
+        )}
       </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }} className="no-print">
+        <input placeholder="Search device…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ ...inputStyle, width: 160 }} />
         <select value={panelId} onChange={(e) => setPanelId(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
-          {panels.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          {filteredPanels.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ ...inputStyle, width: "auto" }} />
       </div>
 
       {panel && (
-        <>
+        <div className="print-area">
           <div style={{ background: "#1B2B2E", color: "#F0F3F2", borderRadius: "8px 8px 0 0", padding: "10px 14px", fontSize: 13, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
             <div><b>{panel.name}</b></div>
             <div>Lot No: {panel.lot_number || "—"}</div>
@@ -652,7 +665,7 @@ function MonthlyGrid({ panels, entries, controlLots }) {
               </tbody>
             </table>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
