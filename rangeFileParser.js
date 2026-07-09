@@ -152,5 +152,5 @@ export async function parseRangeFile(file) {
   const ext = file.name.split(".").pop().toLowerCase();
   if (["xlsx", "xls", "csv"].includes(ext)) return parseSpreadsheet(file);
   if (["docx"].includes(ext)) return parseWord(file);
-  throw new Error("صيغة غير مدعومة. استخدم ملف Excel (.xlsx/.xls/.csv) أو Word (.docx).");
+  throw new Error("Unsupported file type. Use an Excel file (.xlsx/.xls/.csv) or Word (.docx).");
 }

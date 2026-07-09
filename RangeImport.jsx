@@ -30,12 +30,12 @@ export default function RangeImport({ analyteNames, onApply }) {
     try {
       const { rows } = await parseRangeFile(file);
       if (!rows.length) {
-        setError("لم أتمكن من التعرف على أي بيانات بالملف. تأكد أن فيه اسم تحليل وقيمة Low/High أو Mean/SD واضحة.");
+        setError("Couldn't recognize any data in this file. Make sure it has an analyte name and clear Low/High or Mean/SD values.");
       } else {
         setParsed(rows.map((r) => ({ ...r, matchedName: bestMatch(r.name) || analyteNames[0] || "" })));
       }
     } catch (err) {
-      setError(err.message || "تعذرت قراءة الملف.");
+      setError(err.message || "Couldn't read this file.");
     } finally {
       setBusy(false);
       e.target.value = "";
@@ -68,7 +68,7 @@ export default function RangeImport({ analyteNames, onApply }) {
   return (
     <div style={{ marginBottom: 10 }}>
       <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1px dashed #0F7173", color: "#0F7173", borderRadius: 7, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-        <Upload size={13} /> {busy ? "جاري القراءة…" : "رفع من ملف Excel أو Word"}
+        <Upload size={13} /> {busy ? "Reading…" : "Upload Excel or Word file"}
         <input type="file" accept=".xlsx,.xls,.csv,.docx" onChange={handleFile} disabled={busy} style={{ display: "none" }} />
       </label>
       {error && (
@@ -80,13 +80,13 @@ export default function RangeImport({ analyteNames, onApply }) {
       {parsed && parsed.length > 0 && (
         <div style={{ background: "#FBF8F0", border: "1px solid #E8DCC0", borderRadius: 8, padding: 10, marginTop: 10 }}>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A6D2F", marginBottom: 8 }}>
-            راجع الأرقام قبل الحفظ — تأكد أن كل صف مربوط بالتحليل الصحيح:
+            Review the numbers before saving — make sure each row is matched to the right analyte:
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflowY: "auto" }}>
             {parsed.map((r, i) => (
               <div key={i} style={{ display: "flex", gap: 5, alignItems: "center", background: "#fff", borderRadius: 6, padding: 6 }}>
                 <select value={r.matchedName} onChange={(e) => updateRow(i, "matchedName", e.target.value)} style={{ ...inputStyle, width: 100 }}>
-                  <option value="">— تجاهل —</option>
+                  <option value="">— Ignore —</option>
                   {analyteNames.map((n) => <option key={n} value={n}>{n}</option>)}
                 </select>
                 <input placeholder="Low" type="number" value={r.rangeLow ?? ""} onChange={(e) => updateRow(i, "rangeLow", e.target.value === "" ? null : Number(e.target.value))} style={{ ...inputStyle, width: 60 }} />
@@ -99,9 +99,9 @@ export default function RangeImport({ analyteNames, onApply }) {
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button onClick={confirmApply} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 6, padding: "7px 14px", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
-              <CheckCircle2 size={13} /> تعبية الحقول
+              <CheckCircle2 size={13} /> Fill in fields
             </button>
-            <button onClick={() => setParsed(null)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "7px 14px", fontSize: 12 }}>إلغاء</button>
+            <button onClick={() => setParsed(null)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "7px 14px", fontSize: 12 }}>Cancel</button>
           </div>
         </div>
       )}

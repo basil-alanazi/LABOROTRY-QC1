@@ -21,12 +21,12 @@ export default function StaffImport({ departments, onApply }) {
     try {
       const { rows } = await parseStaffFile(file);
       if (!rows.length) {
-        setError("لم أتمكن من التعرف على أي أسماء بالملف. تأكد أن فيه عمود اسم واضح.");
+        setError("Couldn't recognize any names in this file. Make sure it has a clear name column.");
       } else {
         setParsed(rows.map((r) => ({ ...r, department: r.department || departments?.[0] || "" })));
       }
     } catch (err) {
-      setError(err.message || "تعذرت قراءة الملف.");
+      setError(err.message || "Couldn't read this file.");
     } finally {
       setBusy(false);
       e.target.value = "";
@@ -48,7 +48,7 @@ export default function StaffImport({ departments, onApply }) {
   return (
     <div style={{ marginBottom: 10 }}>
       <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1px dashed #0F7173", color: "#0F7173", borderRadius: 7, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-        <Upload size={13} /> {busy ? "جاري القراءة…" : "رفع قائمة موظفين من ملف"}
+        <Upload size={13} /> {busy ? "Reading…" : "Upload staff list from file"}
         <input type="file" accept=".xlsx,.xls,.csv,.docx" onChange={handleFile} disabled={busy} style={{ display: "none" }} />
       </label>
       {error && (
@@ -60,19 +60,19 @@ export default function StaffImport({ departments, onApply }) {
       {parsed && parsed.length > 0 && (
         <div style={{ background: "#FBF8F0", border: "1px solid #E8DCC0", borderRadius: 8, padding: 10, marginTop: 10 }}>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A6D2F", marginBottom: 8 }}>
-            راجع القائمة قبل الإضافة ({parsed.length} موظف):
+            Review the list before adding ({parsed.length} staff):
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflowY: "auto" }}>
             {parsed.map((r, i) => (
               <div key={i} style={{ display: "flex", gap: 5, alignItems: "center", background: "#fff", borderRadius: 6, padding: 6 }}>
-                <input value={r.full_name} onChange={(e) => updateRow(i, "full_name", e.target.value)} style={{ ...inputStyle, flex: 2 }} placeholder="الاسم" />
-                <input value={r.job_number} onChange={(e) => updateRow(i, "job_number", e.target.value)} style={{ ...inputStyle, width: 90 }} placeholder="الرقم الوظيفي" />
+                <input value={r.full_name} onChange={(e) => updateRow(i, "full_name", e.target.value)} style={{ ...inputStyle, flex: 2 }} placeholder="Name" />
+                <input value={r.job_number} onChange={(e) => updateRow(i, "job_number", e.target.value)} style={{ ...inputStyle, width: 90 }} placeholder="Job number" />
                 {departments && departments.length > 0 ? (
                   <select value={r.department} onChange={(e) => updateRow(i, "department", e.target.value)} style={{ ...inputStyle, width: 120 }}>
                     {departments.map((d) => <option key={d} value={d}>{d}</option>)}
                   </select>
                 ) : (
-                  <input value={r.department} onChange={(e) => updateRow(i, "department", e.target.value)} style={{ ...inputStyle, width: 120 }} placeholder="القسم" />
+                  <input value={r.department} onChange={(e) => updateRow(i, "department", e.target.value)} style={{ ...inputStyle, width: 120 }} placeholder="Department" />
                 )}
                 <button onClick={() => removeRow(i)} style={{ background: "none", border: "none", color: "#C1432B" }}><X size={14} /></button>
               </div>
@@ -80,9 +80,9 @@ export default function StaffImport({ departments, onApply }) {
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button onClick={confirmApply} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 6, padding: "7px 14px", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
-              <CheckCircle2 size={13} /> إضافة الكل ({parsed.length})
+              <CheckCircle2 size={13} /> Add all ({parsed.length})
             </button>
-            <button onClick={() => setParsed(null)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "7px 14px", fontSize: 12 }}>إلغاء</button>
+            <button onClick={() => setParsed(null)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "7px 14px", fontSize: 12 }}>Cancel</button>
           </div>
         </div>
       )}

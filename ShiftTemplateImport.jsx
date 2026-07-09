@@ -27,12 +27,12 @@ export default function ShiftTemplateImport({ existingCodes, onApply }) {
     try {
       const { rows } = await parseShiftTemplateFile(file);
       if (!rows.length) {
-        setError("لم أتمكن من التعرف على أي شيفتات بالملف. تأكد أن فيه عمود لكود الشيفت وأوقات البداية والنهاية (أو نطاق زمني بخلية واحدة مثل 7:00AM-4:30PM).");
+        setError("Couldn't recognize any shifts in this file. Make sure it has a shift code column and start/end times (or a single-cell range like 7:00AM-4:30PM).");
       } else {
         setParsed(rows.map((r, i) => ({ ...r, color: r.color || DEFAULT_COLOR_CYCLE[i % DEFAULT_COLOR_CYCLE.length], existing: existingCodes.includes(r.code) })));
       }
     } catch (err) {
-      setError(err.message || "تعذرت قراءة الملف.");
+      setError(err.message || "Couldn't read this file.");
     } finally {
       setBusy(false);
       e.target.value = "";
@@ -53,8 +53,8 @@ export default function ShiftTemplateImport({ existingCodes, onApply }) {
     onApply(toApply);
     setApplyMsg(
       updateCount > 0
-        ? `تمت إضافة ${newCount} شيفت جديد، وتحديث ${updateCount} شيفت كان موجود.`
-        : `تمت إضافة ${newCount} شيفت.`
+        ? `Added ${newCount} new shift(s), and updated ${updateCount} existing shift(s).`
+        : `Added ${newCount} shift(s).`
     );
     setParsed(null);
   }
@@ -62,7 +62,7 @@ export default function ShiftTemplateImport({ existingCodes, onApply }) {
   return (
     <div style={{ marginBottom: 10 }}>
       <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1px dashed #0F7173", color: "#0F7173", borderRadius: 7, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-        <Upload size={13} /> {busy ? "جاري القراءة…" : "رفع الشيفتات من ملف Excel أو Word"}
+        <Upload size={13} /> {busy ? "Reading…" : "Upload shifts from Excel or Word"}
         <input type="file" accept=".xlsx,.xls,.csv,.docx" onChange={handleFile} disabled={busy} style={{ display: "none" }} />
       </label>
       {error && (
@@ -79,7 +79,7 @@ export default function ShiftTemplateImport({ existingCodes, onApply }) {
       {parsed && parsed.length > 0 && (
         <div style={{ background: "#FBF8F0", border: "1px solid #E8DCC0", borderRadius: 8, padding: 10, marginTop: 10 }}>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: "#8A6D2F", marginBottom: 8 }}>
-            راجع الشيفتات قبل الحفظ ({parsed.length}). الشيفتات المظللة بالأصفر عندك أصلاً — رفعها بيحدّث بياناتها بالجديد (وقت، اسم، لون) مو يتجاهلها:
+            Review the shifts before saving ({parsed.length}). Rows highlighted in yellow already exist — saving will update their times, name, and color rather than skip them:
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 340, overflowY: "auto" }}>
             {parsed.map((r, i) => (
@@ -92,16 +92,16 @@ export default function ShiftTemplateImport({ existingCodes, onApply }) {
                 <label style={{ fontSize: 10.5, display: "flex", alignItems: "center", gap: 2 }}>
                   <input type="checkbox" checked={r.is_off} onChange={(e) => updateRow(i, "is_off", e.target.checked)} /> Off
                 </label>
-                {r.existing && <span style={{ fontSize: 10, color: "#B8860B", fontWeight: 700 }}>تحديث</span>}
+                {r.existing && <span style={{ fontSize: 10, color: "#B8860B", fontWeight: 700 }}>update</span>}
                 <button onClick={() => removeRow(i)} style={{ background: "none", border: "none", color: "#C1432B" }}><X size={13} /></button>
               </div>
             ))}
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button onClick={confirmApply} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 6, padding: "7px 14px", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
-              <CheckCircle2 size={13} /> حفظ الشيفتات
+              <CheckCircle2 size={13} /> Save shifts
             </button>
-            <button onClick={() => setParsed(null)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "7px 14px", fontSize: 12 }}>إلغاء</button>
+            <button onClick={() => setParsed(null)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "7px 14px", fontSize: 12 }}>Cancel</button>
           </div>
         </div>
       )}

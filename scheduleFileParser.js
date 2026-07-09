@@ -150,5 +150,5 @@ export async function parseScheduleFile(file, staffNames) {
   const ext = file.name.split(".").pop().toLowerCase();
   if (["xlsx", "xls", "csv"].includes(ext)) return parseSpreadsheet(file, staffNames);
   if (["docx"].includes(ext)) return parseWord(file, staffNames);
-  throw new Error("صيغة غير مدعومة. استخدم ملف Excel (.xlsx/.xls/.csv) أو Word (.docx).");
+  throw new Error("Unsupported file type. Use an Excel file (.xlsx/.xls/.csv) or Word (.docx).");
 }

@@ -40,7 +40,7 @@ export default function MyProfile({ username }) {
     });
     setSaving(false);
     if (err) {
-      setError("تعذر الحفظ. حاول مرة ثانية.");
+      setError("Could not save. Please try again.");
       return;
     }
     setSaved(true);
@@ -57,25 +57,25 @@ export default function MyProfile({ username }) {
         <User size={19} /> My profile
       </h2>
       <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 24 }}>
-        هذي المعلومات تظهر كتوقيعك بدل اسم المستخدم، بكل مكان تسجل فيه نتيجة أو تعتمد أو تسجل دخول.
+        This shows up as your signature instead of your username, everywhere you log a result, approve something, or sign in.
       </div>
 
       <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
         <label style={labelStyle}>
-          الاسم الكامل
-          <input style={inputStyle} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="مثلاً: باسل العتيبي" />
+          Full name
+          <input style={inputStyle} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Basil Alenizi" />
         </label>
         <label style={labelStyle}>
-          الرقم الوظيفي
-          <input style={inputStyle} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} placeholder="مثلاً: 4521" />
+          Employee ID
+          <input style={inputStyle} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} placeholder="e.g. 4521" />
         </label>
 
         <div style={{ background: "#F7F9F8", borderRadius: 7, padding: "10px 12px", fontSize: 12.5, color: "#516361" }}>
-          سيظهر توقيعك كـ: <b>{previewSignature}</b>
+          Your signature will appear as: <b>{previewSignature}</b>
         </div>
 
         <button onClick={save} disabled={saving} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: saving ? 0.7 : 1 }}>
-          {saved ? <><CheckCircle2 size={15} /> تم الحفظ</> : <><Save size={14} /> {saving ? "جاري الحفظ…" : "حفظ"}</>}
+          {saved ? <><CheckCircle2 size={15} /> Saved</> : <><Save size={14} /> {saving ? "Saving…" : "Save"}</>}
         </button>
         {error && <div style={{ fontSize: 12.5, color: "#C1432B" }}>{error}</div>}
       </div>

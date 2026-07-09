@@ -134,7 +134,7 @@ export default function Settings({ config, panels, role, staffAccounts, username
     try {
       const { rows } = await parseRangeFile(file);
       if (!rows.length) {
-        setPanelFileError("لم أتمكن من التعرف على أي بيانات بالملف. تأكد أن فيه اسم تحليل وقيمة Low/High أو Mean/SD واضحة.");
+        setPanelFileError("Couldn't recognize any data in this file. Make sure it has an analyte name and clear Low/High or Mean/SD values.");
       } else {
         setAnalytes(rows.map((r) => ({
           name: r.name,
@@ -146,7 +146,7 @@ export default function Settings({ config, panels, role, staffAccounts, username
         })));
       }
     } catch (err) {
-      setPanelFileError(err.message || "تعذرت قراءة الملف.");
+      setPanelFileError(err.message || "Couldn't read this file.");
     } finally {
       setPanelFileBusy(false);
       e.target.value = "";
@@ -283,9 +283,9 @@ export default function Settings({ config, panels, role, staffAccounts, username
         <textarea value={bulkText} onChange={(e) => setBulkText(e.target.value)} placeholder={"Glu, mg/dL\nUA, mg/dL\nCreat, mg/dL"} style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} />
         <button onClick={applyBulk} style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 7, padding: "6px 12px", fontSize: 12, marginTop: 6 }}>Apply pasted list</button>
 
-        <div style={{ fontSize: 11, color: "#8A9694", margin: "10px 0 4px" }}>أو رفع ملف Excel/Word فيه أسماء التحاليل والنورمل رينج جاهزة — بيعبي كل الصفوف فوق تلقائياً:</div>
+        <div style={{ fontSize: 11, color: "#8A9694", margin: "10px 0 4px" }}>Or upload an Excel/Word file with the analyte names and normal ranges — it'll fill in all the rows above automatically:</div>
         <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1px dashed #0F7173", color: "#0F7173", borderRadius: 7, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-          <Upload size={13} /> {panelFileBusy ? "جاري القراءة…" : "رفع ملف Excel أو Word"}
+          <Upload size={13} /> {panelFileBusy ? "Reading…" : "Upload Excel or Word file"}
           <input type="file" accept=".xlsx,.xls,.csv,.docx" onChange={handlePanelFileUpload} disabled={panelFileBusy} style={{ display: "none" }} />
         </label>
         {panelFileError && (

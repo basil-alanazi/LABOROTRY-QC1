@@ -230,11 +230,11 @@ export default function Schedule({ departments, role, username }) {
           <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
             <thead>
               <tr>
-                <th style={{ position: "sticky", left: 0, background: "#F0F3F2", padding: "6px 8px", minWidth: 70, borderBottom: "1px solid #E1E8E5" }}>Day</th>
+                <th style={{ position: "sticky", left: 0, background: "#1B4F72", color: "#fff", padding: "8px 10px", minWidth: 80, borderBottom: "1px solid #E1E8E5" }}>Day</th>
                 {staff.map((m) => (
-                  <th key={m.id} style={{ padding: "8px 6px", borderBottom: "1px solid #E1E8E5", minWidth: 40, writingMode: "vertical-rl", textOrientation: "mixed", fontSize: 10.5, whiteSpace: "nowrap" }}>
-                    <span style={{ fontWeight: 700 }}>{m.full_name}</span>
-                    {m.job_number && <span style={{ fontWeight: 400, color: "#8A9694" }}> · #{m.job_number}</span>}
+                  <th key={m.id} style={{ padding: "8px 6px", background: "#1B4F72", color: "#fff", borderBottom: "1px solid #E1E8E5", minWidth: 78, fontSize: 10.5 }}>
+                    <div style={{ fontWeight: 700 }}>{m.full_name}</div>
+                    {m.job_number && <div style={{ fontWeight: 400, color: "#C9D9E8", fontSize: 9.5 }}>#{m.job_number}</div>}
                   </th>
                 ))}
               </tr>
@@ -242,28 +242,31 @@ export default function Schedule({ departments, role, username }) {
             <tbody>
               {dayList.map((d) => {
                 const dateStr = `${year}-${mo}-${String(d).padStart(2, "0")}`;
+                const weekday = weekdayShort(dateStr);
+                const isFriday = weekday === "Fri";
                 return (
-                  <tr key={d}>
-                    <td style={{ position: "sticky", left: 0, background: "#fff", padding: "3px 8px", fontWeight: 600, borderBottom: "1px solid #EEF2F0" }}>{d} {weekdayShort(dateStr)}</td>
+                  <tr key={d} style={{ background: isFriday ? "#F3ECE0" : "transparent" }}>
+                    <td style={{ position: "sticky", left: 0, background: isFriday ? "#F3ECE0" : "#fff", padding: "3px 8px", fontWeight: 600, borderBottom: "1px solid #EEF2F0" }}>{d} {weekday}</td>
                     {staff.map((m) => {
                       const entry = entryFor(m.id, dateStr);
                       const shift = entry ? shiftByCode[entry.shift_code] : null;
+                      const hasShift = !!(entry?.shift_code && shift);
                       return (
-                        <td key={m.id} style={{ padding: 2, textAlign: "center", borderBottom: "1px solid #EEF2F0", background: shift ? shift.color + "22" : "transparent" }}>
+                        <td key={m.id} style={{ padding: 2, textAlign: "center", borderBottom: "1px solid #EEF2F0", background: hasShift ? shift.color : "transparent" }}>
                           {canEdit ? (
                             <select
                               value={entry?.shift_code || ""}
                               onChange={(ev) => setCell(m.id, dateStr, ev.target.value)}
                               className="no-print"
-                              style={{ border: "none", background: "transparent", fontWeight: 700, fontSize: 10.5, color: shift?.color || "#1B2B2E", width: "100%" }}
+                              style={{ border: "none", background: "transparent", fontWeight: 700, fontSize: 10.5, color: hasShift ? "#fff" : "#1B2B2E", width: "100%" }}
                             >
                               <option value=""></option>
                               {shifts.map((s) => <option key={s.code} value={s.code}>{s.code}</option>)}
                             </select>
                           ) : (
-                            <span style={{ fontWeight: 700, fontSize: 10.5, color: shift?.color || "#1B2B2E" }}>{entry?.shift_code || ""}</span>
+                            <span style={{ fontWeight: 700, fontSize: 10.5, color: hasShift ? "#fff" : "#1B2B2E" }}>{entry?.shift_code || ""}</span>
                           )}
-                          <span className="print-only" style={{ display: "none", fontWeight: 700, fontSize: 10.5, color: shift?.color }}>{entry?.shift_code || ""}</span>
+                          <span className="print-only" style={{ display: "none", fontWeight: 700, fontSize: 10.5, color: hasShift ? "#fff" : "#1B2B2E" }}>{entry?.shift_code || ""}</span>
                           {canEdit && (
                             <div className="no-print" style={{ display: "flex", justifyContent: "center", gap: 2, marginTop: 1 }}>
                               <FlagBtn label="L" active={!!entry?.is_late} onClick={() => toggleFlag(m.id, dateStr, "is_late")} color="#B8860B" title="Late" />
@@ -304,7 +307,7 @@ export default function Schedule({ departments, role, username }) {
         <div style={{ fontSize: 12.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>SHIFT KEY</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {shifts.map((s) => (
-            <span key={s.id} style={{ fontSize: 11, fontWeight: 700, background: s.color + "22", color: s.color, padding: "4px 9px", borderRadius: 6 }}>
+            <span key={s.id} style={{ fontSize: 11, fontWeight: 700, background: s.color, color: "#fff", padding: "4px 9px", borderRadius: 6 }}>
               {s.code} — {s.is_off ? s.name : `${s.start_time}–${s.end_time}`}
             </span>
           ))}
@@ -316,7 +319,7 @@ export default function Schedule({ departments, role, username }) {
 
 function FlagBtn({ label, active, onClick, color, title }) {
   return (
-    <button onClick={onClick} title={title} style={{ width: 14, height: 14, fontSize: 8, fontWeight: 700, borderRadius: 3, border: "1px solid " + (active ? color : "#E1E8E5"), background: active ? color : "transparent", color: active ? "#fff" : "#C7D1CE", padding: 0, lineHeight: "12px" }}>
+    <button onClick={onClick} title={title} style={{ width: 14, height: 14, fontSize: 8, fontWeight: 700, borderRadius: 3, border: "1px solid " + (active ? color : "rgba(255,255,255,0.6)"), background: active ? color : "rgba(255,255,255,0.35)", color: active ? "#fff" : "#1B2B2E", padding: 0, lineHeight: "12px" }}>
       {label}
     </button>
   );
