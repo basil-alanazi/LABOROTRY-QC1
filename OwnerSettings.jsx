@@ -5,6 +5,17 @@ import { supabase } from "./supabaseClient";
 const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 14, boxSizing: "border-box" };
 const labelStyle = { fontSize: 12.5, fontWeight: 600, color: "#516361" };
 
+// Pre-tested color combinations so the owner can pick a good-looking theme
+// in one click instead of guessing hex codes.
+const THEME_PRESETS = [
+  { name: "Ocean Teal", accent: "#0F7173", sidebar: "#1B2B2E", bg: "#F0F3F2" },
+  { name: "Fresh Green", accent: "#2F8F5B", sidebar: "#173026", bg: "#F1F7F3" },
+  { name: "Deep Blue", accent: "#3E6ACF", sidebar: "#141E33", bg: "#F0F2F8" },
+  { name: "Warm Sunset", accent: "#D8862B", sidebar: "#2B211B", bg: "#F8F3EC" },
+  { name: "Royal Purple", accent: "#7A4FA3", sidebar: "#221A2E", bg: "#F4F0F8" },
+  { name: "Slate Gray", accent: "#516361", sidebar: "#222A29", bg: "#F2F3F3" },
+];
+
 const BUILT_IN_PAGES = [
   { key: "qc", label: "QC Entry (+ Approvals if admin)" },
   { key: "grid", label: "Monthly grid" },
@@ -113,6 +124,27 @@ export default function OwnerSettings({ config, reload }) {
       <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 16, display: "flex", flexDirection: "column", gap: 12, marginBottom: 30 }}>
         <label style={labelStyle}>App name (shown at the top)<input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} /></label>
         <label style={labelStyle}>Subtitle<input style={inputStyle} value={subtitle} onChange={(e) => setSubtitle(e.target.value)} /></label>
+        <div>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: "#516361", marginBottom: 6 }}>Quick themes (tested combinations)</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {THEME_PRESETS.map((p) => (
+              <button
+                key={p.name}
+                onClick={() => { setColor(p.accent); setSidebarColor(p.sidebar); setPageBgColor(p.bg); }}
+                title={p.name}
+                style={{ border: "1px solid #E1E8E5", borderRadius: 8, padding: 6, background: "#fff", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer" }}
+              >
+                <div style={{ display: "flex", borderRadius: 5, overflow: "hidden" }}>
+                  <div style={{ width: 16, height: 24, background: p.sidebar }} />
+                  <div style={{ width: 16, height: 24, background: p.accent }} />
+                  <div style={{ width: 16, height: 24, background: p.bg, border: "1px solid #E1E8E5" }} />
+                </div>
+                <div style={{ fontSize: 10, color: "#516361" }}>{p.name}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <label style={labelStyle}>Accent color (buttons, highlights)
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
             <input type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ width: 44, height: 36, border: "1px solid #C7D1CE", borderRadius: 6, padding: 2 }} />

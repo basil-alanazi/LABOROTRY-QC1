@@ -66,7 +66,7 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
       <form onSubmit={submit} style={{ background: "#fff", borderRadius: 14, padding: 32, width: "100%", maxWidth: 360, border: "1px solid #E1E8E5" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
           <div style={{ background: config.sidebar_color || "#1B2B2E", borderRadius: 8, padding: 8 }}>
-            {config.logo_url ? <img src={config.logo_url} alt="logo" style={{ width: 20, height: 20, borderRadius: 4, objectFit: "cover" }} /> : <FlaskConical size={20} color="#5FBFB0" />}
+            {config.logo_url ? <img src={config.logo_url} alt="logo" style={{ width: 28, height: 28, borderRadius: 5, objectFit: "contain" }} /> : <FlaskConical size={20} color="#5FBFB0" />}
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 16 }}>{config.app_title || "QC Log"}</div>

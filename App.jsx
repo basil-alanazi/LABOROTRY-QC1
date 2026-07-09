@@ -458,8 +458,12 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
       <header style={{ borderBottom: "1px solid #D6DEDB", background: config.sidebar_color || "#1B2B2E" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            (config.logo_url ? <img src={config.logo_url} alt="logo" style={{ width: 26, height: 26, borderRadius: 6, objectFit: "cover" }} /> : <FlaskConical size={22} color={config.theme_color || "#5FBFB0"} />)
-            <div>
+            {config.logo_url ? (
+              <img src={config.logo_url} alt="logo" style={{ width: 34, height: 34, borderRadius: 8, objectFit: "contain", background: "#fff", padding: 3, flexShrink: 0 }} />
+            ) : (
+              <FlaskConical size={22} color={config.theme_color || "#5FBFB0"} />
+            )}
+            <div style={{ minWidth: 0 }}>
               <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 17 }}>{config.app_title || "QC Log"}</div>
               <div style={{ color: "#8FA39E", fontSize: 12 }}>{username}</div>
             </div>
@@ -538,13 +542,23 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
   return (
     <div className={className} style={{ background: config.sidebar_color || "#1B2B2E", display: "flex", flexDirection: "column" }}>
       <div style={{ padding: "18px 16px", borderBottom: "1px solid #2A3B3D" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          (config.logo_url ? <img src={config.logo_url} alt="logo" style={{ width: 26, height: 26, borderRadius: 6, objectFit: "cover" }} /> : <FlaskConical size={22} color={config.theme_color || "#5FBFB0"} />)
-          <div>
-            <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 15 }}>{config.app_title || "QC Log"}</div>
-            <div style={{ color: "#8FA39E", fontSize: 10.5, fontFamily: "'IBM Plex Mono', monospace" }}>{signatureFor(username, profiles)}</div>
+        {config.logo_url ? (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <img src={config.logo_url} alt="logo" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "contain", background: "#fff", padding: 4 }} />
+            <div style={{ textAlign: "center" }}>
+              <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 15 }}>{config.app_title || "QC Log"}</div>
+              <div style={{ color: "#8FA39E", fontSize: 10.5, fontFamily: "'IBM Plex Mono', monospace" }}>{signatureFor(username, profiles)}</div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <FlaskConical size={22} color={config.theme_color || "#5FBFB0"} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 15 }}>{config.app_title || "QC Log"}</div>
+              <div style={{ color: "#8FA39E", fontSize: 10.5, fontFamily: "'IBM Plex Mono', monospace" }}>{signatureFor(username, profiles)}</div>
+            </div>
+          </div>
+        )}
       </div>
 
       <SmartSearch onNavigate={onNavigate} />
