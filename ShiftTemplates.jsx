@@ -65,12 +65,12 @@ export default function ShiftTemplates({ role }) {
 
   async function saveShiftsBulk(rows) {
     if (!rows.length) return;
-    const toInsert = rows.map((r) => ({
+    const toUpsert = rows.map((r) => ({
       code: r.code, name: r.name, start_time: r.is_off ? "" : r.start_time, end_time: r.is_off ? "" : r.end_time,
-      color: r.color, night_shift: !!r.night_shift, is_off: !!r.is_off,
+      color: r.color, night_shift: !!r.night_shift, is_off: !!r.is_off, deleted: false,
       total_hours: r.is_off ? 0 : shiftDurationHours(r.start_time, r.end_time),
     }));
-    await supabase.from("shift_templates").insert(toInsert);
+    await supabase.from("shift_templates").upsert(toUpsert, { onConflict: "code" });
     loadAll();
   }
 
