@@ -122,13 +122,7 @@ export default function App() {
     }
 
     const z = zScore(value, baseline.mean, baseline.sd);
-    const { data: pastEntries } = await supabase
-      .from("qc_entries").select("values,colors,date,created_at").eq("panel_id", panel.id).eq("lot_number", lot).eq("deleted", false).order("created_at", { ascending: true });
-    const history = (pastEntries || [])
-      .filter((e) => e.colors?.[analyteName] && e.colors[analyteName] !== "pending")
-      .map((e) => zScore(e.values[analyteName], baseline.mean, baseline.sd));
-
-    const { flags, color } = evaluateWestgard(z, history, []);
+    const { flags, color } = evaluateWestgard(z);
     return { color, flags, z };
   }
 
@@ -206,6 +200,38 @@ export default function App() {
     loadAll();
   }
 
+  // One-time cleanup: recompute every saved result's color/flags with the
+  // current (simplified) single-point rule, using whatever baseline is
+  // active right now. Doesn't touch values, reviews, or anything else.
+  async function recalculateAllColors() {
+    if (role !== "admin" && role !== "super") return;
+    if (!confirm("Recalculate colors for every saved result using the current normal ranges? This can take a minute.")) return;
+    setBusy(true);
+    try {
+      const { data: allEntries } = await supabase.from("qc_entries").select("*").eq("deleted", false);
+      const { data: allBaselines } = await supabase.from("qc_baselines").select("*").eq("active", true);
+      for (const e of allEntries || []) {
+        const colors = { ...e.colors };
+        const flags = { ...e.flags };
+        let changed = false;
+        for (const [name, value] of Object.entries(e.values || {})) {
+          const baseline = allBaselines.find((b) => b.panel_id === e.panel_id && b.analyte_name === name && b.lot_number === e.lot_number);
+          if (!baseline) continue;
+          const z = zScore(value, baseline.mean, baseline.sd);
+          const { color, flags: f } = evaluateWestgard(z);
+          if (colors[name] !== color) changed = true;
+          colors[name] = color;
+          flags[name] = f;
+        }
+        if (changed) await supabase.from("qc_entries").update({ colors, flags }).eq("id", e.id);
+      }
+      await logActivity("recalculate", "Recalculated all result colors with current normal ranges");
+      loadAll();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const activeEntries = useMemo(() => (entries || []).filter((e) => !e.deleted), [entries]);
   const pendingItems = useMemo(() => {
     const items = [];
@@ -262,7 +288,7 @@ export default function App() {
       <main style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px" }}>
         {tab === "dashboard" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} />}
         {tab === "grid" && (role === "admin" || role === "super") && <MonthlyGrid panels={panels} entries={activeEntries} controlLots={controlLots} />}
-        {tab === "controls" && (role === "admin" || role === "super") && <ControlStock panels={panels} entries={activeEntries} controlLots={controlLots} />}
+        {tab === "controls" && (role === "admin" || role === "super") && <ControlStock panels={panels} entries={activeEntries} controlLots={controlLots} onRecalculate={recalculateAllColors} busy={busy} />}
         {tab === "riqas" && (role === "admin" || role === "super") && <Riqas departments={config.departments || []} role={role} username={username} />}
         {tab === "chart" && <LeveyJennings panels={panels} entries={activeEntries} baselines={baselines} />}
         {tab === "export" && <ExportPage panels={panels} entries={activeEntries} />}
@@ -290,6 +316,15 @@ function reviewSummary(entry) {
     else pending++;
   });
   return { approved, declined, pending, total: names.length };
+}
+
+// Who most recently reviewed this entry (any analyte) — for display in grids.
+function lastReviewerLabel(entry) {
+  const reviews = Object.values(entry.reviews || {}).filter((r) => r && r.by && r.status !== "pending");
+  if (reviews.length === 0) return "";
+  reviews.sort((a, b) => new Date(b.at) - new Date(a.at));
+  const s = reviewSummary(entry);
+  return `${reviews[0].by} (${s.approved}/${s.total})`;
 }
 
 function ReviewSummaryBadge({ entry }) {
@@ -387,8 +422,8 @@ function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, 
     const baseline = baselines.find((b) => b.panel_id === panel.id && b.analyte_name === analyteName && b.lot_number === panel.lot_number);
     if (!baseline) return null;
     const z = zScore(Number(raw), baseline.mean, baseline.sd);
-    if (Math.abs(z) >= 3) return "red";
-    if (Math.abs(z) >= 2) return "orange";
+    if (Math.abs(z) >= 2) return "red";
+    if (Math.abs(z) >= 1.5) return "orange";
     return "green";
   }
 
@@ -539,7 +574,7 @@ function MonthlyGrid({ panels, entries, controlLots }) {
     dayList.forEach((day) => {
       const e = entryFor(day);
       doneRow[day] = e?.done_by || "";
-      reviewRow[day] = e ? `${reviewSummary(e).approved}/${reviewSummary(e).total}` : "";
+      reviewRow[day] = e ? lastReviewerLabel(e) : "";
     });
     rows.push(doneRow, reviewRow);
     const sheet = XLSX.utils.json_to_sheet(rows);
@@ -611,7 +646,7 @@ function MonthlyGrid({ panels, entries, controlLots }) {
                   <td style={{ position: "sticky", left: 0, background: "#F7F9F8", padding: "5px 10px", fontWeight: 700 }}>Reviewed by</td>
                   {dayList.map((day) => {
                     const e = entryFor(day);
-                    return <td key={day} style={{ textAlign: "center", padding: "5px 4px", fontSize: 10 }}>{e ? `${reviewSummary(e).approved}/${reviewSummary(e).total}` : ""}</td>;
+                    return <td key={day} style={{ textAlign: "center", padding: "5px 4px", fontSize: 10 }}>{e ? lastReviewerLabel(e) : ""}</td>;
                   })}
                 </tr>
               </tbody>
@@ -625,7 +660,7 @@ function MonthlyGrid({ panels, entries, controlLots }) {
 
 // ---------- Approvals ----------
 
-function ControlStock({ panels, entries, controlLots }) {
+function ControlStock({ panels, entries, controlLots, onRecalculate, busy }) {
   const today = todayISO();
 
   function expiryStatus(dateStr) {
@@ -640,8 +675,14 @@ function ControlStock({ panels, entries, controlLots }) {
 
   return (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Control stock</h2>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 4 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700 }}>Control stock</h2>
+        <button disabled={busy} onClick={onRecalculate} style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 7, padding: "7px 12px", fontSize: 12.5, fontWeight: 600, opacity: busy ? 0.6 : 1 }}>
+          {busy ? "Recalculating…" : "Recalculate all colors"}
+        </button>
+      </div>
       <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Current control lot, its expiry, and whether today's QC has been entered yet — for every device.</div>
+      <div style={{ fontSize: 11.5, color: "#8A9694", marginBottom: 20 }}>Changed how colors are calculated? "Recalculate all colors" re-checks every saved result against the current normal ranges — use it once after any range change.</div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {panels.map((p) => {
@@ -700,7 +741,7 @@ function ExportPage({ panels, entries }) {
       const reviewRow = { Item: "Reviewed by" };
       panelEntries.forEach((e) => {
         doneRow[e.date] = e.done_by;
-        reviewRow[e.date] = `${reviewSummary(e).approved}/${reviewSummary(e).total}`;
+        reviewRow[e.date] = lastReviewerLabel(e);
       });
       rows.push(doneRow, reviewRow);
       const sheet = XLSX.utils.json_to_sheet(rows.length ? rows : [{ Item: "No data in this range" }]);
