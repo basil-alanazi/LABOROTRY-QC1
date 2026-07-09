@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award, FileText, Users, Calendar, Menu, Home, ChevronDown, ChevronRight, Wrench, MessageCircle, Bot, User } from "lucide-react";
+import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award, FileText, Users, Calendar, Menu, Home, ChevronDown, ChevronRight, Wrench, MessageCircle, Bot, User, AlertTriangle, Siren, ClipboardList, EyeOff } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import Settings from "./Settings";
@@ -17,6 +17,9 @@ import SmartSearch from "./SmartSearch";
 import KPI from "./KPI";
 import Equipment from "./Equipment";
 import LotComparison from "./LotComparison";
+import RejectSample from "./RejectSample";
+import PanicValue from "./PanicValue";
+import CorrectiveAction from "./CorrectiveAction";
 import InternalChat from "./InternalChat";
 import SmartAssistant from "./SmartAssistant";
 import MyProfile from "./MyProfile";
@@ -356,6 +359,9 @@ export default function App() {
         {tab === "audit" && (role === "admin" || role === "super") && <AuditTrail />}
         {tab === "kpi" && (role === "admin" || role === "super") && <KPI panels={panels} entries={activeEntries} baselines={baselines} />}
         {tab === "equipment" && (role === "admin" || role === "super") && <Equipment departments={config.departments || []} role={role} username={username} />}
+        {tab === "reject" && (role === "admin" || role === "super") && <RejectSample role={role} username={username} />}
+        {tab === "panic" && (role === "admin" || role === "super") && <PanicValue role={role} username={username} />}
+        {tab === "corrective" && (role === "admin" || role === "super") && <CorrectiveAction role={role} username={username} />}
         {tab === "lotcompare" && (role === "admin" || role === "super") && <LotComparison panels={panels} />}
         {tab === "owner" && role === "super" && <OwnerSettings config={config} reload={() => { ensureConfig(); loadAll(); }} />}
         {tab === "tables" && (role === "admin" || role === "super") && <CustomTables role={role} username={username} onReload={loadAll} />}
@@ -385,11 +391,15 @@ const PORTAL_PAGE_META = {
   lotcompare: { label: "Lot comparison", icon: Grid3x3 },
   kpi: { label: "KPI", icon: BarChart3 },
   audit: { label: "Audit trail", icon: ClipboardCheck },
+  reject: { label: "Reject Sample", icon: AlertTriangle },
+  panic: { label: "Panic Value", icon: Siren },
+  corrective: { label: "Corrective Action", icon: ClipboardList },
 };
 
-function buildPortalPages(permissions, allTables) {
+function buildPortalPages(permissions, allTables, hiddenPages) {
   const pages = [];
   (permissions || []).forEach(({ page, level }) => {
+    if (hiddenPages?.includes(page)) return;
     if (page === "qc") {
       pages.push({ key: "qc", label: "QC Entry", icon: LayoutGrid, level });
       if (level === "admin") pages.push({ key: "approvals", label: "Approvals", icon: ClipboardCheck, level: "admin" });
@@ -405,7 +415,7 @@ function buildPortalPages(permissions, allTables) {
 }
 
 function Portal({ config, permissions, allTables, username, panels, entries, baselines, controlLots, busy, pendingItems, onSubmit, onDelete, onReview, onReviewBulk, onRecalculate, onLogout, profiles }) {
-  const pages = buildPortalPages(permissions, allTables);
+  const pages = buildPortalPages(permissions, allTables, config.hidden_pages || []);
   const [openKey, setOpenKey] = useState(pages.length === 1 ? pages[0].key : null);
   const [showProfile, setShowProfile] = useState(false);
   const current = pages.find((p) => p.key === openKey);
@@ -427,6 +437,9 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
     if (p.key === "lotcompare") return <LotComparison panels={panels} />;
     if (p.key === "kpi") return <KPI panels={panels} entries={entries} baselines={baselines} />;
     if (p.key === "audit") return <AuditTrail />;
+    if (p.key === "reject") return <RejectSample role={effectiveRole} username={username} />;
+    if (p.key === "panic") return <PanicValue role={effectiveRole} username={username} />;
+    if (p.key === "corrective") return <CorrectiveAction role={effectiveRole} username={username} />;
     if (p.key.startsWith("table:")) return <CustomTables role={effectiveRole} username={username} openTableId={p.tableId} />;
     return null;
   }
@@ -489,8 +502,10 @@ function NavBtn({ active, onClick, icon, label }) {
 }
 
 function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pendingCount, pinnedTables, className, profiles }) {
+  const hiddenPages = config.hidden_pages || [];
+  const notHidden = (key) => role === "super" || !hiddenPages.includes(key);
   const isAdmin = role === "admin" || role === "super";
-  const [openGroups, setOpenGroups] = useState({ qc: true, schedule: true, settings: false, tables: true });
+  const [openGroups, setOpenGroups] = useState({ qc: true, schedule: true, settings: false, tables: true, records: true });
   const toggleGroup = (k) => setOpenGroups((g) => ({ ...g, [k]: !g[k] }));
 
   const qcItems = [
@@ -503,19 +518,19 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
     { key: "controls", label: "Controls", icon: PackageCheck, show: isAdmin },
     { key: "export", label: "Export", icon: Download, show: isAdmin },
     { key: "lotcompare", label: "Lot comparison", icon: Grid3x3, show: isAdmin },
-  ].filter((i) => i.show);
+  ].filter((i) => i.show && notHidden(i.key));
 
   const scheduleItems = [
     { key: "schedule", label: "Schedule", icon: Calendar, show: true },
     { key: "shifts", label: "Shift templates", icon: Calendar, show: isAdmin },
-  ].filter((i) => i.show);
+  ].filter((i) => i.show && notHidden(i.key));
 
   const settingsItems = [
     { key: "profile", label: "My profile", icon: User, show: true },
     { key: "settings", label: "Settings", icon: SlidersHorizontal, show: isAdmin },
     { key: "audit", label: "Audit trail", icon: ClipboardCheck, show: isAdmin },
     { key: "owner", label: "Owner", icon: Award, show: role === "super" },
-  ].filter((i) => i.show);
+  ].filter((i) => i.show && notHidden(i.key));
 
   return (
     <div className={className} style={{ background: "#1B2B2E", display: "flex", flexDirection: "column" }}>
@@ -540,8 +555,14 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
           {qcItems.map((i) => <SideItem key={i.key} icon={<i.icon size={14} />} label={i.label} active={tab === i.key} onClick={() => onNavigate(i.key)} indent />)}
         </SideGroup>
 
-        <SideItem icon={<Users size={15} />} label="Staff" active={tab === "staff"} onClick={() => onNavigate("staff")} />
-        {isAdmin && <SideItem icon={<Wrench size={15} />} label="Equipment" active={tab === "equipment"} onClick={() => onNavigate("equipment")} />}
+        {notHidden("staff") && <SideItem icon={<Users size={15} />} label="Staff" active={tab === "staff"} onClick={() => onNavigate("staff")} />}
+        {isAdmin && notHidden("equipment") && <SideItem icon={<Wrench size={15} />} label="Equipment" active={tab === "equipment"} onClick={() => onNavigate("equipment")} />}
+
+        <SideGroup icon="📝" label="Records" open={openGroups.records} onToggle={() => toggleGroup("records")}>
+          {notHidden("reject") && <SideItem icon={<AlertTriangle size={14} />} label="Reject Sample" active={tab === "reject"} onClick={() => onNavigate("reject")} indent />}
+          {notHidden("panic") && <SideItem icon={<Siren size={14} />} label="Panic Value" active={tab === "panic"} onClick={() => onNavigate("panic")} indent />}
+          {notHidden("corrective") && <SideItem icon={<ClipboardList size={14} />} label="Corrective Action" active={tab === "corrective"} onClick={() => onNavigate("corrective")} indent />}
+        </SideGroup>
 
         <SideGroup icon="📅" label="Schedule" open={openGroups.schedule} onToggle={() => toggleGroup("schedule")}>
           {scheduleItems.map((i) => <SideItem key={i.key} icon={<i.icon size={14} />} label={i.label} active={tab === i.key} onClick={() => onNavigate(i.key)} indent />)}
@@ -550,12 +571,12 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
         {isAdmin && (
           <SideGroup icon="📋" label="Tables" open={openGroups.tables} onToggle={() => toggleGroup("tables")}>
             <SideItem icon={<Table2 size={14} />} label="All tables" active={tab === "tables"} onClick={() => onNavigate("tables")} indent />
-            {pinnedTables.map((t) => (
+            {pinnedTables.filter((t) => notHidden(`table:${t.id}`)).map((t) => (
               <SideItem key={t.id} icon={<Table2 size={14} />} label={t.title} active={tab === `pinned:${t.id}`} onClick={() => onNavigate(`pinned:${t.id}`)} indent />
             ))}
           </SideGroup>
         )}
-        {!isAdmin && pinnedTables.map((t) => (
+        {!isAdmin && pinnedTables.filter((t) => notHidden(`table:${t.id}`)).map((t) => (
           <SideItem key={t.id} icon={<Table2 size={15} />} label={t.title} active={tab === `pinned:${t.id}`} onClick={() => onNavigate(`pinned:${t.id}`)} />
         ))}
 

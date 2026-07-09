@@ -3,6 +3,7 @@ import { Download, Coffee, Check, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { shiftDurationHours, isWithinShift, todayISO, yesterdayISO } from "./scheduleUtils";
 import ScheduleImport from "./ScheduleImport";
+import { loadProfilesMap } from "./userProfiles";
 
 const inputStyle = { border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 10px", fontSize: 13, boxSizing: "border-box" };
 
@@ -14,6 +15,31 @@ function weekdayShort(dateStr) {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" });
 }
 
+// Groups this month's days into Sun-Sat weeks and flags any employee whose
+// total worked hours in a week aren't exactly 48.
+function weeklyHoursAlerts(staff, dayList, year, mo, entryFor, shiftByCode) {
+  const alerts = [];
+  staff.forEach((m) => {
+    const weeks = {}; // weekStart date string -> hours
+    dayList.forEach((d) => {
+      const dateStr = `${year}-${mo}-${String(d).padStart(2, "0")}`;
+      const dateObj = new Date(dateStr + "T00:00:00");
+      const weekStartObj = new Date(dateObj);
+      weekStartObj.setDate(dateObj.getDate() - dateObj.getDay());
+      const weekStart = weekStartObj.toISOString().slice(0, 10);
+      const entry = entryFor(m.id, dateStr);
+      const shift = entry ? shiftByCode[entry.shift_code] : null;
+      if (!shift || shift.is_off) return;
+      weeks[weekStart] = (weeks[weekStart] || 0) + (shift.total_hours || 0);
+    });
+    Object.entries(weeks).forEach(([weekStart, hours]) => {
+      const rounded = Math.round(hours * 100) / 100;
+      if (rounded !== 48) alerts.push({ name: m.full_name, weekStart, hours: rounded });
+    });
+  });
+  return alerts;
+}
+
 const STATUS_META = {
   on_duty: { emoji: "🟢", label: "On Duty", bg: "#E8F2EC", fg: "#2F6B4F" },
   on_break: { emoji: "🟡", label: "On Break", bg: "#FBF3DF", fg: "#B8860B" },
@@ -23,6 +49,7 @@ const STATUS_META = {
 };
 
 export default function Schedule({ departments, role, username }) {
+  const [myStaffId, setMyStaffId] = useState(null);
   const [staff, setStaff] = useState(null);
   const [shifts, setShifts] = useState(null);
   const [entries, setEntries] = useState(null);
@@ -40,6 +67,15 @@ export default function Schedule({ departments, role, username }) {
     setShifts(sh || []);
     setEntries(e || []);
     setBreaks(b || []);
+
+    const profiles = await loadProfilesMap();
+    const myProfile = profiles[username];
+    if (myProfile?.employee_id) {
+      const mine = (s || []).find((m) => m.job_number && m.job_number === myProfile.employee_id);
+      setMyStaffId(mine ? mine.id : null);
+    } else {
+      setMyStaffId(null);
+    }
   }
   useEffect(() => { loadAll(); }, []);
 
@@ -168,7 +204,7 @@ export default function Schedule({ departments, role, username }) {
               <div key={m.id} style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "8px 12px", minWidth: 150 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700 }}>{m.full_name}</div>
                 <div style={{ fontSize: 11, color: meta.fg, background: meta.bg, display: "inline-block", padding: "2px 7px", borderRadius: 5, marginTop: 3, fontWeight: 700 }}>{meta.emoji} {meta.label}</div>
-                {live.key === "on_duty" && (
+                {live.key === "on_duty" && (role === "admin" || role === "super" || m.id === myStaffId) && (
                   <StartBreakButton member={m} staff={staff} liveStatusFor={liveStatusFor} onRequest={requestBreak} />
                 )}
                 {live.key === "on_break" && live.session.requested_by === username && (
@@ -179,10 +215,10 @@ export default function Schedule({ departments, role, username }) {
           })}
         </div>
 
-        {pendingForMe.length > 0 && (
+        {pendingForMe.filter((b) => role === "admin" || role === "super" || b.covering_staff_id === myStaffId).length > 0 && (
           <div style={{ marginTop: 14 }}>
             <div style={{ fontSize: 12.5, fontWeight: 700, color: "#B8860B", marginBottom: 6 }}>PENDING BREAK REQUESTS</div>
-            {pendingForMe.map((b) => {
+            {pendingForMe.filter((b) => role === "admin" || role === "super" || b.covering_staff_id === myStaffId).map((b) => {
               const person = staff.find((s) => s.id === b.staff_id);
               const cover = staff.find((s) => s.id === b.covering_staff_id);
               return (
@@ -213,9 +249,9 @@ export default function Schedule({ departments, role, username }) {
           <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
             <thead>
               <tr>
-                <th style={{ position: "sticky", left: 0, background: "#1B4F72", color: "#fff", padding: "8px 10px", minWidth: 80, borderBottom: "1px solid #E1E8E5" }}>Day</th>
+                <th style={{ position: "sticky", left: 0, background: "#1B4F72", color: "#fff", padding: "8px 10px", minWidth: 80, borderBottom: "1px solid #E1E8E5", borderRight: "2px solid #0F3A57" }}>Day</th>
                 {staff.map((m) => (
-                  <th key={m.id} style={{ padding: "8px 6px", background: "#1B4F72", color: "#fff", borderBottom: "1px solid #E1E8E5", minWidth: 78, fontSize: 10.5 }}>
+                  <th key={m.id} style={{ padding: "8px 6px", background: "#1B4F72", color: "#fff", borderBottom: "1px solid #E1E8E5", borderRight: "2px solid #0F3A57", minWidth: 78, fontSize: 10.5 }}>
                     <div style={{ fontWeight: 700 }}>{m.full_name}</div>
                     {m.job_number && <div style={{ fontWeight: 400, color: "#C9D9E8", fontSize: 9.5 }}>#{m.job_number}</div>}
                   </th>
@@ -229,13 +265,13 @@ export default function Schedule({ departments, role, username }) {
                 const isFriday = weekday === "Fri";
                 return (
                   <tr key={d} style={{ background: isFriday ? "#F3ECE0" : "transparent" }}>
-                    <td style={{ position: "sticky", left: 0, background: isFriday ? "#F3ECE0" : "#fff", padding: "3px 8px", fontWeight: 600, borderBottom: "1px solid #9CA8AC" }}>{d} {weekday}</td>
+                    <td style={{ position: "sticky", left: 0, background: isFriday ? "#F3ECE0" : "#fff", padding: "3px 8px", fontWeight: 600, borderBottom: "1px solid #9CA8AC", borderRight: "2px solid #516361" }}>{d} {weekday}</td>
                     {staff.map((m) => {
                       const entry = entryFor(m.id, dateStr);
                       const shift = entry ? shiftByCode[entry.shift_code] : null;
                       const hasShift = !!(entry?.shift_code && shift);
                       return (
-                        <td key={m.id} style={{ padding: 2, textAlign: "center", borderBottom: "1px solid #9CA8AC", background: hasShift ? shift.color : "transparent" }}>
+                        <td key={m.id} style={{ padding: 2, textAlign: "center", borderBottom: "1px solid #9CA8AC", borderRight: "1px solid #C7D1CE", background: hasShift ? shift.color : "transparent" }}>
                           {canEdit ? (
                             <select
                               value={entry?.shift_code || ""}
@@ -257,23 +293,24 @@ export default function Schedule({ departments, role, username }) {
                 );
               })}
             </tbody>
-            <tfoot>
-              {[
-                ["Working Days", (m) => summaryFor(m).working],
-                ["OFF Days", (m) => summaryFor(m).off],
-                ["Vacation", (m) => summaryFor(m).vacation],
-                ["Total Hours", (m) => summaryFor(m).totalHours],
-                ["Night Shifts", (m) => summaryFor(m).nightShifts],
-              ].map(([label, fn]) => (
-                <tr key={label}>
-                  <td style={{ position: "sticky", left: 0, background: "#F7F9F8", padding: "4px 8px", fontWeight: 700, borderTop: "1px solid #C7D1CE" }}>{label}</td>
-                  {staff.map((m) => <td key={m.id} style={{ textAlign: "center", padding: "4px 4px", borderTop: "1px solid #C7D1CE", fontSize: 10.5 }}>{fn(m)}</td>)}
-                </tr>
-              ))}
-            </tfoot>
+            <tfoot />
           </table>
         </div>
       )}
+
+      {/* Weekly hours alert — flags anyone under or over 48h in any week of this month */}
+      {(() => {
+        const alerts = weeklyHoursAlerts(staff, dayList, year, mo, entryFor, shiftByCode);
+        if (alerts.length === 0) return null;
+        return (
+          <div className="no-print" style={{ marginTop: 16, background: "#FBF3DF", border: "1px solid #E9CE8A", borderRadius: 8, padding: "10px 14px" }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A6416", marginBottom: 4 }}>⚠ Weekly hours outside 48h</div>
+            {alerts.map((a, i) => (
+              <div key={i} style={{ fontSize: 12, color: "#8A6416" }}>{a.name} — week of {a.weekStart}: {a.hours}h ({a.hours < 48 ? "under" : "over"})</div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Shift key */}
       <div style={{ marginTop: 20 }}>

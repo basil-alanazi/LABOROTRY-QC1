@@ -20,6 +20,9 @@ const BUILT_IN_PAGES = [
   { key: "lotcompare", label: "Lot comparison" },
   { key: "kpi", label: "KPI" },
   { key: "audit", label: "Audit trail" },
+  { key: "reject", label: "Reject Sample" },
+  { key: "panic", label: "Panic Value" },
+  { key: "corrective", label: "Corrective Action" },
 ];
 
 // Suggested role presets — same permission system, just a quicker starting point.
@@ -33,6 +36,7 @@ export default function OwnerSettings({ config, reload }) {
   const [title, setTitle] = useState(config.app_title || "QC Log");
   const [subtitle, setSubtitle] = useState(config.app_subtitle || "");
   const [color, setColor] = useState(config.theme_color || "#0F7173");
+  const [hiddenPages, setHiddenPages] = useState(config.hidden_pages || []);
   const [msg, setMsg] = useState("");
 
   const [accounts, setAccounts] = useState(null);
@@ -51,10 +55,14 @@ export default function OwnerSettings({ config, reload }) {
   useEffect(() => { loadExtras(); }, []);
 
   async function saveBranding() {
-    const { error } = await supabase.from("app_config").update({ app_title: title, app_subtitle: subtitle, theme_color: color }).eq("id", 1);
+    const { error } = await supabase.from("app_config").update({ app_title: title, app_subtitle: subtitle, theme_color: color, hidden_pages: hiddenPages }).eq("id", 1);
     setMsg(error ? "Could not save." : "Saved.");
     reload();
     setTimeout(() => setMsg(""), 2500);
+  }
+
+  function toggleHidden(key) {
+    setHiddenPages((h) => (h.includes(key) ? h.filter((x) => x !== key) : [...h, key]));
   }
 
   async function deleteAccount(id) {
@@ -85,6 +93,19 @@ export default function OwnerSettings({ config, reload }) {
             <input style={{ ...inputStyle, flex: 1 }} value={color} onChange={(e) => setColor(e.target.value)} />
           </div>
         </label>
+
+        <div>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: "#516361", marginBottom: 6 }}>Hide these pages from everyone (including admins)</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {[...BUILT_IN_PAGES, ...customTables.map((t) => ({ key: `table:${t.id}`, label: `Table: ${t.title}` }))].map((p) => (
+              <label key={p.key} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, background: hiddenPages.includes(p.key) ? "#FBEAE6" : "#F0F3F2", color: hiddenPages.includes(p.key) ? "#C1432B" : "#516361", padding: "4px 9px", borderRadius: 6, cursor: "pointer" }}>
+                <input type="checkbox" checked={hiddenPages.includes(p.key)} onChange={() => toggleHidden(p.key)} />
+                {p.label}
+              </label>
+            ))}
+          </div>
+        </div>
+
         <button onClick={saveBranding} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
           <Save size={14} /> Save branding
         </button>
