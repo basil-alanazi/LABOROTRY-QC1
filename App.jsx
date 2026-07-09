@@ -3,6 +3,7 @@ import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X,
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import Settings from "./Settings";
+import OwnerSettings from "./OwnerSettings";
 import CustomTables from "./CustomTables";
 import Files from "./Files";
 import LeveyJennings from "./Charts";
@@ -40,11 +41,17 @@ export default function App() {
   const [config, setConfig] = useState(null);
   const [role, setRole] = useState(() => localStorage.getItem("qc_role") || null);
   const [username, setUsername] = useState(() => localStorage.getItem("qc_username") || "");
+  const [permissions, setPermissions] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("qc_permissions") || "[]"); } catch { return []; }
+  });
   const [panels, setPanels] = useState(null);
   const [baselines, setBaselines] = useState([]);
   const [controlLots, setControlLots] = useState([]);
   const [entries, setEntries] = useState(null);
   const [staffAccounts, setStaffAccounts] = useState([]);
+  const [portalAccounts, setPortalAccounts] = useState([]);
+  const [pinnedTables, setPinnedTables] = useState([]);
+  const [allTables, setAllTables] = useState([]);
   const [tab, setTab] = useState("dashboard");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -65,6 +72,8 @@ export default function App() {
     const { data: s } = await supabase.from("staff_accounts").select("*").order("username");
     const { data: b } = await supabase.from("qc_baselines").select("*").eq("active", true);
     const { data: cl } = await supabase.from("qc_control_lots").select("*").order("received_date", { ascending: false });
+    const { data: pa } = await supabase.from("portal_accounts").select("*").order("username");
+    const { data: ct } = await supabase.from("custom_tables").select("id,title,department,pinned,nav_icon").eq("deleted", false).order("title");
     if (e1 || e2) {
       setError("Could not connect to the database. Check Supabase settings.");
       setPanels([]);
@@ -76,6 +85,9 @@ export default function App() {
     setStaffAccounts(s || []);
     setBaselines(b || []);
     setControlLots(cl || []);
+    setPortalAccounts(pa || []);
+    setPinnedTables((ct || []).filter((t) => t.pinned));
+    setAllTables(ct || []);
   }
 
   useEffect(() => {
@@ -83,17 +95,21 @@ export default function App() {
     loadAll();
   }, []);
 
-  function handleLogin(newRole, newUsername) {
+  function handleLogin(newRole, newUsername, newPermissions) {
     localStorage.setItem("qc_role", newRole);
     localStorage.setItem("qc_username", newUsername);
+    localStorage.setItem("qc_permissions", JSON.stringify(newPermissions || []));
     setRole(newRole);
     setUsername(newUsername);
+    setPermissions(newPermissions || []);
   }
   function logout() {
     localStorage.removeItem("qc_role");
     localStorage.removeItem("qc_username");
+    localStorage.removeItem("qc_permissions");
     setRole(null);
     setUsername("");
+    setPermissions([]);
   }
 
   async function logActivity(action, description) {
@@ -247,7 +263,19 @@ export default function App() {
   if (!config || panels === null || entries === null) {
     return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "IBM Plex Mono, monospace", color: "#4A5A5C" }}>Loading…</div>;
   }
-  if (!role) return <Login config={config} staffAccounts={staffAccounts} onLogin={handleLogin} />;
+  if (!role) return <Login config={config} staffAccounts={staffAccounts} portalAccounts={portalAccounts} onLogin={handleLogin} />;
+
+  if (role === "portal") {
+    return (
+      <Portal
+        config={config} permissions={permissions} allTables={allTables} username={username}
+        panels={panels} entries={activeEntries} baselines={baselines} controlLots={controlLots}
+        busy={busy} pendingItems={pendingItems}
+        onSubmit={submitEntry} onDelete={deleteEntry} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk}
+        onRecalculate={recalculateAllColors} onLogout={logout}
+      />
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#F0F3F2", fontFamily: "'IBM Plex Sans', sans-serif", color: "#1B2B2E" }}>
@@ -268,10 +296,10 @@ export default function App() {
       <header style={{ borderBottom: "1px solid #D6DEDB", background: "#1B2B2E" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <FlaskConical size={22} color="#5FBFB0" />
+            <FlaskConical size={22} color={config.theme_color || "#5FBFB0"} />
             <div>
-              <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 17, letterSpacing: 0.2 }}>QC Log</div>
-              <div style={{ color: "#8FA39E", fontSize: 12, fontFamily: "'IBM Plex Mono', monospace" }}>Rabia Hospital · Quality Control</div>
+              <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 17, letterSpacing: 0.2 }}>{config.app_title || "QC Log"}</div>
+              <div style={{ color: "#8FA39E", fontSize: 12, fontFamily: "'IBM Plex Mono', monospace" }}>{config.app_subtitle || "Rabia Hospital · Quality Control"}</div>
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
@@ -285,8 +313,12 @@ export default function App() {
               <NavBtn active={tab === "approvals"} onClick={() => setTab("approvals")} icon={<ClipboardCheck size={15} />} label={`Approvals${pendingItems.length ? ` (${pendingItems.length})` : ""}`} />
             )}
             {(role === "admin" || role === "super") && <NavBtn active={tab === "settings"} onClick={() => setTab("settings")} icon={<SlidersHorizontal size={15} />} label="Settings" />}
+            {role === "super" && <NavBtn active={tab === "owner"} onClick={() => setTab("owner")} icon={<Award size={15} />} label="Owner" />}
             <NavBtn active={tab === "tables"} onClick={() => setTab("tables")} icon={<Table2 size={15} />} label="Tables" />
             <NavBtn active={tab === "files"} onClick={() => setTab("files")} icon={<FolderOpen size={15} />} label="Files" />
+            {pinnedTables.map((t) => (
+              <NavBtn key={t.id} active={tab === `pinned:${t.id}`} onClick={() => setTab(`pinned:${t.id}`)} icon={<Table2 size={15} />} label={t.title} />
+            ))}
             <button onClick={logout} title="Log out" style={{ background: "transparent", border: "1px solid #39494A", color: "#8FA39E", borderRadius: 7, padding: "7px 9px" }}><LogOut size={14} /></button>
           </div>
         </div>
@@ -301,9 +333,111 @@ export default function App() {
         {tab === "export" && <ExportPage panels={panels} entries={activeEntries} />}
         {tab === "approvals" && (role === "admin" || role === "super") && <Approvals items={pendingItems} panels={panels} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk} />}
         {tab === "settings" && (role === "admin" || role === "super") && <Settings config={config} panels={panels} role={role} staffAccounts={staffAccounts} username={username} baselines={baselines} reload={() => { ensureConfig(); loadAll(); }} />}
-        {tab === "tables" && <CustomTables departments={config.departments || []} role={role} username={username} />}
+        {tab === "owner" && role === "super" && <OwnerSettings config={config} reload={() => { ensureConfig(); loadAll(); }} />}
+        {tab === "tables" && <CustomTables departments={config.departments || []} role={role} username={username} onReload={loadAll} />}
         {tab === "files" && <Files role={role} username={username} />}
+        {tab.startsWith("pinned:") && (() => {
+          const t = pinnedTables.find((x) => `pinned:${x.id}` === tab);
+          return t ? <CustomTables departments={config.departments || []} role={role} username={username} openTableId={t.id} onReload={loadAll} /> : null;
+        })()}
         {error && <div style={{ position: "fixed", bottom: 16, left: "50%", transform: "translateX(-50%)", background: "#C1432B", color: "#fff", padding: "10px 18px", borderRadius: 8, fontSize: 14 }}>{error}</div>}
+      </main>
+    </div>
+  );
+}
+
+const PORTAL_PAGE_META = {
+  qc: { label: "QC Entry", icon: LayoutGrid },
+  grid: { label: "Monthly grid", icon: Grid3x3 },
+  controls: { label: "Controls", icon: PackageCheck },
+  riqas: { label: "RIQAS", icon: Award },
+  files: { label: "Files", icon: FolderOpen },
+  chart: { label: "Chart", icon: BarChart3 },
+  export: { label: "Export", icon: Download },
+  tables: { label: "Tables", icon: Table2 },
+};
+
+function buildPortalPages(permissions, allTables) {
+  const pages = [];
+  (permissions || []).forEach(({ page, level }) => {
+    if (page === "qc") {
+      pages.push({ key: "qc", label: "QC Entry", icon: LayoutGrid, level });
+      if (level === "admin") pages.push({ key: "approvals", label: "Approvals", icon: ClipboardCheck, level: "admin" });
+    } else if (page.startsWith("table:")) {
+      const id = page.slice(6);
+      const t = allTables.find((c) => c.id === id);
+      pages.push({ key: page, label: t ? t.title : "Table", icon: Table2, level, tableId: id });
+    } else if (PORTAL_PAGE_META[page]) {
+      pages.push({ key: page, label: PORTAL_PAGE_META[page].label, icon: PORTAL_PAGE_META[page].icon, level });
+    }
+  });
+  return pages;
+}
+
+function Portal({ config, permissions, allTables, username, panels, entries, baselines, controlLots, busy, pendingItems, onSubmit, onDelete, onReview, onReviewBulk, onRecalculate, onLogout }) {
+  const pages = buildPortalPages(permissions, allTables);
+  const [openKey, setOpenKey] = useState(pages.length === 1 ? pages[0].key : null);
+  const current = pages.find((p) => p.key === openKey);
+
+  function renderPage(p) {
+    const effectiveRole = p.level === "admin" ? "admin" : "staff";
+    if (p.key === "qc") return <Dashboard panels={panels} entries={entries} baselines={baselines} role={effectiveRole} busy={busy} onSubmit={onSubmit} onDelete={onDelete} />;
+    if (p.key === "approvals") return <Approvals items={pendingItems} panels={panels} onReview={onReview} onReviewBulk={onReviewBulk} />;
+    if (p.key === "grid") return <MonthlyGrid panels={panels} entries={entries} controlLots={controlLots} />;
+    if (p.key === "controls") return <ControlStock panels={panels} entries={entries} controlLots={controlLots} onRecalculate={onRecalculate} busy={busy} />;
+    if (p.key === "riqas") return <Riqas departments={config.departments || []} role={effectiveRole} username={username} />;
+    if (p.key === "chart") return <LeveyJennings panels={panels} entries={entries} baselines={baselines} />;
+    if (p.key === "export") return <ExportPage panels={panels} entries={entries} />;
+    if (p.key === "tables") return <CustomTables departments={config.departments || []} role={effectiveRole} username={username} />;
+    if (p.key === "files") return <Files role={effectiveRole} username={username} />;
+    if (p.key.startsWith("table:")) return <CustomTables departments={config.departments || []} role={effectiveRole} username={username} openTableId={p.tableId} />;
+    return null;
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#F0F3F2", fontFamily: "'IBM Plex Sans', sans-serif", color: "#1B2B2E" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+        * { box-sizing: border-box; }
+        button { font-family: inherit; cursor: pointer; }
+        input, select, textarea { font-family: inherit; }
+      `}</style>
+      <header style={{ borderBottom: "1px solid #D6DEDB", background: "#1B2B2E" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <FlaskConical size={22} color={config.theme_color || "#5FBFB0"} />
+            <div>
+              <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 17 }}>{config.app_title || "QC Log"}</div>
+              <div style={{ color: "#8FA39E", fontSize: 12 }}>{username}</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {pages.length > 1 && openKey && (
+              <button onClick={() => setOpenKey(null)} style={{ background: "transparent", border: "1px solid #39494A", color: "#8FA39E", borderRadius: 7, padding: "7px 12px", fontSize: 13 }}>Home</button>
+            )}
+            <button onClick={onLogout} title="Log out" style={{ background: "transparent", border: "1px solid #39494A", color: "#8FA39E", borderRadius: 7, padding: "7px 9px" }}><LogOut size={14} /></button>
+          </div>
+        </div>
+      </header>
+
+      <main style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px" }}>
+        {pages.length === 0 && <div style={{ textAlign: "center", padding: "80px 20px", color: "#8A9694" }}>No pages have been assigned to this account yet. Ask the owner to grant access.</div>}
+        {current ? renderPage(current) : (
+          <div>
+            <div style={{ fontSize: 14, color: "#516361", marginBottom: 16 }}>Hi {username} — pick where you want to work.</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
+              {pages.map((p) => {
+                const Icon = p.icon;
+                return (
+                  <button key={p.key} onClick={() => setOpenKey(p.key)} style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 12, padding: "24px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                    <Icon size={26} color={config.theme_color || "#0F7173"} />
+                    <div style={{ fontWeight: 700, fontSize: 14, textAlign: "center" }}>{p.label}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

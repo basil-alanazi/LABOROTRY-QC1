@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { FlaskConical, Lock } from "lucide-react";
 
-export default function Login({ config, staffAccounts, onLogin }) {
+export default function Login({ config, staffAccounts, portalAccounts, onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -27,6 +27,11 @@ export default function Login({ config, staffAccounts, onLogin }) {
     const staffMatch = (staffAccounts || []).find((s) => s.username === username && s.password === password);
     if (staffMatch) {
       onLogin("staff", username);
+      return;
+    }
+    const portalMatch = (portalAccounts || []).find((s) => s.username === username && s.password === password);
+    if (portalMatch) {
+      onLogin("portal", username, portalMatch.permissions || []);
       return;
     }
     setError("Incorrect username or password.");

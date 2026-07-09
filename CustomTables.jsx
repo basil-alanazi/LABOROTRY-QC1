@@ -16,10 +16,10 @@ const REVIEW_META = {
   declined: { bg: "#FBEAE6", fg: "#C1432B", label: "Declined" },
 };
 
-export default function CustomTables({ departments, role, username }) {
+export default function CustomTables({ departments, role, username, openTableId, onReload }) {
   const [tables, setTables] = useState(null);
   const [rows, setRows] = useState(null);
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(openTableId || null);
   const [showCreate, setShowCreate] = useState(false);
 
   async function loadAll() {
@@ -27,6 +27,7 @@ export default function CustomTables({ departments, role, username }) {
     const { data: r } = await supabase.from("custom_rows").select("*").eq("deleted", false).order("created_at", { ascending: false });
     setTables(t || []);
     setRows(r || []);
+    if (onReload) onReload();
   }
 
   useEffect(() => { loadAll(); }, []);
@@ -36,7 +37,7 @@ export default function CustomTables({ departments, role, username }) {
   if (selected) {
     const table = tables.find((t) => t.id === selected);
     if (!table) { setSelected(null); return null; }
-    return <TableView table={table} rows={rows.filter((r) => r.table_id === table.id)} role={role} username={username} onBack={() => setSelected(null)} reload={loadAll} />;
+    return <TableView table={table} rows={rows.filter((r) => r.table_id === table.id)} role={role} username={username} onBack={openTableId ? null : () => setSelected(null)} reload={loadAll} />;
   }
 
   return (
@@ -53,13 +54,23 @@ export default function CustomTables({ departments, role, username }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {tables.map((t) => (
-          <button key={t.id} onClick={() => setSelected(t.id)} style={{ textAlign: "left", background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14.5 }}>{t.title}</div>
-              <div style={{ fontSize: 12, color: "#8A9694", marginTop: 2 }}>{t.department} · {(t.columns || []).join(", ")}</div>
+          <div key={t.id} style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "14px 16px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <button onClick={() => setSelected(t.id)} style={{ textAlign: "left", background: "none", border: "none", flex: 1, cursor: "pointer" }}>
+                <div style={{ fontWeight: 700, fontSize: 14.5 }}>{t.title}</div>
+                <div style={{ fontSize: 12, color: "#8A9694", marginTop: 2 }}>{t.department} · {(t.columns || []).join(", ")} · {rows.filter((r) => r.table_id === t.id).length} rows</div>
+              </button>
+              {(role === "admin" || role === "super") && (
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: "#516361", cursor: "pointer" }}>
+                    <input type="checkbox" checked={!!t.pinned} onChange={async () => { await supabase.from("custom_tables").update({ pinned: !t.pinned }).eq("id", t.id); loadAll(); }} />
+                    Pin to main menu
+                  </label>
+                  <button onClick={async () => { if (confirm(`Delete the whole "${t.title}" table? This removes all its rows too.`)) { await supabase.from("custom_tables").update({ deleted: true }).eq("id", t.id); loadAll(); } }} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={15} /></button>
+                </div>
+              )}
             </div>
-            <div style={{ fontSize: 12, color: "#7B8E8A" }}>{rows.filter((r) => r.table_id === t.id).length} rows</div>
-          </button>
+          </div>
         ))}
       </div>
 
@@ -131,7 +142,7 @@ function TableView({ table, rows, role, username, onBack, reload }) {
 
   return (
     <div>
-      <button onClick={onBack} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 13, fontWeight: 600, marginBottom: 14 }}>← Back to tables</button>
+      {onBack && <button onClick={onBack} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 13, fontWeight: 600, marginBottom: 14 }}>← Back to tables</button>}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700 }}>{table.title}</h2>
         <button onClick={() => setShowAdd(true)} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Add row</button>

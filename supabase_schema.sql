@@ -202,5 +202,27 @@ alter table riqas_cycles enable row level security;
 create policy "allow all riqas_programs" on riqas_programs for all using (true) with check (true);
 create policy "allow all riqas_cycles" on riqas_cycles for all using (true) with check (true);
 
+-- Owner branding
+alter table app_config add column if not exists app_title text not null default 'QC Log';
+alter table app_config add column if not exists app_subtitle text not null default 'Rabia Hospital · Quality Control';
+alter table app_config add column if not exists theme_color text not null default '#0F7173';
+
+-- Custom tables can be pinned to the main navigation as their own page.
+alter table custom_tables add column if not exists pinned boolean not null default false;
+alter table custom_tables add column if not exists nav_icon text not null default 'Table2';
+
+-- Fully custom accounts with per-page permissions, created only by the owner.
+create table if not exists portal_accounts (
+  id uuid primary key default gen_random_uuid(),
+  username text not null unique,
+  password text not null,
+  -- [{"page":"qc","level":"admin"}, {"page":"table:<uuid>","level":"staff"}, ...]
+  permissions jsonb not null default '[]'::jsonb,
+  created_at timestamptz default now()
+);
+
+alter table portal_accounts enable row level security;
+create policy "allow all portal_accounts" on portal_accounts for all using (true) with check (true);
+
 -- Note: this is an open (RLS "allow all") setup — fine for an internal lab tool
 -- with no patient data. Anyone with the app link and Supabase keys can read/write.
