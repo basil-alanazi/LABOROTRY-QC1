@@ -16,31 +16,57 @@ function WarnBox({ children }) {
   return <div style={{ background: "#FBF3DF", border: "1px solid #E9CE8A", borderRadius: 8, padding: "10px 14px", marginTop: 10, fontSize: 12.5, color: "#8A6416" }}>{children}</div>;
 }
 
+function UnitToggle({ unit, setUnit, options }) {
+  return (
+    <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+      {options.map((o) => (
+        <button
+          key={o}
+          onClick={() => setUnit(o)}
+          style={{
+            border: "1px solid " + (unit === o ? "#0F7173" : "#C7D1CE"),
+            background: unit === o ? "#0F7173" : "#fff",
+            color: unit === o ? "#fff" : "#516361",
+            borderRadius: 6, padding: "5px 12px", fontSize: 12, fontWeight: 600,
+          }}
+        >
+          {o}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function LipidCalc() {
+  const [unit, setUnit] = useState("mg/dL");
   const [chol, setChol] = useState("");
   const [tg, setTg] = useState("");
   const [hdl, setHdl] = useState("");
   const c = num(chol), t = num(tg), h = num(hdl);
   const valid = c !== null && t !== null && h !== null;
-  const vldl = valid ? t / 5 : null;
+  const divisor = unit === "mg/dL" ? 5 : 2.2; // TG/5 in mg/dL, TG/2.2 in mmol/L
+  const tgWarnThreshold = unit === "mg/dL" ? 400 : 4.5;
+  const vldl = valid ? t / divisor : null;
   const ldl = valid ? c - h - vldl : null;
 
   return (
     <div>
+      <UnitToggle unit={unit} setUnit={setUnit} options={["mg/dL", "mmol/L"]} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
-        <label style={labelStyle}>Total Cholesterol<input style={inputStyle} type="number" value={chol} onChange={(e) => setChol(e.target.value)} /></label>
-        <label style={labelStyle}>Triglycerides (TG)<input style={inputStyle} type="number" value={tg} onChange={(e) => setTg(e.target.value)} /></label>
-        <label style={labelStyle}>HDL<input style={inputStyle} type="number" value={hdl} onChange={(e) => setHdl(e.target.value)} /></label>
+        <label style={labelStyle}>Total Cholesterol ({unit})<input style={inputStyle} type="number" value={chol} onChange={(e) => setChol(e.target.value)} /></label>
+        <label style={labelStyle}>Triglycerides ({unit})<input style={inputStyle} type="number" value={tg} onChange={(e) => setTg(e.target.value)} /></label>
+        <label style={labelStyle}>HDL ({unit})<input style={inputStyle} type="number" value={hdl} onChange={(e) => setHdl(e.target.value)} /></label>
       </div>
       {valid && (
         <ResultBox>
-          VLDL = {vldl.toFixed(1)} mg/dL &nbsp;·&nbsp; LDL (Friedewald) = {ldl.toFixed(1)} mg/dL
+          VLDL = {vldl.toFixed(2)} {unit} &nbsp;·&nbsp; LDL (Friedewald) = {ldl.toFixed(2)} {unit}
         </ResultBox>
       )}
-      {valid && t >= 400 && <WarnBox>TG ≥ 400 mg/dL — Friedewald formula isn't reliable at this level. A direct LDL measurement is recommended.</WarnBox>}
+      {valid && t >= tgWarnThreshold && <WarnBox>TG ≥ {tgWarnThreshold} {unit} — Friedewald formula isn't reliable at this level. A direct LDL measurement is recommended.</WarnBox>}
     </div>
   );
 }
+
 
 function AnionGapCalc() {
   const [na, setNa] = useState("");
@@ -63,19 +89,24 @@ function AnionGapCalc() {
 }
 
 function BunCreatCalc() {
+  const [unit, setUnit] = useState("mg/dL (US)");
   const [bun, setBun] = useState("");
   const [creat, setCreat] = useState("");
   const b = num(bun), c = num(creat);
   const valid = b !== null && c !== null && c !== 0;
-  const ratio = valid ? b / c : null;
+  // Always compute the ratio in US units (mg/dL) internally for a consistent result.
+  const bunMgDl = valid ? (unit === "mg/dL (US)" ? b : b * 2.8) : null; // Urea mmol/L -> BUN mg/dL
+  const creatMgDl = valid ? (unit === "mg/dL (US)" ? c : c / 88.4) : null; // Creatinine µmol/L -> mg/dL
+  const ratio = valid ? bunMgDl / creatMgDl : null;
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
-        <label style={labelStyle}>BUN<input style={inputStyle} type="number" value={bun} onChange={(e) => setBun(e.target.value)} /></label>
-        <label style={labelStyle}>Creatinine<input style={inputStyle} type="number" value={creat} onChange={(e) => setCreat(e.target.value)} /></label>
+      <UnitToggle unit={unit} setUnit={setUnit} options={["mg/dL (US)", "SI (mmol/L urea, µmol/L creat)"]} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+        <label style={labelStyle}>{unit === "mg/dL (US)" ? "BUN (mg/dL)" : "Urea (mmol/L)"}<input style={inputStyle} type="number" value={bun} onChange={(e) => setBun(e.target.value)} /></label>
+        <label style={labelStyle}>{unit === "mg/dL (US)" ? "Creatinine (mg/dL)" : "Creatinine (µmol/L)"}<input style={inputStyle} type="number" value={creat} onChange={(e) => setCreat(e.target.value)} /></label>
       </div>
-      {valid && <ResultBox>BUN/Creatinine Ratio = {ratio.toFixed(1)}</ResultBox>}
+      {valid && <ResultBox>BUN/Creatinine Ratio = {ratio.toFixed(1)} (normal range ~10–20)</ResultBox>}
     </div>
   );
 }
