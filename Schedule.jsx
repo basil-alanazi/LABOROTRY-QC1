@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Download, Coffee, Check, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { shiftDurationHours, isWithinShift, todayISO, yesterdayISO } from "./scheduleUtils";
+import ScheduleImport from "./ScheduleImport";
 
 const inputStyle = { border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 10px", fontSize: 13, boxSizing: "border-box" };
 
@@ -75,6 +76,20 @@ export default function Schedule({ departments, role, username }) {
     } else {
       await supabase.from("schedule_entries").insert({ staff_id: staffId, date, [flag]: true });
     }
+    loadAll();
+  }
+
+  async function importScheduleEntries(parsedEntries) {
+    const [year, mo] = month.split("-");
+    const rows = parsedEntries.map((e) => ({
+      staff_id: e.staffId,
+      date: `${year}-${mo}-${String(e.day).padStart(2, "0")}`,
+      shift_code: e.shift_code || "",
+      is_late: !!e.is_late,
+      is_absent: !!e.is_absent,
+      is_sick: !!e.is_sick,
+    }));
+    await supabase.from("schedule_entries").upsert(rows, { onConflict: "staff_id,date" });
     loadAll();
   }
 
@@ -201,6 +216,11 @@ export default function Schedule({ departments, role, username }) {
       <div className="no-print" style={{ marginBottom: 16 }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={inputStyle} />
         {canEdit && <span style={{ fontSize: 11, color: "#8A9694", marginLeft: 10 }}>Under each shift: L = Late, A = Absent, S = Sick — click to toggle.</span>}
+        {canEdit && staff.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <ScheduleImport staff={staff} month={month} onApply={importScheduleEntries} />
+          </div>
+        )}
       </div>
 
       {staff.length === 0 ? (

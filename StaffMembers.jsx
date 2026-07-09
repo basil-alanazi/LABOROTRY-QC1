@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { todayISO } from "./scheduleUtils";
+import StaffImport from "./StaffImport";
 
 const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 14, boxSizing: "border-box" };
 
@@ -21,6 +22,11 @@ export default function StaffMembers({ departments, role }) {
     if (!form.full_name) return;
     await supabase.from("staff_members").insert(form);
     setForm({ full_name: "", job_number: "", department: departments?.[0] || "" });
+    loadAll();
+  }
+  async function addStaffBulk(rows) {
+    if (!rows.length) return;
+    await supabase.from("staff_members").insert(rows);
     loadAll();
   }
   async function removeStaff(id) {
@@ -52,6 +58,9 @@ export default function StaffMembers({ departments, role }) {
                   {(departments || []).map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
                 <button onClick={addStaff} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "0 14px", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}><Plus size={14} /> Add</button>
+              </div>
+              <div style={{ marginTop: 10, borderTop: "1px solid #EEF2F0", paddingTop: 10 }}>
+                <StaffImport departments={departments} onApply={addStaffBulk} />
               </div>
             </div>
           )}
