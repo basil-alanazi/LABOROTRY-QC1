@@ -50,28 +50,40 @@ function parseCellValue(raw) {
   return { shift_code: shift_code || "", is_late, is_absent, is_sick };
 }
 
-// Detects orientation and extracts entries.
+// Detects orientation and extracts entries. Scans the first few rows/columns
+// to find where the staff names actually are — this lets the file have a
+// title row, an employee-ID row, a shift-key legend, or summary rows above
+// or below the real data without breaking detection.
 // Returns { entries, unmatchedStaffHeaders, orientation }
 // entries: [{ staffName, day, shift_code, is_late, is_absent, is_sick }]
 function extractScheduleFromGrid(grid, staffNames) {
   if (grid.length < 2) return { entries: [], unmatchedStaffHeaders: [] };
 
-  const headerRow = grid[0];
-  const firstCol = grid.map((r) => r[0]);
+  const maxCols = Math.max(...grid.map((r) => r.length), 0);
 
-  // Orientation A: header row (excluding col 0) = staff names, first column = day.
-  const headerMatches = headerRow.slice(1).filter((h) => matchStaffName(h, staffNames)).length;
-  // Orientation B: first column (excluding row 0) = staff names, header row = days.
-  const colMatches = firstCol.slice(1).filter((h) => matchStaffName(h, staffNames)).length;
+  // Orientation A candidate: some row has staff names across columns 1+.
+  let bestRowIdx = -1, bestRowMatches = 0;
+  for (let r = 0; r < Math.min(10, grid.length - 1); r++) {
+    const matches = grid[r].slice(1).filter((h) => matchStaffName(h, staffNames)).length;
+    if (matches > bestRowMatches) { bestRowMatches = matches; bestRowIdx = r; }
+  }
+
+  // Orientation B candidate: some column has staff names down rows 1+.
+  let bestColIdx = -1, bestColMatches = 0;
+  for (let c = 0; c < Math.min(4, maxCols); c++) {
+    const matches = grid.slice(1).filter((row) => matchStaffName(row[c], staffNames)).length;
+    if (matches > bestColMatches) { bestColMatches = matches; bestColIdx = c; }
+  }
 
   const entries = [];
   const unmatchedStaffHeaders = [];
 
-  if (headerMatches >= colMatches && headerMatches > 0) {
-    // Staff across columns, days down rows.
+  if (bestRowMatches >= bestColMatches && bestRowMatches > 0) {
+    // Staff across columns (in the row found at bestRowIdx), days down column 0 of the rows below it.
+    const headerRow = grid[bestRowIdx];
     const staffForCol = headerRow.map((h, i) => (i === 0 ? null : matchStaffName(h, staffNames)));
-    headerRow.forEach((h, i) => { if (i > 0 && !staffForCol[i]) unmatchedStaffHeaders.push(h); });
-    grid.slice(1).forEach((row) => {
+    headerRow.forEach((h, i) => { if (i > 0 && h && String(h).trim() && !staffForCol[i]) unmatchedStaffHeaders.push(h); });
+    grid.slice(bestRowIdx + 1).forEach((row) => {
       const day = parseDayCell(row[0]);
       if (day === null) return;
       row.forEach((cell, i) => {
@@ -85,16 +97,18 @@ function extractScheduleFromGrid(grid, staffNames) {
     return { entries, unmatchedStaffHeaders, orientation: "staff-columns" };
   }
 
-  if (colMatches > 0) {
-    // Staff down rows, days across columns.
-    const staffForRow = firstCol.map((h, i) => (i === 0 ? null : matchStaffName(h, staffNames)));
-    firstCol.forEach((h, i) => { if (i > 0 && !staffForRow[i]) unmatchedStaffHeaders.push(h); });
-    grid.slice(1).forEach((row, ri) => {
-      const staffName = staffForRow[ri + 1];
+  if (bestColMatches > 0) {
+    // Staff down the column found at bestColIdx, days across row 0.
+    const daysRow = grid[0];
+    const staffForRow = grid.map((row, i) => (i === 0 ? null : matchStaffName(row[bestColIdx], staffNames)));
+    grid.forEach((row, i) => { if (i > 0 && row[bestColIdx] && String(row[bestColIdx]).trim() && !staffForRow[i]) unmatchedStaffHeaders.push(row[bestColIdx]); });
+    grid.forEach((row, ri) => {
+      if (ri === 0) return;
+      const staffName = staffForRow[ri];
       if (!staffName) return;
       row.forEach((cell, ci) => {
-        if (ci === 0) return;
-        const day = parseDayCell(headerRow[ci]);
+        if (ci <= bestColIdx) return;
+        const day = parseDayCell(daysRow[ci]);
         if (day === null) return;
         const parsedCell = parseCellValue(cell);
         if (parsedCell) entries.push({ staffName, day, ...parsedCell });
