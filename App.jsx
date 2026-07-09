@@ -18,6 +18,10 @@ function daysInMonth(month) {
   const [y, m] = month.split("-").map(Number);
   return new Date(y, m, 0).getDate();
 }
+function firstOfMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
 
 const COLOR_META = {
   pending: { bg: "#F0F3F2", fg: "#516361" },
@@ -141,8 +145,9 @@ export default function App() {
       if (existingEntryId) {
         await supabase.from("qc_entries").update({
           values, colors, flags, note: note || "", edited_by: username, edited_at: new Date().toISOString(),
+          review_status: "pending", review_note: "", reviewed_by: null, reviewed_at: null,
         }).eq("id", existingEntryId);
-        await logActivity("edit", `${panel.name} — ${date}`);
+        await logActivity("edit", `${panel.name} — ${date} (resubmitted for review)`);
       } else {
         await supabase.from("qc_entries").insert({
           panel_id: panel.id, date, lot_number: lot, values, colors, flags, done_by: username, note: note || "",
@@ -203,6 +208,7 @@ export default function App() {
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <NavBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={<LayoutGrid size={15} />} label="Today" />
             <NavBtn active={tab === "grid"} onClick={() => setTab("grid")} icon={<Grid3x3 size={15} />} label="Monthly grid" />
+            <NavBtn active={tab === "export"} onClick={() => setTab("export")} icon={<Download size={15} />} label="Export" />
             {(role === "admin" || role === "super") && (
               <NavBtn active={tab === "approvals"} onClick={() => setTab("approvals")} icon={<ClipboardCheck size={15} />} label={`Approvals${pendingApprovals.length ? ` (${pendingApprovals.length})` : ""}`} />
             )}
@@ -217,6 +223,7 @@ export default function App() {
       <main style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px" }}>
         {tab === "dashboard" && <Dashboard panels={panels} entries={activeEntries} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} />}
         {tab === "grid" && <MonthlyGrid panels={panels} entries={activeEntries} />}
+        {tab === "export" && <ExportPage panels={panels} entries={activeEntries} />}
         {tab === "approvals" && (role === "admin" || role === "super") && <Approvals pending={pendingApprovals} panels={panels} onReview={reviewEntry} />}
         {tab === "settings" && (role === "admin" || role === "super") && <Settings config={config} panels={panels} role={role} staffAccounts={staffAccounts} reload={() => { ensureConfig(); loadAll(); }} />}
         {tab === "tables" && <CustomTables departments={config.departments || []} role={role} username={username} />}
@@ -241,25 +248,48 @@ function ReviewBadge({ status }) {
 
 function Dashboard({ panels, entries, role, busy, onSubmit, onDelete }) {
   const today = todayISO();
+  const [selectedPanelId, setSelectedPanelId] = useState(null);
   const departments = [...new Set(panels.map((p) => p.department))];
 
   if (panels.length === 0) {
     return <div style={{ textAlign: "center", padding: "80px 20px", color: "#7B8E8A" }}>No QC panels set up yet. Ask an admin to add them from Settings.</div>;
   }
 
+  if (selectedPanelId) {
+    const panel = panels.find((p) => p.id === selectedPanelId);
+    if (!panel) { setSelectedPanelId(null); return null; }
+    return (
+      <PanelPage
+        panel={panel}
+        entries={entries.filter((e) => e.panel_id === panel.id)}
+        role={role} busy={busy} onSubmit={onSubmit} onDelete={onDelete}
+        onBack={() => setSelectedPanelId(null)}
+      />
+    );
+  }
+
   return (
     <div>
-      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Today — {today}. Enter the full day's panel in one go.</div>
+      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Pick a device to enter or review its QC — for today or any other day.</div>
       {departments.map((dept) => (
         <div key={dept} style={{ marginBottom: 28 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <span style={{ width: 8, height: 8, borderRadius: 2, background: deptColor(dept, departments) }} />
             <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: 0.3 }}>{dept}</span>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {panels.filter((p) => p.department === dept).map((panel) => (
-              <PanelCard key={panel.id} panel={panel} entries={entries} today={today} role={role} busy={busy} onSubmit={onSubmit} onDelete={onDelete} />
-            ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {panels.filter((p) => p.department === dept).map((panel) => {
+              const todaysEntry = entries.find((e) => e.panel_id === panel.id && e.date === today);
+              return (
+                <button key={panel.id} onClick={() => setSelectedPanelId(panel.id)} style={{ textAlign: "left", background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14.5 }}>{panel.name}</div>
+                    <div style={{ fontSize: 11.5, color: "#8A9694" }}>lot {panel.lot_number || "—"} · {(panel.analytes || []).length} analytes</div>
+                  </div>
+                  {todaysEntry ? <ReviewBadge status={todaysEntry.review_status} /> : <span style={{ fontSize: 11.5, color: "#B8860B", fontWeight: 600 }}>Not entered today</span>}
+                </button>
+              );
+            })}
           </div>
         </div>
       ))}
@@ -267,81 +297,105 @@ function Dashboard({ panels, entries, role, busy, onSubmit, onDelete }) {
   );
 }
 
-function PanelCard({ panel, entries, today, role, busy, onSubmit, onDelete }) {
-  const existing = entries.find((e) => e.panel_id === panel.id && e.date === today);
+function PanelPage({ panel, entries, role, busy, onSubmit, onDelete, onBack }) {
+  const [date, setDate] = useState(todayISO());
   const [editing, setEditing] = useState(false);
   const [values, setValues] = useState({});
   const [note, setNote] = useState("");
 
+  const entry = entries.find((e) => e.date === date);
+
   useEffect(() => {
-    if (existing) {
-      setValues(existing.values || {});
-      setNote(existing.note || "");
-    }
-  }, [existing?.id]);
+    setValues(entry ? entry.values || {} : {});
+    setNote(entry ? entry.note || "" : "");
+    setEditing(false);
+  }, [date, entry?.id]);
 
   function submit() {
-    onSubmit(panel, today, values, note, existing ? existing.id : null);
+    onSubmit(panel, date, values, note, entry ? entry.id : null);
     setEditing(false);
   }
 
-  const showForm = !existing || editing;
+  const showForm = !entry || editing;
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "14px 16px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 6 }}>
+    <div>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 13, fontWeight: 600, marginBottom: 14 }}>← Back to devices</button>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 14.5 }}>{panel.name}</div>
-          <div style={{ fontSize: 11, color: "#8A9694" }}>lot {panel.lot_number || "—"}</div>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>{panel.name}</h2>
+          <div style={{ fontSize: 12, color: "#8A9694" }}>lot {panel.lot_number || "—"} · {panel.department}</div>
         </div>
-        {existing && <ReviewBadge status={existing.review_status} />}
+        <label style={{ fontSize: 12.5, fontWeight: 600, color: "#516361" }}>Date
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inputStyle, marginTop: 2 }} />
+        </label>
       </div>
 
-      {!showForm && existing && (
-        <>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-            {(panel.analytes || []).map((a) => {
-              const val = existing.values?.[a.name];
-              if (val === undefined) return null;
-              const color = existing.colors?.[a.name] || "pending";
-              const m = COLOR_META[color];
-              return (
-                <span key={a.name} title={(existing.flags?.[a.name] || []).map((f) => RULE_DESCRIPTIONS[f]).join("; ")} style={{ fontSize: 12, background: m.bg, color: m.fg, padding: "4px 9px", borderRadius: 5, fontWeight: 600 }}>
-                  {a.name}: {val}
-                </span>
-              );
-            })}
+      {entry && !editing && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <ReviewBadge status={entry.review_status} />
+            <span style={{ fontSize: 11.5, color: "#8A9694" }}>by {entry.done_by}{entry.reviewed_by ? ` · reviewed by ${entry.reviewed_by}` : ""}</span>
           </div>
-          <div style={{ fontSize: 11.5, color: "#8A9694", marginBottom: 8 }}>by {existing.done_by}{existing.note ? ` · ${existing.note}` : ""}</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => setEditing(true)} style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 6, padding: "6px 12px", fontSize: 12 }}>Edit today's entry</button>
-            {(role === "admin" || role === "super") && (
-              <button onClick={() => onDelete(existing)} style={{ background: "none", border: "1px solid #C1432B", color: "#C1432B", borderRadius: 6, padding: "6px 12px", fontSize: 12 }}><Trash2 size={12} /></button>
-            )}
-          </div>
-        </>
+          {entry.review_status === "declined" && entry.review_note && (
+            <div style={{ background: "#FBEAE6", border: "1px solid #C1432B33", borderRadius: 7, padding: "8px 12px", fontSize: 12.5, color: "#8A2E1F", marginBottom: 10 }}>
+              Declined: {entry.review_note}
+            </div>
+          )}
+        </div>
       )}
 
-      {showForm && (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 8, marginBottom: 10 }}>
-            {(panel.analytes || []).map((a) => (
-              <label key={a.name} style={{ fontSize: 11.5, fontWeight: 600, color: "#516361" }}>
-                {a.name}{a.unit ? ` (${a.unit})` : ""}
-                <input
-                  type="number"
-                  value={values[a.name] ?? ""}
-                  onChange={(e) => setValues((v) => ({ ...v, [a.name]: e.target.value }))}
-                  style={{ ...inputStyle, marginTop: 2, padding: "6px 8px", fontSize: 13 }}
-                />
-              </label>
-            ))}
-          </div>
+      <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10 }}>
+        <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: "#F0F3F2" }}>
+              <th style={{ padding: "8px 12px", textAlign: "left" }}>Item</th>
+              <th style={{ padding: "8px 12px", textAlign: "left" }}>Result</th>
+              {!showForm && <th style={{ padding: "8px 12px", textAlign: "left" }}>Status</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {(panel.analytes || []).map((a) => {
+              const val = entry?.values?.[a.name];
+              const color = entry?.colors?.[a.name];
+              const m = color ? COLOR_META[color] : null;
+              return (
+                <tr key={a.name} style={{ borderTop: "1px solid #EEF2F0" }}>
+                  <td style={{ padding: "7px 12px", fontWeight: 600 }}>{a.name}{a.unit ? <span style={{ color: "#8A9694", fontWeight: 400 }}> ({a.unit})</span> : ""}</td>
+                  <td style={{ padding: "7px 12px" }}>
+                    {showForm ? (
+                      <input type="number" value={values[a.name] ?? ""} onChange={(e) => setValues((v) => ({ ...v, [a.name]: e.target.value }))} style={{ ...inputStyle, padding: "6px 8px", fontSize: 13, width: 120 }} />
+                    ) : (val ?? "—")}
+                  </td>
+                  {!showForm && (
+                    <td style={{ padding: "7px 12px" }}>
+                      {m ? <span title={(entry.flags?.[a.name] || []).map((f) => RULE_DESCRIPTIONS[f]).join("; ")} style={{ fontSize: 11, background: m.bg, color: m.fg, padding: "3px 8px", borderRadius: 5, fontWeight: 700 }}>{color}</span> : ""}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {showForm ? (
+        <div style={{ marginTop: 12 }}>
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" style={{ ...inputStyle, marginBottom: 10 }} />
           <div style={{ display: "flex", gap: 8 }}>
-            <button disabled={busy} onClick={submit} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "9px 16px", fontSize: 13, fontWeight: 700, opacity: busy ? 0.6 : 1 }}>{busy ? "Saving…" : "Save today's entry"}</button>
-            {existing && <button onClick={() => setEditing(false)} style={{ background: "none", border: "none", color: "#8A9694" }}>Cancel</button>}
+            <button disabled={busy} onClick={submit} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "9px 16px", fontSize: 13, fontWeight: 700, opacity: busy ? 0.6 : 1 }}>{busy ? "Saving…" : entry ? "Resubmit for review" : "Save entry"}</button>
+            {entry && <button onClick={() => setEditing(false)} style={{ background: "none", border: "none", color: "#8A9694" }}>Cancel</button>}
           </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          <button onClick={() => setEditing(true)} style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 6, padding: "6px 12px", fontSize: 12 }}>
+            {entry.review_status === "declined" ? "Edit & resubmit" : "Edit this entry"}
+          </button>
+          {(role === "admin" || role === "super") && (
+            <button onClick={() => onDelete(entry)} style={{ background: "none", border: "1px solid #C1432B", color: "#C1432B", borderRadius: 6, padding: "6px 12px", fontSize: 12 }}><Trash2 size={12} /></button>
+          )}
         </div>
       )}
     </div>
@@ -457,6 +511,77 @@ function MonthlyGrid({ panels, entries }) {
 }
 
 // ---------- Approvals ----------
+
+function ExportPage({ panels, entries }) {
+  const [dateFrom, setDateFrom] = useState(firstOfMonth());
+  const [dateTo, setDateTo] = useState(todayISO());
+  const [selectedIds, setSelectedIds] = useState(panels.map((p) => p.id));
+
+  function toggle(id) {
+    setSelectedIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  }
+
+  async function doExport() {
+    const XLSX = await import("xlsx");
+    const wb = XLSX.utils.book_new();
+    const chosen = panels.filter((p) => selectedIds.includes(p.id));
+    if (chosen.length === 0) return;
+
+    chosen.forEach((panel) => {
+      const panelEntries = entries.filter((e) => e.panel_id === panel.id && e.date >= dateFrom && e.date <= dateTo).sort((a, b) => a.date.localeCompare(b.date));
+      const rows = (panel.analytes || []).map((a) => {
+        const row = { Item: a.name };
+        panelEntries.forEach((e) => { row[e.date] = e.values?.[a.name] ?? ""; });
+        return row;
+      });
+      const doneRow = { Item: "Done by" };
+      const reviewRow = { Item: "Reviewed by" };
+      panelEntries.forEach((e) => {
+        doneRow[e.date] = e.done_by;
+        reviewRow[e.date] = e.review_status === "approved" ? e.reviewed_by : "";
+      });
+      rows.push(doneRow, reviewRow);
+      const sheet = XLSX.utils.json_to_sheet(rows.length ? rows : [{ Item: "No data in this range" }]);
+      let sheetName = panel.name.replace(/[\[\]*/\\?:]/g, "").slice(0, 31) || "Sheet";
+      XLSX.utils.book_append_sheet(wb, sheet, sheetName);
+    });
+
+    XLSX.writeFile(wb, `qc-export-${dateFrom}-to-${dateTo}.xlsx`);
+  }
+
+  return (
+    <div>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Export</h2>
+      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Export everything, or pick just the devices you need. Each device becomes its own sheet.</div>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
+        <span style={{ fontSize: 12, color: "#7B8E8A" }}>From</span>
+        <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ ...inputStyle, width: "auto" }} />
+        <span style={{ fontSize: 12, color: "#7B8E8A" }}>To</span>
+        <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ ...inputStyle, width: "auto" }} />
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <button onClick={() => setSelectedIds(panels.map((p) => p.id))} style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 6, padding: "6px 12px", fontSize: 12 }}>Select all</button>
+        <button onClick={() => setSelectedIds([])} style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 6, padding: "6px 12px", fontSize: 12 }}>Select none</button>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
+        {panels.map((p) => (
+          <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "9px 14px", fontSize: 13.5, cursor: "pointer" }}>
+            <input type="checkbox" checked={selectedIds.includes(p.id)} onChange={() => toggle(p.id)} />
+            <span style={{ fontWeight: 600 }}>{p.name}</span>
+            <span style={{ color: "#8A9694", fontSize: 12 }}>{p.department}</span>
+          </label>
+        ))}
+      </div>
+
+      <button onClick={doExport} disabled={selectedIds.length === 0} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "11px 20px", fontWeight: 700, fontSize: 14, opacity: selectedIds.length === 0 ? 0.5 : 1, display: "flex", alignItems: "center", gap: 8 }}>
+        <Download size={15} /> Export {selectedIds.length === panels.length ? "everything" : `${selectedIds.length} device(s)`}
+      </button>
+    </div>
+  );
+}
 
 function Approvals({ pending, panels, onReview }) {
   if (pending.length === 0) return <div style={{ textAlign: "center", padding: "60px 20px", color: "#8A9694", fontSize: 13.5 }}>Nothing waiting for review. 🎉</div>;
