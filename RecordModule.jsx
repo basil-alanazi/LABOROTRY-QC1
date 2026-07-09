@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Download, Upload, FileText, X } from "lucide-react";
+import { Plus, Trash2, Download, Upload, FileText, X, ListPlus } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
 const inputStyle = { border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 10px", fontSize: 13, boxSizing: "border-box", width: "100%" };
@@ -11,8 +11,6 @@ function slugify(label) {
   return normalize(label) || `field_${Date.now()}`;
 }
 
-// Reads an .xlsx/.xls/.csv (via SheetJS) or .docx (via mammoth, table
-// extraction) into a grid of rows (array of arrays).
 async function readFileAsGrid(file) {
   const ext = file.name.split(".").pop().toLowerCase();
   if (["xlsx", "xls", "csv"].includes(ext)) {
@@ -43,16 +41,25 @@ async function readFileAsGrid(file) {
 export default function RecordModule({ table, moduleKey, title, description, fields: coreFields, role, username }) {
   const [rows, setRows] = useState(null);
   const [customFields, setCustomFields] = useState([]);
+  const [fieldOptions, setFieldOptions] = useState([]); // [{field_key, option_value, sort_order}]
   const [showAdd, setShowAdd] = useState(false);
   const [showFieldAdd, setShowFieldAdd] = useState(false);
+  const [showListManager, setShowListManager] = useState(false);
   const [newFieldLabel, setNewFieldLabel] = useState("");
+  const [newFieldPosition, setNewFieldPosition] = useState("end");
   const [form, setForm] = useState({});
   const [importing, setImporting] = useState(false);
   const canEdit = role === "admin" || role === "super";
 
-  // Every field the table/form should show: the fixed core ones plus
-  // whatever custom ones have been added for this module.
-  const fields = [...coreFields, ...customFields.map((c) => ({ key: c.field_key, label: c.field_label, type: "text", isCustom: true }))];
+  // Core fields get spaced-out order numbers (0, 10, 20…) so custom fields
+  // can slot in between them.
+  const orderedCore = coreFields.map((f, i) => ({ ...f, order: i * 10 }));
+  const orderedCustom = customFields.map((c) => ({ key: c.field_key, label: c.field_label, type: "text", isCustom: true, order: c.sort_order }));
+  const fields = [...orderedCore, ...orderedCustom].sort((a, b) => a.order - b.order);
+
+  function optionsFor(fieldKey) {
+    return fieldOptions.filter((o) => o.field_key === fieldKey).sort((a, b) => a.sort_order - b.sort_order);
+  }
 
   function blankForm() {
     return Object.fromEntries(fields.map((f) => [f.key, f.type === "date" ? new Date().toISOString().slice(0, 10) : ""]));
@@ -60,9 +67,11 @@ export default function RecordModule({ table, moduleKey, title, description, fie
 
   async function loadAll() {
     const { data } = await supabase.from(table).select("*").eq("deleted", false).order("date", { ascending: false });
-    const { data: cf } = await supabase.from("module_custom_fields").select("*").eq("module_key", moduleKey).order("created_at");
+    const { data: cf } = await supabase.from("module_custom_fields").select("*").eq("module_key", moduleKey).order("sort_order");
+    const { data: fo } = await supabase.from("module_field_options").select("*").eq("module_key", moduleKey).order("sort_order");
     setRows(data || []);
     setCustomFields(cf || []);
+    setFieldOptions(fo || []);
   }
   useEffect(() => { loadAll(); }, [table]);
   useEffect(() => { setForm(blankForm()); }, [customFields.length]);
@@ -87,11 +96,23 @@ export default function RecordModule({ table, moduleKey, title, description, fie
     loadAll();
   }
 
+  // Position picker resolves to a numeric sort_order between whichever two
+  // fields it should sit between.
+  function resolveOrder(position) {
+    if (position === "start") return (fields[0]?.order ?? 0) - 10;
+    if (position === "end") return (fields[fields.length - 1]?.order ?? 0) + 10;
+    const afterIdx = fields.findIndex((f) => f.key === position);
+    if (afterIdx === -1) return (fields[fields.length - 1]?.order ?? 0) + 10;
+    const nextOrder = fields[afterIdx + 1]?.order ?? fields[afterIdx].order + 10;
+    return (fields[afterIdx].order + nextOrder) / 2;
+  }
+
   async function addCustomField() {
     const label = newFieldLabel.trim();
     if (!label) return;
-    await supabase.from("module_custom_fields").insert({ module_key: moduleKey, field_key: slugify(label), field_label: label });
+    await supabase.from("module_custom_fields").insert({ module_key: moduleKey, field_key: slugify(label), field_label: label, sort_order: resolveOrder(newFieldPosition) });
     setNewFieldLabel("");
+    setNewFieldPosition("end");
     setShowFieldAdd(false);
     loadAll();
   }
@@ -167,6 +188,7 @@ export default function RecordModule({ table, moduleKey, title, description, fie
           )}
           <button onClick={exportPDF} style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 7, padding: "8px 12px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}><FileText size={14} /> Save as PDF</button>
           <button onClick={exportExcel} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Download size={14} /> Export Excel</button>
+          {canEdit && <button onClick={() => setShowListManager(true)} style={{ background: "none", border: "1px dashed #C7D1CE", color: "#0F7173", borderRadius: 7, padding: "8px 12px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}><ListPlus size={14} /> Preset lists</button>}
           {canEdit && <button onClick={() => setShowFieldAdd(true)} style={{ background: "none", border: "1px dashed #C7D1CE", color: "#0F7173", borderRadius: 7, padding: "8px 12px", fontSize: 13, fontWeight: 600 }}>+ Field</button>}
           {canEdit && <button onClick={() => setShowAdd(true)} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Add</button>}
         </div>
@@ -176,8 +198,13 @@ export default function RecordModule({ table, moduleKey, title, description, fie
       {showFieldAdd && (
         <div className="no-print" style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 14, marginBottom: 20 }}>
           <div style={{ fontSize: 12.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>ADD A FIELD (e.g. "Patient Name")</div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <input value={newFieldLabel} onChange={(e) => setNewFieldLabel(e.target.value)} placeholder="Field name" style={inputStyle} />
+          <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+            <input value={newFieldLabel} onChange={(e) => setNewFieldLabel(e.target.value)} placeholder="Field name" style={{ ...inputStyle, flex: 1, minWidth: 140 }} />
+            <select value={newFieldPosition} onChange={(e) => setNewFieldPosition(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
+              <option value="start">Place at the start</option>
+              <option value="end">Place at the end</option>
+              {fields.map((f) => <option key={f.key} value={f.key}>After "{f.label}"</option>)}
+            </select>
             <button onClick={addCustomField} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>Add field</button>
             <button onClick={() => setShowFieldAdd(false)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 14px", fontSize: 13, whiteSpace: "nowrap" }}>Close</button>
           </div>
@@ -194,21 +221,27 @@ export default function RecordModule({ table, moduleKey, title, description, fie
         </div>
       )}
 
+      {showListManager && <ListManager moduleKey={moduleKey} fields={fields} fieldOptions={fieldOptions} onClose={() => setShowListManager(false)} reload={loadAll} />}
+
       {showAdd && (
         <div className="no-print" style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 14, marginBottom: 20 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 8, marginBottom: 10 }}>
-            {fields.map((f) => (
-              <label key={f.key} style={{ fontSize: 11.5, fontWeight: 600, color: "#516361" }}>
-                {f.label}
-                {f.type === "select" ? (
-                  <select style={inputStyle} value={form[f.key] || ""} onChange={(e) => setForm((v) => ({ ...v, [f.key]: e.target.value }))}>
-                    {f.options.map((o) => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                ) : (
-                  <input type={f.type === "date" ? "date" : "text"} style={inputStyle} value={form[f.key] || ""} onChange={(e) => setForm((v) => ({ ...v, [f.key]: e.target.value }))} />
-                )}
-              </label>
-            ))}
+            {fields.map((f) => {
+              const presetOptions = optionsFor(f.key);
+              return (
+                <label key={f.key} style={{ fontSize: 11.5, fontWeight: 600, color: "#516361" }}>
+                  {f.label}
+                  {f.type === "select" || presetOptions.length > 0 ? (
+                    <select style={inputStyle} value={form[f.key] || ""} onChange={(e) => setForm((v) => ({ ...v, [f.key]: e.target.value }))}>
+                      <option value=""></option>
+                      {(f.type === "select" ? f.options.map((o) => ({ option_value: o })) : presetOptions).map((o) => <option key={o.option_value} value={o.option_value}>{o.option_value}</option>)}
+                    </select>
+                  ) : (
+                    <input type={f.type === "date" ? "date" : "text"} style={inputStyle} value={form[f.key] || ""} onChange={(e) => setForm((v) => ({ ...v, [f.key]: e.target.value }))} />
+                  )}
+                </label>
+              );
+            })}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={addRow} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700 }}>Save</button>
@@ -239,6 +272,59 @@ export default function RecordModule({ table, moduleKey, title, description, fie
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function ListManager({ moduleKey, fields, fieldOptions, onClose, reload }) {
+  const [fieldKey, setFieldKey] = useState(fields[0]?.key || "");
+  const [newValue, setNewValue] = useState("");
+
+  const options = fieldOptions.filter((o) => o.field_key === fieldKey).sort((a, b) => a.sort_order - b.sort_order);
+
+  async function addOption() {
+    const val = newValue.trim();
+    if (!val) return;
+    const maxOrder = options.length ? Math.max(...options.map((o) => o.sort_order)) : 0;
+    await supabase.from("module_field_options").insert({ module_key: moduleKey, field_key: fieldKey, option_value: val, sort_order: maxOrder + 1 });
+    setNewValue("");
+    reload();
+  }
+  async function removeOption(id) {
+    await supabase.from("module_field_options").delete().eq("id", id);
+    reload();
+  }
+
+  return (
+    <div className="no-print" style={{ position: "fixed", inset: 0, background: "rgba(15,25,26,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 50 }}>
+      <div style={{ background: "#fff", borderRadius: 12, width: "100%", maxWidth: 420, maxHeight: "85vh", overflowY: "auto", padding: 22 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>Preset lists</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#8A9694" }}><X size={18} /></button>
+        </div>
+        <div style={{ fontSize: 12, color: "#8A9694", marginBottom: 12 }}>Pick a field. If it has any values here, that field becomes a dropdown instead of free text.</div>
+        <select value={fieldKey} onChange={(e) => setFieldKey(e.target.value)} style={{ ...inputStyle, marginBottom: 14 }}>
+          {fields.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+        </select>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <input value={newValue} onChange={(e) => setNewValue(e.target.value)} placeholder="e.g. Hemolyzed sample" style={{ ...inputStyle, flex: 1 }} onKeyDown={(e) => e.key === "Enter" && addOption()} />
+          <button onClick={addOption} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700 }}>Add</button>
+        </div>
+
+        {options.length === 0 ? (
+          <div style={{ fontSize: 12.5, color: "#8A9694" }}>No preset values yet — this field is still free text.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {options.map((o) => (
+              <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 8, background: "#F7F9F8", borderRadius: 6, padding: "6px 10px" }}>
+                <div style={{ flex: 1, fontSize: 13 }}>{o.option_value}</div>
+                <button onClick={() => removeOption(o.id)} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={13} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

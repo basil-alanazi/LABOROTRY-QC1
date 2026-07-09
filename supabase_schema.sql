@@ -453,5 +453,21 @@ create table if not exists department_swap_requests (
 alter table department_swap_requests enable row level security;
 create policy "allow all department_swap_requests" on department_swap_requests for all using (true) with check (true);
 
+-- Lets a custom field be placed anywhere among the other fields (not just appended at the end).
+alter table module_custom_fields add column if not exists sort_order numeric not null default 0;
+
+-- Preset value lists for any field (core or custom) in a record module —
+-- e.g. a fixed "Reason" list for Reject Sample, so staff pick instead of type.
+create table if not exists module_field_options (
+  id uuid primary key default gen_random_uuid(),
+  module_key text not null,
+  field_key text not null,
+  option_value text not null,
+  sort_order numeric not null default 0,
+  created_at timestamptz default now()
+);
+alter table module_field_options enable row level security;
+create policy "allow all module_field_options" on module_field_options for all using (true) with check (true);
+
 -- Note: this is an open (RLS "allow all") setup — fine for an internal lab tool
 -- with no patient data. Anyone with the app link and Supabase keys can read/write.
