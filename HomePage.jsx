@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { LayoutGrid, ClipboardCheck, Users, Calendar, Table2, FolderOpen } from "lucide-react";
+import { signatureFor } from "./userProfiles";
 
 function greeting(hour) {
   if (hour < 12) return "Good morning";
@@ -7,7 +8,7 @@ function greeting(hour) {
   return "Good evening";
 }
 
-export default function HomePage({ username, role, config, panels, activeEntries, pendingCount, onNavigate }) {
+export default function HomePage({ username, role, config, panels, activeEntries, pendingCount, onNavigate, profiles }) {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30000);
@@ -30,7 +31,7 @@ export default function HomePage({ username, role, config, panels, activeEntries
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 22, fontWeight: 700 }}>{greeting(now.getHours())}, {username} 👋</div>
+        <div style={{ fontSize: 22, fontWeight: 700 }}>{greeting(now.getHours())}, {signatureFor(username, profiles).split(" ")[0]} 👋</div>
         <div style={{ fontSize: 13, color: "#8A9694", marginTop: 4 }}>{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })} · {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
       </div>
 

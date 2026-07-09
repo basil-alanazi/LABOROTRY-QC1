@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award, FileText, Users, Calendar, Menu, Home, ChevronDown, ChevronRight, Wrench, MessageCircle, Bot } from "lucide-react";
+import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X, Trash2, Download, ClipboardCheck, Table2, FolderOpen, BarChart3, PackageCheck, Award, FileText, Users, Calendar, Menu, Home, ChevronDown, ChevronRight, Wrench, MessageCircle, Bot, User } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import Settings from "./Settings";
@@ -19,6 +19,8 @@ import Equipment from "./Equipment";
 import LotComparison from "./LotComparison";
 import InternalChat from "./InternalChat";
 import SmartAssistant from "./SmartAssistant";
+import MyProfile from "./MyProfile";
+import { loadProfilesMap, signatureFor } from "./userProfiles";
 import { evaluateWestgard, zScore, RULE_DESCRIPTIONS } from "./westgard";
 
 const DEPT_PALETTE = ["#0F7173", "#B5473A", "#8A5A2B", "#5A6ACF", "#2F8F5B", "#B8860B", "#7A4FA3", "#C1432B"];
@@ -63,6 +65,7 @@ export default function App() {
   const [portalAccounts, setPortalAccounts] = useState([]);
   const [pinnedTables, setPinnedTables] = useState([]);
   const [allTables, setAllTables] = useState([]);
+  const [profiles, setProfiles] = useState({});
   const [tab, setTab] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [error, setError] = useState("");
@@ -100,6 +103,7 @@ export default function App() {
     setPortalAccounts(pa || []);
     setPinnedTables((ct || []).filter((t) => t.pinned));
     setAllTables(ct || []);
+    setProfiles(await loadProfilesMap());
   }
 
   useEffect(() => {
@@ -285,7 +289,7 @@ export default function App() {
         panels={panels} entries={activeEntries} baselines={baselines} controlLots={controlLots}
         busy={busy} pendingItems={pendingItems}
         onSubmit={submitEntry} onDelete={deleteEntry} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk}
-        onRecalculate={recalculateAllColors} onLogout={logout}
+        onRecalculate={recalculateAllColors} onLogout={logout} profiles={profiles}
       />
     );
   }
@@ -330,22 +334,24 @@ export default function App() {
         onNavigate={(k) => { setTab(k); setSidebarOpen(false); }}
         onLogout={logout} pendingCount={pendingItems.length} pinnedTables={pinnedTables}
         className={sidebarOpen ? "app-sidebar open" : "app-sidebar"}
+        profiles={profiles}
       />
 
       <main className="app-main">
-        {tab === "home" && <HomePage username={username} role={role} config={config} panels={panels} activeEntries={activeEntries} pendingCount={pendingItems.length} onNavigate={setTab} />}
+        {tab === "home" && <HomePage username={username} role={role} config={config} panels={panels} activeEntries={activeEntries} pendingCount={pendingItems.length} onNavigate={setTab} profiles={profiles} />}
+        {tab === "profile" && <MyProfile username={username} />}
         {tab === "chat" && <InternalChat username={username} config={config} staffAccounts={staffAccounts} portalAccounts={portalAccounts} />}
         {tab === "assistant" && <SmartAssistant panels={panels} entries={activeEntries} />}
-        {tab === "qc" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} />}
+        {tab === "qc" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} profiles={profiles} />}
         {tab === "staff" && <StaffMembers departments={config.departments || []} role={role} />}
         {tab === "schedule" && <Schedule departments={config.departments || []} role={role} username={username} />}
         {tab === "shifts" && (role === "admin" || role === "super") && <ShiftTemplates role={role} />}
-        {tab === "grid" && (role === "admin" || role === "super") && <MonthlyGrid panels={panels} entries={activeEntries} controlLots={controlLots} />}
+        {tab === "grid" && (role === "admin" || role === "super") && <MonthlyGrid panels={panels} entries={activeEntries} controlLots={controlLots} profiles={profiles} />}
         {tab === "controls" && (role === "admin" || role === "super") && <ControlStock panels={panels} entries={activeEntries} controlLots={controlLots} onRecalculate={recalculateAllColors} busy={busy} />}
         {tab === "riqas" && (role === "admin" || role === "super") && <Riqas departments={config.departments || []} role={role} username={username} />}
         {tab === "chart" && (role === "admin" || role === "super") && <LeveyJennings panels={panels} entries={activeEntries} baselines={baselines} />}
         {tab === "export" && (role === "admin" || role === "super") && <ExportPage panels={panels} entries={activeEntries} />}
-        {tab === "approvals" && (role === "admin" || role === "super") && <Approvals items={pendingItems} panels={panels} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk} />}
+        {tab === "approvals" && (role === "admin" || role === "super") && <Approvals items={pendingItems} panels={panels} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk} profiles={profiles} />}
         {tab === "settings" && (role === "admin" || role === "super") && <Settings config={config} panels={panels} role={role} staffAccounts={staffAccounts} username={username} baselines={baselines} reload={() => { ensureConfig(); loadAll(); }} />}
         {tab === "audit" && (role === "admin" || role === "super") && <AuditTrail />}
         {tab === "kpi" && (role === "admin" || role === "super") && <KPI panels={panels} entries={activeEntries} baselines={baselines} />}
@@ -398,16 +404,17 @@ function buildPortalPages(permissions, allTables) {
   return pages;
 }
 
-function Portal({ config, permissions, allTables, username, panels, entries, baselines, controlLots, busy, pendingItems, onSubmit, onDelete, onReview, onReviewBulk, onRecalculate, onLogout }) {
+function Portal({ config, permissions, allTables, username, panels, entries, baselines, controlLots, busy, pendingItems, onSubmit, onDelete, onReview, onReviewBulk, onRecalculate, onLogout, profiles }) {
   const pages = buildPortalPages(permissions, allTables);
   const [openKey, setOpenKey] = useState(pages.length === 1 ? pages[0].key : null);
+  const [showProfile, setShowProfile] = useState(false);
   const current = pages.find((p) => p.key === openKey);
 
   function renderPage(p) {
     const effectiveRole = p.level === "admin" ? "admin" : "staff";
-    if (p.key === "qc") return <Dashboard panels={panels} entries={entries} baselines={baselines} role={effectiveRole} busy={busy} onSubmit={onSubmit} onDelete={onDelete} />;
-    if (p.key === "approvals") return <Approvals items={pendingItems} panels={panels} onReview={onReview} onReviewBulk={onReviewBulk} />;
-    if (p.key === "grid") return <MonthlyGrid panels={panels} entries={entries} controlLots={controlLots} />;
+    if (p.key === "qc") return <Dashboard panels={panels} entries={entries} baselines={baselines} role={effectiveRole} busy={busy} onSubmit={onSubmit} onDelete={onDelete} profiles={profiles} />;
+    if (p.key === "approvals") return <Approvals items={pendingItems} panels={panels} onReview={onReview} onReviewBulk={onReviewBulk} profiles={profiles} />;
+    if (p.key === "grid") return <MonthlyGrid panels={panels} entries={entries} controlLots={controlLots} profiles={profiles} />;
     if (p.key === "controls") return <ControlStock panels={panels} entries={entries} controlLots={controlLots} onRecalculate={onRecalculate} busy={busy} />;
     if (p.key === "riqas") return <Riqas departments={config.departments || []} role={effectiveRole} username={username} />;
     if (p.key === "chart") return <LeveyJennings panels={panels} entries={entries} baselines={baselines} />;
@@ -442,17 +449,21 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {pages.length > 1 && openKey && (
+            {pages.length > 1 && openKey && !showProfile && (
               <button onClick={() => setOpenKey(null)} style={{ background: "transparent", border: "1px solid #39494A", color: "#8FA39E", borderRadius: 7, padding: "7px 12px", fontSize: 13 }}>Home</button>
             )}
+            <button onClick={() => { setShowProfile((v) => !v); setOpenKey(null); }} title="My profile" style={{ background: showProfile ? "#2A3B3D" : "transparent", border: "1px solid #39494A", color: "#8FA39E", borderRadius: 7, padding: "7px 9px" }}><User size={14} /></button>
             <button onClick={onLogout} title="Log out" style={{ background: "transparent", border: "1px solid #39494A", color: "#8FA39E", borderRadius: 7, padding: "7px 9px" }}><LogOut size={14} /></button>
           </div>
         </div>
       </header>
 
       <main style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 20px 80px" }}>
-        {pages.length === 0 && <div style={{ textAlign: "center", padding: "80px 20px", color: "#8A9694" }}>No pages have been assigned to this account yet. Ask the owner to grant access.</div>}
-        {current ? renderPage(current) : (
+        {showProfile ? (
+          <MyProfile username={username} />
+        ) : current ? renderPage(current) : pages.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "80px 20px", color: "#8A9694" }}>No pages have been assigned to this account yet. Ask the owner to grant access.</div>
+        ) : (
           <div>
             <div style={{ fontSize: 14, color: "#516361", marginBottom: 16 }}>Hi {username} — pick where you want to work.</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
@@ -477,7 +488,7 @@ function NavBtn({ active, onClick, icon, label }) {
   return <button onClick={onClick} style={{ background: active ? "#2A3B3D" : "transparent", color: active ? "#F0F3F2" : "#8FA39E", border: "none", borderRadius: 7, padding: "7px 12px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>{icon} {label}</button>;
 }
 
-function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pendingCount, pinnedTables, className }) {
+function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pendingCount, pinnedTables, className, profiles }) {
   const isAdmin = role === "admin" || role === "super";
   const [openGroups, setOpenGroups] = useState({ qc: true, schedule: true, settings: false, tables: true });
   const toggleGroup = (k) => setOpenGroups((g) => ({ ...g, [k]: !g[k] }));
@@ -500,6 +511,7 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
   ].filter((i) => i.show);
 
   const settingsItems = [
+    { key: "profile", label: "My profile", icon: User, show: true },
     { key: "settings", label: "Settings", icon: SlidersHorizontal, show: isAdmin },
     { key: "audit", label: "Audit trail", icon: ClipboardCheck, show: isAdmin },
     { key: "owner", label: "Owner", icon: Award, show: role === "super" },
@@ -512,7 +524,7 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
           <FlaskConical size={22} color={config.theme_color || "#5FBFB0"} />
           <div>
             <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 15 }}>{config.app_title || "QC Log"}</div>
-            <div style={{ color: "#8FA39E", fontSize: 10.5, fontFamily: "'IBM Plex Mono', monospace" }}>{username}</div>
+            <div style={{ color: "#8FA39E", fontSize: 10.5, fontFamily: "'IBM Plex Mono', monospace" }}>{signatureFor(username, profiles)}</div>
           </div>
         </div>
       </div>
@@ -623,7 +635,7 @@ function AnalyteReviewBadge({ status }) {
 
 // ---------- Dashboard (today's entry) ----------
 
-function Dashboard({ panels, entries, baselines, role, busy, onSubmit, onDelete }) {
+function Dashboard({ panels, entries, baselines, role, busy, onSubmit, onDelete, profiles }) {
   const today = todayISO();
   const [selectedPanelId, setSelectedPanelId] = useState(null);
   const departments = [...new Set(panels.map((p) => p.department))];
@@ -727,7 +739,7 @@ function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, 
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
             <ReviewSummaryBadge entry={entry} />
-            <span style={{ fontSize: 11.5, color: "#8A9694" }}>entered by {entry.done_by}{entry.edited_by ? ` · last edited by ${entry.edited_by}` : ""}</span>
+            <span style={{ fontSize: 11.5, color: "#8A9694" }}>entered by {signatureFor(entry.done_by, profiles)}{entry.edited_by ? ` · last edited by ${signatureFor(entry.edited_by, profiles)}` : ""}</span>
           </div>
         </div>
       )}
@@ -823,7 +835,7 @@ function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, 
 
 // ---------- Monthly grid (matches the paper form) ----------
 
-function MonthlyGrid({ panels, entries, controlLots }) {
+function MonthlyGrid({ panels, entries, controlLots, profiles }) {
   const [search, setSearch] = useState("");
   const filteredPanels = panels.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
   const [panelId, setPanelId] = useState(panels[0]?.id || "");
@@ -926,7 +938,7 @@ function MonthlyGrid({ panels, entries, controlLots }) {
                 ))}
                 <tr>
                   <td style={{ position: "sticky", left: 0, background: "#F7F9F8", padding: "5px 10px", fontWeight: 700, borderTop: "2px solid #C7D1CE" }}>Done by</td>
-                  {dayList.map((day) => <td key={day} style={{ textAlign: "center", padding: "5px 4px", borderTop: "2px solid #C7D1CE", fontSize: 10 }}>{entryFor(day)?.done_by || ""}</td>)}
+                  {dayList.map((day) => <td key={day} style={{ textAlign: "center", padding: "5px 4px", borderTop: "2px solid #C7D1CE", fontSize: 10 }}>{entryFor(day)?.done_by ? signatureFor(entryFor(day).done_by, profiles) : ""}</td>)}
                 </tr>
                 <tr>
                   <td style={{ position: "sticky", left: 0, background: "#F7F9F8", padding: "5px 10px", fontWeight: 700 }}>Reviewed by</td>
@@ -1072,7 +1084,7 @@ function ExportPage({ panels, entries }) {
   );
 }
 
-function Approvals({ items, panels, onReview, onReviewBulk }) {
+function Approvals({ items, panels, onReview, onReviewBulk, profiles }) {
   const groups = useMemo(() => {
     const map = {};
     items.forEach(({ entry, analyteName }) => {
@@ -1089,14 +1101,14 @@ function Approvals({ items, panels, onReview, onReviewBulk }) {
       <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>All items are pre-selected — just click Approve to accept everything, or untick what you don't want and Decline it.</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {groups.map(({ entry, analytes }) => (
-          <ApprovalEntryCard key={entry.id} entry={entry} analytes={analytes} panel={panels.find((p) => p.id === entry.panel_id)} onReview={onReview} onReviewBulk={onReviewBulk} />
+          <ApprovalEntryCard key={entry.id} entry={entry} analytes={analytes} panel={panels.find((p) => p.id === entry.panel_id)} onReview={onReview} onReviewBulk={onReviewBulk} profiles={profiles} />
         ))}
       </div>
     </div>
   );
 }
 
-function ApprovalEntryCard({ entry, analytes, panel, onReview, onReviewBulk }) {
+function ApprovalEntryCard({ entry, analytes, panel, onReview, onReviewBulk, profiles }) {
   const [selected, setSelected] = useState(() => new Set(analytes));
   const [note, setNote] = useState("");
 
@@ -1115,7 +1127,7 @@ function ApprovalEntryCard({ entry, analytes, panel, onReview, onReviewBulk }) {
     <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "12px 16px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
         <div style={{ fontWeight: 700, fontSize: 14 }}>{panel ? panel.name : "Unknown"}</div>
-        <div style={{ fontSize: 12, color: "#8A9694" }}>{entry.date} · by {entry.done_by}</div>
+        <div style={{ fontSize: 12, color: "#8A9694" }}>{entry.date} · by {signatureFor(entry.done_by, profiles)}</div>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>

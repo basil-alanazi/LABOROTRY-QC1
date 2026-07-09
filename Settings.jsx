@@ -1,6 +1,8 @@
 import React, { useState } from "react";
-import { Trash2, Plus, Save } from "lucide-react";
+import { Trash2, Plus, Save, Upload, AlertTriangle } from "lucide-react";
 import { supabase } from "./supabaseClient";
+import RangeImport from "./RangeImport";
+import { parseRangeFile } from "./rangeFileParser";
 
 const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 14, marginTop: 4, boxSizing: "border-box" };
 const labelStyle = { fontSize: 12.5, fontWeight: 600, color: "#516361" };
@@ -28,6 +30,8 @@ export default function Settings({ config, panels, role, staffAccounts, username
   const [form, setForm] = useState({ name: "", department: departments[0] || "", device: "", lot_number: "", lot_expiry: "" });
   const [analytes, setAnalytes] = useState([emptyAnalyte()]);
   const [bulkText, setBulkText] = useState("");
+  const [panelFileBusy, setPanelFileBusy] = useState(false);
+  const [panelFileError, setPanelFileError] = useState("");
   const [newDept, setNewDept] = useState("");
   const [newStaff, setNewStaff] = useState({ username: "", password: "" });
   const [staffMsg, setStaffMsg] = useState("");
@@ -120,6 +124,33 @@ export default function Settings({ config, panels, role, staffAccounts, username
     });
     if (rows.length) setAnalytes(rows);
     setBulkText("");
+  }
+
+  async function handlePanelFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setPanelFileBusy(true);
+    setPanelFileError("");
+    try {
+      const { rows } = await parseRangeFile(file);
+      if (!rows.length) {
+        setPanelFileError("لم أتمكن من التعرف على أي بيانات بالملف. تأكد أن فيه اسم تحليل وقيمة Low/High أو Mean/SD واضحة.");
+      } else {
+        setAnalytes(rows.map((r) => ({
+          name: r.name,
+          unit: r.unit || "",
+          mean: r.mean !== null && r.mean !== undefined ? String(r.mean) : "",
+          sd: r.sd !== null && r.sd !== undefined ? String(r.sd) : "",
+          rangeLow: r.rangeLow !== null && r.rangeLow !== undefined ? String(r.rangeLow) : "",
+          rangeHigh: r.rangeHigh !== null && r.rangeHigh !== undefined ? String(r.rangeHigh) : "",
+        })));
+      }
+    } catch (err) {
+      setPanelFileError(err.message || "تعذرت قراءة الملف.");
+    } finally {
+      setPanelFileBusy(false);
+      e.target.value = "";
+    }
   }
 
   async function addPanel() {
@@ -252,6 +283,17 @@ export default function Settings({ config, panels, role, staffAccounts, username
         <textarea value={bulkText} onChange={(e) => setBulkText(e.target.value)} placeholder={"Glu, mg/dL\nUA, mg/dL\nCreat, mg/dL"} style={{ ...inputStyle, minHeight: 70, resize: "vertical" }} />
         <button onClick={applyBulk} style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 7, padding: "6px 12px", fontSize: 12, marginTop: 6 }}>Apply pasted list</button>
 
+        <div style={{ fontSize: 11, color: "#8A9694", margin: "10px 0 4px" }}>أو رفع ملف Excel/Word فيه أسماء التحاليل والنورمل رينج جاهزة — بيعبي كل الصفوف فوق تلقائياً:</div>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1px dashed #0F7173", color: "#0F7173", borderRadius: 7, padding: "7px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+          <Upload size={13} /> {panelFileBusy ? "جاري القراءة…" : "رفع ملف Excel أو Word"}
+          <input type="file" accept=".xlsx,.xls,.csv,.docx" onChange={handlePanelFileUpload} disabled={panelFileBusy} style={{ display: "none" }} />
+        </label>
+        {panelFileError && (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 6, fontSize: 12, color: "#C1432B", marginTop: 6 }}>
+            <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {panelFileError}
+          </div>
+        )}
+
         <button onClick={addPanel} style={{ marginTop: 14, background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "10px", fontWeight: 700, fontSize: 13.5, width: "100%" }}>Save QC panel</button>
       </div>
 
@@ -324,6 +366,10 @@ export default function Settings({ config, panels, role, staffAccounts, username
             {baselineEditId === p.id && (
               <div style={{ marginTop: 10, background: "#F7F9F8", borderRadius: 7, padding: 10 }}>
                 <div style={{ fontSize: 11, color: "#8A9694", marginBottom: 6 }}>Applies to lot <b>{p.lot_number || "—"}</b>. Already-set analytes are pre-filled — just edit the numbers and save.</div>
+                <RangeImport
+                  analyteNames={(p.analytes || []).map((a) => a.name)}
+                  onApply={(values) => setBaselineValues((b) => ({ ...b, ...values }))}
+                />
                 {(p.analytes || []).map((a) => (
                   <div key={a.name} style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
                     <div style={{ width: 70, fontSize: 12.5, fontWeight: 600 }}>{a.name}</div>
