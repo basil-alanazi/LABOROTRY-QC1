@@ -41,28 +41,25 @@ export default function DailyAssignment({ role }) {
   }
 
   async function setAssignment(staffId, date, deptName) {
-    const existing = assignmentFor(staffId, date);
-    if (existing) {
-      await supabase.from("department_assignments").update({ department_name: deptName }).eq("id", existing.id);
-    } else if (deptName) {
-      await supabase.from("department_assignments").insert({ staff_id: staffId, date, period, department_name: deptName });
-    }
+    if (!deptName) { loadAll(); return; }
+    const { error } = await supabase.from("department_assignments").upsert(
+      { staff_id: staffId, date, period, department_name: deptName },
+      { onConflict: "staff_id,date,period" }
+    );
+    if (error) alert(`Save failed: ${error.message}`);
     loadAll();
   }
 
   async function applyImportedAssignments(entries) {
     const [y, mm] = month.split("-");
-    for (const e of entries) {
-      const dateStr = `${y}-${mm}-${String(e.day).padStart(2, "0")}`;
-      const existing = (assignments || []).find((a) => a.staff_id === e.staffId && a.date === dateStr);
-      let error;
-      if (existing) {
-        ({ error } = await supabase.from("department_assignments").update({ department_name: e.department_name }).eq("id", existing.id));
-      } else {
-        ({ error } = await supabase.from("department_assignments").insert({ staff_id: e.staffId, date: dateStr, period, department_name: e.department_name }));
-      }
-      if (error) throw new Error(error.message || "Database write failed");
-    }
+    const rows = entries.map((e) => ({
+      staff_id: e.staffId,
+      date: `${y}-${mm}-${String(e.day).padStart(2, "0")}`,
+      period,
+      department_name: e.department_name,
+    }));
+    const { error } = await supabase.from("department_assignments").upsert(rows, { onConflict: "staff_id,date,period" });
+    if (error) throw new Error(error.message || "Database write failed");
     await loadAll();
   }
 
