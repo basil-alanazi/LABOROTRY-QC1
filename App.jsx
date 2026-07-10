@@ -593,10 +593,10 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
         </SideGroup>
 
         <SideGroup icon="📝" label="Records" open={openGroups.records} onToggle={() => toggleGroup("records")}>
-          {notHidden("reject") && <SideItem icon={<AlertTriangle size={14} />} label="Reject Sample" active={tab === "reject"} onClick={() => onNavigate("reject")} indent />}
-          {notHidden("panic") && <SideItem icon={<Siren size={14} />} label="Panic Value" active={tab === "panic"} onClick={() => onNavigate("panic")} indent />}
-          {notHidden("corrective") && <SideItem icon={<ClipboardList size={14} />} label="Corrective Action" active={tab === "corrective"} onClick={() => onNavigate("corrective")} indent />}
-          {notHidden("infection") && <SideItem icon={<Biohazard size={14} />} label="Infection Disease" active={tab === "infection"} onClick={() => onNavigate("infection")} indent />}
+          {notHidden("reject") && <SideItem icon={<AlertTriangle size={14} color="#C1432B" />} label="Reject Sample" active={tab === "reject"} onClick={() => onNavigate("reject")} indent />}
+          {notHidden("panic") && <SideItem icon={<Siren size={14} color="#D8862B" />} label="Panic Value" active={tab === "panic"} onClick={() => onNavigate("panic")} indent />}
+          {notHidden("corrective") && <SideItem icon={<ClipboardList size={14} color="#3E6ACF" />} label="Corrective Action" active={tab === "corrective"} onClick={() => onNavigate("corrective")} indent />}
+          {notHidden("infection") && <SideItem icon={<Biohazard size={14} color="#7A4FA3" />} label="Infection Disease" active={tab === "infection"} onClick={() => onNavigate("infection")} indent />}
         </SideGroup>
 
         {isAdmin && (

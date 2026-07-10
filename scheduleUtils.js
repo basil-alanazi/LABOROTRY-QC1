@@ -53,3 +53,11 @@ export function formatTime12(hhmm) {
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${String(m).padStart(2, "0")} ${period}`;
 }
+
+// Classifies a shift template into "morning" / "evening" / "night" / null (off).
+export function classifyShift(shift) {
+  if (!shift || shift.is_off) return null;
+  if (shift.night_shift) return "night";
+  const startHour = Number((shift.start_time || "00:00").split(":")[0]);
+  return startHour < 12 ? "morning" : "evening";
+}

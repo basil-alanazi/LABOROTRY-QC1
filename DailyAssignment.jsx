@@ -1,16 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
-import { todayISO } from "./scheduleUtils";
+import { todayISO, classifyShift } from "./scheduleUtils";
 import DepartmentAssignmentImport from "./DepartmentAssignmentImport";
 
 const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 14, boxSizing: "border-box" };
-
-function classifyShift(shift) {
-  if (!shift || shift.is_off) return null;
-  if (shift.night_shift) return "night";
-  const startHour = Number((shift.start_time || "00:00").split(":")[0]);
-  return startHour < 12 ? "morning" : "evening";
-}
 
 export default function DailyAssignment({ role }) {
   const canEdit = role === "admin" || role === "super";

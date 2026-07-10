@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Download, Coffee, Check, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
-import { shiftDurationHours, isWithinShift, todayISO, yesterdayISO, formatTime12 } from "./scheduleUtils";
+import { shiftDurationHours, isWithinShift, todayISO, yesterdayISO, formatTime12, classifyShift } from "./scheduleUtils";
 import ScheduleImport from "./ScheduleImport";
 import { loadProfilesMap } from "./userProfiles";
 
@@ -208,6 +208,9 @@ export default function Schedule({ departments, role, username }) {
         )}
       </div>
 
+      {/* Shift headcount — pick any date + period, see who's in it and when they leave */}
+      <ShiftHeadcount staff={staff} shifts={shifts} entries={entries} />
+
       <div className="no-print" style={{ marginBottom: 16 }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={inputStyle} />
         {canEdit && staff.length > 0 && (
@@ -314,6 +317,56 @@ function StartBreakButton({ member, staff, liveStatusFor, onRequest }) {
         <button disabled={!coverId} onClick={() => { onRequest(member.id, coverId, duration); setOpen(false); }} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 5, padding: "4px 8px", fontSize: 11, opacity: coverId ? 1 : 0.5 }}>Request</button>
         <button onClick={() => setOpen(false)} style={{ background: "none", border: "none", color: "#8A9694", fontSize: 11 }}>Cancel</button>
       </div>
+    </div>
+  );
+}
+
+// Pick any date + period, see the headcount and who's in it — including future
+// dates already filled in on the schedule, and each person's shift end time.
+function ShiftHeadcount({ staff, shifts, entries }) {
+  const [date, setDate] = useState(todayISO());
+  const [period, setPeriod] = useState("morning");
+
+  const shiftByCode = {};
+  (shifts || []).forEach((s) => { shiftByCode[s.code] = s; });
+
+  const inPeriod = (staff || []).map((m) => {
+    const entry = (entries || []).find((e) => e.staff_id === m.id && e.date === date);
+    const shift = entry ? shiftByCode[entry.shift_code] : null;
+    return { member: m, shift, matches: shift && classifyShift(shift) === period };
+  }).filter((x) => x.matches);
+
+  return (
+    <div className="no-print" style={{ marginBottom: 24 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>SHIFT HEADCOUNT</div>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
+        <div style={{ display: "flex", gap: 4 }}>
+          {["morning", "evening", "night"].map((p) => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              style={{ border: "1px solid " + (period === p ? "#0F7173" : "#C7D1CE"), background: period === p ? "#0F7173" : "#fff", color: period === p ? "#fff" : "#516361", borderRadius: 6, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, textTransform: "capitalize" }}
+            >
+              {p === "morning" ? "☀️" : p === "evening" ? "🌙" : "🌃"} {p}
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#0F7173" }}>{inPeriod.length} people</div>
+      </div>
+
+      {inPeriod.length === 0 ? (
+        <div style={{ fontSize: 13, color: "#8A9694" }}>Nobody scheduled for {period} on {date}.</div>
+      ) : (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {inPeriod.map(({ member, shift }) => (
+            <div key={member.id} style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "8px 12px", minWidth: 160 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700 }}>{member.full_name}</div>
+              <div style={{ fontSize: 11, color: "#8A9694" }}>{shift.code} · leaves {formatTime12(shift.end_time)}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
