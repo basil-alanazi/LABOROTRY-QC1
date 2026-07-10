@@ -188,13 +188,130 @@ function DilutionCalc() {
   );
 }
 
+function EgfrCalc() {
+  const [creat, setCreat] = useState("");
+  const [age, setAge] = useState("");
+  const [sex, setSex] = useState("female");
+  const c = num(creat), a = num(age);
+  const valid = c !== null && c > 0 && a !== null && a > 0;
+
+  let egfr = null;
+  if (valid) {
+    // CKD-EPI 2021 race-free creatinine equation.
+    const kappa = sex === "female" ? 0.7 : 0.9;
+    const alpha = sex === "female" ? -0.241 : -0.302;
+    const sexFactor = sex === "female" ? 1.012 : 1;
+    const minRatio = Math.min(c / kappa, 1);
+    const maxRatio = Math.max(c / kappa, 1);
+    egfr = 142 * Math.pow(minRatio, alpha) * Math.pow(maxRatio, -1.2) * Math.pow(0.9938, a) * sexFactor;
+  }
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+        <label style={labelStyle}>Creatinine (mg/dL)<input style={inputStyle} type="number" value={creat} onChange={(e) => setCreat(e.target.value)} /></label>
+        <label style={labelStyle}>Age (years)<input style={inputStyle} type="number" value={age} onChange={(e) => setAge(e.target.value)} /></label>
+        <label style={labelStyle}>Sex
+          <select style={inputStyle} value={sex} onChange={(e) => setSex(e.target.value)}>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+          </select>
+        </label>
+      </div>
+      {valid && (
+        <ResultBox>
+          eGFR (CKD-EPI 2021) = {egfr.toFixed(1)} mL/min/1.73m²
+          {egfr < 60 && " — suggests reduced kidney function"}
+        </ResultBox>
+      )}
+    </div>
+  );
+}
+
+function CorrectedCalciumCalc() {
+  const [calcium, setCalcium] = useState("");
+  const [albumin, setAlbumin] = useState("");
+  const ca = num(calcium), al = num(albumin);
+  const valid = ca !== null && al !== null;
+  const corrected = valid ? ca + 0.8 * (4.0 - al) : null;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+        <label style={labelStyle}>Total Calcium (mg/dL)<input style={inputStyle} type="number" value={calcium} onChange={(e) => setCalcium(e.target.value)} /></label>
+        <label style={labelStyle}>Albumin (g/dL)<input style={inputStyle} type="number" value={albumin} onChange={(e) => setAlbumin(e.target.value)} /></label>
+      </div>
+      {valid && <ResultBox>Corrected Calcium = {corrected.toFixed(2)} mg/dL</ResultBox>}
+    </div>
+  );
+}
+
+function OsmolalityCalc() {
+  const [na, setNa] = useState("");
+  const [glucose, setGlucose] = useState("");
+  const [bun, setBun] = useState("");
+  const [measured, setMeasured] = useState("");
+  const n = num(na), g = num(glucose), b = num(bun), m = num(measured);
+  const valid = n !== null && g !== null && b !== null;
+  const calc = valid ? 2 * n + g / 18 + b / 2.8 : null;
+  const gap = valid && m !== null ? m - calc : null;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+        <label style={labelStyle}>Na⁺ (mmol/L)<input style={inputStyle} type="number" value={na} onChange={(e) => setNa(e.target.value)} /></label>
+        <label style={labelStyle}>Glucose (mg/dL)<input style={inputStyle} type="number" value={glucose} onChange={(e) => setGlucose(e.target.value)} /></label>
+        <label style={labelStyle}>BUN (mg/dL)<input style={inputStyle} type="number" value={bun} onChange={(e) => setBun(e.target.value)} /></label>
+        <label style={labelStyle}>Measured Osm (optional)<input style={inputStyle} type="number" value={measured} onChange={(e) => setMeasured(e.target.value)} /></label>
+      </div>
+      {valid && (
+        <ResultBox>
+          Calculated Osmolality = {calc.toFixed(1)} mOsm/kg
+          {gap !== null && <> &nbsp;·&nbsp; Osmolar Gap = {gap.toFixed(1)} {gap > 10 ? "(elevated — consider unmeasured osmoles)" : ""}</>}
+        </ResultBox>
+      )}
+    </div>
+  );
+}
+
+function FeNaCalc() {
+  const [urineNa, setUrineNa] = useState("");
+  const [plasmaNa, setPlasmaNa] = useState("");
+  const [urineCreat, setUrineCreat] = useState("");
+  const [plasmaCreat, setPlasmaCreat] = useState("");
+  const un = num(urineNa), pn = num(plasmaNa), uc = num(urineCreat), pc = num(plasmaCreat);
+  const valid = un !== null && pn !== null && pn !== 0 && uc !== null && uc !== 0 && pc !== null;
+  const fena = valid ? ((un * pc) / (pn * uc)) * 100 : null;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+        <label style={labelStyle}>Urine Na⁺<input style={inputStyle} type="number" value={urineNa} onChange={(e) => setUrineNa(e.target.value)} /></label>
+        <label style={labelStyle}>Plasma Na⁺<input style={inputStyle} type="number" value={plasmaNa} onChange={(e) => setPlasmaNa(e.target.value)} /></label>
+        <label style={labelStyle}>Urine Creatinine<input style={inputStyle} type="number" value={urineCreat} onChange={(e) => setUrineCreat(e.target.value)} /></label>
+        <label style={labelStyle}>Plasma Creatinine<input style={inputStyle} type="number" value={plasmaCreat} onChange={(e) => setPlasmaCreat(e.target.value)} /></label>
+      </div>
+      {valid && (
+        <ResultBox>
+          FENa = {fena.toFixed(2)}% {fena < 1 ? "(suggests prerenal)" : fena > 2 ? "(suggests intrinsic renal)" : ""}
+        </ResultBox>
+      )}
+      <WarnBox>Urine and plasma creatinine must be in the same unit (both mg/dL or both µmol/L) — the ratio cancels the unit out either way.</WarnBox>
+    </div>
+  );
+}
+
 const CALCULATORS = [
   { key: "lipid", label: "LDL / VLDL", icon: Activity, group: "Lipid Panel", desc: "From Total Cholesterol, TG, and HDL", Comp: LipidCalc },
+  { key: "egfr", label: "eGFR", icon: Activity, group: "Renal & Electrolytes", desc: "CKD-EPI 2021 (race-free) — from Creatinine, age, sex", Comp: EgfrCalc },
   { key: "aniongap", label: "Anion Gap", icon: Beaker, group: "Renal & Electrolytes", desc: "From Na, Cl, HCO₃", Comp: AnionGapCalc },
   { key: "buncreat", label: "BUN/Creatinine Ratio", icon: Beaker, group: "Renal & Electrolytes", desc: "From BUN and Creatinine", Comp: BunCreatCalc },
   { key: "urineprotein", label: "Urine Protein/Creatinine", icon: Beaker, group: "Renal & Electrolytes", desc: "From urine protein and creatinine", Comp: UrineProteinCalc },
+  { key: "fena", label: "FENa", icon: Beaker, group: "Renal & Electrolytes", desc: "Fractional excretion of sodium", Comp: FeNaCalc },
+  { key: "osmolality", label: "Osmolality + Gap", icon: Beaker, group: "Renal & Electrolytes", desc: "Calculated osmolality and osmolar gap", Comp: OsmolalityCalc },
   { key: "ckmb", label: "CK-MB Index", icon: FlaskConical, group: "Chemistry", desc: "From CK-MB and CK Total", Comp: CkMbCalc },
   { key: "tibc", label: "Transferrin Saturation", icon: FlaskConical, group: "Chemistry", desc: "From Serum Iron and TIBC", Comp: TibcCalc },
+  { key: "corrcalcium", label: "Corrected Calcium", icon: FlaskConical, group: "Chemistry", desc: "Adjusted for albumin", Comp: CorrectedCalciumCalc },
   { key: "dilution", label: "Dilution", icon: Droplet, group: "Dilution", desc: "How much diluent to add", Comp: DilutionCalc },
 ];
 
