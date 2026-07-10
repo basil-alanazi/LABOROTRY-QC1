@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Trash2, ChevronUp, ChevronDown, UserPlus } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { isWithinShift, todayISO, yesterdayISO } from "./scheduleUtils";
 import StaffImport from "./StaffImport";
@@ -20,6 +20,8 @@ export default function StaffMembers({ departments, role }) {
   const [scheduleEntries, setScheduleEntries] = useState([]);
   const [breaks, setBreaks] = useState([]);
   const [now, setNow] = useState(new Date());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkResult, setBulkResult] = useState(null);
   const canEdit = role === "admin" || role === "super";
 
   async function loadAll() {
@@ -70,6 +72,37 @@ export default function StaffMembers({ departments, role }) {
     await supabase.from("staff_members").update({ sort_order: bOrder }).eq("id", a.id);
     await supabase.from("staff_members").update({ sort_order: aOrder }).eq("id", b.id);
     loadAll();
+  }
+
+  async function createLoginsForEveryone() {
+    if (!confirm("For every employee with a job number, this creates a login (username = job number, password = job number, must change on first sign-in) and fills in their profile. Existing logins are left untouched. Continue?")) return;
+    setBulkBusy(true);
+    const { data: existingAccounts } = await supabase.from("staff_accounts").select("username");
+    const existingUsernames = new Set((existingAccounts || []).map((a) => a.username));
+    const { data: existingProfiles } = await supabase.from("user_profiles").select("*");
+    const profileByUsername = {};
+    (existingProfiles || []).forEach((p) => { profileByUsername[p.username] = p; });
+
+    let created = 0, alreadyHadLogin = 0, profilesFilled = 0, noJobNumber = 0;
+    for (const m of staff) {
+      const jobNumber = (m.job_number || "").trim();
+      if (!jobNumber) { noJobNumber++; continue; }
+
+      if (!existingUsernames.has(jobNumber)) {
+        await supabase.from("staff_accounts").insert({ username: jobNumber, password: jobNumber, must_change_password: true });
+        created++;
+      } else {
+        alreadyHadLogin++;
+      }
+
+      const existingProfile = profileByUsername[jobNumber];
+      if (!existingProfile || !existingProfile.full_name) {
+        await supabase.from("user_profiles").upsert({ username: jobNumber, full_name: m.full_name, employee_id: jobNumber, updated_at: new Date().toISOString() });
+        profilesFilled++;
+      }
+    }
+    setBulkBusy(false);
+    setBulkResult({ created, alreadyHadLogin, profilesFilled, noJobNumber });
   }
 
   function liveStatusFor(member) {
@@ -150,6 +183,20 @@ export default function StaffMembers({ departments, role }) {
       )}
 
       <div style={{ fontSize: 12.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>ROSTER</div>
+      {canEdit && (
+        <div style={{ marginBottom: 16 }}>
+          <button onClick={createLoginsForEveryone} disabled={bulkBusy} style={{ background: "none", border: "1px dashed #0F7173", color: "#0F7173", borderRadius: 7, padding: "9px 14px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, opacity: bulkBusy ? 0.6 : 1 }}>
+            <UserPlus size={14} /> {bulkBusy ? "Creating…" : "Create logins for everyone"}
+          </button>
+          {bulkResult && (
+            <div style={{ marginTop: 8, background: "#E8F2EC", border: "1px solid #2F6B4F33", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "#2F6B4F" }}>
+              ✅ {bulkResult.created} new login{bulkResult.created === 1 ? "" : "s"} created · {bulkResult.profilesFilled} profile{bulkResult.profilesFilled === 1 ? "" : "s"} filled in
+              {bulkResult.alreadyHadLogin > 0 && ` · ${bulkResult.alreadyHadLogin} already had a login`}
+              {bulkResult.noJobNumber > 0 && <div style={{ color: "#B8860B", marginTop: 4 }}>⚠ {bulkResult.noJobNumber} employee{bulkResult.noJobNumber === 1 ? "" : "s"} skipped — no job number on the roster yet.</div>}
+            </div>
+          )}
+        </div>
+      )}
       {canEdit && (
         <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 14, marginBottom: 20 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
