@@ -471,5 +471,29 @@ create table if not exists module_field_options (
 alter table module_field_options enable row level security;
 create policy "allow all module_field_options" on module_field_options for all using (true) with check (true);
 
+-- ===== Push notifications (shift start/end reminders) =====
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  username text not null,
+  endpoint text not null,
+  subscription jsonb not null,
+  created_at timestamptz default now(),
+  unique(username, endpoint)
+);
+alter table push_subscriptions enable row level security;
+create policy "allow all push_subscriptions" on push_subscriptions for all using (true) with check (true);
+
+-- Prevents sending the same reminder twice if the cron job overlaps a run.
+create table if not exists notification_log (
+  id uuid primary key default gen_random_uuid(),
+  staff_id uuid references staff_members(id) on delete cascade,
+  date date not null,
+  notif_type text not null, -- start_reminder | end_reminder
+  sent_at timestamptz default now(),
+  unique(staff_id, date, notif_type)
+);
+alter table notification_log enable row level security;
+create policy "allow all notification_log" on notification_log for all using (true) with check (true);
+
 -- Note: this is an open (RLS "allow all") setup — fine for an internal lab tool
 -- with no patient data. Anyone with the app link and Supabase keys can read/write.

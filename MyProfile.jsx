@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { User, Save, CheckCircle2 } from "lucide-react";
+import { User, Save, CheckCircle2, Bell, BellOff } from "lucide-react";
 import { supabase } from "./supabaseClient";
+import { pushSupported, getSubscriptionStatus, enablePushReminders, disablePushReminders } from "./pushNotifications";
 
 const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 14, boxSizing: "border-box" };
 const labelStyle = { fontSize: 12.5, fontWeight: 600, color: "#516361" };
@@ -12,6 +13,31 @@ export default function MyProfile({ username }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [pushStatus, setPushStatus] = useState("checking"); // checking | subscribed | unsubscribed | unsupported
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState("");
+
+  useEffect(() => {
+    getSubscriptionStatus().then(setPushStatus);
+  }, []);
+
+  async function togglePush() {
+    setPushBusy(true);
+    setPushError("");
+    try {
+      if (pushStatus === "subscribed") {
+        await disablePushReminders(username);
+        setPushStatus("unsubscribed");
+      } else {
+        await enablePushReminders(username);
+        setPushStatus("subscribed");
+      }
+    } catch (err) {
+      setPushError(err.message || "Couldn't change notification settings.");
+    } finally {
+      setPushBusy(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -78,6 +104,23 @@ export default function MyProfile({ username }) {
           {saved ? <><CheckCircle2 size={15} /> Saved</> : <><Save size={14} /> {saving ? "Saving…" : "Save"}</>}
         </button>
         {error && <div style={{ fontSize: 12.5, color: "#C1432B" }}>{error}</div>}
+      </div>
+
+      <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 16, marginTop: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
+          <Bell size={16} /> Shift reminders
+        </div>
+        <div style={{ fontSize: 12.5, color: "#7B8E8A", marginBottom: 12 }}>
+          Get a notification an hour before your shift starts, and again when it ends — even if this tab is closed. Requires your Employee ID above to match your entry on the Staff roster.
+        </div>
+        {pushStatus === "unsupported" ? (
+          <div style={{ fontSize: 12.5, color: "#B8860B" }}>Notifications aren't supported in this browser. Try Chrome or Safari on iOS 16.4+.</div>
+        ) : (
+          <button onClick={togglePush} disabled={pushBusy || pushStatus === "checking"} style={{ background: pushStatus === "subscribed" ? "none" : "#0F7173", color: pushStatus === "subscribed" ? "#C1432B" : "#fff", border: pushStatus === "subscribed" ? "1px solid #C1432B" : "none", borderRadius: 8, padding: "10px 16px", fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", gap: 6, opacity: pushBusy ? 0.6 : 1 }}>
+            {pushStatus === "subscribed" ? <><BellOff size={14} /> Turn off reminders</> : <><Bell size={14} /> {pushBusy ? "Enabling…" : "Enable shift reminders"}</>}
+          </button>
+        )}
+        {pushError && <div style={{ fontSize: 12.5, color: "#C1432B", marginTop: 8 }}>{pushError}</div>}
       </div>
     </div>
   );
