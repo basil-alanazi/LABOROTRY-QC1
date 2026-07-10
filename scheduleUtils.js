@@ -55,9 +55,43 @@ export function formatTime12(hhmm) {
 }
 
 // Classifies a shift template into "morning" / "evening" / "night" / null (off).
+// Kept for places that only need one label (e.g. the small on-screen badge).
 export function classifyShift(shift) {
-  if (!shift || shift.is_off) return null;
-  if (shift.night_shift) return "night";
-  const startHour = Number((shift.start_time || "00:00").split(":")[0]);
-  return startHour < 12 ? "morning" : "evening";
+  const periods = periodsForShift(shift);
+  return periods[0] || null;
+}
+
+// Named windows: Night 00:00–08:00, Morning 08:00–16:00, Evening 16:00–24:00.
+const PERIOD_WINDOWS = {
+  night: [0, 8 * 60],
+  morning: [8 * 60, 16 * 60],
+  evening: [16 * 60, 24 * 60],
+};
+const OVERLAP_THRESHOLD_MIN = 150; // ~2.5h — long shifts crossing a boundary show in every window they meaningfully cover.
+
+function toMinutes12(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Returns every period a shift meaningfully overlaps — so a 4pm–4am shift
+// shows under both Evening and Night, a 12pm–8pm shift under both Morning
+// and Evening, while a normal 07:00 start still lands only in Morning.
+export function periodsForShift(shift) {
+  if (!shift || shift.is_off || !shift.start_time || !shift.end_time) return [];
+  const s = toMinutes12(shift.start_time);
+  let e = toMinutes12(shift.end_time);
+  if (e <= s) e += 24 * 60; // crosses midnight
+
+  const periods = [];
+  for (const [name, [wStart, wEnd]] of Object.entries(PERIOD_WINDOWS)) {
+    let overlap = Math.max(0, Math.min(e, wEnd) - Math.max(s, wStart));
+    if (e > 24 * 60) {
+      // Also check the "next day" instance of this window, for shifts that run past midnight.
+      overlap += Math.max(0, Math.min(e, wEnd + 24 * 60) - Math.max(s, wStart + 24 * 60));
+    }
+    if (overlap >= OVERLAP_THRESHOLD_MIN) periods.push(name);
+  }
+  if (shift.night_shift && !periods.includes("night")) periods.push("night");
+  return periods;
 }

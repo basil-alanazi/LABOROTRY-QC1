@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Download, Coffee, Check, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
-import { shiftDurationHours, isWithinShift, todayISO, yesterdayISO, formatTime12, classifyShift } from "./scheduleUtils";
+import { shiftDurationHours, isWithinShift, todayISO, yesterdayISO, formatTime12, periodsForShift } from "./scheduleUtils";
 import ScheduleImport from "./ScheduleImport";
 import { loadProfilesMap } from "./userProfiles";
 
@@ -333,8 +333,9 @@ function ShiftHeadcount({ staff, shifts, entries }) {
   const inPeriod = (staff || []).map((m) => {
     const entry = (entries || []).find((e) => e.staff_id === m.id && e.date === date);
     const shift = entry ? shiftByCode[entry.shift_code] : null;
-    return { member: m, shift, matches: shift && classifyShift(shift) === period };
-  }).filter((x) => x.matches);
+    return { member: m, shift, matches: shift && periodsForShift(shift).includes(period) };
+  }).filter((x) => x.matches)
+    .sort((a, b) => (a.shift.start_time || "").localeCompare(b.shift.start_time || ""));
 
   return (
     <div className="no-print" style={{ marginBottom: 24 }}>
