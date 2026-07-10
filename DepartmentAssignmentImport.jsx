@@ -42,10 +42,18 @@ export default function DepartmentAssignmentImport({ staff, month, period, onApp
   }
 
   function confirmApply() {
+    const norm = (s) => String(s ?? "").trim().toLowerCase();
     const withIds = result.entries.map((e) => {
-      const staffMember = staff.find((s) => s.full_name === e.staffName);
+      const staffMember = staff.find((s) => norm(s.full_name) === norm(e.staffName));
       return { ...e, staffId: staffMember?.id };
     }).filter((e) => e.staffId);
+    if (withIds.length === 0) {
+      alert("None of the matched names lined up with a staff ID — nothing was saved. This shouldn't happen; please screenshot this and report it.");
+      return;
+    }
+    if (withIds.length < result.entries.length) {
+      alert(`Saving ${withIds.length} of ${result.entries.length} — the rest couldn't be matched to a staff record.`);
+    }
     onApply(withIds);
     setResult(null);
   }
