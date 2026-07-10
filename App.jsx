@@ -13,6 +13,7 @@ import Schedule from "./Schedule";
 import ShiftTemplates from "./ShiftTemplates";
 import HomePage from "./HomePage";
 import AuditTrail from "./AuditTrail";
+import BackupExport from "./BackupExport";
 import SmartSearch from "./SmartSearch";
 import KPI from "./KPI";
 import Equipment from "./Equipment";
@@ -364,6 +365,7 @@ export default function App() {
         {tab === "approvals" && (role === "admin" || role === "super") && <Approvals items={pendingItems} panels={panels} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk} profiles={profiles} />}
         {tab === "settings" && (role === "admin" || role === "super") && <Settings config={config} panels={panels} role={role} staffAccounts={staffAccounts} username={username} baselines={baselines} reload={() => { ensureConfig(); loadAll(); }} />}
         {tab === "audit" && (role === "admin" || role === "super") && <AuditTrail />}
+        {tab === "backup" && (role === "admin" || role === "super") && <BackupExport />}
         {tab === "kpi" && (role === "admin" || role === "super") && <KPI panels={panels} entries={activeEntries} baselines={baselines} />}
         {tab === "equipment" && (role === "admin" || role === "super") && <Equipment departments={config.departments || []} role={role} username={username} />}
         {tab === "reject" && (role === "admin" || role === "super") && <RejectSample role={role} username={username} />}
@@ -404,6 +406,7 @@ const PORTAL_PAGE_META = {
   lotcompare: { label: "Lot comparison", icon: Grid3x3 },
   kpi: { label: "KPI", icon: BarChart3 },
   audit: { label: "Audit trail", icon: ClipboardCheck },
+  backup: { label: "Full Backup", icon: Download },
   reject: { label: "Reject Sample", icon: AlertTriangle },
   panic: { label: "Panic Value", icon: Siren },
   corrective: { label: "Corrective Action", icon: ClipboardList },
@@ -455,6 +458,7 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
     if (p.key === "lotcompare") return <LotComparison panels={panels} />;
     if (p.key === "kpi") return <KPI panels={panels} entries={entries} baselines={baselines} />;
     if (p.key === "audit") return <AuditTrail />;
+    if (p.key === "backup") return <BackupExport />;
     if (p.key === "reject") return <RejectSample role={effectiveRole} username={username} />;
     if (p.key === "panic") return <PanicValue role={effectiveRole} username={username} />;
     if (p.key === "corrective") return <CorrectiveAction role={effectiveRole} username={username} />;
@@ -556,6 +560,7 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
     { key: "profile", label: "My profile", icon: User, show: true },
     { key: "settings", label: "Settings", icon: SlidersHorizontal, show: isAdmin },
     { key: "audit", label: "Audit trail", icon: ClipboardCheck, show: isAdmin },
+    { key: "backup", label: "Full Backup", icon: Download, show: isAdmin },
     { key: "owner", label: "Owner", icon: Award, show: role === "super" },
   ].filter((i) => i.show && notHidden(i.key));
 

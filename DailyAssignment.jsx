@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
-import { todayISO, periodsForShift } from "./scheduleUtils";
+import { todayISO, periodsForShift, findCloseMatch } from "./scheduleUtils";
 import DepartmentAssignmentImport from "./DepartmentAssignmentImport";
 
 const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 14, boxSizing: "border-box" };
@@ -68,8 +68,18 @@ export default function DailyAssignment({ role }) {
 
   async function setAssignment(staffId, date, deptName) {
     if (!deptName) { loadAll(); return; }
+
+    const match = findCloseMatch(deptName, suggestions);
+    let finalValue = deptName;
+    if (match?.exact) {
+      finalValue = match.exact; // same word, just fix the casing/spacing to the existing standard
+    } else if (match?.suggestion) {
+      const useSuggestion = confirm(`You typed "${deptName}" — did you mean "${match.suggestion}"?\n\nOK = use "${match.suggestion}"\nCancel = keep "${deptName}" as a new value`);
+      if (useSuggestion) finalValue = match.suggestion;
+    }
+
     const { error } = await supabase.from("department_assignments").upsert(
-      { staff_id: staffId, date, period, department_name: deptName },
+      { staff_id: staffId, date, period, department_name: finalValue },
       { onConflict: "staff_id,date,period" }
     );
     if (error) alert(`Save failed: ${error.message}`);

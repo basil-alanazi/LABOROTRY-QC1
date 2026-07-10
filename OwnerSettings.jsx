@@ -31,6 +31,7 @@ const BUILT_IN_PAGES = [
   { key: "lotcompare", label: "Lot comparison" },
   { key: "kpi", label: "KPI" },
   { key: "audit", label: "Audit trail" },
+  { key: "backup", label: "Full Backup" },
   { key: "reject", label: "Reject Sample" },
   { key: "panic", label: "Panic Value" },
   { key: "corrective", label: "Corrective Action" },

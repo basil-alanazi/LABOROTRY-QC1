@@ -54,6 +54,40 @@ export function formatTime12(hhmm) {
   return `${h12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
+// Levenshtein edit distance — how many single-character edits turn a into b.
+function editDistance(a, b) {
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+// Compares typed text against a list of known values. Returns:
+//  - { exact: "Chemistry" } if it matches one exactly (ignoring case/spacing)
+//  - { suggestion: "Chemistry" } if it's a likely typo of one (close but not exact)
+//  - null if it looks like a genuinely new value
+export function findCloseMatch(typed, knownValues) {
+  const clean = String(typed || "").trim().toLowerCase();
+  if (!clean) return null;
+  for (const known of knownValues) {
+    if (String(known).trim().toLowerCase() === clean) return { exact: known };
+  }
+  let best = null, bestDist = Infinity;
+  for (const known of knownValues) {
+    const k = String(known).trim().toLowerCase();
+    if (Math.abs(k.length - clean.length) > 2) continue; // skip unrelated lengths early
+    const dist = editDistance(clean, k);
+    if (dist < bestDist) { bestDist = dist; best = known; }
+  }
+  // Close enough to flag as a likely typo, but not so close it's basically the same word by chance.
+  if (best && bestDist > 0 && bestDist <= 2 && clean.length >= 4) return { suggestion: best };
+  return null;
+}
+
 // Classifies a shift template into "morning" / "evening" / "night" / null (off).
 // Kept for places that only need one label (e.g. the small on-screen badge).
 export function classifyShift(shift) {
