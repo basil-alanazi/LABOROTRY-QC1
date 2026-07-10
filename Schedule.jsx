@@ -15,31 +15,6 @@ function weekdayShort(dateStr) {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" });
 }
 
-// Groups this month's days into Sun-Sat weeks and flags any employee whose
-// total worked hours in a week aren't exactly 48.
-function weeklyHoursAlerts(staff, dayList, year, mo, entryFor, shiftByCode) {
-  const alerts = [];
-  staff.forEach((m) => {
-    const weeks = {}; // weekStart date string -> hours
-    dayList.forEach((d) => {
-      const dateStr = `${year}-${mo}-${String(d).padStart(2, "0")}`;
-      const dateObj = new Date(dateStr + "T00:00:00");
-      const weekStartObj = new Date(dateObj);
-      weekStartObj.setDate(dateObj.getDate() - dateObj.getDay());
-      const weekStart = weekStartObj.toISOString().slice(0, 10);
-      const entry = entryFor(m.id, dateStr);
-      const shift = entry ? shiftByCode[entry.shift_code] : null;
-      if (!shift || shift.is_off) return;
-      weeks[weekStart] = (weeks[weekStart] || 0) + (shift.total_hours || 0);
-    });
-    Object.entries(weeks).forEach(([weekStart, hours]) => {
-      const rounded = Math.round(hours * 100) / 100;
-      if (rounded !== 48) alerts.push({ name: m.full_name, weekStart, hours: rounded });
-    });
-  });
-  return alerts;
-}
-
 const STATUS_META = {
   on_duty: { emoji: "🟢", label: "On Duty", bg: "#E8F2EC", fg: "#2F6B4F" },
   on_break: { emoji: "🟡", label: "On Break", bg: "#FBF3DF", fg: "#B8860B" },
@@ -297,20 +272,6 @@ export default function Schedule({ departments, role, username }) {
           </table>
         </div>
       )}
-
-      {/* Weekly hours alert — flags anyone under or over 48h in any week of this month */}
-      {(() => {
-        const alerts = weeklyHoursAlerts(staff, dayList, year, mo, entryFor, shiftByCode);
-        if (alerts.length === 0) return null;
-        return (
-          <div className="no-print" style={{ marginTop: 16, background: "#FBF3DF", border: "1px solid #E9CE8A", borderRadius: 8, padding: "10px 14px" }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8A6416", marginBottom: 4 }}>⚠ Weekly hours outside 48h</div>
-            {alerts.map((a, i) => (
-              <div key={i} style={{ fontSize: 12, color: "#8A6416" }}>{a.name} — week of {a.weekStart}: {a.hours}h ({a.hours < 48 ? "under" : "over"})</div>
-            ))}
-          </div>
-        );
-      })()}
 
       {/* Shift key */}
       <div style={{ marginTop: 20 }}>
