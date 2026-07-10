@@ -34,6 +34,7 @@ export default function DailyAssignment({ role }) {
   const [suggestions, setSuggestions] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [scheduleEntries, setScheduleEntries] = useState([]);
+  const [editingCell, setEditingCell] = useState(null);
 
   async function loadAll() {
     const [y, mm] = month.split("-");
@@ -163,13 +164,13 @@ export default function DailyAssignment({ role }) {
                           <div style={{ fontSize: 8.5, color: deptColor ? deptColor.fg : (matches ? "#0F7173" : "#B0B8B6"), textAlign: "center", fontWeight: 700, opacity: 0.8 }}>{shiftCode}{periodLabel ? ` · ${periodLabel}` : ""}</div>
                         )}
                         {canEdit ? (
-                          <input
-                            list="dept-suggestions"
-                            defaultValue={a?.department_name || ""}
-                            onBlur={(e) => e.target.value !== (a?.department_name || "") && setAssignment(m.id, dateStr, e.target.value)}
-                            style={{ border: "none", background: "transparent", fontSize: 12, fontWeight: deptColor ? 700 : 400, color: deptColor ? deptColor.fg : "#1B2B2E", width: "100%", padding: "6px 5px", textAlign: "center" }}
+                          <button
+                            onClick={() => setEditingCell({ staffId: m.id, date: dateStr, name: m.full_name, day: d, current: a?.department_name || "" })}
+                            style={{ border: "none", background: "transparent", fontSize: 12, fontWeight: deptColor ? 700 : 400, color: deptColor ? deptColor.fg : "#1B2B2E", width: "100%", padding: "8px 5px", textAlign: "center", minHeight: 32, cursor: "pointer" }}
                             title={!matches ? `Not scheduled for ${period} on this day` : ""}
-                          />
+                          >
+                            {a?.department_name || ""}
+                          </button>
                         ) : (
                           <span style={{ fontSize: 12, fontWeight: deptColor ? 700 : 400, color: deptColor ? deptColor.fg : "#1B2B2E", display: "block", textAlign: "center", padding: "6px 5px" }}>{a?.department_name || ""}</span>
                         )}
@@ -195,6 +196,47 @@ export default function DailyAssignment({ role }) {
       <datalist id="dept-suggestions">
         {suggestions.map((s) => <option key={s} value={s} />)}
       </datalist>
+
+      {editingCell && (
+        <CellEditorModal
+          cell={editingCell}
+          suggestions={suggestions}
+          onClose={() => setEditingCell(null)}
+          onSave={(value) => { setAssignment(editingCell.staffId, editingCell.date, value); setEditingCell(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CellEditorModal({ cell, suggestions, onClose, onSave }) {
+  const [value, setValue] = useState(cell.current);
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(15,25,26,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={onClose}>
+      <div style={{ background: "#fff", borderRadius: 14, width: "100%", maxWidth: 360, padding: 22 }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 2 }}>{cell.name}</div>
+        <div style={{ fontSize: 12.5, color: "#8A9694", marginBottom: 16 }}>Day {cell.day}</div>
+        <input
+          list="dept-suggestions"
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && onSave(value)}
+          placeholder="Type a department…"
+          style={{ width: "100%", border: "1px solid #C7D1CE", borderRadius: 8, padding: "14px 14px", fontSize: 16, boxSizing: "border-box", marginBottom: 14 }}
+        />
+        {suggestions.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+            {suggestions.slice(0, 8).map((s) => (
+              <button key={s} onClick={() => setValue(s)} style={{ background: "#F0F3F2", border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, color: "#516361" }}>{s}</button>
+            ))}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => onSave(value)} style={{ flex: 1, background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 14 }}>Save</button>
+          <button onClick={onClose} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 8, padding: "12px 16px", fontSize: 14 }}>Cancel</button>
+        </div>
+      </div>
     </div>
   );
 }

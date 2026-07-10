@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Wrench, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Wrench, AlertTriangle, CheckCircle2, Download, FileText } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { todayISO } from "./scheduleUtils";
 
@@ -57,13 +57,33 @@ export default function Equipment({ departments, role, username }) {
     return { label: `due in ${days}d`, bg: "#E8F2EC", fg: "#2F6B4F" };
   }
 
+  function exportPDF() { window.print(); }
+
+  async function exportExcel() {
+    const XLSX = await import("xlsx");
+    const header = ["Name", "Department", "Serial Number", "Install Date", "Open Faults", "Next Due"];
+    const aoa = [header, ...list.map((eq) => {
+      const upcoming = events.filter((e) => e.equipment_id === eq.id && e.next_due_date).sort((a, b) => new Date(a.next_due_date) - new Date(b.next_due_date))[0];
+      const faultCount = events.filter((e) => e.equipment_id === eq.id && e.event_type === "fault" && !e.resolved).length;
+      return [eq.name, eq.department, eq.serial_number, eq.install_date || "", faultCount, upcoming?.next_due_date || ""];
+    })];
+    const sheet = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheet, "Equipment");
+    XLSX.writeFile(wb, "equipment.xlsx");
+  }
+
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+      <div className="no-print" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700 }}>Equipment</h2>
-        {canEdit && <button onClick={() => setShowAdd(true)} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Add equipment</button>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={exportPDF} style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 7, padding: "8px 12px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}><FileText size={14} /> Save as PDF</button>
+          <button onClick={exportExcel} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Download size={14} /> Export Excel</button>
+          {canEdit && <button onClick={() => setShowAdd(true)} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Add equipment</button>}
+        </div>
       </div>
-      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Maintenance, calibration, and fault history for every device. Attach manuals and PDFs from the Files page.</div>
+      <div className="no-print" style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Maintenance, calibration, and fault history for every device. Attach manuals and PDFs from the Files page.</div>
 
       {showAdd && (
         <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 14, marginBottom: 20 }}>
@@ -85,7 +105,7 @@ export default function Equipment({ departments, role, username }) {
       {list.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 20px", color: "#8A9694" }}>No equipment added yet.</div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="print-area" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {list.map((eq) => {
             const due = dueStatus(eq.id);
             const faultCount = events.filter((e) => e.equipment_id === eq.id && e.event_type === "fault" && !e.resolved).length;

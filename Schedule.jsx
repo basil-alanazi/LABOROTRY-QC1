@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Download, Coffee, Check, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { shiftDurationHours, isWithinShift, todayISO, yesterdayISO, formatTime12, periodsForShift } from "./scheduleUtils";
+import DateNav from "./DateNav";
 import ScheduleImport from "./ScheduleImport";
 import { loadProfilesMap } from "./userProfiles";
 
@@ -341,7 +342,7 @@ function ShiftHeadcount({ staff, shifts, entries }) {
     <div className="no-print" style={{ marginBottom: 24 }}>
       <div style={{ fontSize: 13, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>SHIFT HEADCOUNT</div>
       <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
+        <DateNav value={date} onChange={setDate} />
         <div style={{ display: "flex", gap: 4 }}>
           {["morning", "evening", "night"].map((p) => (
             <button

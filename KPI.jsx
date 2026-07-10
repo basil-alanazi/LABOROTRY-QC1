@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { supabase } from "./supabaseClient";
 import { isWithinShift, todayISO, yesterdayISO } from "./scheduleUtils";
 
@@ -63,6 +64,24 @@ export default function KPI({ panels, entries, baselines }) {
 
   const passRate = stats.total ? Math.round((stats.green / stats.total) * 100) : 0;
 
+  const trend = useMemo(() => {
+    const byDay = {};
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+    entries.forEach((e) => {
+      if (new Date(e.date) < cutoff) return;
+      Object.entries(e.values || {}).forEach(([name, val]) => {
+        const c = e.colors?.[name];
+        if (!byDay[e.date]) byDay[e.date] = { total: 0, green: 0 };
+        byDay[e.date].total++;
+        if (c === "green") byDay[e.date].green++;
+      });
+    });
+    return Object.entries(byDay)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, d]) => ({ date: date.slice(5), passRate: d.total ? Math.round((d.green / d.total) * 100) : 0 }));
+  }, [entries]);
+
   return (
     <div>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>KPI</h2>
@@ -80,6 +99,23 @@ export default function KPI({ panels, entries, baselines }) {
         <StatCard label="Active devices" value={panels.length} tone="neutral" />
         {staffOnDuty && <StatCard label="Staff on duty now" value={`${staffOnDuty.count}/${staffOnDuty.total}`} tone="neutral" />}
       </div>
+
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#7B8E8A", marginBottom: 10 }}>PASS RATE — LAST 30 DAYS</div>
+      {trend.length < 2 ? (
+        <div style={{ fontSize: 12.5, color: "#8A9694", marginBottom: 20 }}>Not enough data yet to show a trend.</div>
+      ) : (
+        <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "16px 8px", marginBottom: 20, height: 220 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={trend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#EEF2F0" />
+              <XAxis dataKey="date" fontSize={11} stroke="#8A9694" />
+              <YAxis domain={[0, 100]} fontSize={11} stroke="#8A9694" unit="%" />
+              <Tooltip formatter={(v) => `${v}%`} />
+              <Line type="monotone" dataKey="passRate" stroke="#0F7173" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       <div style={{ fontSize: 11.5, color: "#8A9694" }}>Avg CV% is calculated across every analyte with an established normal range, using its most recent Mean/SD.</div>
     </div>

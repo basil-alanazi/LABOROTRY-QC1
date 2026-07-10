@@ -38,6 +38,13 @@ export function isWithinShift(shift, entryDate, now) {
 export function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
+
+// Moves an ISO date string ("2026-07-10") forward or backward by N days.
+export function shiftDate(isoDate, deltaDays) {
+  const d = new Date(isoDate + "T00:00:00");
+  d.setDate(d.getDate() + deltaDays);
+  return d.toISOString().slice(0, 10);
+}
 export function yesterdayISO() {
   const d = new Date();
   d.setDate(d.getDate() - 1);
