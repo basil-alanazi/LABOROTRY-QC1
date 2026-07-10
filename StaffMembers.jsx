@@ -118,18 +118,39 @@ function TabBtn({ active, onClick, label }) {
 
 // Free-text daily department assignment — independent of the Settings
 // department list, so any label can be typed here (bench names, rotations...).
+function classifyShift(shift) {
+  if (!shift || shift.is_off) return null;
+  if (shift.night_shift) return "night";
+  const startHour = Number((shift.start_time || "00:00").split(":")[0]);
+  return startHour < 12 ? "morning" : "evening";
+}
+
 function DailyAssignment({ staff, canEdit }) {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [period, setPeriod] = useState("morning");
   const [assignments, setAssignments] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
+  const [shifts, setShifts] = useState([]);
+  const [scheduleEntries, setScheduleEntries] = useState([]);
 
   async function loadAll() {
-    const { data } = await supabase.from("department_assignments").select("*").like("date", `${month}%`);
+    const { data } = await supabase.from("department_assignments").select("*").like("date", `${month}%`).eq("period", period);
     const { data: allNames } = await supabase.from("department_assignments").select("department_name");
+    const { data: sh } = await supabase.from("shift_templates").select("*").eq("deleted", false);
+    const { data: se } = await supabase.from("schedule_entries").select("*").like("date", `${month}%`);
     setAssignments(data || []);
     setSuggestions([...new Set((allNames || []).map((a) => a.department_name).filter(Boolean))]);
+    setShifts(sh || []);
+    setScheduleEntries(se || []);
   }
-  useEffect(() => { loadAll(); }, [month]);
+  useEffect(() => { loadAll(); }, [month, period]);
+
+  function shiftPeriodFor(staffId, date) {
+    const entry = scheduleEntries.find((e) => e.staff_id === staffId && e.date === date);
+    if (!entry) return null;
+    const shift = shifts.find((s) => s.code === entry.shift_code);
+    return classifyShift(shift);
+  }
 
   function assignmentFor(staffId, date) {
     return (assignments || []).find((a) => a.staff_id === staffId && a.date === date);
@@ -140,7 +161,7 @@ function DailyAssignment({ staff, canEdit }) {
     if (existing) {
       await supabase.from("department_assignments").update({ department_name: deptName }).eq("id", existing.id);
     } else if (deptName) {
-      await supabase.from("department_assignments").insert({ staff_id: staffId, date, department_name: deptName });
+      await supabase.from("department_assignments").insert({ staff_id: staffId, date, period, department_name: deptName });
     }
     loadAll();
   }
@@ -155,8 +176,15 @@ function DailyAssignment({ staff, canEdit }) {
 
   return (
     <div>
-      <div style={{ fontSize: 12.5, color: "#8A9694", marginBottom: 12 }}>Type any department, bench, or rotation name per employee per day — not limited to the fixed department list.</div>
-      <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ ...inputStyle, width: "auto", marginBottom: 16 }} />
+      <div style={{ fontSize: 12.5, color: "#8A9694", marginBottom: 12 }}>Type any department, bench, or rotation name per employee per day — not limited to the fixed department list. Morning, evening, and night are tracked separately. Cells fade out for anyone not actually scheduled in that shift on that day (based on their shift code in Schedule).</div>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
+        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ ...inputStyle, width: "auto" }} />
+        <div style={{ display: "flex", gap: 4 }}>
+          <button onClick={() => setPeriod("morning")} style={{ border: "1px solid " + (period === "morning" ? "#0F7173" : "#C7D1CE"), background: period === "morning" ? "#0F7173" : "#fff", color: period === "morning" ? "#fff" : "#516361", borderRadius: 6, padding: "7px 14px", fontSize: 12.5, fontWeight: 600 }}>☀️ Morning</button>
+          <button onClick={() => setPeriod("evening")} style={{ border: "1px solid " + (period === "evening" ? "#0F7173" : "#C7D1CE"), background: period === "evening" ? "#0F7173" : "#fff", color: period === "evening" ? "#fff" : "#516361", borderRadius: 6, padding: "7px 14px", fontSize: 12.5, fontWeight: 600 }}>🌙 Evening</button>
+          <button onClick={() => setPeriod("night")} style={{ border: "1px solid " + (period === "night" ? "#0F7173" : "#C7D1CE"), background: period === "night" ? "#0F7173" : "#fff", color: period === "night" ? "#fff" : "#516361", borderRadius: 6, padding: "7px 14px", fontSize: 12.5, fontWeight: 600 }}>🌃 Night</button>
+        </div>
+      </div>
 
       <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10 }}>
         <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
@@ -179,14 +207,17 @@ function DailyAssignment({ staff, canEdit }) {
                   <td style={{ position: "sticky", left: 0, background: dateStr === today ? "#EAF6F4" : "#fff", padding: "3px 8px", fontWeight: 600, borderBottom: "1px solid #EEF2F0" }}>{d}</td>
                   {staff.map((m) => {
                     const a = assignmentFor(m.id, dateStr);
+                    const staffPeriod = shiftPeriodFor(m.id, dateStr);
+                    const matches = staffPeriod === null ? true : staffPeriod === period; // no schedule entry = don't restrict
                     return (
-                      <td key={m.id} style={{ padding: 2, borderBottom: "1px solid #EEF2F0" }}>
+                      <td key={m.id} style={{ padding: 2, borderBottom: "1px solid #EEF2F0", background: matches ? "transparent" : "#F7F7F7", opacity: matches ? 1 : 0.35 }}>
                         {canEdit ? (
                           <input
                             list="dept-suggestions"
                             defaultValue={a?.department_name || ""}
                             onBlur={(e) => e.target.value !== (a?.department_name || "") && setAssignment(m.id, dateStr, e.target.value)}
                             style={{ border: "none", background: "transparent", fontSize: 10.5, width: "100%", padding: "3px 4px" }}
+                            title={!matches ? `Not scheduled for ${period} on this day` : ""}
                           />
                         ) : (
                           <span style={{ fontSize: 10.5 }}>{a?.department_name || ""}</span>

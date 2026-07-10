@@ -32,7 +32,9 @@ export default function HomePage({ username, role, config, panels, activeEntries
       const nowT = new Date();
       const available = [];
       let myShiftCode = null;
-      let myDept = null;
+      let myDeptAM = null;
+      let myDeptPM = null;
+      let myDeptNight = null;
 
       const profiles = await loadProfilesMap();
       const myEmployeeId = profiles[username]?.employee_id;
@@ -52,12 +54,14 @@ export default function HomePage({ username, role, config, panels, activeEntries
 
         if (myEmployeeId && m.job_number === myEmployeeId) {
           myShiftCode = tEntry?.shift_code || null;
-          myDept = (assignments || []).find((a) => a.staff_id === m.id)?.department_name || null;
+          myDeptAM = (assignments || []).find((a) => a.staff_id === m.id && a.period === "morning")?.department_name || null;
+          myDeptPM = (assignments || []).find((a) => a.staff_id === m.id && a.period === "evening")?.department_name || null;
+          myDeptNight = (assignments || []).find((a) => a.staff_id === m.id && a.period === "night")?.department_name || null;
         }
       });
 
       setOnDuty(available);
-      setMine({ department: myDept, shiftCode: myShiftCode });
+      setMine({ departmentAM: myDeptAM, departmentPM: myDeptPM, departmentNight: myDeptNight, shiftCode: myShiftCode });
     })();
   }, [username]);
 
@@ -81,11 +85,11 @@ export default function HomePage({ username, role, config, panels, activeEntries
         <div style={{ fontSize: 13, color: "#8A9694", marginTop: 4 }}>{now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} · {now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
       </div>
 
-      {mine && (mine.department || mine.shiftCode) && (
+      {mine && (mine.departmentAM || mine.departmentPM || mine.departmentNight || mine.shiftCode) && (
         <div style={{ background: "#E8F2EC", border: "1px solid #2F6B4F33", borderRadius: 10, padding: "14px 18px", marginBottom: 20 }}>
           <div style={{ fontSize: 12, color: "#2F6B4F", fontWeight: 700, marginBottom: 4 }}>YOU TODAY</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: "#1B2B2E" }}>
-            {mine.department ? `Department: ${mine.department}` : "Department not set yet"}
+            ☀️ Morning: {mine.departmentAM || "not set"} &nbsp;·&nbsp; 🌙 Evening: {mine.departmentPM || "not set"} &nbsp;·&nbsp; 🌃 Night: {mine.departmentNight || "not set"}
             {mine.shiftCode ? ` · Shift: ${mine.shiftCode}` : ""}
           </div>
           <button onClick={() => onNavigate("myschedule")} style={{ marginTop: 8, background: "none", border: "1px solid #2F6B4F55", color: "#2F6B4F", borderRadius: 6, padding: "5px 12px", fontSize: 12, fontWeight: 600 }}>View My Schedule</button>

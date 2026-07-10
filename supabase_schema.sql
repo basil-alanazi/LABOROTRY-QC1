@@ -166,9 +166,10 @@ create table if not exists department_assignments (
   id uuid primary key default gen_random_uuid(),
   staff_id uuid references staff_members(id) on delete cascade,
   date date not null,
+  period text not null default 'morning', -- morning | evening
   department_name text not null default '',
   created_at timestamptz default now(),
-  unique(staff_id, date)
+  unique(staff_id, date, period)
 );
 alter table department_assignments enable row level security;
 create policy "allow all department_assignments" on department_assignments for all using (true) with check (true);

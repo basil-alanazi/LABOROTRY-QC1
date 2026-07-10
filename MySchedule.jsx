@@ -35,8 +35,8 @@ export default function MySchedule({ username }) {
   }
   useEffect(() => { loadAll(); }, []);
 
-  function deptFor(staffId) {
-    return assignments.find((a) => a.staff_id === staffId)?.department_name || "";
+  function deptFor(staffId, period) {
+    return assignments.find((a) => a.staff_id === staffId && a.period === period)?.department_name || "";
   }
   function shiftFor(staffId) {
     const code = scheduleEntries.find((e) => e.staff_id === staffId)?.shift_code;
@@ -47,7 +47,8 @@ export default function MySchedule({ username }) {
     if (!myStaffId) { alert("Set your Job Number on My Profile first so we know who you are."); return; }
     await supabase.from("department_swap_requests").insert({
       date: today, requester_staff_id: myStaffId, target_staff_id: targetId,
-      requester_department: deptFor(myStaffId), target_department: deptFor(targetId),
+      requester_department: `AM: ${deptFor(myStaffId, "morning") || "—"} · PM: ${deptFor(myStaffId, "evening") || "—"} · Night: ${deptFor(myStaffId, "night") || "—"}`,
+      target_department: `AM: ${deptFor(targetId, "morning") || "—"} · PM: ${deptFor(targetId, "evening") || "—"} · Night: ${deptFor(targetId, "night") || "—"}`,
       requested_by: username,
     });
     setShowSwapFor(null);
@@ -56,12 +57,16 @@ export default function MySchedule({ username }) {
 
   async function respondSwap(swap, decision) {
     if (decision === "approved") {
-      const reqA = assignments.find((a) => a.staff_id === swap.requester_staff_id);
-      const reqB = assignments.find((a) => a.staff_id === swap.target_staff_id);
-      if (reqA) await supabase.from("department_assignments").update({ department_name: swap.target_department }).eq("id", reqA.id);
-      else await supabase.from("department_assignments").insert({ staff_id: swap.requester_staff_id, date: today, department_name: swap.target_department });
-      if (reqB) await supabase.from("department_assignments").update({ department_name: swap.requester_department }).eq("id", reqB.id);
-      else await supabase.from("department_assignments").insert({ staff_id: swap.target_staff_id, date: today, department_name: swap.requester_department });
+      for (const period of ["morning", "evening", "night"]) {
+        const reqA = assignments.find((a) => a.staff_id === swap.requester_staff_id && a.period === period);
+        const reqB = assignments.find((a) => a.staff_id === swap.target_staff_id && a.period === period);
+        const aDept = reqA?.department_name || "";
+        const bDept = reqB?.department_name || "";
+        if (reqA) await supabase.from("department_assignments").update({ department_name: bDept }).eq("id", reqA.id);
+        else if (bDept) await supabase.from("department_assignments").insert({ staff_id: swap.requester_staff_id, date: today, period, department_name: bDept });
+        if (reqB) await supabase.from("department_assignments").update({ department_name: aDept }).eq("id", reqB.id);
+        else if (aDept) await supabase.from("department_assignments").insert({ staff_id: swap.target_staff_id, date: today, period, department_name: aDept });
+      }
     }
     await supabase.from("department_swap_requests").update({ status: decision, responded_by: username, responded_at: new Date().toISOString() }).eq("id", swap.id);
     loadAll();
@@ -88,7 +93,9 @@ export default function MySchedule({ username }) {
         <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "16px 18px", marginBottom: 24 }}>
           <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>{me.full_name}</div>
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-            <div><span style={{ fontSize: 11.5, color: "#8A9694" }}>Department today</span><div style={{ fontSize: 14, fontWeight: 600 }}>{deptFor(me.id) || "not set"}</div></div>
+            <div><span style={{ fontSize: 11.5, color: "#8A9694" }}>Morning department</span><div style={{ fontSize: 14, fontWeight: 600 }}>{deptFor(me.id, "morning") || "not set"}</div></div>
+            <div><span style={{ fontSize: 11.5, color: "#8A9694" }}>Evening department</span><div style={{ fontSize: 14, fontWeight: 600 }}>{deptFor(me.id, "evening") || "not set"}</div></div>
+            <div><span style={{ fontSize: 11.5, color: "#8A9694" }}>Night department</span><div style={{ fontSize: 14, fontWeight: 600 }}>{deptFor(me.id, "night") || "not set"}</div></div>
             <div><span style={{ fontSize: 11.5, color: "#8A9694" }}>Shift</span><div style={{ fontSize: 14, fontWeight: 600 }}>{shiftFor(me.id)?.code || "not set"}</div></div>
           </div>
         </div>
@@ -118,7 +125,7 @@ export default function MySchedule({ username }) {
           return (
             <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "9px 14px" }}>
               <div style={{ flex: 1, fontSize: 13, fontWeight: isMe ? 700 : 500 }}>{m.full_name}{isMe ? " (you)" : ""}</div>
-              <div style={{ fontSize: 12, color: "#8A9694" }}>{deptFor(m.id) || "—"}</div>
+              <div style={{ fontSize: 12, color: "#8A9694" }}>AM: {deptFor(m.id, "morning") || "—"} · PM: {deptFor(m.id, "evening") || "—"} · Night: {deptFor(m.id, "night") || "—"}</div>
               <div style={{ fontSize: 11.5, color: "#8A9694" }}>{shiftFor(m.id)?.code || ""}</div>
               {!isMe && myStaffId && (
                 showSwapFor === m.id ? (
