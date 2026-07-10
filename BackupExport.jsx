@@ -40,6 +40,8 @@ export default function BackupExport() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [lastResult, setLastResult] = useState(null);
+  const [downloadUrl, setDownloadUrl] = useState(null);
+  const [downloadName, setDownloadName] = useState("");
 
   async function runBackup() {
     setBusy(true);
@@ -70,7 +72,18 @@ export default function BackupExport() {
 
     setProgress("Saving file…");
     const stamp = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `qc-log-full-backup-${stamp}.xlsx`);
+    const filename = `qc-log-full-backup-${stamp}.xlsx`;
+    const wbArray = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+    const blob = new Blob([wbArray], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setDownloadUrl(url);
+    setDownloadName(filename);
     setLastResult(summary);
     setProgress("");
     setBusy(false);
@@ -93,6 +106,11 @@ export default function BackupExport() {
         {lastResult && (
           <div style={{ marginTop: 16, fontSize: 12.5 }}>
             <div style={{ fontWeight: 700, color: "#2F6B4F", marginBottom: 8 }}>✅ Done — {lastResult.reduce((s, r) => s + r.rows, 0)} rows across {lastResult.length} sheets.</div>
+            {downloadUrl && (
+              <a href={downloadUrl} download={downloadName} style={{ display: "inline-block", marginBottom: 12, background: "#0F7173", color: "#fff", borderRadius: 7, padding: "9px 16px", fontWeight: 700, textDecoration: "none", fontSize: 13 }}>
+                📥 Tap here if the download didn't start — {downloadName}
+              </a>
+            )}
             <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 240, overflowY: "auto" }}>
               {lastResult.map((r) => (
                 <div key={r.sheet} style={{ display: "flex", justifyContent: "space-between", color: r.note ? "#C1432B" : "#516361" }}>
