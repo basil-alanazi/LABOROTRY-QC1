@@ -43,3 +43,13 @@ export function yesterdayISO() {
   d.setDate(d.getDate() - 1);
   return d.toISOString().slice(0, 10);
 }
+
+// Formats a stored "HH:MM" (24h) string for display as 12h AM/PM, e.g. "07:00" -> "7:00 AM".
+// Storage stays 24h everywhere — this is display-only.
+export function formatTime12(hhmm) {
+  if (!hhmm) return "";
+  const [h, m] = hhmm.split(":").map(Number);
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+}

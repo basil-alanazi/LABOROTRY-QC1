@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
-import { shiftDurationHours } from "./scheduleUtils";
+import { shiftDurationHours, formatTime12 } from "./scheduleUtils";
 import ShiftTemplateImport from "./ShiftTemplateImport";
 
 const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 10px", fontSize: 13, boxSizing: "border-box" };
@@ -147,7 +147,7 @@ export default function ShiftTemplates({ role }) {
       {!canEdit && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
           {shifts.map((s) => (
-            <span key={s.id} style={{ fontSize: 12, fontWeight: 700, background: s.color + "22", color: s.color, padding: "5px 10px", borderRadius: 6 }}>{s.code} — {s.is_off ? s.name : `${s.start_time}–${s.end_time}`}</span>
+            <span key={s.id} style={{ fontSize: 12, fontWeight: 700, background: s.color + "22", color: s.color, padding: "5px 10px", borderRadius: 6 }}>{s.code} — {s.is_off ? s.name : `${formatTime12(s.start_time)}–${formatTime12(s.end_time)}`}</span>
           ))}
         </div>
       )}

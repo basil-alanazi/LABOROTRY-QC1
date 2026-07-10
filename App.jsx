@@ -353,7 +353,7 @@ export default function App() {
         {tab === "chat" && <InternalChat username={username} config={config} staffAccounts={staffAccounts} portalAccounts={portalAccounts} />}
         {tab === "assistant" && <SmartAssistant panels={panels} entries={activeEntries} />}
         {tab === "qc" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} profiles={profiles} />}
-        {tab === "staff" && <StaffMembers departments={config.departments || []} role={role} />}
+        {tab === "staff" && (role === "super" || (role === "admin" && username === config.admin2_username)) && <StaffMembers departments={config.departments || []} role={role} />}
         {tab === "schedule" && <Schedule departments={config.departments || []} role={role} username={username} />}
         {tab === "shifts" && (role === "admin" || role === "super") && <ShiftTemplates role={role} />}
         {tab === "grid" && (role === "admin" || role === "super") && <MonthlyGrid panels={panels} entries={activeEntries} controlLots={controlLots} profiles={profiles} />}
@@ -449,7 +449,7 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
     if (p.key === "export") return <ExportPage panels={panels} entries={entries} />;
     if (p.key === "tables") return <CustomTables role={effectiveRole} username={username} />;
     if (p.key === "files") return <Files role={effectiveRole} username={username} />;
-    if (p.key === "staff") return <StaffMembers departments={config.departments || []} role={effectiveRole} />;
+    if (p.key === "staff") return (effectiveRole === "super" || (effectiveRole === "admin" && username === config.admin2_username)) ? <StaffMembers departments={config.departments || []} role={effectiveRole} /> : null;
     if (p.key === "schedule") return <Schedule departments={config.departments || []} role={effectiveRole} username={username} />;
     if (p.key === "equipment") return <Equipment departments={config.departments || []} role={effectiveRole} username={username} />;
     if (p.key === "lotcompare") return <LotComparison panels={panels} />;
@@ -619,7 +619,7 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
         {notHidden("myschedule") && <SideItem icon={<Calendar size={15} />} label="My Schedule" active={tab === "myschedule"} onClick={() => onNavigate("myschedule")} />}
         {notHidden("assignment") && <SideItem icon={<Calendar size={15} />} label="Daily Assignment" active={tab === "assignment"} onClick={() => onNavigate("assignment")} />}
         {isAdmin && notHidden("breakhistory") && <SideItem icon={<Calendar size={15} />} label="Break History" active={tab === "breakhistory"} onClick={() => onNavigate("breakhistory")} />}
-        {notHidden("staff") && <SideItem icon={<Users size={15} />} label="Staff" active={tab === "staff"} onClick={() => onNavigate("staff")} />}
+        {notHidden("staff") && (role === "super" || (role === "admin" && username === config.admin2_username)) && <SideItem icon={<Users size={15} />} label="Staff" active={tab === "staff"} onClick={() => onNavigate("staff")} />}
         {isAdmin && notHidden("equipment") && <SideItem icon={<Wrench size={15} />} label="Equipment" active={tab === "equipment"} onClick={() => onNavigate("equipment")} />}
 
         <SideGroup icon="📅" label="Schedule" open={openGroups.schedule} onToggle={() => toggleGroup("schedule")}>

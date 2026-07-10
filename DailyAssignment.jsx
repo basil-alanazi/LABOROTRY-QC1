@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
 import { todayISO } from "./scheduleUtils";
+import DepartmentAssignmentImport from "./DepartmentAssignmentImport";
 
 const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 14, boxSizing: "border-box" };
 
@@ -56,6 +57,20 @@ export default function DailyAssignment({ role }) {
     loadAll();
   }
 
+  async function applyImportedAssignments(entries) {
+    const [y, mm] = month.split("-");
+    for (const e of entries) {
+      const dateStr = `${y}-${mm}-${String(e.day).padStart(2, "0")}`;
+      const existing = (assignments || []).find((a) => a.staff_id === e.staffId && a.date === dateStr);
+      if (existing) {
+        await supabase.from("department_assignments").update({ department_name: e.department_name }).eq("id", existing.id);
+      } else {
+        await supabase.from("department_assignments").insert({ staff_id: e.staffId, date: dateStr, period, department_name: e.department_name });
+      }
+    }
+    loadAll();
+  }
+
   if (staff === null || assignments === null) return <div style={{ padding: 40, textAlign: "center", color: "#8A9694" }}>Loading…</div>;
   if (staff.length === 0) return <div style={{ textAlign: "center", padding: "40px 20px", color: "#8A9694" }}>Add employees on the Staff page first.</div>;
 
@@ -76,6 +91,8 @@ export default function DailyAssignment({ role }) {
           <button onClick={() => setPeriod("night")} style={{ border: "1px solid " + (period === "night" ? "#0F7173" : "#C7D1CE"), background: period === "night" ? "#0F7173" : "#fff", color: period === "night" ? "#fff" : "#516361", borderRadius: 6, padding: "7px 14px", fontSize: 12.5, fontWeight: 600 }}>🌃 Night</button>
         </div>
       </div>
+
+      {canEdit && <DepartmentAssignmentImport staff={staff} month={month} period={period} onApply={applyImportedAssignments} />}
 
       <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10 }}>
         <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
@@ -98,10 +115,15 @@ export default function DailyAssignment({ role }) {
                   <td style={{ position: "sticky", left: 0, background: dateStr === today ? "#EAF6F4" : "#fff", padding: "3px 8px", fontWeight: 600, borderBottom: "1px solid #EEF2F0" }}>{d}</td>
                   {staff.map((m) => {
                     const a = assignmentFor(m.id, dateStr);
+                    const shiftCode = scheduleEntries.find((e) => e.staff_id === m.id && e.date === dateStr)?.shift_code;
                     const staffPeriod = shiftPeriodFor(m.id, dateStr);
                     const matches = staffPeriod === null ? true : staffPeriod === period;
+                    const periodLabel = { morning: "AM", evening: "PM", night: "Night" }[staffPeriod] || "";
                     return (
                       <td key={m.id} style={{ padding: 2, borderBottom: "1px solid #EEF2F0", background: matches ? "transparent" : "#F7F7F7", opacity: matches ? 1 : 0.35 }}>
+                        {shiftCode && (
+                          <div style={{ fontSize: 8.5, color: matches ? "#0F7173" : "#B0B8B6", textAlign: "center", fontWeight: 700 }}>{shiftCode}{periodLabel ? ` · ${periodLabel}` : ""}</div>
+                        )}
                         {canEdit ? (
                           <input
                             list="dept-suggestions"

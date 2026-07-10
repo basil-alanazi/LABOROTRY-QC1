@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Download, Coffee, Check, X } from "lucide-react";
 import { supabase } from "./supabaseClient";
-import { shiftDurationHours, isWithinShift, todayISO, yesterdayISO } from "./scheduleUtils";
+import { shiftDurationHours, isWithinShift, todayISO, yesterdayISO, formatTime12 } from "./scheduleUtils";
 import ScheduleImport from "./ScheduleImport";
 import { loadProfilesMap } from "./userProfiles";
 
@@ -279,7 +279,7 @@ export default function Schedule({ departments, role, username }) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {shifts.map((s) => (
             <span key={s.id} style={{ fontSize: 11, fontWeight: 700, background: s.color, color: "#fff", padding: "4px 9px", borderRadius: 6 }}>
-              {s.code} — {s.is_off ? s.name : `${s.start_time}–${s.end_time}`}
+              {s.code} — {s.is_off ? s.name : `${formatTime12(s.start_time)}–${formatTime12(s.end_time)}`}
             </span>
           ))}
         </div>
