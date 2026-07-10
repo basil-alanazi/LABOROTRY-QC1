@@ -4,6 +4,7 @@ import { parseAssignmentFile } from "./departmentAssignmentFileParser";
 
 export default function DepartmentAssignmentImport({ staff, month, period, onApply }) {
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
 
@@ -41,7 +42,7 @@ export default function DepartmentAssignmentImport({ staff, month, period, onApp
     setResult((r) => ({ ...r, entries: r.entries.filter((_, idx) => idx !== i) }));
   }
 
-  function confirmApply() {
+  async function confirmApply() {
     const norm = (s) => String(s ?? "").trim().toLowerCase();
     const withIds = result.entries.map((e) => {
       const staffMember = staff.find((s) => norm(s.full_name) === norm(e.staffName));
@@ -54,8 +55,16 @@ export default function DepartmentAssignmentImport({ staff, month, period, onApp
     if (withIds.length < result.entries.length) {
       alert(`Saving ${withIds.length} of ${result.entries.length} — the rest couldn't be matched to a staff record.`);
     }
-    onApply(withIds);
-    setResult(null);
+    setSaving(true);
+    try {
+      await onApply(withIds);
+      setResult(null);
+      alert(`Saved. ${withIds.length} cells were filled in.`);
+    } catch (err) {
+      alert(`Save failed: ${err?.message || err}. Nothing was saved — screenshot this and report it.`);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -94,10 +103,10 @@ export default function DepartmentAssignmentImport({ staff, month, period, onApp
             ))}
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <button onClick={confirmApply} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 6, padding: "7px 14px", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
-              <CheckCircle2 size={13} /> Fill in assignments
+            <button onClick={confirmApply} disabled={saving} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 6, padding: "7px 14px", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 5, opacity: saving ? 0.6 : 1 }}>
+              <CheckCircle2 size={13} /> {saving ? "Saving…" : "Fill in assignments"}
             </button>
-            <button onClick={() => setResult(null)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "7px 14px", fontSize: 12 }}>Cancel</button>
+            <button onClick={() => setResult(null)} disabled={saving} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "7px 14px", fontSize: 12 }}>Cancel</button>
           </div>
         </div>
       )}

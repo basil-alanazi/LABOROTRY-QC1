@@ -62,13 +62,15 @@ export default function DailyAssignment({ role }) {
     for (const e of entries) {
       const dateStr = `${y}-${mm}-${String(e.day).padStart(2, "0")}`;
       const existing = (assignments || []).find((a) => a.staff_id === e.staffId && a.date === dateStr);
+      let error;
       if (existing) {
-        await supabase.from("department_assignments").update({ department_name: e.department_name }).eq("id", existing.id);
+        ({ error } = await supabase.from("department_assignments").update({ department_name: e.department_name }).eq("id", existing.id));
       } else {
-        await supabase.from("department_assignments").insert({ staff_id: e.staffId, date: dateStr, period, department_name: e.department_name });
+        ({ error } = await supabase.from("department_assignments").insert({ staff_id: e.staffId, date: dateStr, period, department_name: e.department_name }));
       }
+      if (error) throw new Error(error.message || "Database write failed");
     }
-    loadAll();
+    await loadAll();
   }
 
   if (staff === null || assignments === null) return <div style={{ padding: 40, textAlign: "center", color: "#8A9694" }}>Loading…</div>;
