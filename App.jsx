@@ -599,6 +599,18 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
           {notHidden("infection") && <SideItem icon={<Biohazard size={14} color="#7A4FA3" />} label="Infection Disease" active={tab === "infection"} onClick={() => onNavigate("infection")} indent />}
         </SideGroup>
 
+        {notHidden("calculate") && <SideItem icon={<Calculator size={15} />} label="Calculate" active={tab === "calculate"} onClick={() => onNavigate("calculate")} />}
+
+        <SideGroup icon="📅" label="My Schedule" open={openGroups.schedule} onToggle={() => toggleGroup("schedule")}>
+          {notHidden("myschedule") && <SideItem icon={<Calendar size={14} />} label="My Schedule" active={tab === "myschedule"} onClick={() => onNavigate("myschedule")} indent />}
+          {scheduleItems.map((i) => <SideItem key={i.key} icon={<i.icon size={14} />} label={i.label} active={tab === i.key} onClick={() => onNavigate(i.key)} indent />)}
+          {notHidden("assignment") && <SideItem icon={<Calendar size={14} />} label="Daily Assignment" active={tab === "assignment"} onClick={() => onNavigate("assignment")} indent />}
+          {notHidden("staff") && (role === "super" || (role === "admin" && username === config.admin2_username)) && <SideItem icon={<Users size={14} />} label="Staff" active={tab === "staff"} onClick={() => onNavigate("staff")} indent />}
+          {isAdmin && notHidden("breakhistory") && <SideItem icon={<Calendar size={14} />} label="Break History" active={tab === "breakhistory"} onClick={() => onNavigate("breakhistory")} indent />}
+        </SideGroup>
+
+        <div style={{ height: 1, background: "#2A3B3D", margin: "8px 4px" }} />
+
         {isAdmin && (
           <SideGroup icon="📋" label="Tables" open={openGroups.tables} onToggle={() => toggleGroup("tables")}>
             <SideItem icon={<Table2 size={14} />} label="All tables" active={tab === "tables"} onClick={() => onNavigate("tables")} indent />
@@ -610,21 +622,8 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
         {!isAdmin && pinnedTables.filter((t) => notHidden(`table:${t.id}`)).map((t) => (
           <SideItem key={t.id} icon={<Table2 size={15} />} label={t.title} active={tab === `pinned:${t.id}`} onClick={() => onNavigate(`pinned:${t.id}`)} />
         ))}
-
-        {isAdmin && <SideItem icon={<FolderOpen size={15} />} label="Files" active={tab === "files"} onClick={() => onNavigate("files")} />}
-        {notHidden("calculate") && <SideItem icon={<Calculator size={15} />} label="Calculate" active={tab === "calculate"} onClick={() => onNavigate("calculate")} />}
-
-        <div style={{ height: 1, background: "#2A3B3D", margin: "8px 4px" }} />
-
-        {notHidden("myschedule") && <SideItem icon={<Calendar size={15} />} label="My Schedule" active={tab === "myschedule"} onClick={() => onNavigate("myschedule")} />}
-        {notHidden("assignment") && <SideItem icon={<Calendar size={15} />} label="Daily Assignment" active={tab === "assignment"} onClick={() => onNavigate("assignment")} />}
-        {isAdmin && notHidden("breakhistory") && <SideItem icon={<Calendar size={15} />} label="Break History" active={tab === "breakhistory"} onClick={() => onNavigate("breakhistory")} />}
-        {notHidden("staff") && (role === "super" || (role === "admin" && username === config.admin2_username)) && <SideItem icon={<Users size={15} />} label="Staff" active={tab === "staff"} onClick={() => onNavigate("staff")} />}
         {isAdmin && notHidden("equipment") && <SideItem icon={<Wrench size={15} />} label="Equipment" active={tab === "equipment"} onClick={() => onNavigate("equipment")} />}
-
-        <SideGroup icon="📅" label="Schedule" open={openGroups.schedule} onToggle={() => toggleGroup("schedule")}>
-          {scheduleItems.map((i) => <SideItem key={i.key} icon={<i.icon size={14} />} label={i.label} active={tab === i.key} onClick={() => onNavigate(i.key)} indent />)}
-        </SideGroup>
+        {isAdmin && <SideItem icon={<FolderOpen size={15} />} label="Files" active={tab === "files"} onClick={() => onNavigate("files")} />}
 
         {settingsItems.length > 0 && (
           <SideGroup icon="⚙" label="Settings" open={openGroups.settings} onToggle={() => toggleGroup("settings")}>

@@ -172,22 +172,33 @@ function TibcCalc() {
 function DilutionCalc() {
   const [volume, setVolume] = useState("");
   const [factor, setFactor] = useState("");
-  const v = num(volume), f = num(factor);
+  const [target, setTarget] = useState("");
+  const v = num(volume), f = num(factor), t = num(target);
   const valid = v !== null && f !== null && f > 0;
   const diluent = valid ? v * (f - 1) : null;
   const total = valid ? v * f : null;
+
+  const targetValid = v !== null && t !== null && t > v;
+  const diluentForTarget = targetValid ? t - v : null;
+  const effectiveFactor = targetValid ? t / v : null;
 
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
         <label style={labelStyle}>Sample volume you have<input style={inputStyle} type="number" value={volume} onChange={(e) => setVolume(e.target.value)} /></label>
         <label style={labelStyle}>Dilution factor (e.g. 2 for 1:2)<input style={inputStyle} type="number" value={factor} onChange={(e) => setFactor(e.target.value)} /></label>
+        <label style={labelStyle}>Target final volume (optional)<input style={inputStyle} type="number" value={target} onChange={(e) => setTarget(e.target.value)} /></label>
       </div>
-      {valid && (
+      {targetValid ? (
+        <ResultBox>
+          To reach {t} total: add {diluentForTarget.toFixed(2)} of diluent to your {v} of sample &nbsp;→&nbsp; that's a 1:{effectiveFactor.toFixed(2)} dilution
+        </ResultBox>
+      ) : valid ? (
         <ResultBox>
           Add {diluent.toFixed(2)} of diluent to your {v} of sample &nbsp;→&nbsp; total volume = {total.toFixed(2)}
         </ResultBox>
-      )}
+      ) : null}
+      {target && t !== null && v !== null && t <= v && <WarnBox>Target final volume must be more than the sample volume you have.</WarnBox>}
     </div>
   );
 }

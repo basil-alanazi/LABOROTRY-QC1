@@ -16,11 +16,17 @@ export default function DailyAssignment({ role }) {
   const [scheduleEntries, setScheduleEntries] = useState([]);
 
   async function loadAll() {
+    const [y, mm] = month.split("-");
+    const monthStart = `${month}-01`;
+    const nextMonth = mm === "12" ? `${Number(y) + 1}-01-01` : `${y}-${String(Number(mm) + 1).padStart(2, "0")}-01`;
+
     const { data: s } = await supabase.from("staff_members").select("*").eq("deleted", false).order("sort_order", { ascending: true, nullsFirst: false }).order("full_name");
-    const { data } = await supabase.from("department_assignments").select("*").like("date", `${month}%`).eq("period", period);
+    const { data, error } = await supabase.from("department_assignments").select("*").gte("date", monthStart).lt("date", nextMonth).eq("period", period);
     const { data: allNames } = await supabase.from("department_assignments").select("department_name");
     const { data: sh } = await supabase.from("shift_templates").select("*").eq("deleted", false);
-    const { data: se } = await supabase.from("schedule_entries").select("*").like("date", `${month}%`);
+    const { data: se, error: seError } = await supabase.from("schedule_entries").select("*").gte("date", monthStart).lt("date", nextMonth);
+    if (error) console.error("department_assignments load error:", error);
+    if (seError) console.error("schedule_entries load error:", seError);
     setStaff(s || []);
     setAssignments(data || []);
     setSuggestions([...new Set((allNames || []).map((a) => a.department_name).filter(Boolean))]);
@@ -75,10 +81,6 @@ export default function DailyAssignment({ role }) {
     <div>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Daily Assignment</h2>
       <div style={{ fontSize: 12.5, color: "#8A9694", marginBottom: 12 }}>Type any department, bench, or rotation name per employee per day — not limited to the fixed department list. Morning, evening, and night are tracked separately. Cells fade out for anyone not actually scheduled in that shift on that day (based on their shift code in Schedule).</div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: "#C1432B", background: "#FBEAE6", padding: "6px 10px", borderRadius: 6, marginBottom: 12 }}>
-        DEBUG: loaded {(assignments || []).length} rows from the database for {month} / {period}
-        {assignments && assignments.length > 0 && <> — first one: {assignments[0].date}, staff_id {assignments[0].staff_id}, "{assignments[0].department_name}"</>}
-      </div>
       <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ ...inputStyle, width: "auto" }} />
         <div style={{ display: "flex", gap: 4 }}>
