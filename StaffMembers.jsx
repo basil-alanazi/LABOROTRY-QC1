@@ -1,22 +1,42 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { supabase } from "./supabaseClient";
-import { todayISO } from "./scheduleUtils";
+import { isWithinShift, todayISO, yesterdayISO } from "./scheduleUtils";
 import StaffImport from "./StaffImport";
 
 const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 14, boxSizing: "border-box" };
 
+const STATUS_META = {
+  on_duty: { emoji: "🟢", label: "On Duty", bg: "#E8F2EC", fg: "#2F6B4F" },
+  on_break: { emoji: "🟡", label: "On Break", bg: "#FBF3DF", fg: "#B8860B" },
+  covering: { emoji: "🟣", label: "Covering", bg: "#F1E9F8", fg: "#7A4FA3" },
+  off_duty: { emoji: "⚫", label: "Off Duty", bg: "#F0F3F2", fg: "#516361" },
+};
+
 export default function StaffMembers({ departments, role }) {
-  const [subTab, setSubTab] = useState("roster");
   const [staff, setStaff] = useState(null);
   const [form, setForm] = useState({ full_name: "", job_number: "", department: departments?.[0] || "" });
+  const [shifts, setShifts] = useState([]);
+  const [scheduleEntries, setScheduleEntries] = useState([]);
+  const [breaks, setBreaks] = useState([]);
+  const [now, setNow] = useState(new Date());
   const canEdit = role === "admin" || role === "super";
 
   async function loadAll() {
     const { data } = await supabase.from("staff_members").select("*").eq("deleted", false).order("sort_order", { ascending: true, nullsFirst: false }).order("full_name");
+    const { data: sh } = await supabase.from("shift_templates").select("*").eq("deleted", false);
+    const { data: se } = await supabase.from("schedule_entries").select("*").in("date", [todayISO(), yesterdayISO()]);
+    const { data: br } = await supabase.from("break_sessions").select("*").in("date", [todayISO(), yesterdayISO()]);
     setStaff(data || []);
+    setShifts(sh || []);
+    setScheduleEntries(se || []);
+    setBreaks(br || []);
   }
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    loadAll();
+    const t = setInterval(() => { setNow(new Date()); loadAll(); }, 60000);
+    return () => clearInterval(t);
+  }, []);
 
   function nextSortOrder() {
     const max = (staff || []).reduce((m, s) => Math.max(m, s.sort_order || 0), 0);
@@ -41,7 +61,6 @@ export default function StaffMembers({ departments, role }) {
     await supabase.from("staff_members").update({ deleted: true }).eq("id", id);
     loadAll();
   }
-
   async function moveStaff(index, direction) {
     const target = index + direction;
     if (target < 0 || target >= staff.length) return;
@@ -53,187 +72,121 @@ export default function StaffMembers({ departments, role }) {
     loadAll();
   }
 
+  function liveStatusFor(member) {
+    const activeBreak = breaks.find((b) => b.staff_id === member.id && ["approved", "active"].includes(b.status) && !b.ended_at);
+    if (activeBreak) return "on_break";
+    const coveringSession = breaks.find((b) => b.covering_staff_id === member.id && ["approved", "active"].includes(b.status) && !b.ended_at);
+    if (coveringSession) return "covering";
+
+    const shiftByCode = {};
+    shifts.forEach((s) => { shiftByCode[s.code] = s; });
+    const today = todayISO(), yesterday = yesterdayISO();
+    const tEntry = scheduleEntries.find((e) => e.staff_id === member.id && e.date === today);
+    const tShift = tEntry ? shiftByCode[tEntry.shift_code] : null;
+    if (tShift && isWithinShift(tShift, today, now)) return "on_duty";
+    const yEntry = scheduleEntries.find((e) => e.staff_id === member.id && e.date === yesterday);
+    const yShift = yEntry ? shiftByCode[yEntry.shift_code] : null;
+    if (yShift?.night_shift && isWithinShift(yShift, yesterday, now)) return "on_duty";
+    return "off_duty";
+  }
+
+  // Who's about to start their shift today, soonest first.
+  function comingUp() {
+    const shiftByCode = {};
+    shifts.forEach((s) => { shiftByCode[s.code] = s; });
+    const today = todayISO();
+    const list = [];
+    (staff || []).forEach((m) => {
+      if (liveStatusFor(m) === "on_duty") return; // already here
+      const entry = scheduleEntries.find((e) => e.staff_id === m.id && e.date === today);
+      const shift = entry ? shiftByCode[entry.shift_code] : null;
+      if (!shift || shift.is_off || !shift.start_time) return;
+      const [h, min] = shift.start_time.split(":").map(Number);
+      const startsAt = new Date(now);
+      startsAt.setHours(h, min, 0, 0);
+      if (startsAt <= now) return; // already started or passed
+      list.push({ name: m.full_name, code: shift.code, startsAt });
+    });
+    return list.sort((a, b) => a.startsAt - b.startsAt);
+  }
+
   if (staff === null) return <div style={{ padding: 40, textAlign: "center", color: "#8A9694" }}>Loading…</div>;
+
+  const upcoming = comingUp();
 
   return (
     <div>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Staff</h2>
-      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 16 }}>The employee roster, and where they're working each day.</div>
+      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>The employee roster, who's here right now, and who's coming up next.</div>
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
-        <TabBtn active={subTab === "roster"} onClick={() => setSubTab("roster")} label="Roster" />
-        <TabBtn active={subTab === "assignment"} onClick={() => setSubTab("assignment")} label="Daily Assignment" />
+      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>LIVE STATUS — {now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+        {staff.map((m) => {
+          const status = liveStatusFor(m);
+          const meta = STATUS_META[status];
+          return (
+            <span key={m.id} style={{ fontSize: 12.5, fontWeight: 600, background: meta.bg, color: meta.fg, padding: "5px 10px", borderRadius: 6 }}>{meta.emoji} {m.full_name}</span>
+          );
+        })}
       </div>
 
-      {subTab === "roster" && (
-        <>
-          {canEdit && (
-            <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 14, marginBottom: 20 }}>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <input placeholder="Full name" value={form.full_name} onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))} style={{ ...inputStyle, flex: 2, minWidth: 140 }} />
-                <input placeholder="Job number" value={form.job_number} onChange={(e) => setForm((f) => ({ ...f, job_number: e.target.value }))} style={{ ...inputStyle, flex: 1, minWidth: 100 }} />
-                <select value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} style={{ ...inputStyle, flex: 1, minWidth: 120 }}>
-                  {(departments || []).map((d) => <option key={d} value={d}>{d}</option>)}
-                </select>
-                <button onClick={addStaff} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "0 14px", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}><Plus size={14} /> Add</button>
+      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>COMING UP NEXT</div>
+      {upcoming.length === 0 ? (
+        <div style={{ fontSize: 13, color: "#8A9694", marginBottom: 20 }}>Nobody has an upcoming shift starting later today.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 24 }}>
+          {upcoming.map((u, i) => {
+            const mins = Math.round((u.startsAt - now) / 60000);
+            const inLabel = mins < 60 ? `in ${mins}m` : `in ${Math.floor(mins / 60)}h ${mins % 60}m`;
+            return (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "8px 12px", fontSize: 13 }}>
+                <div style={{ flex: 1, fontWeight: 600 }}>{u.name}</div>
+                <div style={{ fontSize: 12, color: "#8A9694" }}>{u.code}</div>
+                <div style={{ fontSize: 12, color: "#0F7173", fontWeight: 700 }}>{u.startsAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })} ({inLabel})</div>
               </div>
-              <div style={{ marginTop: 10, borderTop: "1px solid #EEF2F0", paddingTop: 10 }}>
-                <StaffImport departments={departments} onApply={addStaffBulk} />
-              </div>
-            </div>
-          )}
-
-          {staff.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "40px 20px", color: "#8A9694" }}>No employees added yet.</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {staff.map((s, i) => (
-                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "10px 14px" }}>
-                  {canEdit && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                      <button onClick={() => moveStaff(i, -1)} disabled={i === 0} style={{ background: "none", border: "none", color: i === 0 ? "#D6DEDB" : "#516361", padding: 0, cursor: i === 0 ? "default" : "pointer" }}><ChevronUp size={14} /></button>
-                      <button onClick={() => moveStaff(i, 1)} disabled={i === staff.length - 1} style={{ background: "none", border: "none", color: i === staff.length - 1 ? "#D6DEDB" : "#516361", padding: 0, cursor: i === staff.length - 1 ? "default" : "pointer" }}><ChevronDown size={14} /></button>
-                    </div>
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{s.full_name}</div>
-                    <div style={{ fontSize: 11.5, color: "#8A9694" }}>{s.job_number ? `#${s.job_number} · ` : ""}{s.department}</div>
-                  </div>
-                  {canEdit && <button onClick={() => removeStaff(s.id)} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={15} /></button>}
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+            );
+          })}
+        </div>
       )}
 
-      {subTab === "assignment" && <DailyAssignment staff={staff} canEdit={canEdit} />}
-    </div>
-  );
-}
-
-function TabBtn({ active, onClick, label }) {
-  return <button onClick={onClick} style={{ background: active ? "#0F7173" : "#fff", color: active ? "#fff" : "#516361", border: "1px solid " + (active ? "#0F7173" : "#E1E8E5"), borderRadius: 7, padding: "7px 14px", fontSize: 13, fontWeight: 600 }}>{label}</button>;
-}
-
-// Free-text daily department assignment — independent of the Settings
-// department list, so any label can be typed here (bench names, rotations...).
-function classifyShift(shift) {
-  if (!shift || shift.is_off) return null;
-  if (shift.night_shift) return "night";
-  const startHour = Number((shift.start_time || "00:00").split(":")[0]);
-  return startHour < 12 ? "morning" : "evening";
-}
-
-function DailyAssignment({ staff, canEdit }) {
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [period, setPeriod] = useState("morning");
-  const [assignments, setAssignments] = useState(null);
-  const [suggestions, setSuggestions] = useState([]);
-  const [shifts, setShifts] = useState([]);
-  const [scheduleEntries, setScheduleEntries] = useState([]);
-
-  async function loadAll() {
-    const { data } = await supabase.from("department_assignments").select("*").like("date", `${month}%`).eq("period", period);
-    const { data: allNames } = await supabase.from("department_assignments").select("department_name");
-    const { data: sh } = await supabase.from("shift_templates").select("*").eq("deleted", false);
-    const { data: se } = await supabase.from("schedule_entries").select("*").like("date", `${month}%`);
-    setAssignments(data || []);
-    setSuggestions([...new Set((allNames || []).map((a) => a.department_name).filter(Boolean))]);
-    setShifts(sh || []);
-    setScheduleEntries(se || []);
-  }
-  useEffect(() => { loadAll(); }, [month, period]);
-
-  function shiftPeriodFor(staffId, date) {
-    const entry = scheduleEntries.find((e) => e.staff_id === staffId && e.date === date);
-    if (!entry) return null;
-    const shift = shifts.find((s) => s.code === entry.shift_code);
-    return classifyShift(shift);
-  }
-
-  function assignmentFor(staffId, date) {
-    return (assignments || []).find((a) => a.staff_id === staffId && a.date === date);
-  }
-
-  async function setAssignment(staffId, date, deptName) {
-    const existing = assignmentFor(staffId, date);
-    if (existing) {
-      await supabase.from("department_assignments").update({ department_name: deptName }).eq("id", existing.id);
-    } else if (deptName) {
-      await supabase.from("department_assignments").insert({ staff_id: staffId, date, period, department_name: deptName });
-    }
-    loadAll();
-  }
-
-  if (assignments === null) return <div style={{ padding: 20, textAlign: "center", color: "#8A9694" }}>Loading…</div>;
-  if (!staff || staff.length === 0) return <div style={{ textAlign: "center", padding: "40px 20px", color: "#8A9694" }}>Add employees to the roster first.</div>;
-
-  const [year, mo] = month.split("-");
-  const days = new Date(Number(year), Number(mo), 0).getDate();
-  const dayList = Array.from({ length: days }, (_, i) => i + 1);
-  const today = todayISO();
-
-  return (
-    <div>
-      <div style={{ fontSize: 12.5, color: "#8A9694", marginBottom: 12 }}>Type any department, bench, or rotation name per employee per day — not limited to the fixed department list. Morning, evening, and night are tracked separately. Cells fade out for anyone not actually scheduled in that shift on that day (based on their shift code in Schedule).</div>
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16, flexWrap: "wrap" }}>
-        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ ...inputStyle, width: "auto" }} />
-        <div style={{ display: "flex", gap: 4 }}>
-          <button onClick={() => setPeriod("morning")} style={{ border: "1px solid " + (period === "morning" ? "#0F7173" : "#C7D1CE"), background: period === "morning" ? "#0F7173" : "#fff", color: period === "morning" ? "#fff" : "#516361", borderRadius: 6, padding: "7px 14px", fontSize: 12.5, fontWeight: 600 }}>☀️ Morning</button>
-          <button onClick={() => setPeriod("evening")} style={{ border: "1px solid " + (period === "evening" ? "#0F7173" : "#C7D1CE"), background: period === "evening" ? "#0F7173" : "#fff", color: period === "evening" ? "#fff" : "#516361", borderRadius: 6, padding: "7px 14px", fontSize: 12.5, fontWeight: 600 }}>🌙 Evening</button>
-          <button onClick={() => setPeriod("night")} style={{ border: "1px solid " + (period === "night" ? "#0F7173" : "#C7D1CE"), background: period === "night" ? "#0F7173" : "#fff", color: period === "night" ? "#fff" : "#516361", borderRadius: 6, padding: "7px 14px", fontSize: 12.5, fontWeight: 600 }}>🌃 Night</button>
+      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>ROSTER</div>
+      {canEdit && (
+        <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 14, marginBottom: 20 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input placeholder="Full name" value={form.full_name} onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))} style={{ ...inputStyle, flex: 2, minWidth: 140 }} />
+            <input placeholder="Job number" value={form.job_number} onChange={(e) => setForm((f) => ({ ...f, job_number: e.target.value }))} style={{ ...inputStyle, flex: 1, minWidth: 100 }} />
+            <select value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} style={{ ...inputStyle, flex: 1, minWidth: 120 }}>
+              {(departments || []).map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <button onClick={addStaff} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "0 14px", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", gap: 4 }}><Plus size={14} /> Add</button>
+          </div>
+          <div style={{ marginTop: 10, borderTop: "1px solid #EEF2F0", paddingTop: 10 }}>
+            <StaffImport departments={departments} onApply={addStaffBulk} />
+          </div>
         </div>
-      </div>
+      )}
 
-      <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10 }}>
-        <table style={{ borderCollapse: "collapse", fontSize: 11, width: "100%" }}>
-          <thead>
-            <tr>
-              <th style={{ position: "sticky", left: 0, background: "#F0F3F2", padding: "6px 8px", minWidth: 60, borderBottom: "1px solid #E1E8E5" }}>Day</th>
-              {staff.map((m) => (
-                <th key={m.id} style={{ padding: "6px 6px", borderBottom: "1px solid #E1E8E5", minWidth: 110, fontSize: 10.5 }}>
-                  <div>{m.full_name}</div>
-                  {m.job_number && <div style={{ fontWeight: 400, color: "#8A9694" }}>#{m.job_number}</div>}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {dayList.map((d) => {
-              const dateStr = `${year}-${mo}-${String(d).padStart(2, "0")}`;
-              return (
-                <tr key={d} style={{ background: dateStr === today ? "#EAF6F4" : "transparent" }}>
-                  <td style={{ position: "sticky", left: 0, background: dateStr === today ? "#EAF6F4" : "#fff", padding: "3px 8px", fontWeight: 600, borderBottom: "1px solid #EEF2F0" }}>{d}</td>
-                  {staff.map((m) => {
-                    const a = assignmentFor(m.id, dateStr);
-                    const staffPeriod = shiftPeriodFor(m.id, dateStr);
-                    const matches = staffPeriod === null ? true : staffPeriod === period; // no schedule entry = don't restrict
-                    return (
-                      <td key={m.id} style={{ padding: 2, borderBottom: "1px solid #EEF2F0", background: matches ? "transparent" : "#F7F7F7", opacity: matches ? 1 : 0.35 }}>
-                        {canEdit ? (
-                          <input
-                            list="dept-suggestions"
-                            defaultValue={a?.department_name || ""}
-                            onBlur={(e) => e.target.value !== (a?.department_name || "") && setAssignment(m.id, dateStr, e.target.value)}
-                            style={{ border: "none", background: "transparent", fontSize: 10.5, width: "100%", padding: "3px 4px" }}
-                            title={!matches ? `Not scheduled for ${period} on this day` : ""}
-                          />
-                        ) : (
-                          <span style={{ fontSize: 10.5 }}>{a?.department_name || ""}</span>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <datalist id="dept-suggestions">
-        {suggestions.map((s) => <option key={s} value={s} />)}
-      </datalist>
+      {staff.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px 20px", color: "#8A9694" }}>No employees added yet.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {staff.map((s, i) => (
+            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "10px 14px" }}>
+              {canEdit && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <button onClick={() => moveStaff(i, -1)} disabled={i === 0} style={{ background: "none", border: "none", color: i === 0 ? "#D6DEDB" : "#516361", padding: 0, cursor: i === 0 ? "default" : "pointer" }}><ChevronUp size={14} /></button>
+                  <button onClick={() => moveStaff(i, 1)} disabled={i === staff.length - 1} style={{ background: "none", border: "none", color: i === staff.length - 1 ? "#D6DEDB" : "#516361", padding: 0, cursor: i === staff.length - 1 ? "default" : "pointer" }}><ChevronDown size={14} /></button>
+                </div>
+              )}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600 }}>{s.full_name}</div>
+                <div style={{ fontSize: 11.5, color: "#8A9694" }}>{s.job_number ? `#${s.job_number} · ` : ""}{s.department}</div>
+              </div>
+              {canEdit && <button onClick={() => removeStaff(s.id)} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={15} /></button>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

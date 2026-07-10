@@ -23,6 +23,8 @@ import CorrectiveAction from "./CorrectiveAction";
 import InfectionDisease from "./InfectionDisease";
 import Calculators from "./Calculators";
 import MySchedule from "./MySchedule";
+import DailyAssignment from "./DailyAssignment";
+import BreakHistory from "./BreakHistory";
 import InternalChat from "./InternalChat";
 import SmartAssistant from "./SmartAssistant";
 import MyProfile from "./MyProfile";
@@ -374,6 +376,8 @@ export default function App() {
         {tab === "files" && (role === "admin" || role === "super") && <Files role={role} username={username} />}
         {tab === "calculate" && <Calculators config={config} />}
         {tab === "myschedule" && <MySchedule username={username} />}
+        {tab === "assignment" && <DailyAssignment role={role} />}
+        {tab === "breakhistory" && (role === "admin" || role === "super") && <BreakHistory />}
         {tab.startsWith("pinned:") && (() => {
           const t = pinnedTables.find((x) => `pinned:${x.id}` === tab);
           return t ? <CustomTables role={role} username={username} openTableId={t.id} onReload={loadAll} /> : null;
@@ -406,6 +410,8 @@ const PORTAL_PAGE_META = {
   infection: { label: "Infection Disease", icon: Biohazard },
   calculate: { label: "Calculate", icon: Calculator },
   myschedule: { label: "My Schedule", icon: Calendar },
+  assignment: { label: "Daily Assignment", icon: Calendar },
+  breakhistory: { label: "Break History", icon: Calendar },
 };
 
 function buildPortalPages(permissions, allTables, hiddenPages) {
@@ -455,6 +461,8 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
     if (p.key === "infection") return <InfectionDisease role={effectiveRole} username={username} />;
     if (p.key === "calculate") return <Calculators config={config} />;
     if (p.key === "myschedule") return <MySchedule username={username} />;
+    if (p.key === "assignment") return <DailyAssignment role={effectiveRole} />;
+    if (p.key === "breakhistory") return <BreakHistory />;
     if (p.key.startsWith("table:")) return <CustomTables role={effectiveRole} username={username} openTableId={p.tableId} />;
     return null;
   }
@@ -609,6 +617,8 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
         <div style={{ height: 1, background: "#2A3B3D", margin: "8px 4px" }} />
 
         {notHidden("myschedule") && <SideItem icon={<Calendar size={15} />} label="My Schedule" active={tab === "myschedule"} onClick={() => onNavigate("myschedule")} />}
+        {notHidden("assignment") && <SideItem icon={<Calendar size={15} />} label="Daily Assignment" active={tab === "assignment"} onClick={() => onNavigate("assignment")} />}
+        {isAdmin && notHidden("breakhistory") && <SideItem icon={<Calendar size={15} />} label="Break History" active={tab === "breakhistory"} onClick={() => onNavigate("breakhistory")} />}
         {notHidden("staff") && <SideItem icon={<Users size={15} />} label="Staff" active={tab === "staff"} onClick={() => onNavigate("staff")} />}
         {isAdmin && notHidden("equipment") && <SideItem icon={<Wrench size={15} />} label="Equipment" active={tab === "equipment"} onClick={() => onNavigate("equipment")} />}
 

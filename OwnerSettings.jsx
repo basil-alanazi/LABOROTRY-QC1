@@ -37,6 +37,8 @@ const BUILT_IN_PAGES = [
   { key: "infection", label: "Infection Disease" },
   { key: "calculate", label: "Calculate" },
   { key: "myschedule", label: "My Schedule" },
+  { key: "assignment", label: "Daily Assignment" },
+  { key: "breakhistory", label: "Break History" },
 ];
 
 // Suggested role presets — same permission system, just a quicker starting point.
