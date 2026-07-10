@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Trash2, Download, Upload, FileText, X, ListPlus } from "lucide-react";
 import { supabase } from "./supabaseClient";
+import { playAlertSound } from "./sounds";
 
 const inputStyle = { border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 10px", fontSize: 13, boxSizing: "border-box", width: "100%" };
 
@@ -85,6 +86,7 @@ export default function RecordModule({ table, moduleKey, title, description, fie
     const extra_data = {};
     coreFields.forEach((f) => { record[f.key] = form[f.key] ?? ""; });
     customFields.forEach((c) => { extra_data[c.field_key] = form[c.field_key] ?? ""; });
+    if (moduleKey === "panic") playAlertSound();
     await supabase.from(table).insert({ ...record, extra_data });
     setForm(blankForm());
     setShowAdd(false);

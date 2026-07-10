@@ -16,6 +16,7 @@ import AuditTrail from "./AuditTrail";
 import BackupExport from "./BackupExport";
 import SmartSearch from "./SmartSearch";
 import KPI from "./KPI";
+import { playAlertSound } from "./sounds";
 import Equipment from "./Equipment";
 import LotComparison from "./LotComparison";
 import RejectSample from "./RejectSample";
@@ -191,6 +192,8 @@ export default function App() {
           reviews[analyte.name] = { status: "pending", note: "", by: null, at: null };
         }
       }
+
+      if (Object.values(colors).includes("red")) playAlertSound();
 
       if (existingEntry) {
         await supabase.from("qc_entries").update({

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { FlaskConical, Lock } from "lucide-react";
 import { supabase } from "./supabaseClient";
+import { playWelcomeChime } from "./sounds";
 
 export default function Login({ config, staffAccounts, portalAccounts, onLogin }) {
   const [username, setUsername] = useState("");
@@ -13,6 +14,7 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
   }
 
   async function finishLogin(role, who, permissions) {
+    playWelcomeChime();
     await logAuth("login", who);
     onLogin(role, who, permissions);
   }
