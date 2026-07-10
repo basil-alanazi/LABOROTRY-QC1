@@ -372,7 +372,7 @@ export default function App() {
         {tab === "owner" && role === "super" && <OwnerSettings config={config} reload={() => { ensureConfig(); loadAll(); }} />}
         {tab === "tables" && (role === "admin" || role === "super") && <CustomTables role={role} username={username} onReload={loadAll} />}
         {tab === "files" && (role === "admin" || role === "super") && <Files role={role} username={username} />}
-        {tab === "calculate" && <Calculators />}
+        {tab === "calculate" && <Calculators config={config} />}
         {tab === "myschedule" && <MySchedule username={username} />}
         {tab.startsWith("pinned:") && (() => {
           const t = pinnedTables.find((x) => `pinned:${x.id}` === tab);
@@ -453,7 +453,7 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
     if (p.key === "panic") return <PanicValue role={effectiveRole} username={username} />;
     if (p.key === "corrective") return <CorrectiveAction role={effectiveRole} username={username} />;
     if (p.key === "infection") return <InfectionDisease role={effectiveRole} username={username} />;
-    if (p.key === "calculate") return <Calculators />;
+    if (p.key === "calculate") return <Calculators config={config} />;
     if (p.key === "myschedule") return <MySchedule username={username} />;
     if (p.key.startsWith("table:")) return <CustomTables role={effectiveRole} username={username} openTableId={p.tableId} />;
     return null;

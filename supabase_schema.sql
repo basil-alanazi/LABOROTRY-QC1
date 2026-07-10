@@ -400,6 +400,7 @@ create policy "allow all corrective_actions" on corrective_actions for all using
 
 -- Owner can hide any page from everyone else, system-wide.
 alter table app_config add column if not exists hidden_pages jsonb not null default '[]'::jsonb;
+alter table app_config add column if not exists calculator_settings jsonb not null default '{}'::jsonb;
 
 -- Lets each record module (Reject/Panic/Corrective/Infection) have extra
 -- fields added by the owner/admin at any time, without touching the code.

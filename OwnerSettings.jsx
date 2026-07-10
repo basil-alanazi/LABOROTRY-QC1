@@ -55,6 +55,15 @@ export default function OwnerSettings({ config, reload }) {
   const [logoUrl, setLogoUrl] = useState(config.logo_url || "");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [hiddenPages, setHiddenPages] = useState(config.hidden_pages || []);
+  const [calcSettings, setCalcSettings] = useState({
+    egfr_formula: "ckdepi2021",
+    aniongap_include_k: false,
+    corrcalcium_units: "us",
+    default_lipid_unit: "mg/dL",
+    default_buncreat_unit: "mg/dL (US)",
+    ...(config.calculator_settings || {}),
+  });
+  const [calcMsg, setCalcMsg] = useState("");
   const [msg, setMsg] = useState("");
 
   const [accounts, setAccounts] = useState(null);
@@ -109,6 +118,13 @@ export default function OwnerSettings({ config, reload }) {
     if (!confirm("Remove this account?")) return;
     await supabase.from("portal_accounts").delete().eq("id", id);
     loadExtras();
+  }
+
+  async function saveCalcSettings() {
+    const { error } = await supabase.from("app_config").update({ calculator_settings: calcSettings }).eq("id", 1);
+    setCalcMsg(error ? "Could not save." : "Saved.");
+    reload();
+    setTimeout(() => setCalcMsg(""), 2500);
   }
 
   async function resetPassword(table, id, currentUsername) {
@@ -227,6 +243,41 @@ export default function OwnerSettings({ config, reload }) {
             <button onClick={() => resetPassword("portal_accounts", a.id, a.username)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 5, padding: "4px 8px", fontSize: 11 }}>Reset</button>
           </div>
         ))}
+      </div>
+
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, letterSpacing: 0.3 }}>CALCULATOR SETTINGS</div>
+      <div style={{ fontSize: 12.5, color: "#7B8E8A", marginBottom: 12 }}>Only shown here where more than one valid formula genuinely exists — applies to every account.</div>
+      <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 16, display: "flex", flexDirection: "column", gap: 14, marginBottom: 30 }}>
+        <label style={labelStyle}>eGFR formula
+          <select style={inputStyle} value={calcSettings.egfr_formula} onChange={(e) => setCalcSettings((c) => ({ ...c, egfr_formula: e.target.value }))}>
+            <option value="ckdepi2021">CKD-EPI 2021 (race-free, default)</option>
+            <option value="cockcroftgault">Cockcroft-Gault (needs weight)</option>
+          </select>
+        </label>
+        <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="checkbox" checked={calcSettings.aniongap_include_k} onChange={(e) => setCalcSettings((c) => ({ ...c, aniongap_include_k: e.target.checked }))} />
+          Anion Gap includes Potassium (Na + K − (Cl + HCO₃))
+        </label>
+        <label style={labelStyle}>Corrected Calcium units
+          <select style={inputStyle} value={calcSettings.corrcalcium_units} onChange={(e) => setCalcSettings((c) => ({ ...c, corrcalcium_units: e.target.value }))}>
+            <option value="us">US units (mg/dL calcium, g/dL albumin)</option>
+            <option value="si">SI units (mmol/L calcium, g/L albumin)</option>
+          </select>
+        </label>
+        <label style={labelStyle}>Default lipid panel unit
+          <select style={inputStyle} value={calcSettings.default_lipid_unit} onChange={(e) => setCalcSettings((c) => ({ ...c, default_lipid_unit: e.target.value }))}>
+            <option value="mg/dL">mg/dL</option>
+            <option value="mmol/L">mmol/L</option>
+          </select>
+        </label>
+        <label style={labelStyle}>Default BUN/Creatinine unit
+          <select style={inputStyle} value={calcSettings.default_buncreat_unit} onChange={(e) => setCalcSettings((c) => ({ ...c, default_buncreat_unit: e.target.value }))}>
+            <option value="mg/dL (US)">mg/dL (US)</option>
+            <option value="SI (mmol/L urea, µmol/L creat)">SI (mmol/L urea, µmol/L creat)</option>
+          </select>
+        </label>
+        <button onClick={saveCalcSettings} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: 14 }}>Save calculator settings</button>
+        {calcMsg && <div style={{ fontSize: 12.5, color: "#2F6B4F" }}>{calcMsg}</div>}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>

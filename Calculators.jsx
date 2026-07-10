@@ -37,8 +37,8 @@ function UnitToggle({ unit, setUnit, options }) {
   );
 }
 
-function LipidCalc() {
-  const [unit, setUnit] = useState("mg/dL");
+function LipidCalc({ settings }) {
+  const [unit, setUnit] = useState(settings?.default_lipid_unit || "mg/dL");
   const [chol, setChol] = useState("");
   const [tg, setTg] = useState("");
   const [hdl, setHdl] = useState("");
@@ -68,28 +68,32 @@ function LipidCalc() {
 }
 
 
-function AnionGapCalc() {
+function AnionGapCalc({ settings }) {
+  const includeK = !!settings?.aniongap_include_k;
   const [na, setNa] = useState("");
+  const [k, setK] = useState("");
   const [cl, setCl] = useState("");
   const [hco3, setHco3] = useState("");
-  const n = num(na), c = num(cl), h = num(hco3);
-  const valid = n !== null && c !== null && h !== null;
-  const gap = valid ? n - (c + h) : null;
+  const n = num(na), kk = num(k), c = num(cl), h = num(hco3);
+  const valid = n !== null && c !== null && h !== null && (!includeK || kk !== null);
+  const gap = valid ? (n + (includeK ? kk : 0)) - (c + h) : null;
+  const normalRange = includeK ? "~10–20" : "~8–16";
 
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10 }}>
         <label style={labelStyle}>Na⁺<input style={inputStyle} type="number" value={na} onChange={(e) => setNa(e.target.value)} /></label>
+        {includeK && <label style={labelStyle}>K⁺<input style={inputStyle} type="number" value={k} onChange={(e) => setK(e.target.value)} /></label>}
         <label style={labelStyle}>Cl⁻<input style={inputStyle} type="number" value={cl} onChange={(e) => setCl(e.target.value)} /></label>
         <label style={labelStyle}>HCO₃⁻<input style={inputStyle} type="number" value={hco3} onChange={(e) => setHco3(e.target.value)} /></label>
       </div>
-      {valid && <ResultBox>Anion Gap = {gap.toFixed(1)} mmol/L {gap > 16 ? "(high)" : gap < 8 ? "(low)" : "(normal range ~8–16)"}</ResultBox>}
+      {valid && <ResultBox>Anion Gap {includeK ? "(with K⁺)" : ""} = {gap.toFixed(1)} mmol/L (normal range {normalRange})</ResultBox>}
     </div>
   );
 }
 
-function BunCreatCalc() {
-  const [unit, setUnit] = useState("mg/dL (US)");
+function BunCreatCalc({ settings }) {
+  const [unit, setUnit] = useState(settings?.default_buncreat_unit || "mg/dL (US)");
   const [bun, setBun] = useState("");
   const [creat, setCreat] = useState("");
   const b = num(bun), c = num(creat);
@@ -188,22 +192,32 @@ function DilutionCalc() {
   );
 }
 
-function EgfrCalc() {
+function EgfrCalc({ settings }) {
+  const formula = settings?.egfr_formula || "ckdepi2021";
   const [creat, setCreat] = useState("");
   const [age, setAge] = useState("");
   const [sex, setSex] = useState("female");
-  const c = num(creat), a = num(age);
-  const valid = c !== null && c > 0 && a !== null && a > 0;
+  const [weight, setWeight] = useState("");
+  const c = num(creat), a = num(age), w = num(weight);
+  const needsWeight = formula === "cockcroftgault";
+  const valid = c !== null && c > 0 && a !== null && a > 0 && (!needsWeight || (w !== null && w > 0));
 
-  let egfr = null;
+  let result = null;
+  let label = "";
   if (valid) {
-    // CKD-EPI 2021 race-free creatinine equation.
-    const kappa = sex === "female" ? 0.7 : 0.9;
-    const alpha = sex === "female" ? -0.241 : -0.302;
-    const sexFactor = sex === "female" ? 1.012 : 1;
-    const minRatio = Math.min(c / kappa, 1);
-    const maxRatio = Math.max(c / kappa, 1);
-    egfr = 142 * Math.pow(minRatio, alpha) * Math.pow(maxRatio, -1.2) * Math.pow(0.9938, a) * sexFactor;
+    if (formula === "cockcroftgault") {
+      const sexFactor = sex === "female" ? 0.85 : 1;
+      result = ((140 - a) * w * sexFactor) / (72 * c);
+      label = "Creatinine Clearance (Cockcroft-Gault)";
+    } else {
+      const kappa = sex === "female" ? 0.7 : 0.9;
+      const alpha = sex === "female" ? -0.241 : -0.302;
+      const sexFactor = sex === "female" ? 1.012 : 1;
+      const minRatio = Math.min(c / kappa, 1);
+      const maxRatio = Math.max(c / kappa, 1);
+      result = 142 * Math.pow(minRatio, alpha) * Math.pow(maxRatio, -1.2) * Math.pow(0.9938, a) * sexFactor;
+      label = "eGFR (CKD-EPI 2021)";
+    }
   }
 
   return (
@@ -217,31 +231,33 @@ function EgfrCalc() {
             <option value="male">Male</option>
           </select>
         </label>
+        {needsWeight && <label style={labelStyle}>Weight (kg)<input style={inputStyle} type="number" value={weight} onChange={(e) => setWeight(e.target.value)} /></label>}
       </div>
       {valid && (
         <ResultBox>
-          eGFR (CKD-EPI 2021) = {egfr.toFixed(1)} mL/min/1.73m²
-          {egfr < 60 && " — suggests reduced kidney function"}
+          {label} = {result.toFixed(1)} mL/min{formula === "ckdepi2021" ? "/1.73m²" : ""}
+          {result < 60 && " — suggests reduced kidney function"}
         </ResultBox>
       )}
     </div>
   );
 }
 
-function CorrectedCalciumCalc() {
+function CorrectedCalciumCalc({ settings }) {
+  const units = settings?.corrcalcium_units || "us";
   const [calcium, setCalcium] = useState("");
   const [albumin, setAlbumin] = useState("");
   const ca = num(calcium), al = num(albumin);
   const valid = ca !== null && al !== null;
-  const corrected = valid ? ca + 0.8 * (4.0 - al) : null;
+  const corrected = valid ? (units === "si" ? ca + 0.02 * (40 - al) : ca + 0.8 * (4.0 - al)) : null;
 
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
-        <label style={labelStyle}>Total Calcium (mg/dL)<input style={inputStyle} type="number" value={calcium} onChange={(e) => setCalcium(e.target.value)} /></label>
-        <label style={labelStyle}>Albumin (g/dL)<input style={inputStyle} type="number" value={albumin} onChange={(e) => setAlbumin(e.target.value)} /></label>
+        <label style={labelStyle}>Total Calcium ({units === "si" ? "mmol/L" : "mg/dL"})<input style={inputStyle} type="number" value={calcium} onChange={(e) => setCalcium(e.target.value)} /></label>
+        <label style={labelStyle}>Albumin ({units === "si" ? "g/L" : "g/dL"})<input style={inputStyle} type="number" value={albumin} onChange={(e) => setAlbumin(e.target.value)} /></label>
       </div>
-      {valid && <ResultBox>Corrected Calcium = {corrected.toFixed(2)} mg/dL</ResultBox>}
+      {valid && <ResultBox>Corrected Calcium = {corrected.toFixed(2)} {units === "si" ? "mmol/L" : "mg/dL"}</ResultBox>}
     </div>
   );
 }
@@ -315,8 +331,9 @@ const CALCULATORS = [
   { key: "dilution", label: "Dilution", icon: Droplet, group: "Dilution", desc: "How much diluent to add", Comp: DilutionCalc },
 ];
 
-export default function Calculators() {
+export default function Calculators({ config }) {
   const [open, setOpen] = useState(null);
+  const settings = config?.calculator_settings || {};
 
   if (open) {
     const calc = CALCULATORS.find((c) => c.key === open);
@@ -327,7 +344,7 @@ export default function Calculators() {
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{calc.label}</h2>
         <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>{calc.desc}</div>
         <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 18 }}>
-          <Comp />
+          <Comp settings={settings} />
         </div>
       </div>
     );
