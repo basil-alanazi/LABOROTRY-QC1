@@ -71,6 +71,7 @@ export default function OwnerSettings({ config, reload }) {
 
   const [accounts, setAccounts] = useState(null);
   const [staffAccounts, setStaffAccounts] = useState([]);
+  const [editingStaffAccount, setEditingStaffAccount] = useState(null);
   const [customTables, setCustomTables] = useState([]);
   const [showNewAccount, setShowNewAccount] = useState(false);
 
@@ -229,12 +230,24 @@ export default function OwnerSettings({ config, reload }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 30 }}>
         {staffAccounts.length === 0 && (accounts || []).length === 0 && <div style={{ fontSize: 13, color: "#8A9694" }}>No individual accounts yet.</div>}
         {staffAccounts.map((s) => (
-          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "9px 14px", fontSize: 12.5 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#516361", background: "#F0F3F2", padding: "2px 7px", borderRadius: 4 }}>STAFF</span>
-            <div style={{ flex: 1, fontWeight: 600 }}>{s.username}</div>
-            <div style={{ fontFamily: "monospace", color: "#8A9694" }}>{s.password}</div>
-            {s.must_change_password && <span style={{ fontSize: 10, color: "#B8860B" }}>must change on next login</span>}
-            <button onClick={() => resetPassword("staff_accounts", s.id, s.username)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 5, padding: "4px 8px", fontSize: 11 }}>Reset</button>
+          <div key={s.id} style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "9px 14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12.5 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: "#516361", background: "#F0F3F2", padding: "2px 7px", borderRadius: 4 }}>STAFF</span>
+              <div style={{ flex: 1, fontWeight: 600 }}>{s.username}</div>
+              <div style={{ fontFamily: "monospace", color: "#8A9694" }}>{s.password}</div>
+              {s.must_change_password && <span style={{ fontSize: 10, color: "#B8860B" }}>must change on next login</span>}
+              <button onClick={() => setEditingStaffAccount(s)} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 11.5, fontWeight: 700 }}>Permissions</button>
+              <button onClick={() => resetPassword("staff_accounts", s.id, s.username)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 5, padding: "4px 8px", fontSize: 11 }}>Reset</button>
+            </div>
+            {(s.permissions || []).length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 7 }}>
+                {s.permissions.map((p) => (
+                  <span key={p.page} style={{ fontSize: 10.5, background: p.level === "admin" ? "#FBF3DF" : "#F0F3F2", color: p.level === "admin" ? "#B8860B" : "#516361", padding: "2px 7px", borderRadius: 5, fontWeight: 600 }}>
+                    +{pageLabel(p.page, customTables)} · {p.level}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {(accounts || []).map((a) => (
@@ -301,7 +314,16 @@ export default function OwnerSettings({ config, reload }) {
         </div>
       )}
 
-      {showNewAccount && <AccountModal customTables={customTables} onClose={() => setShowNewAccount(false)} onCreated={loadExtras} />}
+      {showNewAccount && <AccountModal customTables={customTables} table="portal_accounts" onClose={() => setShowNewAccount(false)} onCreated={loadExtras} />}
+      {editingStaffAccount && (
+        <AccountModal
+          customTables={customTables}
+          existing={editingStaffAccount}
+          table="staff_accounts"
+          onClose={() => setEditingStaffAccount(null)}
+          onCreated={() => { loadExtras(); setEditingStaffAccount(null); }}
+        />
+      )}
     </div>
   );
 }
@@ -317,7 +339,7 @@ function pageLabel(key, customTables) {
 function AccountRow({ account, customTables, onDelete, onSaved }) {
   const [editing, setEditing] = useState(false);
   if (editing) {
-    return <AccountModal customTables={customTables} existing={account} onClose={() => setEditing(false)} onCreated={() => { onSaved(); setEditing(false); }} />;
+    return <AccountModal customTables={customTables} existing={account} table="portal_accounts" onClose={() => setEditing(false)} onCreated={() => { onSaved(); setEditing(false); }} />;
   }
   return (
     <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "10px 14px" }}>
@@ -338,7 +360,7 @@ function AccountRow({ account, customTables, onDelete, onSaved }) {
   );
 }
 
-function AccountModal({ customTables, existing, onClose, onCreated }) {
+function AccountModal({ customTables, existing, table = "portal_accounts", onClose, onCreated }) {
   const [username, setUsername] = useState(existing?.username || "");
   const [password, setPassword] = useState(existing?.password || "");
   const [perms, setPerms] = useState(() => {
@@ -372,10 +394,10 @@ function AccountModal({ customTables, existing, onClose, onCreated }) {
     if (!username || !password) return;
     const permissions = Object.entries(perms).map(([page, level]) => ({ page, level }));
     if (existing) {
-      const { error } = await supabase.from("portal_accounts").update({ username, password, permissions }).eq("id", existing.id);
+      const { error } = await supabase.from(table).update({ username, password, permissions }).eq("id", existing.id);
       if (error) { setMsg("Could not save — username may already exist."); return; }
     } else {
-      const { error } = await supabase.from("portal_accounts").insert({ username, password, permissions });
+      const { error } = await supabase.from(table).insert({ username, password, permissions });
       if (error) { setMsg("Could not create — username may already exist."); return; }
     }
     onCreated();

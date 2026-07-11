@@ -39,11 +39,16 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
     }
     const staffMatch = (staffAccounts || []).find((s) => s.username === username && s.password === password);
     if (staffMatch) {
+      const hasCustomPerms = (staffMatch.permissions || []).length > 0;
       if (staffMatch.must_change_password) {
-        setForcedAccount({ table: "staff_accounts", id: staffMatch.id, username, role: "staff" });
+        setForcedAccount({ table: "staff_accounts", id: staffMatch.id, username, role: hasCustomPerms ? "portal" : "staff", permissions: staffMatch.permissions || [] });
         return;
       }
-      finishLogin("staff", username);
+      if (hasCustomPerms) {
+        finishLogin("portal", username, staffMatch.permissions);
+      } else {
+        finishLogin("staff", username);
+      }
       return;
     }
     const portalMatch = (portalAccounts || []).find((s) => s.username === username && s.password === password);
