@@ -123,6 +123,15 @@ export default function App() {
     loadAll();
   }, []);
 
+  // A staff account can be granted admin on specific pages without becoming
+  // a full admin — this resolves the effective role for whichever page is
+  // currently open, so the rest of the screen still looks/behaves like staff.
+  function roleFor(pageKey) {
+    if (role === "admin" || role === "super") return role;
+    const grant = (permissions || []).find((p) => p.page === pageKey);
+    return grant?.level === "admin" ? "admin" : role;
+  }
+
   function handleLogin(newRole, newUsername, newPermissions) {
     localStorage.setItem("qc_role", newRole);
     localStorage.setItem("qc_username", newUsername);
@@ -348,42 +357,42 @@ export default function App() {
         onNavigate={(k) => { setTab(k); setSidebarOpen(false); }}
         onLogout={logout} pendingCount={pendingItems.length} pinnedTables={pinnedTables}
         className={sidebarOpen ? "app-sidebar open" : "app-sidebar"}
-        profiles={profiles}
+        profiles={profiles} permissions={permissions}
       />
 
       <main className="app-main">
         <ErrorBoundary key={tab}>
-        {tab === "home" && <HomePage username={username} role={role} config={config} panels={panels} activeEntries={activeEntries} pendingCount={pendingItems.length} onNavigate={setTab} profiles={profiles} />}
+        {tab === "home" && <HomePage username={username} role={roleFor(tab)} config={config} panels={panels} activeEntries={activeEntries} pendingCount={pendingItems.length} onNavigate={setTab} profiles={profiles} />}
         {tab === "profile" && <MyProfile username={username} />}
         {tab === "chat" && <InternalChat username={username} config={config} staffAccounts={staffAccounts} portalAccounts={portalAccounts} />}
         {tab === "assistant" && <SmartAssistant panels={panels} entries={activeEntries} />}
-        {tab === "qc" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={role} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} profiles={profiles} />}
-        {tab === "staff" && (role === "super" || (role === "admin" && username === config.admin2_username)) && <StaffMembers departments={config.departments || []} role={role} />}
-        {tab === "schedule" && <Schedule departments={config.departments || []} role={role} username={username} />}
-        {tab === "shifts" && (role === "admin" || role === "super") && <ShiftTemplates role={role} />}
-        {tab === "grid" && (role === "admin" || role === "super") && <MonthlyGrid panels={panels} entries={activeEntries} controlLots={controlLots} profiles={profiles} />}
-        {tab === "controls" && (role === "admin" || role === "super") && <ControlStock panels={panels} entries={activeEntries} controlLots={controlLots} onRecalculate={recalculateAllColors} busy={busy} />}
-        {tab === "riqas" && (role === "admin" || role === "super") && <Riqas departments={config.departments || []} role={role} username={username} />}
-        {tab === "chart" && (role === "admin" || role === "super") && <LeveyJennings panels={panels} entries={activeEntries} baselines={baselines} />}
-        {tab === "export" && (role === "admin" || role === "super") && <ExportPage panels={panels} entries={activeEntries} />}
-        {tab === "approvals" && (role === "admin" || role === "super") && <Approvals items={pendingItems} panels={panels} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk} profiles={profiles} />}
-        {tab === "settings" && (role === "admin" || role === "super") && <Settings config={config} panels={panels} role={role} staffAccounts={staffAccounts} username={username} baselines={baselines} reload={() => { ensureConfig(); loadAll(); }} />}
-        {tab === "audit" && (role === "admin" || role === "super") && <AuditTrail />}
-        {tab === "backup" && (role === "admin" || role === "super") && <BackupExport />}
-        {tab === "kpi" && (role === "admin" || role === "super") && <KPI panels={panels} entries={activeEntries} baselines={baselines} />}
-        {tab === "equipment" && (role === "admin" || role === "super") && <Equipment departments={config.departments || []} role={role} username={username} />}
-        {tab === "reject" && (role === "admin" || role === "super") && <RejectSample role={role} username={username} />}
-        {tab === "panic" && (role === "admin" || role === "super") && <PanicValue role={role} username={username} />}
-        {tab === "corrective" && (role === "admin" || role === "super") && <CorrectiveAction role={role} username={username} />}
-        {tab === "infection" && (role === "admin" || role === "super") && <InfectionDisease role={role} username={username} />}
-        {tab === "lotcompare" && (role === "admin" || role === "super") && <LotComparison panels={panels} />}
+        {tab === "qc" && <Dashboard panels={panels} entries={activeEntries} baselines={baselines} role={roleFor(tab)} busy={busy} onSubmit={submitEntry} onDelete={deleteEntry} profiles={profiles} />}
+        {tab === "staff" && (role === "super" || (role === "admin" && username === config.admin2_username)) && <StaffMembers departments={config.departments || []} role={roleFor(tab)} />}
+        {tab === "schedule" && <Schedule departments={config.departments || []} role={roleFor(tab)} username={username} />}
+        {tab === "shifts" && (roleFor(tab) === "admin" || role === "super") && <ShiftTemplates role={roleFor(tab)} />}
+        {tab === "grid" && (roleFor(tab) === "admin" || role === "super") && <MonthlyGrid panels={panels} entries={activeEntries} controlLots={controlLots} profiles={profiles} />}
+        {tab === "controls" && (roleFor(tab) === "admin" || role === "super") && <ControlStock panels={panels} entries={activeEntries} controlLots={controlLots} onRecalculate={recalculateAllColors} busy={busy} />}
+        {tab === "riqas" && (roleFor(tab) === "admin" || role === "super") && <Riqas departments={config.departments || []} role={roleFor(tab)} username={username} />}
+        {tab === "chart" && (roleFor(tab) === "admin" || role === "super") && <LeveyJennings panels={panels} entries={activeEntries} baselines={baselines} />}
+        {tab === "export" && (roleFor(tab) === "admin" || role === "super") && <ExportPage panels={panels} entries={activeEntries} />}
+        {tab === "approvals" && (roleFor(tab) === "admin" || role === "super") && <Approvals items={pendingItems} panels={panels} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk} profiles={profiles} />}
+        {tab === "settings" && (roleFor(tab) === "admin" || role === "super") && <Settings config={config} panels={panels} role={roleFor(tab)} staffAccounts={staffAccounts} username={username} baselines={baselines} reload={() => { ensureConfig(); loadAll(); }} />}
+        {tab === "audit" && (roleFor(tab) === "admin" || role === "super") && <AuditTrail />}
+        {tab === "backup" && (roleFor(tab) === "admin" || role === "super") && <BackupExport />}
+        {tab === "kpi" && (roleFor(tab) === "admin" || role === "super") && <KPI panels={panels} entries={activeEntries} baselines={baselines} />}
+        {tab === "equipment" && (roleFor(tab) === "admin" || role === "super") && <Equipment departments={config.departments || []} role={roleFor(tab)} username={username} />}
+        {tab === "reject" && (roleFor(tab) === "admin" || role === "super") && <RejectSample role={roleFor(tab)} username={username} />}
+        {tab === "panic" && (roleFor(tab) === "admin" || role === "super") && <PanicValue role={roleFor(tab)} username={username} />}
+        {tab === "corrective" && (roleFor(tab) === "admin" || role === "super") && <CorrectiveAction role={roleFor(tab)} username={username} />}
+        {tab === "infection" && (roleFor(tab) === "admin" || role === "super") && <InfectionDisease role={roleFor(tab)} username={username} />}
+        {tab === "lotcompare" && (roleFor(tab) === "admin" || role === "super") && <LotComparison panels={panels} />}
         {tab === "owner" && role === "super" && <OwnerSettings config={config} reload={() => { ensureConfig(); loadAll(); }} />}
-        {tab === "tables" && (role === "admin" || role === "super") && <CustomTables role={role} username={username} onReload={loadAll} />}
-        {tab === "files" && (role === "admin" || role === "super") && <Files role={role} username={username} />}
+        {tab === "tables" && (roleFor(tab) === "admin" || role === "super") && <CustomTables role={roleFor(tab)} username={username} onReload={loadAll} />}
+        {tab === "files" && (roleFor(tab) === "admin" || role === "super") && <Files role={roleFor(tab)} username={username} />}
         {tab === "calculate" && <Calculators config={config} />}
         {tab === "myschedule" && <MySchedule username={username} />}
-        {tab === "assignment" && <DailyAssignment role={role} />}
-        {tab === "breakhistory" && (role === "admin" || role === "super") && <BreakHistory />}
+        {tab === "assignment" && <DailyAssignment role={roleFor(tab)} />}
+        {tab === "breakhistory" && (roleFor(tab) === "admin" || role === "super") && <BreakHistory />}
         {tab.startsWith("pinned:") && (() => {
           const t = pinnedTables.find((x) => `pinned:${x.id}` === tab);
           return t ? <CustomTables role={role} username={username} openTableId={t.id} onReload={loadAll} /> : null;
@@ -589,10 +598,10 @@ function NavBtn({ active, onClick, icon, label }) {
   return <button onClick={onClick} style={{ background: active ? "#2A3B3D" : "transparent", color: active ? "#F0F3F2" : "#8FA39E", border: "none", borderRadius: 7, padding: "7px 12px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>{icon} {label}</button>;
 }
 
-function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pendingCount, pinnedTables, className, profiles }) {
+function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pendingCount, pinnedTables, className, profiles, permissions }) {
   const hiddenPages = config.hidden_pages || [];
   const notHidden = (key) => role === "super" || !hiddenPages.includes(key);
-  const isAdmin = role === "admin" || role === "super";
+  const isAdmin = role === "admin" || role === "super" || (permissions || []).some((p) => p.level === "admin");
   const [openGroups, setOpenGroups] = useState({ qc: true, schedule: true, settings: false, tables: true, records: true });
   const toggleGroup = (k) => setOpenGroups((g) => ({ ...g, [k]: !g[k] }));
 
