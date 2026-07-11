@@ -3,7 +3,7 @@ import { FlaskConical, LayoutGrid, Grid3x3, SlidersHorizontal, LogOut, Check, X,
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 import Settings from "./Settings";
-import OwnerSettings from "./OwnerSettings";
+import OwnerSettings, { BUILT_IN_PAGES } from "./OwnerSettings";
 import CustomTables from "./CustomTables";
 import Files from "./Files";
 import LeveyJennings from "./Charts";
@@ -441,12 +441,20 @@ function buildPortalPages(permissions, allTables, hiddenPages) {
 
 function Portal({ config, permissions, allTables, username, panels, entries, baselines, controlLots, busy, pendingItems, onSubmit, onDelete, onReview, onReviewBulk, onRecalculate, onLogout, profiles }) {
   const pages = buildPortalPages(permissions, allTables, config.hidden_pages || []);
-  const [openKey, setOpenKey] = useState(pages.length === 1 ? pages[0].key : null);
+  const isFullAdmin = BUILT_IN_PAGES.every((bp) => {
+    const grant = (permissions || []).find((perm) => perm.page === bp.key);
+    return grant?.level === "admin";
+  });
+  const [openKey, setOpenKey] = useState(isFullAdmin ? "home" : (pages.length === 1 ? pages[0].key : null));
   const [showProfile, setShowProfile] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const current = pages.find((p) => p.key === openKey);
 
   function renderPage(p) {
     const effectiveRole = p.level === "admin" ? "admin" : "staff";
+    if (p.key === "home") return <HomePage username={username} role="admin" config={config} panels={panels} activeEntries={entries} pendingCount={pendingItems.length} onNavigate={setOpenKey} profiles={profiles} />;
+    if (p.key === "assistant") return <SmartAssistant panels={panels} entries={entries} />;
+    if (p.key === "settings") return <Settings config={config} panels={panels} role="admin" username={username} baselines={baselines} reload={() => {}} />;
     if (p.key === "qc") return <Dashboard panels={panels} entries={entries} baselines={baselines} role={effectiveRole} busy={busy} onSubmit={onSubmit} onDelete={onDelete} profiles={profiles} />;
     if (p.key === "approvals") return <Approvals items={pendingItems} panels={panels} onReview={onReview} onReviewBulk={onReviewBulk} profiles={profiles} />;
     if (p.key === "grid") return <MonthlyGrid panels={panels} entries={entries} controlLots={controlLots} profiles={profiles} />;
@@ -473,6 +481,51 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
     if (p.key === "breakhistory") return <BreakHistory />;
     if (p.key.startsWith("table:")) return <CustomTables role={effectiveRole} username={username} openTableId={p.tableId} />;
     return null;
+  }
+
+  if (isFullAdmin) {
+    const activePage = { key: openKey, level: "admin" };
+    return (
+      <div style={{ minHeight: "100vh", background: config.page_bg_color || "#F0F3F2", fontFamily: "'IBM Plex Sans', sans-serif", color: "#1B2B2E" }}>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+          * { box-sizing: border-box; }
+          button { font-family: inherit; cursor: pointer; }
+          input, select, textarea { font-family: inherit; }
+          .app-sidebar { position: fixed; top: 0; left: 0; height: 100vh; width: 240px; transform: translateX(-100%); transition: transform 0.2s; z-index: 50; overflow-y: auto; }
+          .app-sidebar.open { transform: translateX(0); }
+          .app-sidebar-overlay { position: fixed; inset: 0; background: rgba(15,25,26,0.5); z-index: 40; }
+          .app-main { padding: 24px 20px 80px; max-width: 900px; margin: 0 auto; }
+          .app-topbar { display: flex; }
+          @media (min-width: 880px) {
+            .app-sidebar { transform: translateX(0); }
+            .app-sidebar-overlay { display: none !important; }
+            .app-main { margin-left: 240px; max-width: 1000px; }
+            .app-topbar { display: none !important; }
+          }
+        `}</style>
+
+        <div className="app-topbar" style={{ background: config.sidebar_color || "#1B2B2E", padding: "14px 16px", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 30 }}>
+          <button onClick={() => setSidebarOpen(true)} style={{ background: "none", border: "none", color: "#F0F3F2" }}><Menu size={22} /></button>
+          <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 15 }}>{config.app_title || "QC Log"}</div>
+          <button onClick={onLogout} style={{ background: "none", border: "none", color: "#8FA39E" }}><LogOut size={18} /></button>
+        </div>
+
+        {sidebarOpen && <div className="app-sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+        <AppSidebar
+          config={config} role="admin" username={username} tab={openKey}
+          onNavigate={(k) => { setOpenKey(k); setSidebarOpen(false); }}
+          onLogout={onLogout} pendingCount={pendingItems.length}
+          pinnedTables={(allTables || []).filter((t) => t.pinned)}
+          className={sidebarOpen ? "app-sidebar open" : "app-sidebar"}
+          profiles={profiles}
+        />
+
+        <main className="app-main">
+          {openKey === "profile" ? <MyProfile username={username} /> : renderPage(activePage)}
+        </main>
+      </div>
+    );
   }
 
   return (

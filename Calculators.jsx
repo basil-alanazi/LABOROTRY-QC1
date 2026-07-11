@@ -37,45 +37,34 @@ function UnitToggle({ unit, setUnit, options }) {
   );
 }
 
+// Hospital-approved F factor (signed protocol): LDL = TC - (TG*F + HDL).
+// F=0.2 for TG 0-160 is mathematically identical to the classic Friedewald TG/5,
+// so this table just extends that same idea with graduated factors at higher TG.
+function factorForTG(tg) {
+  if (tg <= 160) return 0.2;
+  if (tg <= 350) return 0.16;
+  if (tg <= 450) return 0.12;
+  if (tg <= 550) return 0.08;
+  return 0.04;
+}
+
 function LipidCalc({ settings }) {
   const [unit, setUnit] = useState(settings?.default_lipid_unit || "mg/dL");
   const [chol, setChol] = useState("");
   const [tg, setTg] = useState("");
   const [hdl, setHdl] = useState("");
-  const [autoSwitch, setAutoSwitch] = useState(true);
   const c = num(chol), t = num(tg), h = num(hdl);
   const valid = c !== null && t !== null && h !== null;
-  const divisor = unit === "mg/dL" ? 5 : 2.2; // TG/5 in mg/dL, TG/2.2 in mmol/L
-  const tgHighThreshold = unit === "mg/dL" ? 400 : 4.5;
 
-  // Convert to mg/dL for the Sampson equation (its constants are mg/dL-specific), then back.
-  const toMgDl = (chol_) => (unit === "mg/dL" ? chol_ : chol_ * 38.67);
-  const tgToMgDl = (tg_) => (unit === "mg/dL" ? tg_ : tg_ * 88.57);
-  const fromMgDl = (v) => (unit === "mg/dL" ? v : v / 38.67);
-
-  const useSampson = autoSwitch && valid && t >= tgHighThreshold;
-  let ldl, vldl, formulaUsed;
-  if (useSampson) {
-    const TC = toMgDl(c), HDL = toMgDl(h), TG = tgToMgDl(t);
-    const nonHDL = TC - HDL;
-    const vldlMg = TG / 8.56 + (TG * nonHDL) / 2140 - (TG * TG) / 16100;
-    const ldlMg = TC / 0.948 - HDL / 0.971 - vldlMg - 9.44;
-    vldl = fromMgDl(vldlMg);
-    ldl = fromMgDl(ldlMg);
-    formulaUsed = "Sampson (NIH Eq. 2)";
-  } else if (valid) {
-    vldl = t / divisor;
-    ldl = c - h - vldl;
-    formulaUsed = "Friedewald";
-  }
+  // The F table is defined in mg/dL; convert TG to mg/dL just to pick the right F, then compute in the entered unit.
+  const tgMgDl = unit === "mg/dL" ? t : (t !== null ? t * 88.57 : null);
+  const factor = valid ? factorForTG(tgMgDl) : null;
+  const vldl = valid ? t * factor : null;
+  const ldl = valid ? c - (vldl + h) : null;
 
   return (
     <div>
       <UnitToggle unit={unit} setUnit={setUnit} options={["mg/dL", "mmol/L"]} />
-      <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "#516361", marginBottom: 12, cursor: "pointer" }}>
-        <input type="checkbox" checked={autoSwitch} onChange={(e) => setAutoSwitch(e.target.checked)} />
-        Auto-switch to Sampson formula when TG ≥ {tgHighThreshold} {unit}
-      </label>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
         <label style={labelStyle}>Total Cholesterol ({unit})<input style={inputStyle} type="number" value={chol} onChange={(e) => setChol(e.target.value)} /></label>
         <label style={labelStyle}>Triglycerides ({unit})<input style={inputStyle} type="number" value={tg} onChange={(e) => setTg(e.target.value)} /></label>
@@ -83,19 +72,10 @@ function LipidCalc({ settings }) {
       </div>
       {valid && (
         <ResultBox>
-          VLDL = {vldl.toFixed(2)} {unit} &nbsp;·&nbsp; LDL ({formulaUsed}) = {ldl.toFixed(2)} {unit}
+          F = {factor} &nbsp;·&nbsp; VLDL = {vldl.toFixed(2)} {unit} &nbsp;·&nbsp; LDL = {ldl.toFixed(2)} {unit}
         </ResultBox>
       )}
-      {useSampson && (
-        <WarnBox>
-          TG ≥ {tgHighThreshold} {unit} — Friedewald (and Martin-Hopkins, which also isn't validated above this level) would be unreliable here, so this switched automatically to the Sampson/NIH Equation 2 formula, which is validated up to TG 800 mg/dL. Direct LDL measurement is still the gold standard if available.
-        </WarnBox>
-      )}
-      {!autoSwitch && valid && t >= tgHighThreshold && (
-        <WarnBox>
-          TG ≥ {tgHighThreshold} {unit} — Friedewald isn't reliable at this level. Auto-switch is turned off, so this is still using Friedewald; turn the checkbox on above to switch to the Sampson formula, or use a direct LDL measurement.
-        </WarnBox>
-      )}
+      <WarnBox>Hospital-approved formula: LDL = Total Cholesterol − (TG × F + HDL), with F chosen automatically from TG (0.2 for TG≤160, down to 0.04 for TG&gt;550).</WarnBox>
     </div>
   );
 }

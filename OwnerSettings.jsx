@@ -16,7 +16,7 @@ const THEME_PRESETS = [
   { name: "Slate Gray", accent: "#516361", sidebar: "#222A29", bg: "#F2F3F3" },
 ];
 
-const BUILT_IN_PAGES = [
+export const BUILT_IN_PAGES = [
   { key: "qc", label: "QC Entry (+ Approvals if admin)" },
   { key: "grid", label: "Monthly grid" },
   { key: "controls", label: "Control stock" },
