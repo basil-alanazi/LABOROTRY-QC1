@@ -42,6 +42,7 @@ function LipidCalc({ settings }) {
   const [chol, setChol] = useState("");
   const [tg, setTg] = useState("");
   const [hdl, setHdl] = useState("");
+  const [autoSwitch, setAutoSwitch] = useState(true);
   const c = num(chol), t = num(tg), h = num(hdl);
   const valid = c !== null && t !== null && h !== null;
   const divisor = unit === "mg/dL" ? 5 : 2.2; // TG/5 in mg/dL, TG/2.2 in mmol/L
@@ -52,7 +53,7 @@ function LipidCalc({ settings }) {
   const tgToMgDl = (tg_) => (unit === "mg/dL" ? tg_ : tg_ * 88.57);
   const fromMgDl = (v) => (unit === "mg/dL" ? v : v / 38.67);
 
-  const useSampson = valid && t >= tgHighThreshold;
+  const useSampson = autoSwitch && valid && t >= tgHighThreshold;
   let ldl, vldl, formulaUsed;
   if (useSampson) {
     const TC = toMgDl(c), HDL = toMgDl(h), TG = tgToMgDl(t);
@@ -71,6 +72,10 @@ function LipidCalc({ settings }) {
   return (
     <div>
       <UnitToggle unit={unit} setUnit={setUnit} options={["mg/dL", "mmol/L"]} />
+      <label style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "#516361", marginBottom: 12, cursor: "pointer" }}>
+        <input type="checkbox" checked={autoSwitch} onChange={(e) => setAutoSwitch(e.target.checked)} />
+        Auto-switch to Sampson formula when TG ≥ {tgHighThreshold} {unit}
+      </label>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
         <label style={labelStyle}>Total Cholesterol ({unit})<input style={inputStyle} type="number" value={chol} onChange={(e) => setChol(e.target.value)} /></label>
         <label style={labelStyle}>Triglycerides ({unit})<input style={inputStyle} type="number" value={tg} onChange={(e) => setTg(e.target.value)} /></label>
@@ -84,6 +89,11 @@ function LipidCalc({ settings }) {
       {useSampson && (
         <WarnBox>
           TG ≥ {tgHighThreshold} {unit} — Friedewald (and Martin-Hopkins, which also isn't validated above this level) would be unreliable here, so this switched automatically to the Sampson/NIH Equation 2 formula, which is validated up to TG 800 mg/dL. Direct LDL measurement is still the gold standard if available.
+        </WarnBox>
+      )}
+      {!autoSwitch && valid && t >= tgHighThreshold && (
+        <WarnBox>
+          TG ≥ {tgHighThreshold} {unit} — Friedewald isn't reliable at this level. Auto-switch is turned off, so this is still using Friedewald; turn the checkbox on above to switch to the Sampson formula, or use a direct LDL measurement.
         </WarnBox>
       )}
     </div>
