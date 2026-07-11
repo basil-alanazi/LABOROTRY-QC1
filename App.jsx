@@ -16,6 +16,7 @@ import AuditTrail from "./AuditTrail";
 import BackupExport from "./BackupExport";
 import SmartSearch from "./SmartSearch";
 import KPI from "./KPI";
+import DateNav from "./DateNav";
 import { playAlertSound } from "./sounds";
 import Equipment from "./Equipment";
 import LotComparison from "./LotComparison";
@@ -803,7 +804,7 @@ function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, 
           <div style={{ fontSize: 12, color: "#8A9694" }}>lot {panel.lot_number || "—"} · {panel.department}</div>
         </div>
         <label style={{ fontSize: 12.5, fontWeight: 600, color: "#516361" }}>Date
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ ...inputStyle, marginTop: 2 }} />
+          <DateNav value={date} onChange={setDate} />
         </label>
       </div>
 

@@ -58,12 +58,22 @@ export default function SmartAssistant({ panels, entries }) {
   }
 
   function findAnalyteMention(q, panels) {
+    const candidates = [];
     for (const p of panels) {
       for (const a of p.analytes || []) {
-        if (q.includes(a.name.toLowerCase())) return { panel: p, analyteName: a.name };
+        const name = a.name.toLowerCase().trim();
+        if (!name) continue;
+        // Whole-word match only — "troponin" must not match inside "uric acid",
+        // and short names (like "na", "k") must not match random letters in other words.
+        const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const re = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i");
+        if (re.test(q)) candidates.push({ panel: p, analyteName: a.name, matchLength: name.length });
       }
     }
-    return null;
+    if (candidates.length === 0) return null;
+    // If several analyte names appear in the question, trust the longest/most specific one.
+    candidates.sort((x, y) => y.matchLength - x.matchLength);
+    return candidates[0];
   }
 
   async function send() {
