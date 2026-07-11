@@ -17,7 +17,6 @@ import BackupExport from "./BackupExport";
 import SmartSearch from "./SmartSearch";
 import KPI from "./KPI";
 import DateNav from "./DateNav";
-import WelcomeScreen from "./WelcomeScreen";
 import { playAlertSound } from "./sounds";
 import Equipment from "./Equipment";
 import LotComparison from "./LotComparison";
@@ -66,7 +65,6 @@ const labelStyle = { fontSize: 12.5, fontWeight: 600, color: "#516361" };
 export default function App() {
   const [config, setConfig] = useState(null);
   const [role, setRole] = useState(() => localStorage.getItem("qc_role") || null);
-  const [showWelcome, setShowWelcome] = useState(false);
   const [username, setUsername] = useState(() => localStorage.getItem("qc_username") || "");
   const [permissions, setPermissions] = useState(() => {
     try { return JSON.parse(localStorage.getItem("qc_permissions") || "[]"); } catch { return []; }
@@ -132,7 +130,6 @@ export default function App() {
     setRole(newRole);
     setUsername(newUsername);
     setPermissions(newPermissions || []);
-    setShowWelcome(true);
   }
   function logout() {
     supabase.from("audit_log").insert({ action: "logout", entity: "auth", description: username, performed_by: username });
@@ -298,10 +295,6 @@ export default function App() {
     return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "IBM Plex Mono, monospace", color: "#4A5A5C" }}>Loading…</div>;
   }
   if (!role) return <Login config={config} staffAccounts={staffAccounts} portalAccounts={portalAccounts} onLogin={handleLogin} />;
-  if (showWelcome) {
-    const displayName = (profiles?.[username]?.full_name || "").trim().split(" ")[0] || username;
-    return <WelcomeScreen name={displayName} onDone={() => setShowWelcome(false)} />;
-  }
 
   if (role === "portal") {
     return (

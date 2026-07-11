@@ -93,6 +93,10 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
         <button type="submit" style={{ marginTop: 18, width: "100%", background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
           <Lock size={14} /> Sign in
         </button>
+
+        <div style={{ marginTop: 18, textAlign: "center", fontSize: 12, color: "#8FA39E", letterSpacing: 0.3 }}>
+          Welcome to Rabia Hospital Lab Family
+        </div>
       </form>
     </div>
   );
