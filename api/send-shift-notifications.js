@@ -7,7 +7,8 @@ import webpush from "web-push";
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
-const vapidPublic = process.env.VAPID_PUBLIC_KEY;
+// Public VAPID key — safe to hardcode, it's meant to be public (matches pushNotifications.js).
+const vapidPublic = "BG1GixDqBtaS_l5ZCEtdp31H7NFkzHtN_h4ZErPbO5g3Yy5UlxV3psvqE3dUxJhj9zsdWdDsuluiL2tUJKcTbR0";
 const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
 
 const RIYADH_OFFSET_MINUTES = 3 * 60;
