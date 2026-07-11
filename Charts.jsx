@@ -67,7 +67,20 @@ export default function LeveyJennings({ panels, entries, baselines }) {
             <ScatterChart margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E1E8E5" />
               <XAxis dataKey="x" tickFormatter={(i) => points[i]?.date?.slice(5) || ""} fontSize={10.5} stroke="#8A9694" />
-              <YAxis dataKey="value" fontSize={11} stroke="#8A9694" domain={["auto", "auto"]} />
+              <YAxis
+                dataKey="value"
+                fontSize={11}
+                stroke="#8A9694"
+                domain={(() => {
+                  const lo3 = baseline.mean - 3 * baseline.sd;
+                  const hi3 = baseline.mean + 3 * baseline.sd;
+                  const dataVals = points.map((p) => p.value);
+                  const dataMin = dataVals.length ? Math.min(...dataVals) : lo3;
+                  const dataMax = dataVals.length ? Math.max(...dataVals) : hi3;
+                  const pad = baseline.sd * 0.5;
+                  return [Math.min(lo3, dataMin) - pad, Math.max(hi3, dataMax) + pad];
+                })()}
+              />
               <Tooltip
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
