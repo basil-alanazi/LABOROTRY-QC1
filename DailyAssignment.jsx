@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
-import { todayISO, periodsForShift, findCloseMatch } from "./scheduleUtils";
+import { todayISO, classifyShift, findCloseMatch } from "./scheduleUtils";
 import DepartmentAssignmentImport from "./DepartmentAssignmentImport";
 
 const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 14, boxSizing: "border-box" };
@@ -56,11 +56,11 @@ export default function DailyAssignment({ role }) {
   }
   useEffect(() => { loadAll(); }, [month, period]);
 
-  function shiftPeriodsFor(staffId, date) {
+  function shiftPeriodFor(staffId, date) {
     const entry = scheduleEntries.find((e) => e.staff_id === staffId && e.date === date);
-    if (!entry) return { periods: [], shift: null };
+    if (!entry) return { period: null, shift: null };
     const shift = shifts.find((s) => s.code === entry.shift_code);
-    return { periods: periodsForShift(shift), shift };
+    return { period: classifyShift(shift), shift };
   }
 
   function assignmentFor(staffId, date) {
@@ -154,9 +154,9 @@ export default function DailyAssignment({ role }) {
                   {staff.map((m) => {
                     const a = assignmentFor(m.id, dateStr);
                     const shiftCode = scheduleEntries.find((e) => e.staff_id === m.id && e.date === dateStr)?.shift_code;
-                    const { periods: staffPeriods } = shiftPeriodsFor(m.id, dateStr);
-                    const matches = staffPeriods.length === 0 ? true : staffPeriods.includes(period);
-                    const periodLabel = staffPeriods.map((p) => ({ morning: "AM", evening: "PM", night: "Night" }[p])).join("+");
+                    const { period: staffPeriod } = shiftPeriodFor(m.id, dateStr);
+                    const matches = staffPeriod === null ? true : staffPeriod === period;
+                    const periodLabel = { morning: "AM", evening: "PM", night: "Night" }[staffPeriod] || "";
                     const deptColor = colorForDept(a?.department_name);
                     return (
                       <td key={m.id} style={{ padding: 2, borderBottom: "1px solid #EEF2F0", background: deptColor ? deptColor.bg : (matches ? "transparent" : "#F7F7F7"), opacity: matches ? 1 : 0.45 }}>

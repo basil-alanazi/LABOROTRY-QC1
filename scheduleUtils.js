@@ -41,9 +41,10 @@ export function todayISO() {
 
 // Moves an ISO date string ("2026-07-10") forward or backward by N days.
 export function shiftDate(isoDate, deltaDays) {
-  const d = new Date(isoDate + "T00:00:00");
-  d.setDate(d.getDate() + deltaDays);
-  return d.toISOString().slice(0, 10);
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() + deltaDays);
+  return date.toISOString().slice(0, 10);
 }
 export function yesterdayISO() {
   const d = new Date();
@@ -95,44 +96,55 @@ export function findCloseMatch(typed, knownValues) {
   return null;
 }
 
-// Classifies a shift template into "morning" / "evening" / "night" / null (off).
-// Kept for places that only need one label (e.g. the small on-screen badge).
-export function classifyShift(shift) {
-  const periods = periodsForShift(shift);
-  return periods[0] || null;
-}
-
 // Named windows: Night 00:00–08:00, Morning 08:00–16:00, Evening 16:00–24:00.
 const PERIOD_WINDOWS = {
   night: [0, 8 * 60],
   morning: [8 * 60, 16 * 60],
   evening: [16 * 60, 24 * 60],
 };
-const OVERLAP_THRESHOLD_MIN = 150; // ~2.5h — long shifts crossing a boundary show in every window they meaningfully cover.
+const OVERLAP_THRESHOLD_MIN = 150; // ~2.5h — used by periodsForShift for multi-period display.
 
 function toMinutes12(hhmm) {
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;
 }
 
-// Returns every period a shift meaningfully overlaps — so a 4pm–4am shift
-// shows under both Evening and Night, a 12pm–8pm shift under both Morning
-// and Evening, while a normal 07:00 start still lands only in Morning.
-export function periodsForShift(shift) {
-  if (!shift || shift.is_off || !shift.start_time || !shift.end_time) return [];
+function overlapsByPeriod(shift) {
+  if (!shift || shift.is_off || !shift.start_time || !shift.end_time) return {};
   const s = toMinutes12(shift.start_time);
   let e = toMinutes12(shift.end_time);
   if (e <= s) e += 24 * 60; // crosses midnight
 
-  const periods = [];
+  const overlaps = {};
   for (const [name, [wStart, wEnd]] of Object.entries(PERIOD_WINDOWS)) {
     let overlap = Math.max(0, Math.min(e, wEnd) - Math.max(s, wStart));
     if (e > 24 * 60) {
-      // Also check the "next day" instance of this window, for shifts that run past midnight.
       overlap += Math.max(0, Math.min(e, wEnd + 24 * 60) - Math.max(s, wStart + 24 * 60));
     }
-    if (overlap >= OVERLAP_THRESHOLD_MIN) periods.push(name);
+    overlaps[name] = overlap;
   }
-  if (shift.night_shift && !periods.includes("night")) periods.push("night");
+  return overlaps;
+}
+
+// Classifies a shift template into exactly ONE period — "morning" / "evening"
+// / "night" / null (off) — whichever window the shift overlaps the most.
+// Each shift belongs to a single tab; nobody is duplicated across tabs.
+export function classifyShift(shift) {
+  const overlaps = overlapsByPeriod(shift);
+  const entries = Object.entries(overlaps);
+  if (entries.length === 0) return null;
+  const [bestName, bestOverlap] = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+  if (bestOverlap <= 0) return null;
+  if (shift?.night_shift) return "night";
+  return bestName;
+}
+
+// Returns every period a shift meaningfully overlaps — kept available for
+// features that want multi-period display, but not used for the day-to-day
+// Morning/Evening/Night tabs (those use classifyShift, one period each).
+export function periodsForShift(shift) {
+  const overlaps = overlapsByPeriod(shift);
+  const periods = Object.entries(overlaps).filter(([, v]) => v >= OVERLAP_THRESHOLD_MIN).map(([k]) => k);
+  if (shift?.night_shift && !periods.includes("night")) periods.push("night");
   return periods;
 }
