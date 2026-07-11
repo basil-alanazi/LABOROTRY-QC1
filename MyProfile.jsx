@@ -16,6 +16,7 @@ export default function MyProfile({ username }) {
   const [pushStatus, setPushStatus] = useState("checking"); // checking | subscribed | unsubscribed | unsupported
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState("");
+  const [pushStep, setPushStep] = useState("");
   const [testSending, setTestSending] = useState(false);
   const [testMsg, setTestMsg] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -63,18 +64,21 @@ export default function MyProfile({ username }) {
   async function togglePush() {
     setPushBusy(true);
     setPushError("");
+    setPushStep("");
     try {
       if (pushStatus === "subscribed") {
+        setPushStep("Turning off…");
         await disablePushReminders(username);
         setPushStatus("unsubscribed");
       } else {
-        await enablePushReminders(username);
+        await enablePushReminders(username, setPushStep);
         setPushStatus("subscribed");
       }
     } catch (err) {
       setPushError(err.message || "Couldn't change notification settings.");
     } finally {
       setPushBusy(false);
+      setPushStep("");
     }
   }
 
@@ -155,12 +159,31 @@ export default function MyProfile({ username }) {
         {pushStatus === "unsupported" ? (
           <div style={{ fontSize: 12.5, color: "#B8860B" }}>Notifications aren't supported in this browser. Try Chrome or Safari on iOS 16.4+.</div>
         ) : (
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={togglePush} disabled={pushBusy || pushStatus === "checking"} style={{ background: pushStatus === "subscribed" ? "none" : "#0F7173", color: pushStatus === "subscribed" ? "#C1432B" : "#fff", border: pushStatus === "subscribed" ? "1px solid #C1432B" : "none", borderRadius: 8, padding: "10px 16px", fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", gap: 6, opacity: pushBusy ? 0.6 : 1 }}>
-              {pushStatus === "subscribed" ? <><BellOff size={14} /> Turn off reminders</> : <><Bell size={14} /> {pushBusy ? "Enabling…" : "Enable shift reminders"}</>}
-            </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                onClick={togglePush}
+                disabled={pushBusy || pushStatus === "checking"}
+                aria-label="Toggle shift reminders"
+                style={{
+                  position: "relative", width: 52, height: 30, borderRadius: 15, border: "none",
+                  background: pushStatus === "subscribed" ? "#0F7173" : "#D6DEDA",
+                  transition: "background 0.2s", flexShrink: 0, opacity: pushBusy ? 0.6 : 1,
+                }}
+              >
+                <span style={{
+                  position: "absolute", top: 3, left: pushStatus === "subscribed" ? 25 : 3,
+                  width: 24, height: 24, borderRadius: "50%", background: "#fff",
+                  transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                }} />
+              </button>
+              <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1B2B2E", display: "flex", alignItems: "center", gap: 6 }}>
+                {pushStatus === "subscribed" ? <Bell size={14} /> : <BellOff size={14} />}
+                {pushBusy ? (pushStep || "Working…") : (pushStatus === "subscribed" ? "Shift reminders on" : "Shift reminders off")}
+              </div>
+            </div>
             {pushStatus === "subscribed" && (
-              <button onClick={sendTestNotification} disabled={testSending} style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 8, padding: "10px 16px", fontWeight: 700, fontSize: 13.5, opacity: testSending ? 0.6 : 1 }}>
+              <button onClick={sendTestNotification} disabled={testSending} style={{ alignSelf: "flex-start", background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 8, padding: "10px 16px", fontWeight: 700, fontSize: 13.5, opacity: testSending ? 0.6 : 1 }}>
                 {testSending ? "Sending…" : "Send test notification"}
               </button>
             )}

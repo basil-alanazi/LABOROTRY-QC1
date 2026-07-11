@@ -10,30 +10,48 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
+  ]);
+}
+
 export function pushSupported() {
   return typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
 }
 
 export async function getSubscriptionStatus() {
   if (!pushSupported()) return "unsupported";
-  const reg = await navigator.serviceWorker.ready;
-  const sub = await reg.pushManager.getSubscription();
-  return sub ? "subscribed" : "unsubscribed";
+  try {
+    const reg = await withTimeout(navigator.serviceWorker.ready, 8000, "Service worker didn't start in time.");
+    const sub = await reg.pushManager.getSubscription();
+    return sub ? "subscribed" : "unsubscribed";
+  } catch (err) {
+    console.error("getSubscriptionStatus failed:", err);
+    return "unsubscribed";
+  }
 }
 
-export async function enablePushReminders(username) {
+export async function enablePushReminders(username, onStep) {
+  const step = (s) => onStep && onStep(s);
   if (!pushSupported()) throw new Error("Push notifications aren't supported in this browser.");
+  step("Asking for permission…");
   const permission = await Notification.requestPermission();
   if (permission !== "granted") throw new Error("Notification permission was not granted.");
 
-  const reg = await navigator.serviceWorker.ready;
+  step("Starting background service…");
+  const reg = await withTimeout(navigator.serviceWorker.ready, 8000, "Service worker didn't start in time — try closing and reopening the app.");
+  step("Checking existing subscription…");
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {
+    step("Subscribing…");
     sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
   }
+  step("Saving…");
   const { error } = await supabase.from("push_subscriptions").upsert(
     { username, endpoint: sub.endpoint, subscription: sub.toJSON() },
     { onConflict: "username,endpoint" }
