@@ -26,6 +26,8 @@ export default function MyProfile({ username }) {
 
   useEffect(() => {
     getSubscriptionStatus().then(setPushStatus);
+    const swErr = localStorage.getItem("qc_sw_error");
+    if (swErr) setPushError(`Background service failed to start: ${swErr}`);
   }, []);
 
   async function changePassword() {

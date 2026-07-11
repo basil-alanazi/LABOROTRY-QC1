@@ -10,8 +10,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((err) => {
+    navigator.serviceWorker.register("/sw.js").then(() => {
+      localStorage.removeItem("qc_sw_error");
+    }).catch((err) => {
       console.error("Service worker registration failed:", err);
+      localStorage.setItem("qc_sw_error", `${err.name}: ${err.message}`);
     });
   });
 }
