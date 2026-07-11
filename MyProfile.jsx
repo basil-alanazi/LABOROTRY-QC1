@@ -16,6 +16,8 @@ export default function MyProfile({ username }) {
   const [pushStatus, setPushStatus] = useState("checking"); // checking | subscribed | unsubscribed | unsupported
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState("");
+  const [testSending, setTestSending] = useState(false);
+  const [testMsg, setTestMsg] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
@@ -40,6 +42,21 @@ export default function MyProfile({ username }) {
       setPwMsg(`Save failed: ${err.message}`);
     } finally {
       setPwSaving(false);
+    }
+  }
+
+  async function sendTestNotification() {
+    setTestSending(true);
+    setTestMsg("");
+    try {
+      const res = await fetch(`/api/send-test-notification?username=${encodeURIComponent(username)}`);
+      const data = await res.json();
+      if (!res.ok) { setTestMsg(`❌ ${data.error || "Failed to send"}`); return; }
+      setTestMsg(data.sent > 0 ? "✅ Sent! Check your notifications." : "❌ Nothing to send to — try re-enabling reminders.");
+    } catch (err) {
+      setTestMsg(`❌ ${err.message}`);
+    } finally {
+      setTestSending(false);
     }
   }
 
@@ -138,10 +155,18 @@ export default function MyProfile({ username }) {
         {pushStatus === "unsupported" ? (
           <div style={{ fontSize: 12.5, color: "#B8860B" }}>Notifications aren't supported in this browser. Try Chrome or Safari on iOS 16.4+.</div>
         ) : (
-          <button onClick={togglePush} disabled={pushBusy || pushStatus === "checking"} style={{ background: pushStatus === "subscribed" ? "none" : "#0F7173", color: pushStatus === "subscribed" ? "#C1432B" : "#fff", border: pushStatus === "subscribed" ? "1px solid #C1432B" : "none", borderRadius: 8, padding: "10px 16px", fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", gap: 6, opacity: pushBusy ? 0.6 : 1 }}>
-            {pushStatus === "subscribed" ? <><BellOff size={14} /> Turn off reminders</> : <><Bell size={14} /> {pushBusy ? "Enabling…" : "Enable shift reminders"}</>}
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={togglePush} disabled={pushBusy || pushStatus === "checking"} style={{ background: pushStatus === "subscribed" ? "none" : "#0F7173", color: pushStatus === "subscribed" ? "#C1432B" : "#fff", border: pushStatus === "subscribed" ? "1px solid #C1432B" : "none", borderRadius: 8, padding: "10px 16px", fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", gap: 6, opacity: pushBusy ? 0.6 : 1 }}>
+              {pushStatus === "subscribed" ? <><BellOff size={14} /> Turn off reminders</> : <><Bell size={14} /> {pushBusy ? "Enabling…" : "Enable shift reminders"}</>}
+            </button>
+            {pushStatus === "subscribed" && (
+              <button onClick={sendTestNotification} disabled={testSending} style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 8, padding: "10px 16px", fontWeight: 700, fontSize: 13.5, opacity: testSending ? 0.6 : 1 }}>
+                {testSending ? "Sending…" : "Send test notification"}
+              </button>
+            )}
+          </div>
         )}
+        {testMsg && <div style={{ fontSize: 12.5, color: testMsg.startsWith("✅") ? "#2F6B4F" : "#C1432B", marginTop: 8 }}>{testMsg}</div>}
         {pushError && <div style={{ fontSize: 12.5, color: "#C1432B", marginTop: 8 }}>{pushError}</div>}
       </div>
 
