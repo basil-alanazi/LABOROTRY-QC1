@@ -1,7 +1,1 @@
-{
-  "functions": {
-    "api/send-shift-notifications.js": {
-      "maxDuration": 30
-    }
-  }
-}
+
