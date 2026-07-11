@@ -17,6 +17,7 @@ import BackupExport from "./BackupExport";
 import SmartSearch from "./SmartSearch";
 import KPI from "./KPI";
 import DateNav from "./DateNav";
+import NotificationBell from "./NotificationBell";
 import { playAlertSound } from "./sounds";
 import Equipment from "./Equipment";
 import LotComparison from "./LotComparison";
@@ -80,6 +81,8 @@ export default function App() {
   const [profiles, setProfiles] = useState({});
   const [tab, setTab] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("qc_dark") === "1");
+  useEffect(() => { localStorage.setItem("qc_dark", darkMode ? "1" : "0"); }, [darkMode]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -149,6 +152,18 @@ export default function App() {
     setUsername("");
     setPermissions([]);
   }
+
+  // Auto-logout shared lab computers after 20 minutes of no activity, so
+  // nobody accidentally stays signed in on someone else's session.
+  useEffect(() => {
+    if (!role) return;
+    const IDLE_LIMIT_MS = 20 * 60 * 1000;
+    let timer = setTimeout(logout, IDLE_LIMIT_MS);
+    const reset = () => { clearTimeout(timer); timer = setTimeout(logout, IDLE_LIMIT_MS); };
+    const events = ["mousedown", "keydown", "touchstart", "scroll"];
+    events.forEach((ev) => window.addEventListener(ev, reset));
+    return () => { clearTimeout(timer); events.forEach((ev) => window.removeEventListener(ev, reset)); };
+  }, [role]);
 
   async function logActivity(action, description) {
     await supabase.from("audit_log").insert({ action, entity: "qc_entry", description, performed_by: username });
@@ -312,7 +327,7 @@ export default function App() {
         panels={panels} entries={activeEntries} baselines={baselines} controlLots={controlLots}
         busy={busy} pendingItems={pendingItems}
         onSubmit={submitEntry} onDelete={deleteEntry} onReview={reviewAnalyte} onReviewBulk={reviewAnalytesBulk}
-        onRecalculate={recalculateAllColors} onLogout={logout} profiles={profiles}
+        onRecalculate={recalculateAllColors} onLogout={logout} profiles={profiles} darkMode={darkMode}
       />
     );
   }
@@ -328,7 +343,7 @@ export default function App() {
         .app-sidebar.open { transform: translateX(0); }
         .app-sidebar-overlay { position: fixed; inset: 0; background: rgba(15,25,26,0.5); z-index: 40; }
         .app-main { padding: 24px 20px 80px; max-width: 900px; margin: 0 auto; }
-        .app-topbar { display: flex; }
+        .app-topbar { display: flex; padding-top: max(14px, env(safe-area-inset-top)) !important; }
         @media (min-width: 880px) {
           .app-sidebar { transform: translateX(0); }
           .app-sidebar-overlay { display: none !important; }
@@ -343,12 +358,20 @@ export default function App() {
           .print-area table { font-size: 10px !important; }
           .print-only { display: inline !important; }
         }
+        .app-main.dark-mode { filter: invert(0.92) hue-rotate(180deg); background: #fff; }
+        .app-main.dark-mode img, .app-main.dark-mode svg, .app-main.dark-mode video { filter: invert(1) hue-rotate(180deg); }
+        @media (max-width: 600px) {
+          button:not([style*="width: 100%"]) { min-height: 38px; min-width: 38px; }
+        }
       `}</style>
 
       <div className="app-topbar" style={{ background: config.sidebar_color || "#1B2B2E", padding: "14px 16px", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 30 }}>
         <button onClick={() => setSidebarOpen(true)} style={{ background: "none", border: "none", color: "#F0F3F2" }}><Menu size={22} /></button>
         <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 15 }}>{config.app_title || "QC Log"}</div>
-        <button onClick={logout} style={{ background: "none", border: "none", color: "#8FA39E" }}><LogOut size={18} /></button>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <NotificationBell username={username} pendingCount={pendingItems.length} onNavigate={setTab} dark />
+          <button onClick={logout} style={{ background: "none", border: "none", color: "#8FA39E" }}><LogOut size={18} /></button>
+        </div>
       </div>
 
       {sidebarOpen && <div className="app-sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
@@ -357,10 +380,10 @@ export default function App() {
         onNavigate={(k) => { setTab(k); setSidebarOpen(false); }}
         onLogout={logout} pendingCount={pendingItems.length} pinnedTables={pinnedTables}
         className={sidebarOpen ? "app-sidebar open" : "app-sidebar"}
-        profiles={profiles} permissions={permissions}
+        profiles={profiles} permissions={permissions} darkMode={darkMode} setDarkMode={setDarkMode}
       />
 
-      <main className="app-main">
+      <main className={darkMode ? "app-main dark-mode" : "app-main"}>
         <ErrorBoundary key={tab}>
         {tab === "home" && <HomePage username={username} role={roleFor(tab)} config={config} panels={panels} activeEntries={activeEntries} pendingCount={pendingItems.length} onNavigate={setTab} profiles={profiles} />}
         {tab === "profile" && <MyProfile username={username} />}
@@ -396,6 +419,11 @@ export default function App() {
         {tab.startsWith("pinned:") && (() => {
           const t = pinnedTables.find((x) => `pinned:${x.id}` === tab);
           return t ? <CustomTables role={role} username={username} openTableId={t.id} onReload={loadAll} /> : null;
+        })()}
+        {tab.startsWith("opentable:") && (() => {
+          const id = tab.slice("opentable:".length);
+          const t = allTables.find((x) => x.id === id);
+          return t ? <CustomTables role={roleFor("tables")} username={username} openTableId={t.id} onReload={loadAll} /> : null;
         })()}
         </ErrorBoundary>
         {error && <div style={{ position: "fixed", bottom: 16, left: "50%", transform: "translateX(-50%)", background: "#C1432B", color: "#fff", padding: "10px 18px", borderRadius: 8, fontSize: 14 }}>{error}</div>}
@@ -448,7 +476,7 @@ function buildPortalPages(permissions, allTables, hiddenPages) {
   return pages;
 }
 
-function Portal({ config, permissions, allTables, username, panels, entries, baselines, controlLots, busy, pendingItems, onSubmit, onDelete, onReview, onReviewBulk, onRecalculate, onLogout, profiles }) {
+function Portal({ config, permissions, allTables, username, panels, entries, baselines, controlLots, busy, pendingItems, onSubmit, onDelete, onReview, onReviewBulk, onRecalculate, onLogout, profiles, darkMode }) {
   const pages = buildPortalPages(permissions, allTables, config.hidden_pages || []);
   const isFullAdmin = BUILT_IN_PAGES.every((bp) => {
     const grant = (permissions || []).find((perm) => perm.page === bp.key);
@@ -505,13 +533,18 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
           .app-sidebar.open { transform: translateX(0); }
           .app-sidebar-overlay { position: fixed; inset: 0; background: rgba(15,25,26,0.5); z-index: 40; }
           .app-main { padding: 24px 20px 80px; max-width: 900px; margin: 0 auto; }
-          .app-topbar { display: flex; }
+          .app-topbar { display: flex; padding-top: max(14px, env(safe-area-inset-top)) !important; }
           @media (min-width: 880px) {
             .app-sidebar { transform: translateX(0); }
             .app-sidebar-overlay { display: none !important; }
             .app-main { margin-left: 240px; max-width: 1000px; }
             .app-topbar { display: none !important; }
           }
+          .app-main.dark-mode { filter: invert(0.92) hue-rotate(180deg); background: #fff; }
+          .app-main.dark-mode img, .app-main.dark-mode svg, .app-main.dark-mode video { filter: invert(1) hue-rotate(180deg); }
+        @media (max-width: 600px) {
+          button:not([style*="width: 100%"]) { min-height: 38px; min-width: 38px; }
+        }
         `}</style>
 
         <div className="app-topbar" style={{ background: config.sidebar_color || "#1B2B2E", padding: "14px 16px", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 30 }}>
@@ -530,7 +563,7 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
           profiles={profiles}
         />
 
-        <main className="app-main">
+        <main className={darkMode ? "app-main dark-mode" : "app-main"}>
           {openKey === "profile" ? <MyProfile username={username} /> : renderPage(activePage)}
         </main>
       </div>
@@ -598,7 +631,7 @@ function NavBtn({ active, onClick, icon, label }) {
   return <button onClick={onClick} style={{ background: active ? "#2A3B3D" : "transparent", color: active ? "#F0F3F2" : "#8FA39E", border: "none", borderRadius: 7, padding: "7px 12px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>{icon} {label}</button>;
 }
 
-function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pendingCount, pinnedTables, className, profiles, permissions }) {
+function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pendingCount, pinnedTables, className, profiles, permissions, darkMode, setDarkMode }) {
   const hiddenPages = config.hidden_pages || [];
   const notHidden = (key) => role === "super" || !hiddenPages.includes(key);
   const isAdmin = role === "admin" || role === "super" || (permissions || []).some((p) => p.level === "admin");
@@ -652,6 +685,10 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
         )}
       </div>
 
+      <div style={{ padding: "10px 16px 0", display: "flex", justifyContent: "flex-end" }}>
+        <NotificationBell username={username} pendingCount={pendingCount} onNavigate={onNavigate} dark />
+      </div>
+
       <SmartSearch onNavigate={onNavigate} />
 
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
@@ -703,7 +740,10 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
         )}
       </div>
 
-      <div style={{ padding: 12, borderTop: "1px solid #2A3B3D" }}>
+      <div style={{ padding: 12, borderTop: "1px solid #2A3B3D", display: "flex", flexDirection: "column", gap: 8 }}>
+        <button onClick={() => setDarkMode((v) => !v)} style={{ width: "100%", background: "transparent", border: "1px solid #39494A", color: "#8FA39E", borderRadius: 7, padding: "9px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+        </button>
         <button onClick={onLogout} style={{ width: "100%", background: "transparent", border: "1px solid #39494A", color: "#8FA39E", borderRadius: 7, padding: "9px", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
           <LogOut size={14} /> Log out
         </button>

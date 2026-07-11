@@ -15,6 +15,17 @@ export default function HomePage({ username, role, config, panels, activeEntries
   const [onDuty, setOnDuty] = useState([]);
   const displayName = (profiles?.[username]?.full_name || "").trim().split(" ")[0] || username;
   const [mine, setMine] = useState(null); // { department, shiftCode }
+  const [backupDaysAgo, setBackupDaysAgo] = useState(null);
+  const isAdmin = role === "admin" || role === "super";
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    supabase.from("backup_log").select("created_at").order("created_at", { ascending: false }).limit(1).then(({ data }) => {
+      if (!data || data.length === 0) { setBackupDaysAgo(Infinity); return; }
+      const days = Math.floor((Date.now() - new Date(data[0].created_at).getTime()) / 86400000);
+      setBackupDaysAgo(days);
+    });
+  }, [isAdmin]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30000);
@@ -83,6 +94,11 @@ export default function HomePage({ username, role, config, panels, activeEntries
     <div>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 22, fontWeight: 700 }}>{greeting(now.getHours())}, {displayName} 👋</div>
+        {isAdmin && backupDaysAgo !== null && backupDaysAgo >= 7 && (
+          <button onClick={() => onNavigate("backup")} style={{ display: "block", width: "100%", textAlign: "left", marginTop: 10, background: "#FBF3DF", border: "1px solid #E8D9A8", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "#8A6D2F" }}>
+            💾 {backupDaysAgo === Infinity ? "You haven't taken a backup yet" : `It's been ${backupDaysAgo} days since your last backup`} — tap to download one now.
+          </button>
+        )}
         <div style={{ fontSize: 13, color: "#8A9694", marginTop: 4 }}>{now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} · {now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
       </div>
 

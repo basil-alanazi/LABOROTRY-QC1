@@ -252,15 +252,13 @@ export default function Schedule({ departments, role, username }) {
                       return (
                         <td key={m.id} style={{ padding: 2, textAlign: "center", borderBottom: "1px solid #9CA8AC", borderRight: "1px solid #C7D1CE", background: hasShift ? shift.color : "transparent" }}>
                           {canEdit ? (
-                            <select
-                              value={entry?.shift_code || ""}
-                              onChange={(ev) => setCell(m.id, dateStr, ev.target.value)}
+                            <input
+                              list="shift-code-suggestions"
+                              defaultValue={entry?.shift_code || ""}
+                              onBlur={(ev) => ev.target.value !== (entry?.shift_code || "") && setCell(m.id, dateStr, ev.target.value.toUpperCase())}
                               className="no-print"
-                              style={{ border: "none", background: "transparent", fontWeight: 700, fontSize: 10.5, color: hasShift ? "#fff" : "#1B2B2E", width: "100%" }}
-                            >
-                              <option value=""></option>
-                              {shifts.map((s) => <option key={s.code} value={s.code}>{s.code}</option>)}
-                            </select>
+                              style={{ border: "none", background: "transparent", fontWeight: 700, fontSize: 10.5, color: hasShift ? "#fff" : "#1B2B2E", width: "100%", textAlign: "center", padding: "4px 2px" }}
+                            />
                           ) : (
                             <span style={{ fontWeight: 700, fontSize: 10.5, color: hasShift ? "#fff" : "#1B2B2E" }}>{entry?.shift_code || ""}</span>
                           )}
@@ -276,6 +274,10 @@ export default function Schedule({ departments, role, username }) {
           </table>
         </div>
       )}
+
+      <datalist id="shift-code-suggestions">
+        {shifts.map((s) => <option key={s.code} value={s.code} />)}
+      </datalist>
 
       {/* Shift key */}
       <div style={{ marginTop: 20 }}>

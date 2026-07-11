@@ -102,7 +102,7 @@ export default function SmartSearch({ onNavigate }) {
                 <div style={{ padding: 14, fontSize: 12.5, color: "#8A9694" }}>No matches.</div>
               ) : (
                 <>
-                  {results.panels.length > 0 && <ResultGroup icon={<FlaskConical size={13} />} label="Quality Control" items={results.panels} onClick={() => go("qc")} />}
+                  {results.panels.length > 0 && <ResultGroup icon={<FlaskConical size={13} />} label="Quality Control" items={results.panels} onItemClick={() => go("qc")} />}
                   {results.records.length > 0 && (
                     <div style={{ padding: "6px 4px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, fontWeight: 700, color: "#8A9694", padding: "2px 8px" }}>RECORDS</div>
@@ -114,10 +114,10 @@ export default function SmartSearch({ onNavigate }) {
                       ))}
                     </div>
                   )}
-                  {results.equipment.length > 0 && <ResultGroup icon={<Wrench size={13} />} label="Equipment & Shifts" items={results.equipment} onClick={() => go("equipment")} />}
-                  {results.staff.length > 0 && <ResultGroup icon={<Users size={13} />} label="Staff" items={results.staff} onClick={() => go("staff")} />}
-                  {results.tables.length > 0 && <ResultGroup icon={<Table2 size={13} />} label="Tables" items={results.tables} onClick={() => go("tables")} />}
-                  {results.files.length > 0 && <ResultGroup icon={<FolderOpen size={13} />} label="Files" items={results.files} onClick={() => go("files")} />}
+                  {results.equipment.length > 0 && <ResultGroup icon={<Wrench size={13} />} label="Equipment & Shifts" items={results.equipment} onItemClick={() => go("equipment")} />}
+                  {results.staff.length > 0 && <ResultGroup icon={<Users size={13} />} label="Staff" items={results.staff} onItemClick={() => go("staff")} />}
+                  {results.tables.length > 0 && <ResultGroup icon={<Table2 size={13} />} label="Tables" items={results.tables} onItemClick={(i) => go(`opentable:${i.id}`)} />}
+                  {results.files.length > 0 && <ResultGroup icon={<FolderOpen size={13} />} label="Files" items={results.files} onItemClick={() => go("files")} />}
                 </>
               )}
             </div>
@@ -128,12 +128,12 @@ export default function SmartSearch({ onNavigate }) {
   );
 }
 
-function ResultGroup({ icon, label, items, onClick }) {
+function ResultGroup({ icon, label, items, onItemClick }) {
   return (
     <div style={{ padding: "6px 4px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, fontWeight: 700, color: "#8A9694", padding: "2px 8px" }}>{icon} {label.toUpperCase()}</div>
       {items.slice(0, 6).map((i, idx) => (
-        <button key={idx} onClick={onClick} style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "6px 8px", borderRadius: 5, display: "block" }}>
+        <button key={idx} onClick={() => onItemClick(i)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "6px 8px", borderRadius: 5, display: "block" }}>
           <div style={{ fontSize: 12.5, fontWeight: 600, color: "#1B2B2E" }}>{i.label}</div>
           {i.sub && <div style={{ fontSize: 11, color: "#8A9694" }}>{i.sub}</div>}
         </button>
