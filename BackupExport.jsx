@@ -30,9 +30,9 @@ const TABLES = [
   { table: "audit_log", sheet: "Audit Log" },
 ];
 
-// A few columns hold JSON that's unreadable as raw text in Excel — turn them
-// into a plain, human-readable summary instead.
-function flattenValue(table, key, v) {
+// A few columns hold JSON or raw IDs that aren't readable as plain text in
+// Excel — turn them into a human-readable summary using lookups built once.
+function flattenValue(table, key, v, lookups) {
   if (v === null || v === undefined) return "";
   if (table === "qc_panels" && key === "analytes" && Array.isArray(v)) {
     return v.map((a) => `${a.name}${a.unit ? ` (${a.unit})` : ""}`).join(", ");
@@ -40,6 +40,12 @@ function flattenValue(table, key, v) {
   if (table === "custom_tables" && key === "columns" && Array.isArray(v)) {
     return v.join(", ");
   }
+  if (key === "extra_data" && v && typeof v === "object" && !Array.isArray(v)) {
+    const entries = Object.entries(v).filter(([, val]) => val !== "" && val !== null);
+    return entries.length ? entries.map(([k, val]) => `${k}: ${val}`).join(" | ") : "";
+  }
+  if (key === "staff_id" && lookups.staff[v]) return `${lookups.staff[v]} (${v.slice(0, 8)})`;
+  if (key === "equipment_id" && lookups.equipment[v]) return `${lookups.equipment[v]} (${v.slice(0, 8)})`;
   if (typeof v === "object") return JSON.stringify(v);
   return v;
 }
@@ -70,6 +76,16 @@ export default function BackupExport() {
     const wb = XLSX.utils.book_new();
     const summary = [];
 
+    setProgress("Preparing name lookups…");
+    const [{ data: staffRows }, { data: equipRows }] = await Promise.all([
+      supabase.from("staff_members").select("id, full_name"),
+      supabase.from("equipment").select("id, name"),
+    ]);
+    const lookups = {
+      staff: Object.fromEntries((staffRows || []).map((s) => [s.id, s.full_name])),
+      equipment: Object.fromEntries((equipRows || []).map((e) => [e.id, e.name])),
+    };
+
     for (const { table, sheet } of chosenTables) {
       setProgress(`Fetching ${sheet}…`);
       const { data, error } = await supabase.from(table).select("*");
@@ -85,7 +101,7 @@ export default function BackupExport() {
         continue;
       }
       const headers = [...new Set(rows.flatMap((r) => Object.keys(r)))];
-      const aoa = [headers, ...rows.map((r) => headers.map((h) => flattenValue(table, h, r[h])))];
+      const aoa = [headers, ...rows.map((r) => headers.map((h) => flattenValue(table, h, r[h], lookups)))];
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       XLSX.utils.book_append_sheet(wb, ws, sheet.slice(0, 31));
     }

@@ -58,6 +58,9 @@ export default function OwnerSettings({ config, reload }) {
   const [logoUrl, setLogoUrl] = useState(config.logo_url || "");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [hiddenPages, setHiddenPages] = useState(config.hidden_pages || []);
+  const [startTemplate, setStartTemplate] = useState(config.notif_start_template || "");
+  const [endTemplate, setEndTemplate] = useState(config.notif_end_template || "");
+  const [notifMsg, setNotifMsg] = useState("");
   const [calcSettings, setCalcSettings] = useState({
     egfr_formula: "ckdepi2021",
     aniongap_include_k: false,
@@ -129,6 +132,13 @@ export default function OwnerSettings({ config, reload }) {
     setCalcMsg(error ? "Could not save." : "Saved.");
     reload();
     setTimeout(() => setCalcMsg(""), 2500);
+  }
+
+  async function saveNotifTemplates() {
+    const { error } = await supabase.from("app_config").update({ notif_start_template: startTemplate, notif_end_template: endTemplate }).eq("id", 1);
+    setNotifMsg(error ? "Could not save." : "Saved.");
+    reload();
+    setTimeout(() => setNotifMsg(""), 2500);
   }
 
   async function resetPassword(table, id, currentUsername) {
@@ -292,6 +302,21 @@ export default function OwnerSettings({ config, reload }) {
         </label>
         <button onClick={saveCalcSettings} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: 14 }}>Save calculator settings</button>
         {calcMsg && <div style={{ fontSize: 12.5, color: "#2F6B4F" }}>{calcMsg}</div>}
+      </div>
+
+      <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 16, marginBottom: 30, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 13, letterSpacing: 0.3 }}>SHIFT REMINDER MESSAGES</div>
+        <div style={{ fontSize: 12, color: "#7B8E8A" }}>
+          Write your own wording for the push notifications. Use <strong>{"{name}"}</strong> for the employee's first name and <strong>{"{shift}"}</strong> for their shift code. Leave blank to use the default message.
+        </div>
+        <label style={{ fontSize: 12.5, fontWeight: 600, color: "#516361" }}>Shift starting soon (~1 hour before)
+          <textarea value={startTemplate} onChange={(e) => setStartTemplate(e.target.value)} placeholder={"Good morning, {name}! Your {shift} shift starts in about an hour — don't be late."} rows={2} style={{ width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 13, marginTop: 4, boxSizing: "border-box", fontFamily: "inherit" }} />
+        </label>
+        <label style={{ fontSize: 12.5, fontWeight: 600, color: "#516361" }}>Shift just ended
+          <textarea value={endTemplate} onChange={(e) => setEndTemplate(e.target.value)} placeholder={"Goodbye, {name}! Your {shift} shift just ended — get home safe."} rows={2} style={{ width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 13, marginTop: 4, boxSizing: "border-box", fontFamily: "inherit" }} />
+        </label>
+        <button onClick={saveNotifTemplates} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: 14 }}>Save reminder messages</button>
+        {notifMsg && <div style={{ fontSize: 12.5, color: "#2F6B4F" }}>{notifMsg}</div>}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
