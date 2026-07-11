@@ -16,10 +16,32 @@ export default function MyProfile({ username }) {
   const [pushStatus, setPushStatus] = useState("checking"); // checking | subscribed | unsubscribed | unsupported
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState("");
 
   useEffect(() => {
     getSubscriptionStatus().then(setPushStatus);
   }, []);
+
+  async function changePassword() {
+    setPwMsg("");
+    if (newPassword.length < 4) { setPwMsg("Password should be at least 4 characters."); return; }
+    if (newPassword !== confirmPassword) { setPwMsg("Passwords don't match."); return; }
+    setPwSaving(true);
+    try {
+      const { data: s } = await supabase.from("staff_accounts").update({ password: newPassword, must_change_password: false }).eq("username", username).select();
+      if (s && s.length > 0) { setPwMsg("Password updated."); setNewPassword(""); setConfirmPassword(""); return; }
+      const { data: p } = await supabase.from("portal_accounts").update({ password: newPassword, must_change_password: false }).eq("username", username).select();
+      if (p && p.length > 0) { setPwMsg("Password updated."); setNewPassword(""); setConfirmPassword(""); return; }
+      setPwMsg("Couldn't find an individual login for this username — shared accounts (like the main staff/admin logins) can't be changed here.");
+    } catch (err) {
+      setPwMsg(`Save failed: ${err.message}`);
+    } finally {
+      setPwSaving(false);
+    }
+  }
 
   async function togglePush() {
     setPushBusy(true);
@@ -121,6 +143,20 @@ export default function MyProfile({ username }) {
           </button>
         )}
         {pushError && <div style={{ fontSize: 12.5, color: "#C1432B", marginTop: 8 }}>{pushError}</div>}
+      </div>
+
+      <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 16, marginTop: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Change my password</div>
+        <label style={labelStyle}>New password
+          <input type="password" style={{ ...inputStyle, marginTop: 4 }} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+        </label>
+        <label style={{ ...labelStyle, display: "block", marginTop: 10 }}>Confirm new password
+          <input type="password" style={{ ...inputStyle, marginTop: 4 }} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+        </label>
+        <button onClick={changePassword} disabled={pwSaving} style={{ marginTop: 14, background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontWeight: 700, fontSize: 13.5, opacity: pwSaving ? 0.6 : 1 }}>
+          {pwSaving ? "Saving…" : "Update password"}
+        </button>
+        {pwMsg && <div style={{ fontSize: 12.5, color: pwMsg === "Password updated." ? "#2F6B4F" : "#C1432B", marginTop: 8 }}>{pwMsg}</div>}
       </div>
     </div>
   );

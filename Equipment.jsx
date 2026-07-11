@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Wrench, AlertTriangle, CheckCircle2, Download, FileText } from "lucide-react";
+import { Plus, Trash2, Wrench, AlertTriangle, CheckCircle2, Download, FileText, Upload } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { todayISO } from "./scheduleUtils";
 
@@ -52,9 +52,9 @@ export default function Equipment({ departments, role, username }) {
     const upcoming = events.filter((e) => e.equipment_id === eqId && e.next_due_date).sort((a, b) => new Date(a.next_due_date) - new Date(b.next_due_date))[0];
     if (!upcoming) return null;
     const days = Math.round((new Date(upcoming.next_due_date) - new Date(todayISO())) / 86400000);
-    if (days < 0) return { label: `overdue ${Math.abs(days)}d`, bg: "#FBEAE6", fg: "#C1432B" };
-    if (days <= 14) return { label: `due in ${days}d`, bg: "#FBF3DF", fg: "#B8860B" };
-    return { label: `due in ${days}d`, bg: "#E8F2EC", fg: "#2F6B4F" };
+    if (days < 0) return { label: `overdue ${Math.abs(days)}d`, bg: "#FBEAE6", fg: "#C1432B", days };
+    if (days <= 14) return { label: `due in ${days}d`, bg: "#FBF3DF", fg: "#B8860B", days };
+    return { label: `due in ${days}d`, bg: "#E8F2EC", fg: "#2F6B4F", days };
   }
 
   function exportPDF() { window.print(); }
@@ -101,6 +101,28 @@ export default function Equipment({ departments, role, username }) {
           </div>
         </div>
       )}
+
+      {list.length > 0 && (() => {
+        const withDue = list.map((eq) => ({ eq, due: dueStatus(eq.id) })).filter((x) => x.due);
+        withDue.sort((a, b) => a.due.days - b.due.days);
+        if (withDue.length === 0) return null;
+        return (
+          <div className="no-print" style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>MAINTENANCE DUE REMINDERS</div>
+            <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, overflow: "hidden" }}>
+              {withDue.map(({ eq, due }) => (
+                <button key={eq.id} onClick={() => setSelected(eq.id)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "none", border: "none", borderBottom: "1px solid #EEF2F0", textAlign: "left" }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{eq.name}</div>
+                    <div style={{ fontSize: 11, color: "#8A9694" }}>{eq.department}</div>
+                  </div>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: due.fg, background: due.bg, padding: "4px 9px", borderRadius: 5 }}>{due.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {list.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 20px", color: "#8A9694" }}>No equipment added yet.</div>
@@ -162,6 +184,8 @@ function EquipmentDetail({ equipment, events, canEdit, username, onBack, reload 
       </div>
       <div style={{ fontSize: 12, color: "#8A9694", marginBottom: 20 }}>{equipment.department}{equipment.serial_number ? ` · SN ${equipment.serial_number}` : ""}{equipment.install_date ? ` · installed ${equipment.install_date}` : ""}</div>
 
+      <EquipmentDocuments equipmentId={equipment.id} canEdit={canEdit} username={username} />
+
       {showAdd && (
         <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 14, marginBottom: 20 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
@@ -207,6 +231,79 @@ function EquipmentDetail({ equipment, events, canEdit, username, onBack, reload 
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Device documents — validation/verification reports, why-we-chose-this-device
+// notes, manuals, or any other file tied to a specific piece of equipment.
+function EquipmentDocuments({ equipmentId, canEdit, username }) {
+  const [files, setFiles] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [description, setDescription] = useState("");
+
+  async function load() {
+    const { data } = await supabase.from("equipment_files").select("*").eq("equipment_id", equipmentId).order("uploaded_at", { ascending: false });
+    setFiles(data || []);
+  }
+  useEffect(() => { load(); }, [equipmentId]);
+
+  async function handleUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const path = `equipment/${equipmentId}/${Date.now()}-${file.name}`;
+    const { error: upErr } = await supabase.storage.from("attachments").upload(path, file);
+    if (!upErr) {
+      await supabase.from("equipment_files").insert({ equipment_id: equipmentId, filename: file.name, storage_path: path, description, uploaded_by: username });
+      setDescription("");
+    }
+    setUploading(false);
+    e.target.value = "";
+    load();
+  }
+
+  async function removeFile(f) {
+    if (!confirm(`Remove "${f.filename}"?`)) return;
+    await supabase.storage.from("attachments").remove([f.storage_path]);
+    await supabase.from("equipment_files").delete().eq("id", f.id);
+    load();
+  }
+
+  function urlFor(f) {
+    return supabase.storage.from("attachments").getPublicUrl(f.storage_path).data.publicUrl;
+  }
+
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 14, marginBottom: 20 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Documents (validation, verification, why this device was chosen, manuals…)</div>
+
+      {canEdit && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+          <input placeholder="Optional note (e.g. 'Verification report 2026')" value={description} onChange={(e) => setDescription(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#0F7173", color: "#fff", borderRadius: 7, padding: "9px 14px", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+            <Upload size={13} /> {uploading ? "Uploading…" : "Upload file"}
+            <input type="file" onChange={handleUpload} disabled={uploading} style={{ display: "none" }} />
+          </label>
+        </div>
+      )}
+
+      {files === null ? (
+        <div style={{ fontSize: 12.5, color: "#8A9694" }}>Loading…</div>
+      ) : files.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: "#8A9694" }}>No documents uploaded yet.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {files.map((f) => (
+            <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, background: "#F8FAF9", borderRadius: 7, padding: "8px 12px" }}>
+              <FileText size={14} color="#8A9694" />
+              <a href={urlFor(f)} target="_blank" rel="noreferrer" style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: "#0F7173", textDecoration: "none" }}>{f.filename}</a>
+              {f.description && <span style={{ fontSize: 11, color: "#8A9694" }}>{f.description}</span>}
+              {canEdit && <button onClick={() => removeFile(f)} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={13} /></button>}
+            </div>
+          ))}
         </div>
       )}
     </div>

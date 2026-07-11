@@ -45,9 +45,28 @@ function LipidCalc({ settings }) {
   const c = num(chol), t = num(tg), h = num(hdl);
   const valid = c !== null && t !== null && h !== null;
   const divisor = unit === "mg/dL" ? 5 : 2.2; // TG/5 in mg/dL, TG/2.2 in mmol/L
-  const tgWarnThreshold = unit === "mg/dL" ? 400 : 4.5;
-  const vldl = valid ? t / divisor : null;
-  const ldl = valid ? c - h - vldl : null;
+  const tgHighThreshold = unit === "mg/dL" ? 400 : 4.5;
+
+  // Convert to mg/dL for the Sampson equation (its constants are mg/dL-specific), then back.
+  const toMgDl = (chol_) => (unit === "mg/dL" ? chol_ : chol_ * 38.67);
+  const tgToMgDl = (tg_) => (unit === "mg/dL" ? tg_ : tg_ * 88.57);
+  const fromMgDl = (v) => (unit === "mg/dL" ? v : v / 38.67);
+
+  const useSampson = valid && t >= tgHighThreshold;
+  let ldl, vldl, formulaUsed;
+  if (useSampson) {
+    const TC = toMgDl(c), HDL = toMgDl(h), TG = tgToMgDl(t);
+    const nonHDL = TC - HDL;
+    const vldlMg = TG / 8.56 + (TG * nonHDL) / 2140 - (TG * TG) / 16100;
+    const ldlMg = TC / 0.948 - HDL / 0.971 - vldlMg - 9.44;
+    vldl = fromMgDl(vldlMg);
+    ldl = fromMgDl(ldlMg);
+    formulaUsed = "Sampson (NIH Eq. 2)";
+  } else if (valid) {
+    vldl = t / divisor;
+    ldl = c - h - vldl;
+    formulaUsed = "Friedewald";
+  }
 
   return (
     <div>
@@ -59,10 +78,14 @@ function LipidCalc({ settings }) {
       </div>
       {valid && (
         <ResultBox>
-          VLDL = {vldl.toFixed(2)} {unit} &nbsp;·&nbsp; LDL (Friedewald) = {ldl.toFixed(2)} {unit}
+          VLDL = {vldl.toFixed(2)} {unit} &nbsp;·&nbsp; LDL ({formulaUsed}) = {ldl.toFixed(2)} {unit}
         </ResultBox>
       )}
-      {valid && t >= tgWarnThreshold && <WarnBox>TG ≥ {tgWarnThreshold} {unit} — Friedewald formula isn't reliable at this level. A direct LDL measurement is recommended.</WarnBox>}
+      {useSampson && (
+        <WarnBox>
+          TG ≥ {tgHighThreshold} {unit} — Friedewald (and Martin-Hopkins, which also isn't validated above this level) would be unreliable here, so this switched automatically to the Sampson/NIH Equation 2 formula, which is validated up to TG 800 mg/dL. Direct LDL measurement is still the gold standard if available.
+        </WarnBox>
+      )}
     </div>
   );
 }
@@ -170,6 +193,8 @@ function TibcCalc() {
 }
 
 function DilutionCalc() {
+  const [mode, setMode] = useState("have"); // "have" = I have a sample amount | "final" = I just want a final volume at a ratio
+
   const [volume, setVolume] = useState("");
   const [factor, setFactor] = useState("");
   const [target, setTarget] = useState("");
@@ -182,23 +207,51 @@ function DilutionCalc() {
   const diluentForTarget = targetValid ? t - v : null;
   const effectiveFactor = targetValid ? t / v : null;
 
+  const [ratioFactor, setRatioFactor] = useState("");
+  const [finalVolume, setFinalVolume] = useState("");
+  const rf = num(ratioFactor), fv = num(finalVolume);
+  const finalValid = rf !== null && rf > 0 && fv !== null && fv > 0;
+  const neededSample = finalValid ? fv / rf : null;
+  const neededDiluent = finalValid ? fv - neededSample : null;
+
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
-        <label style={labelStyle}>Sample volume you have<input style={inputStyle} type="number" value={volume} onChange={(e) => setVolume(e.target.value)} /></label>
-        <label style={labelStyle}>Dilution factor (e.g. 2 for 1:2)<input style={inputStyle} type="number" value={factor} onChange={(e) => setFactor(e.target.value)} /></label>
-        <label style={labelStyle}>Target final volume (optional)<input style={inputStyle} type="number" value={target} onChange={(e) => setTarget(e.target.value)} /></label>
+      <div style={{ display: "flex", gap: 4, marginBottom: 14 }}>
+        <button onClick={() => setMode("have")} style={{ border: "1px solid " + (mode === "have" ? "#0F7173" : "#C7D1CE"), background: mode === "have" ? "#0F7173" : "#fff", color: mode === "have" ? "#fff" : "#516361", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 600 }}>I have a sample amount</button>
+        <button onClick={() => setMode("final")} style={{ border: "1px solid " + (mode === "final" ? "#0F7173" : "#C7D1CE"), background: mode === "final" ? "#0F7173" : "#fff", color: mode === "final" ? "#fff" : "#516361", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 600 }}>I want a specific final volume</button>
       </div>
-      {targetValid ? (
-        <ResultBox>
-          To reach {t} total: add {diluentForTarget.toFixed(2)} of diluent to your {v} of sample &nbsp;→&nbsp; that's a 1:{effectiveFactor.toFixed(2)} dilution
-        </ResultBox>
-      ) : valid ? (
-        <ResultBox>
-          Add {diluent.toFixed(2)} of diluent to your {v} of sample &nbsp;→&nbsp; total volume = {total.toFixed(2)}
-        </ResultBox>
-      ) : null}
-      {target && t !== null && v !== null && t <= v && <WarnBox>Target final volume must be more than the sample volume you have.</WarnBox>}
+
+      {mode === "have" ? (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+            <label style={labelStyle}>Sample volume you have<input style={inputStyle} type="number" value={volume} onChange={(e) => setVolume(e.target.value)} /></label>
+            <label style={labelStyle}>Dilution factor (e.g. 2 for 1:2)<input style={inputStyle} type="number" value={factor} onChange={(e) => setFactor(e.target.value)} /></label>
+            <label style={labelStyle}>Target final volume (optional)<input style={inputStyle} type="number" value={target} onChange={(e) => setTarget(e.target.value)} /></label>
+          </div>
+          {targetValid ? (
+            <ResultBox>
+              To reach {t} total: add {diluentForTarget.toFixed(2)} of diluent to your {v} of sample &nbsp;→&nbsp; that's a 1:{effectiveFactor.toFixed(2)} dilution
+            </ResultBox>
+          ) : valid ? (
+            <ResultBox>
+              Add {diluent.toFixed(2)} of diluent to your {v} of sample &nbsp;→&nbsp; total volume = {total.toFixed(2)}
+            </ResultBox>
+          ) : null}
+          {target && t !== null && v !== null && t <= v && <WarnBox>Target final volume must be more than the sample volume you have.</WarnBox>}
+        </>
+      ) : (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+            <label style={labelStyle}>Dilution ratio (e.g. 5 for 1:5)<input style={inputStyle} type="number" value={ratioFactor} onChange={(e) => setRatioFactor(e.target.value)} /></label>
+            <label style={labelStyle}>Desired final volume<input style={inputStyle} type="number" value={finalVolume} onChange={(e) => setFinalVolume(e.target.value)} /></label>
+          </div>
+          {finalValid && (
+            <ResultBox>
+              For a 1:{rf} dilution making {fv} total: take {neededSample.toFixed(2)} of sample and add {neededDiluent.toFixed(2)} of diluent
+            </ResultBox>
+          )}
+        </>
+      )}
     </div>
   );
 }

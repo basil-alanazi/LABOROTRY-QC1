@@ -225,7 +225,7 @@ export default function OwnerSettings({ config, reload }) {
 
       <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, letterSpacing: 0.3 }}>ALL ACCOUNTS & PASSWORDS</div>
       <div style={{ fontSize: 12.5, color: "#7B8E8A", marginBottom: 12 }}>
-        Every individual login and its current password. Fixed accounts (staff/admin/owner) are managed from Settings — this covers the individual employee and custom accounts.
+        Every individual login (passwords are private — use Reset to set a new one if someone's locked out; they can also change it themselves from My Profile). Fixed accounts (staff/admin/owner) are managed from Settings — this covers the individual employee and custom accounts.
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 30 }}>
         {staffAccounts.length === 0 && (accounts || []).length === 0 && <div style={{ fontSize: 13, color: "#8A9694" }}>No individual accounts yet.</div>}
@@ -234,7 +234,6 @@ export default function OwnerSettings({ config, reload }) {
             <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12.5 }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: "#516361", background: "#F0F3F2", padding: "2px 7px", borderRadius: 4 }}>STAFF</span>
               <div style={{ flex: 1, fontWeight: 600 }}>{s.username}</div>
-              <div style={{ fontFamily: "monospace", color: "#8A9694" }}>{s.password}</div>
               {s.must_change_password && <span style={{ fontSize: 10, color: "#B8860B" }}>must change on next login</span>}
               <button onClick={() => setEditingStaffAccount(s)} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 11.5, fontWeight: 700 }}>Permissions</button>
               <button onClick={() => resetPassword("staff_accounts", s.id, s.username)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 5, padding: "4px 8px", fontSize: 11 }}>Reset</button>
@@ -254,7 +253,6 @@ export default function OwnerSettings({ config, reload }) {
           <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "9px 14px", fontSize: 12.5 }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: "#3E6ACF", background: "#E7F0FB", padding: "2px 7px", borderRadius: 4 }}>CUSTOM</span>
             <div style={{ flex: 1, fontWeight: 600 }}>{a.username}</div>
-            <div style={{ fontFamily: "monospace", color: "#8A9694" }}>{a.password}</div>
             {a.must_change_password && <span style={{ fontSize: 10, color: "#B8860B" }}>must change on next login</span>}
             <button onClick={() => resetPassword("portal_accounts", a.id, a.username)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 5, padding: "4px 8px", fontSize: 11 }}>Reset</button>
           </div>
