@@ -381,6 +381,12 @@ function AccountModal({ customTables, existing, table = "portal_accounts", onClo
     setPerms(map);
   }
 
+  function applyAllPages(level) {
+    const map = {};
+    allPages.forEach((p) => { map[p.key] = level; });
+    setPerms(map);
+  }
+
   function setLevel(key, level) {
     setPerms((p) => {
       const next = { ...p };
@@ -413,10 +419,15 @@ function AccountModal({ customTables, existing, table = "portal_accounts", onClo
           <label style={{ ...labelStyle, flex: 1 }}>Password<input style={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} /></label>
         </div>
 
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
           {Object.keys(ROLE_PRESETS).map((name) => (
             <button key={name} onClick={() => applyPreset(name)} style={{ background: "none", border: "1px dashed #C7D1CE", color: "#0F7173", borderRadius: 6, padding: "5px 10px", fontSize: 11.5, fontWeight: 600 }}>{name}</button>
           ))}
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+          <button onClick={() => applyAllPages("admin")} style={{ background: "#FBF3DF", border: "1px solid #E8D9A8", color: "#B8860B", borderRadius: 6, padding: "5px 10px", fontSize: 11.5, fontWeight: 700 }}>⚡ Admin on everything</button>
+          <button onClick={() => applyAllPages("staff")} style={{ background: "#F0F3F2", border: "1px solid #D6DEDA", color: "#516361", borderRadius: 6, padding: "5px 10px", fontSize: 11.5, fontWeight: 700 }}>⚡ Staff (view) on everything</button>
+          <button onClick={() => setPerms({})} style={{ background: "none", border: "1px solid #C7D1CE", color: "#8A9694", borderRadius: 6, padding: "5px 10px", fontSize: 11.5, fontWeight: 600 }}>Clear all</button>
         </div>
 
         <div style={{ fontSize: 11.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>PAGES & LEVEL</div>

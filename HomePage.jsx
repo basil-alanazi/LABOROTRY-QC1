@@ -10,9 +10,10 @@ function greeting(hour) {
   return "Good evening";
 }
 
-export default function HomePage({ username, role, config, panels, activeEntries, pendingCount, onNavigate }) {
+export default function HomePage({ username, role, config, panels, activeEntries, pendingCount, onNavigate, profiles }) {
   const [now, setNow] = useState(new Date());
   const [onDuty, setOnDuty] = useState([]);
+  const displayName = (profiles?.[username]?.full_name || "").trim().split(" ")[0] || username;
   const [mine, setMine] = useState(null); // { department, shiftCode }
 
   useEffect(() => {
@@ -81,7 +82,7 @@ export default function HomePage({ username, role, config, panels, activeEntries
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 22, fontWeight: 700 }}>{greeting(now.getHours())}, {username} 👋</div>
+        <div style={{ fontSize: 22, fontWeight: 700 }}>{greeting(now.getHours())}, {displayName} 👋</div>
         <div style={{ fontSize: 13, color: "#8A9694", marginTop: 4 }}>{now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} · {now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
       </div>
 

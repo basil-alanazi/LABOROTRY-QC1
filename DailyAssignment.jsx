@@ -193,10 +193,6 @@ export default function DailyAssignment({ role }) {
         </div>
       </div>
 
-      <datalist id="dept-suggestions">
-        {suggestions.map((s) => <option key={s} value={s} />)}
-      </datalist>
-
       {editingCell && (
         <CellEditorModal
           cell={editingCell}
@@ -211,13 +207,15 @@ export default function DailyAssignment({ role }) {
 
 function CellEditorModal({ cell, suggestions, onClose, onSave }) {
   const [value, setValue] = useState(cell.current);
+  const filtered = value.trim()
+    ? suggestions.filter((s) => s.toLowerCase().includes(value.trim().toLowerCase()))
+    : suggestions;
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(15,25,26,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={onClose}>
       <div style={{ background: "#fff", borderRadius: 14, width: "100%", maxWidth: 360, padding: 22 }} onClick={(e) => e.stopPropagation()}>
         <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 2 }}>{cell.name}</div>
         <div style={{ fontSize: 12.5, color: "#8A9694", marginBottom: 16 }}>Day {cell.day}</div>
         <input
-          list="dept-suggestions"
           autoFocus
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -225,10 +223,10 @@ function CellEditorModal({ cell, suggestions, onClose, onSave }) {
           placeholder="Type a department…"
           style={{ width: "100%", border: "1px solid #C7D1CE", borderRadius: 8, padding: "14px 14px", fontSize: 16, boxSizing: "border-box", marginBottom: 14 }}
         />
-        {suggestions.length > 0 && (
+        {filtered.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-            {suggestions.slice(0, 8).map((s) => (
-              <button key={s} onClick={() => setValue(s)} style={{ background: "#F0F3F2", border: "none", borderRadius: 6, padding: "6px 10px", fontSize: 12, color: "#516361" }}>{s}</button>
+            {filtered.slice(0, 10).map((s) => (
+              <button key={s} onClick={() => onSave(s)} style={{ background: "#E8F2EC", border: "1px solid #2F6B4F33", borderRadius: 6, padding: "7px 11px", fontSize: 12.5, color: "#2F6B4F", fontWeight: 600 }}>{s}</button>
             ))}
           </div>
         )}
