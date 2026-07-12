@@ -12,12 +12,13 @@ function rtfEscape(v) {
 
 export function downloadTableAsWord(title, headers, rows, filename) {
   const colCount = headers.length;
-  const colWidth = Math.floor(9000 / colCount);
-  const cellDefs = Array.from({ length: colCount }, (_, i) => `\\cellx${colWidth * (i + 1)}`).join("");
+  const colWidth = Math.max(800, Math.floor(9000 / colCount));
+  let acc = 0;
+  const cellDefs = Array.from({ length: colCount }, () => { acc += colWidth; return `\\cellx${acc}`; }).join("");
 
   function rtfRow(cells, bold) {
-    const cellText = cells.map((c) => `${bold ? "\\b " : ""}${rtfEscape(c)}${bold ? "\\b0" : ""}\\cell`).join("");
-    return `\\trowd\\trgaph80${cellDefs}${cellText}\\row\n`;
+    const cellText = cells.map((c) => `\\intbl ${bold ? "\\b " : ""}${rtfEscape(c)}${bold ? "\\b0 " : ""}\\cell`).join("");
+    return `\\trowd\\trgaph108\\trleft0${cellDefs}${cellText}\\row\n`;
   }
 
   const body = [rtfRow(headers, true), ...rows.map((r) => rtfRow(r, false))].join("");
@@ -25,9 +26,10 @@ export function downloadTableAsWord(title, headers, rows, filename) {
   const rtf = `{\\rtf1\\ansi\\deff0
 {\\fonttbl{\\f0 Calibri;}}
 \\f0\\fs22
-{\\b\\fs28 ${rtfEscape(title)}\\par}
-\\par
+\\pard{\\b\\fs28 ${rtfEscape(title)}\\par}
+\\pard
 ${body}
+\\pard\\par
 }`;
 
   const blob = new Blob([rtf], { type: "application/rtf" });

@@ -20,6 +20,13 @@ import DateNav from "./DateNav";
 import NotificationBell from "./NotificationBell";
 import ScanControlPhoto from "./ScanControlPhoto";
 import Checklists from "./Checklists";
+import IncidentReport from "./IncidentReport";
+import CAPA from "./CAPA";
+import ShiftHandover from "./ShiftHandover";
+import KnowledgeBase from "./KnowledgeBase";
+import AuditDashboard from "./AuditDashboard";
+import LabTimeline from "./LabTimeline";
+import EmployeeOfMonth from "./EmployeeOfMonth";
 import { playAlertSound } from "./sounds";
 import Equipment from "./Equipment";
 import LotComparison from "./LotComparison";
@@ -417,6 +424,13 @@ export default function App() {
         {tab === "calculate" && <Calculators config={config} />}
         {tab === "myschedule" && <MySchedule username={username} />}
         {tab === "checklists" && <Checklists role={roleFor("checklists")} username={username} />}
+        {tab === "handover" && <ShiftHandover role={roleFor("handover")} username={username} />}
+        {tab === "incident" && <IncidentReport role={roleFor("incident")} username={username} />}
+        {tab === "capa" && <CAPA role={roleFor("capa")} username={username} />}
+        {tab === "knowledge" && <KnowledgeBase role={roleFor("knowledge")} username={username} />}
+        {tab === "audit_dashboard" && <AuditDashboard />}
+        {tab === "timeline" && <LabTimeline />}
+        {tab === "eom" && <EmployeeOfMonth role={roleFor("eom")} />}
         {tab === "assignment" && <DailyAssignment role={roleFor(tab)} />}
         {tab === "breakhistory" && (roleFor(tab) === "admin" || role === "super") && <BreakHistory />}
         {tab.startsWith("pinned:") && (() => {
@@ -495,6 +509,13 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
     if (p.key === "home") return <HomePage username={username} role="admin" config={config} panels={panels} activeEntries={entries} pendingCount={pendingItems.length} onNavigate={setOpenKey} profiles={profiles} />;
     if (p.key === "assistant") return <SmartAssistant panels={panels} entries={entries} />;
     if (p.key === "checklists") return <Checklists role={effectiveRole} username={username} />;
+    if (p.key === "handover") return <ShiftHandover role={effectiveRole} username={username} />;
+    if (p.key === "incident") return <IncidentReport role={effectiveRole} username={username} />;
+    if (p.key === "capa") return <CAPA role={effectiveRole} username={username} />;
+    if (p.key === "knowledge") return <KnowledgeBase role={effectiveRole} username={username} />;
+    if (p.key === "audit_dashboard") return <AuditDashboard />;
+    if (p.key === "timeline") return <LabTimeline />;
+    if (p.key === "eom") return <EmployeeOfMonth role={effectiveRole} />;
     if (p.key === "settings") return <Settings config={config} panels={panels} role="admin" username={username} baselines={baselines} reload={() => {}} />;
     if (p.key === "qc") return <Dashboard panels={panels} entries={entries} baselines={baselines} role={effectiveRole} busy={busy} onSubmit={onSubmit} onDelete={onDelete} profiles={profiles} />;
     if (p.key === "approvals") return <Approvals items={pendingItems} panels={panels} onReview={onReview} onReviewBulk={onReviewBulk} profiles={profiles} />;
@@ -709,10 +730,17 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
           {notHidden("panic") && <SideItem icon={<Siren size={14} color="#D8862B" />} label="Panic Value" active={tab === "panic"} onClick={() => onNavigate("panic")} indent />}
           {notHidden("corrective") && <SideItem icon={<ClipboardList size={14} color="#3E6ACF" />} label="Corrective Action" active={tab === "corrective"} onClick={() => onNavigate("corrective")} indent />}
           {notHidden("infection") && <SideItem icon={<Biohazard size={14} color="#7A4FA3" />} label="Infection Disease" active={tab === "infection"} onClick={() => onNavigate("infection")} indent />}
+          {notHidden("incident") && <SideItem icon={<AlertTriangle size={14} color="#C1432B" />} label="Incident Report" active={tab === "incident"} onClick={() => onNavigate("incident")} indent />}
+          {notHidden("capa") && <SideItem icon={<ClipboardList size={14} color="#2F6B4F" />} label="CAPA" active={tab === "capa"} onClick={() => onNavigate("capa")} indent />}
+          {notHidden("handover") && <SideItem icon={<Users size={14} color="#B8860B" />} label="Shift Handover" active={tab === "handover"} onClick={() => onNavigate("handover")} indent />}
         </SideGroup>
 
         {notHidden("calculate") && <SideItem icon={<Calculator size={15} />} label="Calculate" active={tab === "calculate"} onClick={() => onNavigate("calculate")} />}
         {notHidden("checklists") && <SideItem icon={<Check size={15} />} label="Checklists" active={tab === "checklists"} onClick={() => onNavigate("checklists")} />}
+        {notHidden("knowledge") && <SideItem icon={<FileText size={15} />} label="Knowledge Base" active={tab === "knowledge"} onClick={() => onNavigate("knowledge")} />}
+        {notHidden("audit_dashboard") && <SideItem icon={<BarChart3 size={15} />} label="Audit Dashboard" active={tab === "audit_dashboard"} onClick={() => onNavigate("audit_dashboard")} />}
+        {notHidden("timeline") && <SideItem icon={<Calendar size={15} />} label="Lab Timeline" active={tab === "timeline"} onClick={() => onNavigate("timeline")} />}
+        {notHidden("eom") && <SideItem icon={<Award size={15} />} label="Employee of the Month" active={tab === "eom"} onClick={() => onNavigate("eom")} />}
 
         <SideGroup icon="📅" label="My Schedule" open={openGroups.schedule} onToggle={() => toggleGroup("schedule")}>
           {notHidden("myschedule") && <SideItem icon={<Calendar size={14} />} label="My Schedule" active={tab === "myschedule"} onClick={() => onNavigate("myschedule")} indent />}
