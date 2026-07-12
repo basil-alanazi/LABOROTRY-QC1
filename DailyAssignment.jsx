@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { todayISO, classifyShift, findCloseMatch, shiftDate } from "./scheduleUtils";
 import DepartmentAssignmentImport from "./DepartmentAssignmentImport";
+import { downloadTableAsWord } from "./exportWord";
 
 const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 14, boxSizing: "border-box" };
 
@@ -135,6 +136,19 @@ export default function DailyAssignment({ role }) {
     dateList.some((d) => shiftPeriodFor(m.id, d).period === period)
   );
 
+  function exportWord() {
+    const headers = ["Day", ...visibleStaff.map((m) => m.full_name)];
+    const rows = dateList.map((dateStr) => [
+      viewMode === "week" ? `${weekdayLabel(dateStr)} ${dayLabel(dateStr)}` : dayLabel(dateStr),
+      ...visibleStaff.map((m) => {
+        const { period: staffPeriod } = shiftPeriodFor(m.id, dateStr);
+        if (staffPeriod !== period) return "";
+        return assignmentFor(m.id, dateStr)?.department_name || "";
+      }),
+    ]);
+    downloadTableAsWord(`Daily Assignment — ${period} — ${viewMode === "week" ? `${dateList[0]} to ${dateList[6]}` : month}`, headers, rows, `daily-assignment-${period}`);
+  }
+
   return (
     <div>
       <h2 className="no-print" style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Daily Assignment</h2>
@@ -162,6 +176,7 @@ export default function DailyAssignment({ role }) {
           <button onClick={() => setPeriod("night")} style={{ border: "1px solid " + (period === "night" ? "#0F7173" : "#C7D1CE"), background: period === "night" ? "#0F7173" : "#fff", color: period === "night" ? "#fff" : "#516361", borderRadius: 6, padding: "7px 14px", fontSize: 12.5, fontWeight: 600 }}>🌃 Night</button>
         </div>
         <button onClick={() => window.print()} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, color: "#516361" }}>🖨️ Print</button>
+        <button onClick={exportWord} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "7px 14px", fontSize: 12.5, fontWeight: 600, color: "#516361" }}>📄 Download Word</button>
       </div>
 
       {canEdit && <div className="no-print"><DepartmentAssignmentImport staff={staff} month={month} period={period} onApply={applyImportedAssignments} /></div>}

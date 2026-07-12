@@ -120,6 +120,36 @@ export default function ScanControlPhoto({ analytes, onExtracted }) {
   const [progress, setProgress] = useState("");
   const [result, setResult] = useState(null); // { found, unmatched }
 
+  async function preprocessImage(file) {
+    const img = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = reject;
+      image.src = URL.createObjectURL(file);
+    });
+    // Cap the working size so very large phone photos don't slow things down.
+    const maxDim = 1600;
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, w, h);
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const px = imgData.data;
+    // Grayscale + a simple contrast boost — this alone makes Tesseract's
+    // output far more consistent across different lighting/angles.
+    const contrast = 1.35;
+    for (let i = 0; i < px.length; i += 4) {
+      const gray = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+      const boosted = Math.min(255, Math.max(0, (gray - 128) * contrast + 128));
+      px[i] = px[i + 1] = px[i + 2] = boosted;
+    }
+    ctx.putImageData(imgData, 0, 0);
+    URL.revokeObjectURL(img.src);
+    return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  }
+
   async function handleFile(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -128,8 +158,10 @@ export default function ScanControlPhoto({ analytes, onExtracted }) {
     setProgress("Loading text reader…");
     try {
       const Tesseract = await loadTesseract();
+      setProgress("Preparing photo…");
+      const processed = await preprocessImage(file);
       setProgress("Reading photo… this can take a minute");
-      const { data } = await Tesseract.recognize(file, "eng", {
+      const { data } = await Tesseract.recognize(processed, "eng", {
         logger: (m) => { if (m.status === "recognizing text") setProgress(`Reading photo… ${Math.round(m.progress * 100)}%`); },
       });
       const { found, unmatched } = extractValues(data.text, analytes);
@@ -152,11 +184,11 @@ export default function ScanControlPhoto({ analytes, onExtracted }) {
     <div style={{ marginBottom: 14 }}>
       <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", border: "1px solid #C7D1CE", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, color: "#516361", cursor: "pointer" }}>
         {busy ? <Loader2 size={15} className="animate-spin" /> : <Camera size={15} />}
-        {busy ? (progress || "Working…") : "📷 Scan from photo (beta)"}
-        <input type="file" accept="image/*" capture="environment" onChange={handleFile} disabled={busy} style={{ display: "none" }} />
+        {busy ? (progress || "Working…") : "📷 Scan from photo (beta) — camera or gallery"}
+        <input type="file" accept="image/*" onChange={handleFile} disabled={busy} style={{ display: "none" }} />
       </label>
       <div style={{ fontSize: 11, color: "#8A9694", marginTop: 4 }}>
-        Free, on-device text reading — works best with a clear, well-lit, straight-on photo. <strong style={{ color: "#B8860B" }}>Decimal points are the most common misread</strong> (e.g. 15 instead of 1.5) — always double-check every number before saving.
+        Free, on-device text reading — works best with a clear, well-lit, straight-on photo. <strong>Tip:</strong> take the photo first, crop it tight to just the results table (zoomed in, no extra background), then pick that cropped photo here — much more accurate than a full-page shot. <strong style={{ color: "#B8860B" }}>Decimal points are the most common misread</strong> (e.g. 15 instead of 1.5) — always double-check every number before saving.
       </div>
 
       {result && (

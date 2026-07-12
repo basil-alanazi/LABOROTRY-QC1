@@ -5,6 +5,7 @@ import { shiftDurationHours, isWithinShift, todayISO, yesterdayISO, formatTime12
 import DateNav from "./DateNav";
 import ScheduleImport from "./ScheduleImport";
 import { loadProfilesMap } from "./userProfiles";
+import { downloadTableAsWord } from "./exportWord";
 
 const inputStyle = { border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 10px", fontSize: 13, boxSizing: "border-box" };
 
@@ -155,6 +156,15 @@ export default function Schedule({ departments, role, username }) {
 
   function exportPDF() { window.print(); }
 
+  function exportWord() {
+    const headers = ["Day", ...staff.map((m) => m.full_name)];
+    const rows = dayList.map((day) => {
+      const dateStr = `${year}-${mo}-${String(day).padStart(2, "0")}`;
+      return [day, ...staff.map((m) => entryFor(m.id, dateStr)?.shift_code || "")];
+    });
+    downloadTableAsWord(`Schedule — ${month}`, headers, rows, `schedule-${month}`);
+  }
+
   if (staff === null || shifts === null || entries === null) return <div style={{ padding: 40, textAlign: "center", color: "#8A9694" }}>Loading…</div>;
 
   const days = daysInMonth(month);
@@ -167,6 +177,7 @@ export default function Schedule({ departments, role, username }) {
       <div className="no-print" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700 }}>Schedule</h2>
         <button onClick={exportPDF} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Download size={14} /> Save as PDF</button>
+        <button onClick={exportWord} style={{ background: "none", border: "1px solid #C7D1CE", color: "#516361", borderRadius: 7, padding: "8px 12px", fontSize: 13, fontWeight: 600 }}>📄 Download Word</button>
       </div>
 
       {/* Live status */}
