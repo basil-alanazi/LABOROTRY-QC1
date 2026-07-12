@@ -33,6 +33,20 @@ export async function getSubscriptionStatus() {
   }
 }
 
+async function diagnoseRegistration() {
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return "no registration found at all";
+    const states = [];
+    if (reg.installing) states.push(`installing (state: ${reg.installing.state})`);
+    if (reg.waiting) states.push(`waiting (state: ${reg.waiting.state})`);
+    if (reg.active) states.push(`active (state: ${reg.active.state})`);
+    return states.length ? states.join(", ") : "registration exists but no worker in any state";
+  } catch (err) {
+    return `couldn't inspect: ${err.message}`;
+  }
+}
+
 export async function enablePushReminders(username, onStep) {
   const step = (s) => onStep && onStep(s);
   if (!pushSupported()) throw new Error("Push notifications aren't supported in this browser.");
@@ -41,7 +55,13 @@ export async function enablePushReminders(username, onStep) {
   if (permission !== "granted") throw new Error("Notification permission was not granted.");
 
   step("Starting background service…");
-  const reg = await withTimeout(navigator.serviceWorker.ready, 8000, "Service worker didn't start in time — try closing and reopening the app.");
+  let reg;
+  try {
+    reg = await withTimeout(navigator.serviceWorker.ready, 20000, "TIMEOUT");
+  } catch {
+    const diagnosis = await diagnoseRegistration();
+    throw new Error(`Service worker didn't start in time (${diagnosis}). Try closing and reopening the app.`);
+  }
   step("Checking existing subscription…");
   let sub = await reg.pushManager.getSubscription();
   if (!sub) {

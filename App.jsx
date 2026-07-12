@@ -18,6 +18,7 @@ import SmartSearch from "./SmartSearch";
 import KPI from "./KPI";
 import DateNav from "./DateNav";
 import NotificationBell from "./NotificationBell";
+import ScanControlPhoto from "./ScanControlPhoto";
 import { playAlertSound } from "./sounds";
 import Equipment from "./Equipment";
 import LotComparison from "./LotComparison";
@@ -917,6 +918,10 @@ function PanelPage({ panel, entries, baselines, role, busy, onSubmit, onDelete, 
             <span style={{ fontSize: 11.5, color: "#8A9694" }}>entered by {signatureFor(entry.done_by, profiles)}{entry.edited_by ? ` · last edited by ${signatureFor(entry.edited_by, profiles)}` : ""}</span>
           </div>
         </div>
+      )}
+
+      {showForm && (
+        <ScanControlPhoto analytes={panel.analytes || []} onExtracted={(found) => setValues((v) => ({ ...v, ...found }))} />
       )}
 
       <div style={{ overflowX: "auto", background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10 }}>
