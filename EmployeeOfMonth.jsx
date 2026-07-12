@@ -9,21 +9,30 @@ export default function EmployeeOfMonth({ role }) {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [staff, setStaff] = useState([]);
   const [scores, setScores] = useState([]);
+  const [localScores, setLocalScores] = useState({}); // staffId -> string being typed, before it's saved
 
   async function load() {
     const { data: s } = await supabase.from("staff_members").select("*").eq("deleted", false).order("full_name");
     const { data: sc } = await supabase.from("employee_of_month").select("*").eq("month", month);
     setStaff(s || []);
     setScores(sc || []);
+    setLocalScores({});
   }
   useEffect(() => { load(); }, [month]);
 
   function scoreFor(staffId) {
+    if (localScores[staffId] !== undefined) return localScores[staffId];
     return scores.find((s) => s.staff_id === staffId)?.score ?? "";
   }
 
-  async function setScore(staffId, value) {
-    const score = Math.max(0, Math.min(100, Number(value) || 0));
+  function typeScore(staffId, value) {
+    setLocalScores((s) => ({ ...s, [staffId]: value }));
+  }
+
+  async function saveScore(staffId) {
+    const raw = localScores[staffId];
+    if (raw === undefined) return;
+    const score = Math.max(0, Math.min(100, Number(raw) || 0));
     await supabase.from("employee_of_month").upsert({ month, staff_id: staffId, score }, { onConflict: "month,staff_id" });
     load();
   }
@@ -64,7 +73,7 @@ export default function EmployeeOfMonth({ role }) {
             </div>
             {m.id === topScorerId && scoreFor(m.id) !== "" && <Star size={15} color="#D8862B" fill="#D8862B" />}
             {canEdit ? (
-              <input type="number" min="0" max="100" value={scoreFor(m.id)} onChange={(e) => setScore(m.id, e.target.value)} style={{ width: 60, border: "1px solid #C7D1CE", borderRadius: 6, padding: "6px 8px", fontSize: 13, textAlign: "center" }} />
+              <input type="number" min="0" max="100" value={scoreFor(m.id)} onChange={(e) => typeScore(m.id, e.target.value)} onBlur={() => saveScore(m.id)} style={{ width: 60, border: "1px solid #C7D1CE", borderRadius: 6, padding: "6px 8px", fontSize: 13, textAlign: "center" }} />
             ) : (
               <div style={{ fontSize: 13, fontWeight: 700, color: "#516361", width: 40, textAlign: "center" }}>{scoreFor(m.id) || "—"}</div>
             )}
