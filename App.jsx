@@ -19,6 +19,7 @@ import KPI from "./KPI";
 import DateNav from "./DateNav";
 import NotificationBell from "./NotificationBell";
 import ScanControlPhoto from "./ScanControlPhoto";
+import Checklists from "./Checklists";
 import { playAlertSound } from "./sounds";
 import Equipment from "./Equipment";
 import LotComparison from "./LotComparison";
@@ -415,6 +416,7 @@ export default function App() {
         {tab === "files" && (roleFor(tab) === "admin" || role === "super") && <Files role={roleFor(tab)} username={username} />}
         {tab === "calculate" && <Calculators config={config} />}
         {tab === "myschedule" && <MySchedule username={username} />}
+        {tab === "checklists" && <Checklists role={roleFor("checklists")} username={username} />}
         {tab === "assignment" && <DailyAssignment role={roleFor(tab)} />}
         {tab === "breakhistory" && (roleFor(tab) === "admin" || role === "super") && <BreakHistory />}
         {tab.startsWith("pinned:") && (() => {
@@ -492,6 +494,7 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
     const effectiveRole = p.level === "admin" ? "admin" : "staff";
     if (p.key === "home") return <HomePage username={username} role="admin" config={config} panels={panels} activeEntries={entries} pendingCount={pendingItems.length} onNavigate={setOpenKey} profiles={profiles} />;
     if (p.key === "assistant") return <SmartAssistant panels={panels} entries={entries} />;
+    if (p.key === "checklists") return <Checklists role={effectiveRole} username={username} />;
     if (p.key === "settings") return <Settings config={config} panels={panels} role="admin" username={username} baselines={baselines} reload={() => {}} />;
     if (p.key === "qc") return <Dashboard panels={panels} entries={entries} baselines={baselines} role={effectiveRole} busy={busy} onSubmit={onSubmit} onDelete={onDelete} profiles={profiles} />;
     if (p.key === "approvals") return <Approvals items={pendingItems} panels={panels} onReview={onReview} onReviewBulk={onReviewBulk} profiles={profiles} />;
@@ -709,6 +712,7 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
         </SideGroup>
 
         {notHidden("calculate") && <SideItem icon={<Calculator size={15} />} label="Calculate" active={tab === "calculate"} onClick={() => onNavigate("calculate")} />}
+        {notHidden("checklists") && <SideItem icon={<Check size={15} />} label="Checklists" active={tab === "checklists"} onClick={() => onNavigate("checklists")} />}
 
         <SideGroup icon="📅" label="My Schedule" open={openGroups.schedule} onToggle={() => toggleGroup("schedule")}>
           {notHidden("myschedule") && <SideItem icon={<Calendar size={14} />} label="My Schedule" active={tab === "myschedule"} onClick={() => onNavigate("myschedule")} indent />}

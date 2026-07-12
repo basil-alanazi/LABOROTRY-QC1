@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Camera, Loader2, Check, X } from "lucide-react";
-import { findCloseMatch } from "./scheduleUtils";
 
 // Loads the Tesseract.js OCR library from a CDN the first time it's needed
 // (keeps it out of the main app bundle since most people won't use this).
@@ -15,12 +14,86 @@ function loadTesseract() {
   });
 }
 
+// Common lab test aliases — each inner array is a group of names/abbreviations
+// that all refer to the same test. Lets "Glucose" match "GLU", "TG" match
+// "Triglycerides", etc., even when the letters don't overlap at all.
+const ALIAS_GROUPS = [
+  ["glucose", "glu", "bg", "rbs", "fbs", "blood glucose"],
+  ["triglycerides", "tg", "trig", "trg"],
+  ["cholesterol", "chol", "tc", "total cholesterol"],
+  ["hdl", "hdl-c", "hdl cholesterol"],
+  ["ldl", "ldl-c", "ldl cholesterol"],
+  ["urea", "bun", "blood urea nitrogen"],
+  ["creatinine", "crea", "creat", "cr"],
+  ["uric acid", "ua", "uricacid"],
+  ["total protein", "tp", "protein"],
+  ["albumin", "alb"],
+  ["total bilirubin", "tbil", "t.bil", "bilirubin total"],
+  ["direct bilirubin", "dbil", "d.bil", "bilirubin direct"],
+  ["alanine aminotransferase", "alt", "sgpt"],
+  ["aspartate aminotransferase", "ast", "sgot"],
+  ["alkaline phosphatase", "alp", "alk phos"],
+  ["gamma gt", "ggt", "gamma-gt", "gamma glutamyl transferase"],
+  ["amylase", "amyl", "amy"],
+  ["lipase", "lip"],
+  ["calcium", "ca", "ca2+"],
+  ["magnesium", "mg", "mg2+"],
+  ["phosphorus", "phos", "po4"],
+  ["sodium", "na", "na+"],
+  ["potassium", "k", "k+"],
+  ["chloride", "cl", "cl-"],
+  ["iron", "fe"],
+  ["ferritin", "ferr"],
+  ["crp", "c-reactive protein", "c reactive protein"],
+  ["hemoglobin", "hb", "hgb"],
+  ["hematocrit", "hct"],
+  ["white blood cells", "wbc"],
+  ["red blood cells", "rbc"],
+  ["platelets", "plt"],
+  ["ck-total", "ck", "creatine kinase", "cpk"],
+  ["troponin", "trop", "trop i", "troponin i"],
+  ["tsh", "thyroid stimulating hormone"],
+  ["hba1c", "a1c", "glycated hemoglobin"],
+];
+function aliasGroupFor(name) {
+  const n = name.toLowerCase().replace(/[^a-z0-9+.\- ]/g, "").trim();
+  return ALIAS_GROUPS.find((group) => group.includes(n));
+}
+
+// Edit distance — same idea as findCloseMatch in scheduleUtils, but more
+// forgiving for short lab abbreviations (TG/TRG, UA/URIC, etc.) which that
+// shared helper deliberately ignores below 4 characters.
+function editDistance(a, b) {
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+function tokenMatchesAnalyte(token, analyteName) {
+  const t = token.toLowerCase().replace(/[^a-z0-9+.\- ]/g, "").trim();
+  const n = analyteName.toLowerCase().replace(/[^a-z0-9+.\- ]/g, "").trim();
+  if (!t || !n) return false;
+  if (t === n || t.includes(n) || n.includes(t)) return true;
+
+  // Same clinical test under a different abbreviation (e.g. TG vs Triglycerides)?
+  const groupA = aliasGroupFor(t);
+  const groupB = aliasGroupFor(n);
+  if (groupA && groupA === groupB) return true;
+
+  const maxDist = n.length <= 3 ? 1 : 2; // short abbreviations (TG, UA…) tolerate 1 typo; longer names tolerate 2
+  return editDistance(t, n) <= maxDist;
+}
+
 // Very rough line parser: for each known analyte, look for its name
-// somewhere in the OCR text and grab the first decimal number that follows
-// it on the same or next line.
+// (or a close abbreviation) somewhere in the OCR text and grab the first
+// number that follows it on the same or next line.
 function extractValues(rawText, analytes) {
   const lines = rawText.split("\n").map((l) => l.trim()).filter(Boolean);
-  const numberRe = /-?\d+(\.\d+)?/;
+  const numberRe = /-?\d+[.,]?\d*/;
   const found = {};
   const unmatched = [];
 
@@ -28,14 +101,13 @@ function extractValues(rawText, analytes) {
     let hit = null;
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const match = findCloseMatch(line, [a.name]);
-      const containsName = line.toLowerCase().includes(a.name.toLowerCase());
-      if (containsName || match?.exact || match?.suggestion) {
-        // Look for a number on this line (after the name) or the next line.
-        const afterName = line.toLowerCase().split(a.name.toLowerCase())[1] || "";
-        const numMatch = numberRe.exec(afterName) || numberRe.exec(line) || (lines[i + 1] ? numberRe.exec(lines[i + 1]) : null);
-        if (numMatch) { hit = numMatch[0]; break; }
-      }
+      const tokens = line.split(/\s+/);
+      const matchIdx = tokens.findIndex((tok) => tokenMatchesAnalyte(tok, a.name));
+      if (matchIdx === -1) continue;
+      // Look for a number after the matched token on this line, else the next line.
+      const restOfLine = tokens.slice(matchIdx + 1).join(" ");
+      const numMatch = numberRe.exec(restOfLine) || numberRe.exec(line) || (lines[i + 1] ? numberRe.exec(lines[i + 1]) : null);
+      if (numMatch) { hit = numMatch[0].replace(",", "."); break; }
     }
     if (hit !== null) found[a.name] = hit;
     else unmatched.push(a.name);
@@ -84,7 +156,7 @@ export default function ScanControlPhoto({ analytes, onExtracted }) {
         <input type="file" accept="image/*" capture="environment" onChange={handleFile} disabled={busy} style={{ display: "none" }} />
       </label>
       <div style={{ fontSize: 11, color: "#8A9694", marginTop: 4 }}>
-        Free, on-device text reading — works best with a clear, well-lit, straight-on photo. Always double-check the numbers before saving.
+        Free, on-device text reading — works best with a clear, well-lit, straight-on photo. <strong style={{ color: "#B8860B" }}>Decimal points are the most common misread</strong> (e.g. 15 instead of 1.5) — always double-check every number before saving.
       </div>
 
       {result && (
