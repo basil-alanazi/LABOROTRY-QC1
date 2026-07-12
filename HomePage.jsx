@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { LayoutGrid, ClipboardCheck, Users, Calendar, Table2, FolderOpen, MessageCircle } from "lucide-react";
+import { LayoutGrid, ClipboardCheck, Users, Calendar, Table2, FolderOpen, MessageCircle, FlaskConical, AlertTriangle, ClipboardList, Wrench, CheckCircle2 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { isWithinShift, todayISO, yesterdayISO } from "./scheduleUtils";
 import { loadProfilesMap } from "./userProfiles";
@@ -18,6 +18,8 @@ export default function HomePage({ username, role, config, panels, activeEntries
   const displayName = (profiles?.[username]?.full_name || "").trim().split(" ")[0] || username;
   const [mine, setMine] = useState(null); // { department, shiftCode }
   const [backupDaysAgo, setBackupDaysAgo] = useState(null);
+  const [tasks, setTasks] = useState(null);
+  const [finishedMsg, setFinishedMsg] = useState("");
   const isAdmin = role === "admin" || role === "super";
 
   useEffect(() => {
@@ -79,22 +81,48 @@ export default function HomePage({ username, role, config, panels, activeEntries
     })();
   }, [username]);
 
+  useEffect(() => {
+    (async () => {
+      const today = todayISO();
+      const [{ data: items }, { data: completions }, { data: incidents }, { data: handover }] = await Promise.all([
+        supabase.from("checklist_items").select("id").eq("deleted", false).eq("frequency", "daily"),
+        supabase.from("checklist_completions").select("item_id").eq("period_key", today),
+        supabase.from("incident_reports").select("id").eq("deleted", false).eq("status", "open"),
+        supabase.from("shift_handovers").select("id").eq("deleted", false).eq("date", today).eq("handover_by", username).maybeSingle(),
+      ]);
+      setTasks({
+        checklistLeft: Math.max(0, (items?.length || 0) - (completions?.length || 0)),
+        openIncidents: incidents?.length || 0,
+        handedOver: !!handover,
+      });
+    })();
+  }, [username]);
+
   const today = now.toISOString().slice(0, 10);
   const enteredToday = panels.filter((p) => activeEntries.some((e) => e.panel_id === p.id && e.date === today)).length;
+  const qcDone = panels.length > 0 && enteredToday === panels.length;
+
+  const quickActions = [
+    { key: "qc", label: "New QC", icon: FlaskConical },
+    { key: "incident", label: "New Incident", icon: AlertTriangle },
+    { key: "handover", label: "Handover", icon: Users },
+    ...(isAdmin ? [{ key: "equipment", label: "Maintenance", icon: Wrench }] : []),
+    { key: "checklists", label: "Checklist", icon: ClipboardList },
+  ];
 
   const tiles = [
     { key: "qc", label: "QC Entry", icon: LayoutGrid },
     { key: "chat", label: "Chat", icon: MessageCircle },
-    ...(role === "admin" || role === "super" ? [{ key: "approvals", label: "Approvals", icon: ClipboardCheck }] : []),
+    ...(isAdmin ? [{ key: "approvals", label: "Approvals", icon: ClipboardCheck }] : []),
     { key: "staff", label: "Staff", icon: Users },
     { key: "myschedule", label: "My Schedule", icon: Calendar },
-    ...(role === "admin" || role === "super" ? [{ key: "tables", label: "Tables", icon: Table2 }] : []),
-    ...(role === "admin" || role === "super" ? [{ key: "files", label: "Files", icon: FolderOpen }] : []),
+    ...(isAdmin ? [{ key: "tables", label: "Tables", icon: Table2 }] : []),
+    ...(isAdmin ? [{ key: "files", label: "Files", icon: FolderOpen }] : []),
   ];
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 20 }}>
         <div style={{ fontSize: 22, fontWeight: 700 }}>
           {profiles?.[username]?.custom_welcome_message
             ? profiles[username].custom_welcome_message.replace(/{name}/g, displayName)
@@ -109,6 +137,22 @@ export default function HomePage({ username, role, config, panels, activeEntries
       </div>
 
       <ShiftCountdown username={username} />
+
+      {/* Today's tasks — the whole point of the workspace: what needs doing, right now */}
+      <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 12, padding: 16, marginBottom: 18 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#7B8E8A", marginBottom: 10 }}>TODAY YOU HAVE</div>
+        {tasks === null ? (
+          <div style={{ fontSize: 12.5, color: "#8A9694" }}>Loading…</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <TaskRow done={qcDone} icon={FlaskConical} label={`QC entry — ${enteredToday}/${panels.length} panels`} onClick={() => onNavigate("qc")} />
+            <TaskRow done={tasks.checklistLeft === 0} icon={ClipboardList} label={tasks.checklistLeft === 0 ? "Daily checklist — all done" : `Daily checklist — ${tasks.checklistLeft} task${tasks.checklistLeft === 1 ? "" : "s"} left`} onClick={() => onNavigate("checklists")} />
+            {tasks.openIncidents > 0 && <TaskRow done={false} warn icon={AlertTriangle} label={`${tasks.openIncidents} open incident${tasks.openIncidents === 1 ? "" : "s"} to review`} onClick={() => onNavigate("incident")} />}
+            <TaskRow done={tasks.handedOver} icon={Users} label={tasks.handedOver ? "Shift handover — submitted" : "Shift handover — not submitted yet"} onClick={() => onNavigate("handover")} />
+          </div>
+        )}
+      </div>
+
       <MorningBrief displayName={displayName} />
 
       {mine && (mine.departmentAM || mine.departmentPM || mine.departmentNight || mine.shiftCode) && (
@@ -122,11 +166,27 @@ export default function HomePage({ username, role, config, panels, activeEntries
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 24 }}>
-        <StatCard label="QC entered today" value={`${enteredToday}/${panels.length}`} tone={enteredToday === panels.length ? "green" : "orange"} />
-        {(role === "admin" || role === "super") && <StatCard label="Pending approvals" value={pendingCount} tone={pendingCount > 0 ? "orange" : "green"} />}
-        <StatCard label="On duty now" value={onDuty.length} tone="neutral" />
+      {/* Big, thumb-friendly quick actions — the core of the workspace */}
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#7B8E8A", marginBottom: 10 }}>QUICK ACTIONS</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 12, marginBottom: 16 }}>
+        {quickActions.map((t) => {
+          const Icon = t.icon;
+          return (
+            <button key={t.key} onClick={() => onNavigate(t.key)} style={{ background: "#0F7173", border: "none", borderRadius: 12, padding: "18px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <Icon size={22} color="#fff" />
+              <div style={{ fontWeight: 700, fontSize: 13, textAlign: "center", color: "#fff" }}>{t.label}</div>
+            </button>
+          );
+        })}
       </div>
+
+      <button
+        onClick={() => setFinishedMsg("Nice work today — hope the rest of your shift is smooth! 👋")}
+        style={{ width: "100%", background: "#1B2B2E", color: "#fff", border: "none", borderRadius: 12, padding: "14px", fontWeight: 700, fontSize: 14, marginBottom: finishedMsg ? 8 : 24 }}
+      >
+        ✅ Finish My Shift
+      </button>
+      {finishedMsg && <div style={{ fontSize: 12.5, color: "#2F6B4F", textAlign: "center", marginBottom: 24 }}>{finishedMsg}</div>}
 
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>WHO'S AVAILABLE NOW</div>
@@ -141,7 +201,7 @@ export default function HomePage({ username, role, config, panels, activeEntries
         )}
       </div>
 
-      <div style={{ fontSize: 13, fontWeight: 700, color: "#7B8E8A", marginBottom: 10 }}>QUICK LAUNCH</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#7B8E8A", marginBottom: 10 }}>MORE PAGES</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 12 }}>
         {tiles.map((t) => {
           const Icon = t.icon;
@@ -154,6 +214,15 @@ export default function HomePage({ username, role, config, panels, activeEntries
         })}
       </div>
     </div>
+  );
+}
+
+function TaskRow({ done, warn, icon: Icon, label, onClick }) {
+  return (
+    <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", padding: "8px 4px", textAlign: "left", width: "100%" }}>
+      {done ? <CheckCircle2 size={18} color="#2F6B4F" /> : <Icon size={18} color={warn ? "#C1432B" : "#B8860B"} />}
+      <span style={{ fontSize: 13.5, color: done ? "#8A9694" : "#1B2B2E", textDecoration: done ? "line-through" : "none", fontWeight: done ? 400 : 600 }}>{label}</span>
+    </button>
   );
 }
 
