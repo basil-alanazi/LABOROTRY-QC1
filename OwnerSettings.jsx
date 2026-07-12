@@ -156,6 +156,13 @@ export default function OwnerSettings({ config, reload }) {
     loadExtras();
   }
 
+  async function editWelcomeMessage(username) {
+    const current = (await supabase.from("user_profiles").select("custom_welcome_message").eq("username", username).maybeSingle()).data?.custom_welcome_message || "";
+    const msg = prompt(`Custom welcome message for ${username}.\nUse {name} for their first name. Leave blank to use the default "Good morning, {name}" greeting.`, current);
+    if (msg === null) return;
+    await supabase.from("user_profiles").upsert({ username, custom_welcome_message: msg }, { onConflict: "username" });
+  }
+
   return (
     <div>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Owner settings</h2>
@@ -254,6 +261,7 @@ export default function OwnerSettings({ config, reload }) {
               <div style={{ flex: 1, fontWeight: 600 }}>{s.username}</div>
               {s.must_change_password && <span style={{ fontSize: 10, color: "#B8860B" }}>must change on next login</span>}
               <button onClick={() => setEditingStaffAccount(s)} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 11.5, fontWeight: 700 }}>Permissions</button>
+              <button onClick={() => editWelcomeMessage(s.username)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 5, padding: "4px 8px", fontSize: 11 }}>Welcome msg</button>
               <button onClick={() => resetPassword("staff_accounts", s.id, s.username)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 5, padding: "4px 8px", fontSize: 11 }}>Reset</button>
             </div>
             {(s.permissions || []).length > 0 && (

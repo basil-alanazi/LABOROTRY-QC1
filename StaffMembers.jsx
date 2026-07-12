@@ -63,6 +63,10 @@ export default function StaffMembers({ departments, role }) {
     await supabase.from("staff_members").update({ deleted: true }).eq("id", id);
     loadAll();
   }
+  async function setRoleType(id, roleType) {
+    await supabase.from("staff_members").update({ role_type: roleType || null }).eq("id", id);
+    loadAll();
+  }
   async function moveStaff(index, direction) {
     const target = index + direction;
     if (target < 0 || target >= staff.length) return;
@@ -229,6 +233,16 @@ export default function StaffMembers({ departments, role }) {
                 <div style={{ fontSize: 13.5, fontWeight: 600 }}>{s.full_name}</div>
                 <div style={{ fontSize: 11.5, color: "#8A9694" }}>{s.job_number ? `#${s.job_number} · ` : ""}{s.department}</div>
               </div>
+              {canEdit ? (
+                <select value={s.role_type || ""} onChange={(e) => setRoleType(s.id, e.target.value)} style={{ border: "1px solid #C7D1CE", borderRadius: 6, padding: "5px 7px", fontSize: 11.5 }}>
+                  <option value="">Role type…</option>
+                  <option value="Lab Specialist">Lab Specialist</option>
+                  <option value="Staff Supervisor">Staff Supervisor</option>
+                  <option value="Controls Supervisor">Controls Supervisor</option>
+                </select>
+              ) : (
+                s.role_type && <span style={{ fontSize: 10.5, fontWeight: 700, color: "#516361", background: "#F0F3F2", padding: "3px 8px", borderRadius: 5 }}>{s.role_type}</span>
+              )}
               {canEdit && <button onClick={() => removeStaff(s.id)} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={15} /></button>}
             </div>
           ))}

@@ -11,7 +11,7 @@ const TYPE_META = {
   fault: { label: "Fault", icon: AlertTriangle, bg: "#FBEAE6", fg: "#C1432B" },
 };
 
-export default function Equipment({ departments, role, username }) {
+export default function Equipment({ departments, role, username, onNavigate }) {
   const [list, setList] = useState(null);
   const [events, setEvents] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -45,7 +45,7 @@ export default function Equipment({ departments, role, username }) {
   if (selected) {
     const eq = list.find((x) => x.id === selected);
     if (!eq) { setSelected(null); return null; }
-    return <EquipmentDetail equipment={eq} events={events.filter((e) => e.equipment_id === eq.id)} canEdit={canEdit} username={username} onBack={() => setSelected(null)} reload={loadAll} />;
+    return <EquipmentDetail equipment={eq} events={events.filter((e) => e.equipment_id === eq.id)} canEdit={canEdit} username={username} onBack={() => setSelected(null)} reload={loadAll} onNavigate={onNavigate} />;
   }
 
   function dueStatus(eqId) {
@@ -149,7 +149,7 @@ export default function Equipment({ departments, role, username }) {
   );
 }
 
-function EquipmentDetail({ equipment, events, canEdit, username, onBack, reload }) {
+function EquipmentDetail({ equipment, events, canEdit, username, onBack, reload, onNavigate }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ event_type: "maintenance", date: todayISO(), description: "", engineer_name: "", resolved: true, next_due_date: "", file_note: "" });
 
@@ -182,7 +182,17 @@ function EquipmentDetail({ equipment, events, canEdit, username, onBack, reload 
         <h2 style={{ fontSize: 20, fontWeight: 700 }}>{equipment.name}</h2>
         {canEdit && <button onClick={() => setShowAdd(true)} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Log event</button>}
       </div>
-      <div style={{ fontSize: 12, color: "#8A9694", marginBottom: 20 }}>{equipment.department}{equipment.serial_number ? ` · SN ${equipment.serial_number}` : ""}{equipment.install_date ? ` · installed ${equipment.install_date}` : ""}</div>
+      <div style={{ fontSize: 12, color: "#8A9694", marginBottom: 14 }}>{equipment.department}{equipment.serial_number ? ` · SN ${equipment.serial_number}` : ""}{equipment.install_date ? ` · installed ${equipment.install_date}` : ""}</div>
+
+      {canEdit && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#8A9694", width: "100%" }}>QUICK ACTIONS</div>
+          <button onClick={() => { setForm((f) => ({ ...f, event_type: "maintenance" })); setShowAdd(true); }} style={{ background: "#F0F3F2", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 12, fontWeight: 600, color: "#516361" }}>🔧 Log maintenance</button>
+          <button onClick={() => { setForm((f) => ({ ...f, event_type: "calibration" })); setShowAdd(true); }} style={{ background: "#F0F3F2", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 12, fontWeight: 600, color: "#516361" }}>✅ Log calibration</button>
+          <button onClick={() => { setForm((f) => ({ ...f, event_type: "fault" })); setShowAdd(true); }} style={{ background: "#FBEAE6", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 12, fontWeight: 600, color: "#C1432B" }}>⚠ Log fault</button>
+          {onNavigate && <button onClick={() => onNavigate("incident")} style={{ background: "#FBEAE6", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 12, fontWeight: 600, color: "#C1432B" }}>📋 Create incident</button>}
+        </div>
+      )}
 
       <EquipmentDocuments equipmentId={equipment.id} canEdit={canEdit} username={username} />
 

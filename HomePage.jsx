@@ -3,6 +3,8 @@ import { LayoutGrid, ClipboardCheck, Users, Calendar, Table2, FolderOpen, Messag
 import { supabase } from "./supabaseClient";
 import { isWithinShift, todayISO, yesterdayISO } from "./scheduleUtils";
 import { loadProfilesMap } from "./userProfiles";
+import MorningBrief from "./MorningBrief";
+import ShiftCountdown from "./ShiftCountdown";
 
 function greeting(hour) {
   if (hour < 12) return "Good morning";
@@ -93,7 +95,11 @@ export default function HomePage({ username, role, config, panels, activeEntries
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 22, fontWeight: 700 }}>{greeting(now.getHours())}, {displayName} 👋</div>
+        <div style={{ fontSize: 22, fontWeight: 700 }}>
+          {profiles?.[username]?.custom_welcome_message
+            ? profiles[username].custom_welcome_message.replace(/{name}/g, displayName)
+            : `${greeting(now.getHours())}, ${displayName} 👋`}
+        </div>
         {isAdmin && backupDaysAgo !== null && backupDaysAgo >= 7 && (
           <button onClick={() => onNavigate("backup")} style={{ display: "block", width: "100%", textAlign: "left", marginTop: 10, background: "#FBF3DF", border: "1px solid #E8D9A8", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "#8A6D2F" }}>
             💾 {backupDaysAgo === Infinity ? "You haven't taken a backup yet" : `It's been ${backupDaysAgo} days since your last backup`} — tap to download one now.
@@ -101,6 +107,9 @@ export default function HomePage({ username, role, config, panels, activeEntries
         )}
         <div style={{ fontSize: 13, color: "#8A9694", marginTop: 4 }}>{now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} · {now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
       </div>
+
+      <ShiftCountdown username={username} />
+      <MorningBrief displayName={displayName} />
 
       {mine && (mine.departmentAM || mine.departmentPM || mine.departmentNight || mine.shiftCode) && (
         <div style={{ background: "#E8F2EC", border: "1px solid #2F6B4F33", borderRadius: 10, padding: "14px 18px", marginBottom: 20 }}>

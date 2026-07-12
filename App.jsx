@@ -412,7 +412,7 @@ export default function App() {
         {tab === "audit" && (roleFor(tab) === "admin" || role === "super") && <AuditTrail />}
         {tab === "backup" && (roleFor(tab) === "admin" || role === "super") && <BackupExport />}
         {tab === "kpi" && (roleFor(tab) === "admin" || role === "super") && <KPI panels={panels} entries={activeEntries} baselines={baselines} />}
-        {tab === "equipment" && (roleFor(tab) === "admin" || role === "super") && <Equipment departments={config.departments || []} role={roleFor(tab)} username={username} />}
+        {tab === "equipment" && (roleFor(tab) === "admin" || role === "super") && <Equipment departments={config.departments || []} role={roleFor(tab)} username={username} onNavigate={setTab} />}
         {tab === "reject" && (roleFor(tab) === "admin" || role === "super") && <RejectSample role={roleFor(tab)} username={username} />}
         {tab === "panic" && (roleFor(tab) === "admin" || role === "super") && <PanicValue role={roleFor(tab)} username={username} />}
         {tab === "corrective" && (roleFor(tab) === "admin" || role === "super") && <CorrectiveAction role={roleFor(tab)} username={username} />}
