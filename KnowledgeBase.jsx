@@ -20,6 +20,7 @@ export default function KnowledgeBase({ role, username }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(blankForm());
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   function blankForm() {
     return { category: "SOP", title: "", content_type: "text", content: "", description: "" };
@@ -34,10 +35,21 @@ export default function KnowledgeBase({ role, username }) {
   async function handleFileUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
+    const MAX_MB = 50;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      alert(`This file is ${(file.size / 1024 / 1024).toFixed(1)}MB — please keep uploads under ${MAX_MB}MB. For longer training videos, upload to YouTube (even as "Unlisted") and add it here as a Link instead — much faster and more reliable than uploading the video file itself.`);
+      e.target.value = "";
+      return;
+    }
     setUploading(true);
+    setUploadError("");
     const path = `knowledge-base/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
     const { error } = await supabase.storage.from("attachments").upload(path, file);
-    if (!error) setForm((f) => ({ ...f, content_type: "file", content: path }));
+    if (error) {
+      setUploadError(error.message);
+    } else {
+      setForm((f) => ({ ...f, content_type: "file", content: path }));
+    }
     setUploading(false);
   }
 
@@ -135,10 +147,14 @@ export default function KnowledgeBase({ role, username }) {
               {form.content_type === "text" && <textarea placeholder="Write the content (answer, steps, notes…)" value={form.content} onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} rows={5} style={{ ...inputStyle, fontFamily: "inherit" }} />}
               {form.content_type === "link" && <input placeholder="https://…" value={form.content} onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} style={inputStyle} />}
               {form.content_type === "file" && (
-                <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#F0F3F2", border: "1px dashed #C7D1CE", borderRadius: 7, padding: "10px 14px", fontSize: 13, cursor: "pointer" }}>
-                  {uploading ? "Uploading…" : form.content ? "✅ File attached" : "Choose file"}
-                  <input type="file" onChange={handleFileUpload} disabled={uploading} style={{ display: "none" }} />
-                </label>
+                <div>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#F0F3F2", border: "1px dashed #C7D1CE", borderRadius: 7, padding: "10px 14px", fontSize: 13, cursor: "pointer" }}>
+                    {uploading ? "Uploading…" : form.content ? "✅ File attached" : "Choose file"}
+                    <input type="file" onChange={handleFileUpload} disabled={uploading} style={{ display: "none" }} />
+                  </label>
+                  <div style={{ fontSize: 11, color: "#8A9694", marginTop: 4 }}>Max 50MB. For training videos, a YouTube link (Unlisted works fine) is faster than uploading the file — use "Link" above instead.</div>
+                  {uploadError && <div style={{ fontSize: 11.5, color: "#C1432B", marginTop: 4 }}>❌ {uploadError}</div>}
+                </div>
               )}
               <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                 <button onClick={addEntry} style={{ flex: 1, background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700 }}>Save</button>
