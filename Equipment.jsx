@@ -254,7 +254,9 @@ function EquipmentDocuments({ equipmentId, canEdit, username }) {
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
-    const path = `equipment/${equipmentId}/${Date.now()}-${file.name}`;
+    const extMatch = /\.[a-zA-Z0-9]{1,8}$/.exec(file.name || "");
+    const ext = extMatch ? extMatch[0] : "";
+    const path = `equipment/${equipmentId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
     const { error: upErr } = await supabase.storage.from("attachments").upload(path, file);
     if (!upErr) {
       await supabase.from("equipment_files").insert({ equipment_id: equipmentId, filename: file.name, storage_path: path, description, uploaded_by: username });

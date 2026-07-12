@@ -23,7 +23,9 @@ export default function Files({ role, username }) {
     setUploading(true);
     setError("");
     try {
-      const path = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const extMatch = /\.[a-zA-Z0-9]{1,8}$/.exec(file.name || "");
+      const ext = extMatch ? extMatch[0] : "";
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
       const { error: upErr } = await supabase.storage.from("attachments").upload(path, file);
       if (upErr) throw upErr;
       await supabase.from("files_library").insert({ filename: file.name, storage_path: path, description, uploaded_by: username });

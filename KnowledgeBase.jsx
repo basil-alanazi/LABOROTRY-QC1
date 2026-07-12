@@ -43,12 +43,17 @@ export default function KnowledgeBase({ role, username }) {
     }
     setUploading(true);
     setUploadError("");
-    const path = `knowledge-base/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-    const { error } = await supabase.storage.from("attachments").upload(path, file);
+    // Build a storage key from scratch (random id + extension only) instead
+    // of the original filename — sidesteps any characters Supabase Storage
+    // rejects, no matter what the file was actually called.
+    const extMatch = /\.[a-zA-Z0-9]{1,8}$/.exec(file.name || "");
+    const ext = extMatch ? extMatch[0] : "";
+    const safeKey = `knowledge-base/${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
+    const { error } = await supabase.storage.from("attachments").upload(safeKey, file);
     if (error) {
       setUploadError(error.message);
     } else {
-      setForm((f) => ({ ...f, content_type: "file", content: path }));
+      setForm((f) => ({ ...f, content_type: "file", content: safeKey, title: f.title || file.name.replace(/\.[a-zA-Z0-9]{1,8}$/, "") }));
     }
     setUploading(false);
   }
