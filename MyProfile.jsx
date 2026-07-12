@@ -32,13 +32,14 @@ export default function MyProfile({ username }) {
 
   async function changePassword() {
     setPwMsg("");
-    if (newPassword.length < 4) { setPwMsg("Password should be at least 4 characters."); return; }
-    if (newPassword !== confirmPassword) { setPwMsg("Passwords don't match."); return; }
+    const trimmed = newPassword.trim();
+    if (trimmed.length < 4) { setPwMsg("Password should be at least 4 characters."); return; }
+    if (trimmed !== confirmPassword.trim()) { setPwMsg("Passwords don't match."); return; }
     setPwSaving(true);
     try {
-      const { data: s } = await supabase.from("staff_accounts").update({ password: newPassword, must_change_password: false }).eq("username", username).select();
+      const { data: s } = await supabase.from("staff_accounts").update({ password: trimmed, must_change_password: false }).eq("username", username).select();
       if (s && s.length > 0) { setPwMsg("Password updated."); setNewPassword(""); setConfirmPassword(""); return; }
-      const { data: p } = await supabase.from("portal_accounts").update({ password: newPassword, must_change_password: false }).eq("username", username).select();
+      const { data: p } = await supabase.from("portal_accounts").update({ password: trimmed, must_change_password: false }).eq("username", username).select();
       if (p && p.length > 0) { setPwMsg("Password updated."); setNewPassword(""); setConfirmPassword(""); return; }
       setPwMsg("Couldn't find an individual login for this username — shared accounts (like the main staff/admin logins) can't be changed here.");
     } catch (err) {

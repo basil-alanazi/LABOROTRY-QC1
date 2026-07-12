@@ -4,8 +4,8 @@ import { supabase } from "./supabaseClient";
 import { playWelcomeChime } from "./sounds";
 
 export default function Login({ config, staffAccounts, portalAccounts, onLogin }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [rawUsername, setUsername] = useState("");
+  const [rawPassword, setPassword] = useState("");
   const [error, setError] = useState("");
   const [forcedAccount, setForcedAccount] = useState(null); // { table, id, username, role, permissions }
 
@@ -21,6 +21,8 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
 
   function submit(e) {
     e.preventDefault();
+    const username = rawUsername.trim();
+    const password = rawPassword.trim();
     if (username === config.super_username && password === config.super_password) {
       finishLogin("super", username);
       return;
@@ -77,10 +79,10 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
         </div>
 
         <label style={{ fontSize: 12.5, fontWeight: 600, color: "#516361" }}>Username
-          <input style={inputStyle} value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
+          <input style={inputStyle} value={rawUsername} onChange={(e) => setUsername(e.target.value)} autoFocus autoCapitalize="off" autoCorrect="off" autoComplete="off" spellCheck="false" />
         </label>
         <label style={{ fontSize: 12.5, fontWeight: 600, color: "#516361", display: "block", marginTop: 12 }}>Password
-          <input type="password" style={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input type="password" style={inputStyle} value={rawPassword} onChange={(e) => setPassword(e.target.value)} />
         </label>
 
         {error && <div style={{ color: "#C1432B", fontSize: 12.5, marginTop: 10 }}>{error}</div>}
@@ -105,10 +107,11 @@ function ForcePasswordChange({ account, onDone }) {
 
   async function save(e) {
     e.preventDefault();
-    if (!pw1 || pw1.length < 4) { setError("Choose a password at least 4 characters long."); return; }
-    if (pw1 !== pw2) { setError("Passwords don't match."); return; }
+    const trimmed = pw1.trim();
+    if (!trimmed || trimmed.length < 4) { setError("Choose a password at least 4 characters long."); return; }
+    if (trimmed !== pw2.trim()) { setError("Passwords don't match."); return; }
     setBusy(true);
-    await supabase.from(account.table).update({ password: pw1, must_change_password: false }).eq("id", account.id);
+    await supabase.from(account.table).update({ password: trimmed, must_change_password: false }).eq("id", account.id);
     setBusy(false);
     onDone(account.role, account.username, account.permissions);
   }
