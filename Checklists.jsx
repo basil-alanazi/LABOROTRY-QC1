@@ -77,10 +77,13 @@ export default function Checklists({ role, username }) {
 
   return (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Checklists</h2>
+      <div className="no-print" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700 }}>Checklists</h2>
+        <button onClick={() => window.print()} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#516361" }}>🖨️ Print</button>
+      </div>
       <div style={{ fontSize: 12.5, color: "#8A9694", marginBottom: 16 }}>Routine tasks — maintenance, lab prep, waste disposal, and anything else that repeats on a schedule.</div>
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+      <div className="no-print" style={{ display: "flex", gap: 6, marginBottom: 16 }}>
         {TABS.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{ border: "1px solid " + (tab === t.key ? "#0F7173" : "#C7D1CE"), background: tab === t.key ? "#0F7173" : "#fff", color: tab === t.key ? "#fff" : "#516361", borderRadius: 7, padding: "8px 16px", fontSize: 13, fontWeight: 700 }}>{t.label}</button>
         ))}
@@ -93,7 +96,7 @@ export default function Checklists({ role, username }) {
       ) : items.length === 0 ? (
         <div style={{ textAlign: "center", padding: "30px 20px", color: "#8A9694" }}>No {tab} tasks yet.</div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 18 }}>
+        <div className="print-area" style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 18 }}>
           {items.map((item) => {
             const done = completionFor(item.id);
             return (

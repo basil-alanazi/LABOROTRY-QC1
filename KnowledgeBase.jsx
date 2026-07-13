@@ -10,6 +10,7 @@ const CATEGORIES = [
   { key: "Training Video", icon: Video, color: "#B8860B" },
   { key: "Troubleshooting", icon: Wrench, color: "#C1432B" },
   { key: "FAQ", icon: HelpCircle, color: "#7A4FA3" },
+  { key: "Parasitology", icon: FileText, color: "#2F6B4F" },
 ];
 
 export default function KnowledgeBase({ role, username }) {
@@ -20,6 +21,7 @@ export default function KnowledgeBase({ role, username }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(blankForm());
   const [uploading, setUploading] = useState(false);
+  const [galleryDraft, setGalleryDraft] = useState("");
   const [uploadError, setUploadError] = useState("");
 
   function blankForm() {
@@ -62,6 +64,7 @@ export default function KnowledgeBase({ role, username }) {
     if (!form.title.trim()) return;
     await supabase.from("knowledge_base").insert({ ...form, created_by: username });
     setForm(blankForm());
+    setGalleryDraft("");
     setShowAdd(false);
     load();
   }
@@ -124,6 +127,20 @@ export default function KnowledgeBase({ role, username }) {
                       {e.content_type === "file" && <a href={fileUrl(e.content)} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: "#0F7173", fontWeight: 600 }}>📎 Open file</a>}
                       {e.content_type === "link" && <a href={e.content} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: "#0F7173", fontWeight: 600 }}><LinkIcon size={12} style={{ verticalAlign: -1 }} /> Open link</a>}
                       {e.content_type === "text" && <div style={{ fontSize: 13, color: "#516361", whiteSpace: "pre-wrap", background: "#F8FAF9", borderRadius: 7, padding: 10, marginTop: 4 }}>{e.content}</div>}
+                      {e.content_type === "gallery" && (() => {
+                        let images = [];
+                        try { images = JSON.parse(e.content); } catch { images = []; }
+                        return (
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 8, marginTop: 6 }}>
+                            {images.map((img, i) => (
+                              <a key={i} href={img.url} target="_blank" rel="noreferrer" style={{ display: "block" }}>
+                                <img src={img.url} alt={img.caption || ""} style={{ width: "100%", height: 110, objectFit: "cover", borderRadius: 8, border: "1px solid #E1E8E5" }} />
+                                {img.caption && <div style={{ fontSize: 10.5, color: "#8A9694", marginTop: 3 }}>{img.caption}</div>}
+                              </a>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                   {canEdit && <button onClick={() => removeEntry(e.id)} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={14} /></button>}
@@ -145,12 +162,31 @@ export default function KnowledgeBase({ role, username }) {
               <input placeholder="Title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} style={inputStyle} />
               <input placeholder="Short description (optional)" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} style={inputStyle} />
               <div style={{ display: "flex", gap: 6 }}>
-                {["text", "link", "file"].map((t) => (
+                {["text", "link", "file", "gallery"].map((t) => (
                   <button key={t} onClick={() => setForm((f) => ({ ...f, content_type: t, content: "" }))} style={{ flex: 1, border: "1px solid " + (form.content_type === t ? "#0F7173" : "#C7D1CE"), background: form.content_type === t ? "#0F7173" : "#fff", color: form.content_type === t ? "#fff" : "#516361", borderRadius: 6, padding: "6px", fontSize: 12, fontWeight: 600, textTransform: "capitalize" }}>{t}</button>
                 ))}
               </div>
               {form.content_type === "text" && <textarea placeholder="Write the content (answer, steps, notes…)" value={form.content} onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} rows={5} style={{ ...inputStyle, fontFamily: "inherit" }} />}
               {form.content_type === "link" && <input placeholder="https://…" value={form.content} onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} style={inputStyle} />}
+              {form.content_type === "gallery" && (
+                <div>
+                  <textarea
+                    placeholder={"One image per line: image-url | caption\ne.g.\nhttps://example.com/photo1.jpg | Figure A: cyst\nhttps://example.com/photo2.jpg | Figure B: trophozoite"}
+                    value={galleryDraft}
+                    onChange={(e) => {
+                      setGalleryDraft(e.target.value);
+                      const images = e.target.value.split("\n").map((l) => l.trim()).filter(Boolean).map((line) => {
+                        const [url, caption] = line.split("|").map((s) => s?.trim());
+                        return { url, caption: caption || "" };
+                      }).filter((img) => img.url);
+                      setForm((f) => ({ ...f, content: JSON.stringify(images) }));
+                    }}
+                    rows={6}
+                    style={{ ...inputStyle, fontFamily: "inherit", fontSize: 12.5 }}
+                  />
+                  <div style={{ fontSize: 11, color: "#8A9694", marginTop: 4 }}>One image URL per line, optionally " | a caption" after it. Pictures show directly in the app, no need to click through.</div>
+                </div>
+              )}
               {form.content_type === "file" && (
                 <div>
                   <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#F0F3F2", border: "1px dashed #C7D1CE", borderRadius: 7, padding: "10px 14px", fontSize: 13, cursor: "pointer" }}>

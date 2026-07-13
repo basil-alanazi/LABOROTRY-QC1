@@ -84,7 +84,10 @@ export default function KPI({ panels, entries, baselines }) {
 
   return (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>KPI</h2>
+      <div className="no-print" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700 }}>KPI</h2>
+        <button onClick={() => window.print()} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#516361" }}>🖨️ Print</button>
+      </div>
       <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Lab-wide snapshot for {new Date().toLocaleString("en-US", { month: "long", year: "numeric" })}.</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 24 }}>

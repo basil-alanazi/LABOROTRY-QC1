@@ -183,7 +183,7 @@ function TibcCalc() {
 }
 
 function DilutionCalc() {
-  const [mode, setMode] = useState("have"); // "have" = I have a sample amount | "final" = I just want a final volume at a ratio
+  const [mode, setMode] = useState("have"); // "have" | "final" | "serial"
 
   const [volume, setVolume] = useState("");
   const [factor, setFactor] = useState("");
@@ -204,11 +204,24 @@ function DilutionCalc() {
   const neededSample = finalValid ? fv / rf : null;
   const neededDiluent = finalValid ? fv - neededSample : null;
 
+  // Serial (tube-to-tube) dilution: transfer a fixed volume from each tube
+  // into the next, which already holds diluent, repeating the same per-step factor.
+  const [transferVol, setTransferVol] = useState("");
+  const [stepFactor, setStepFactor] = useState("");
+  const [numTubes, setNumTubes] = useState("");
+  const tv = num(transferVol), sf = num(stepFactor), nt = num(numTubes);
+  const serialValid = tv !== null && tv > 0 && sf !== null && sf > 1 && nt !== null && nt > 0 && Number.isInteger(nt) && nt <= 20;
+  const diluentPerTube = serialValid ? tv * (sf - 1) : null;
+  const serialRows = serialValid
+    ? Array.from({ length: nt }, (_, i) => ({ tube: i + 1, cumulative: Math.pow(sf, i + 1) }))
+    : [];
+
   return (
     <div>
-      <div style={{ display: "flex", gap: 4, marginBottom: 14 }}>
+      <div style={{ display: "flex", gap: 4, marginBottom: 14, flexWrap: "wrap" }}>
         <button onClick={() => setMode("have")} style={{ border: "1px solid " + (mode === "have" ? "#0F7173" : "#C7D1CE"), background: mode === "have" ? "#0F7173" : "#fff", color: mode === "have" ? "#fff" : "#516361", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 600 }}>I have a sample amount</button>
         <button onClick={() => setMode("final")} style={{ border: "1px solid " + (mode === "final" ? "#0F7173" : "#C7D1CE"), background: mode === "final" ? "#0F7173" : "#fff", color: mode === "final" ? "#fff" : "#516361", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 600 }}>I want a specific final volume</button>
+        <button onClick={() => setMode("serial")} style={{ border: "1px solid " + (mode === "serial" ? "#0F7173" : "#C7D1CE"), background: mode === "serial" ? "#0F7173" : "#fff", color: mode === "serial" ? "#fff" : "#516361", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 600 }}>Serial dilution (tube to tube)</button>
       </div>
 
       {mode === "have" ? (
@@ -239,6 +252,45 @@ function DilutionCalc() {
             <ResultBox>
               For a 1:{rf} dilution making {fv} total: take {neededSample.toFixed(2)} of sample and add {neededDiluent.toFixed(2)} of diluent
             </ResultBox>
+          )}
+        </>
+      ) : (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+            <label style={labelStyle}>Volume transferred each step<input style={inputStyle} type="number" value={transferVol} onChange={(e) => setTransferVol(e.target.value)} /></label>
+            <label style={labelStyle}>Dilution factor per step (e.g. 2 for 1:2)<input style={inputStyle} type="number" value={stepFactor} onChange={(e) => setStepFactor(e.target.value)} /></label>
+            <label style={labelStyle}>Number of tubes<input style={inputStyle} type="number" value={numTubes} onChange={(e) => setNumTubes(e.target.value)} /></label>
+          </div>
+          {serialValid ? (
+            <>
+              <ResultBox>
+                Put {diluentPerTube.toFixed(2)} of diluent in every tube. Mix tube 1, transfer {tv} into tube 2, mix, transfer {tv} into tube 3 — repeat the same way down the line.
+              </ResultBox>
+              <div style={{ marginTop: 10, overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5 }}>
+                  <thead>
+                    <tr style={{ background: "#F0F3F2" }}>
+                      <th style={{ padding: "6px 10px", textAlign: "left" }}>Tube</th>
+                      <th style={{ padding: "6px 10px", textAlign: "left" }}>Diluent in tube</th>
+                      <th style={{ padding: "6px 10px", textAlign: "left" }}>Transfer in from previous</th>
+                      <th style={{ padding: "6px 10px", textAlign: "left" }}>Cumulative dilution</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {serialRows.map((r) => (
+                      <tr key={r.tube} style={{ borderTop: "1px solid #E1E8E5" }}>
+                        <td style={{ padding: "6px 10px", fontWeight: 700 }}>#{r.tube}</td>
+                        <td style={{ padding: "6px 10px" }}>{diluentPerTube.toFixed(2)}</td>
+                        <td style={{ padding: "6px 10px" }}>{tv}{r.tube === 1 ? " (of original sample)" : ""}</td>
+                        <td style={{ padding: "6px 10px", fontWeight: 700, color: "#0F7173" }}>1:{r.cumulative.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            numTubes && nt > 20 ? <WarnBox>Keep it to 20 tubes or fewer at a time.</WarnBox> : null
           )}
         </>
       )}

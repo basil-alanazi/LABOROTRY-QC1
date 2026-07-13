@@ -41,10 +41,13 @@ export default function LabTimeline() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Lab Timeline</h2>
+      <div className="no-print" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700 }}>Lab Timeline</h2>
+        <button onClick={() => window.print()} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#516361" }}>🖨️ Print</button>
+      </div>
       <div style={{ fontSize: 12.5, color: "#7B8E8A", marginBottom: 16 }}>Everything that happened in the lab on one day, in order — no jumping between pages.</div>
 
-      <div style={{ marginBottom: 18 }}>
+      <div className="no-print" style={{ marginBottom: 18 }}>
         <DateNav value={date} onChange={setDate} />
       </div>
 
@@ -53,7 +56,7 @@ export default function LabTimeline() {
       ) : events.length === 0 ? (
         <div style={{ textAlign: "center", padding: "30px 20px", color: "#8A9694" }}>Nothing recorded for this day yet.</div>
       ) : (
-        <div style={{ position: "relative", paddingLeft: 20 }}>
+        <div className="print-area" style={{ position: "relative", paddingLeft: 20 }}>
           <div style={{ position: "absolute", left: 5, top: 6, bottom: 6, width: 2, background: "#E1E8E5" }} />
           {events.map((e, i) => {
             const meta = TYPE_META[e.type];

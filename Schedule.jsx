@@ -56,6 +56,18 @@ export default function Schedule({ departments, role, username }) {
   }
   useEffect(() => { loadAll(); }, []);
 
+  // Auto-end any break whose requested duration has run out — checked every 30s.
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const expired = (breaks || []).filter((b) => ["approved", "active"].includes(b.status) && !b.ended_at && isBreakExpired(b));
+      for (const session of expired) {
+        await supabase.from("break_sessions").update({ status: "ended", ended_at: new Date().toISOString() }).eq("id", session.id);
+      }
+      if (expired.length > 0) loadAll();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [breaks]);
+
   // Polling: refresh live data + clock every 60s.
   useEffect(() => {
     const t = setInterval(() => { setNow(new Date()); loadAll(); }, 60000);
@@ -95,10 +107,16 @@ export default function Schedule({ departments, role, username }) {
 
   // ---------- Live status + break management ----------
 
+  function isBreakExpired(session) {
+    if (!session.started_at || !session.duration_minutes) return false;
+    const endsAt = new Date(session.started_at).getTime() + session.duration_minutes * 60000;
+    return Date.now() >= endsAt;
+  }
+
   function liveStatusFor(member) {
-    const activeBreak = (breaks || []).find((b) => b.staff_id === member.id && ["approved", "active"].includes(b.status) && !b.ended_at);
+    const activeBreak = (breaks || []).find((b) => b.staff_id === member.id && ["approved", "active"].includes(b.status) && !b.ended_at && !isBreakExpired(b));
     if (activeBreak) return { key: "on_break", session: activeBreak };
-    const coveringSession = (breaks || []).find((b) => b.covering_staff_id === member.id && ["approved", "active"].includes(b.status) && !b.ended_at);
+    const coveringSession = (breaks || []).find((b) => b.covering_staff_id === member.id && ["approved", "active"].includes(b.status) && !b.ended_at && !isBreakExpired(b));
     if (coveringSession) return { key: "covering", session: coveringSession };
 
     const today = todayISO();

@@ -153,11 +153,14 @@ export default function StaffMembers({ departments, role }) {
 
   return (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Staff</h2>
-      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>The employee roster, who's here right now, and who's coming up next.</div>
+      <div className="no-print" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700 }}>Staff</h2>
+        <button onClick={() => window.print()} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#516361" }}>🖨️ Print roster</button>
+      </div>
+      <div className="no-print" style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>The employee roster, who's here right now, and who's coming up next.</div>
 
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>LIVE STATUS — {now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+      <div className="no-print" style={{ fontSize: 12.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>LIVE STATUS — {now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
+      <div className="no-print" style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
         {staff.map((m) => {
           const status = liveStatusFor(m);
           const meta = STATUS_META[status];
@@ -186,9 +189,9 @@ export default function StaffMembers({ departments, role }) {
         </div>
       )}
 
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>ROSTER</div>
+      <div className="no-print" style={{ fontSize: 12.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>ROSTER</div>
       {canEdit && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="no-print" style={{ marginBottom: 16 }}>
           <button onClick={createLoginsForEveryone} disabled={bulkBusy} style={{ background: "none", border: "1px dashed #0F7173", color: "#0F7173", borderRadius: 7, padding: "9px 14px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, opacity: bulkBusy ? 0.6 : 1 }}>
             <UserPlus size={14} /> {bulkBusy ? "Creating…" : "Create logins for everyone"}
           </button>
@@ -202,7 +205,7 @@ export default function StaffMembers({ departments, role }) {
         </div>
       )}
       {canEdit && (
-        <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 14, marginBottom: 20 }}>
+        <div className="no-print" style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 14, marginBottom: 20 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input placeholder="Full name" value={form.full_name} onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))} style={{ ...inputStyle, flex: 2, minWidth: 140 }} />
             <input placeholder="Job number" value={form.job_number} onChange={(e) => setForm((f) => ({ ...f, job_number: e.target.value }))} style={{ ...inputStyle, flex: 1, minWidth: 100 }} />
@@ -220,7 +223,7 @@ export default function StaffMembers({ departments, role }) {
       {staff.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 20px", color: "#8A9694" }}>No employees added yet.</div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div className="print-area" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {staff.map((s, i) => (
             <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "10px 14px" }}>
               {canEdit && (

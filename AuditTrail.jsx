@@ -51,10 +51,13 @@ export default function AuditTrail() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Audit trail</h2>
-      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Every login, logout, edit, delete, and approval — pick a period to keep it fast as history grows.</div>
+      <div className="no-print" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700 }}>Audit trail</h2>
+        <button onClick={() => window.print()} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#516361" }}>🖨️ Print</button>
+      </div>
+      <div className="no-print" style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Every login, logout, edit, delete, and approval — pick a period to keep it fast as history grows.</div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12, alignItems: "center" }}>
+      <div className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12, alignItems: "center" }}>
         <span style={{ fontSize: 12, color: "#7B8E8A" }}>From</span>
         <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={inputStyle} />
         <span style={{ fontSize: 12, color: "#7B8E8A" }}>To</span>
@@ -64,7 +67,7 @@ export default function AuditTrail() {
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+      <div className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
         <input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
         <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} style={inputStyle}>
           <option value="">All actions</option>
@@ -75,7 +78,7 @@ export default function AuditTrail() {
       {filtered.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 20px", color: "#8A9694" }}>No matching activity in this period.</div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        <div className="print-area" style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           {filtered.map((l) => {
             const m = ACTION_META[l.action] || { bg: "#F0F3F2", fg: "#516361" };
             return (

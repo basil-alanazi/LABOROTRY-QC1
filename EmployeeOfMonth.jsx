@@ -50,10 +50,13 @@ export default function EmployeeOfMonth({ role }) {
 
   return (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Employee of the Month</h2>
+      <div className="no-print" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700 }}>Employee of the Month</h2>
+        <button onClick={() => window.print()} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 600, color: "#516361" }}>🖨️ Print</button>
+      </div>
       <div style={{ fontSize: 12.5, color: "#7B8E8A", marginBottom: 16 }}>Score each employee out of 100, then mark a winner for the month.</div>
 
-      <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ ...inputStyle, width: "auto", marginBottom: 18 }} />
+      <input className="no-print" type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ ...inputStyle, width: "auto", marginBottom: 18 }} />
 
       {winnerStaff && (
         <div style={{ background: "linear-gradient(135deg, #FBF3DF, #F8E9C8)", border: "1px solid #D8862B33", borderRadius: 14, padding: 20, marginBottom: 20, textAlign: "center" }}>
@@ -64,7 +67,7 @@ export default function EmployeeOfMonth({ role }) {
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div className="print-area" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {staff.map((m) => (
           <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #E1E8E5", borderRadius: 9, padding: "10px 14px" }}>
             <div style={{ flex: 1 }}>
