@@ -45,6 +45,8 @@ export const BUILT_IN_PAGES = [
   { key: "audit_dashboard", label: "Audit Dashboard" },
   { key: "timeline", label: "Lab Timeline" },
   { key: "eom", label: "Employee of the Month" },
+  { key: "achievements", label: "Achievements" },
+  { key: "labmap", label: "Lab Map" },
   { key: "myschedule", label: "My Schedule" },
   { key: "assignment", label: "Daily Assignment" },
   { key: "breakhistory", label: "Break History" },

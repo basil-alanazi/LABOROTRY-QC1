@@ -27,6 +27,8 @@ import KnowledgeBase from "./KnowledgeBase";
 import AuditDashboard from "./AuditDashboard";
 import LabTimeline from "./LabTimeline";
 import EmployeeOfMonth from "./EmployeeOfMonth";
+import AchievementSystem from "./AchievementSystem";
+import LabMap from "./LabMap";
 import { playAlertSound } from "./sounds";
 import Equipment from "./Equipment";
 import LotComparison from "./LotComparison";
@@ -431,6 +433,8 @@ export default function App() {
         {tab === "audit_dashboard" && <AuditDashboard />}
         {tab === "timeline" && <LabTimeline />}
         {tab === "eom" && <EmployeeOfMonth role={roleFor("eom")} />}
+        {tab === "achievements" && <AchievementSystem />}
+        {tab === "labmap" && <LabMap onNavigate={setTab} />}
         {tab === "assignment" && <DailyAssignment role={roleFor(tab)} />}
         {tab === "breakhistory" && (roleFor(tab) === "admin" || role === "super") && <BreakHistory />}
         {tab.startsWith("pinned:") && (() => {
@@ -516,6 +520,8 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
     if (p.key === "audit_dashboard") return <AuditDashboard />;
     if (p.key === "timeline") return <LabTimeline />;
     if (p.key === "eom") return <EmployeeOfMonth role={effectiveRole} />;
+    if (p.key === "achievements") return <AchievementSystem />;
+    if (p.key === "labmap") return <LabMap />;
     if (p.key === "settings") return <Settings config={config} panels={panels} role="admin" username={username} baselines={baselines} reload={() => {}} />;
     if (p.key === "qc") return <Dashboard panels={panels} entries={entries} baselines={baselines} role={effectiveRole} busy={busy} onSubmit={onSubmit} onDelete={onDelete} profiles={profiles} />;
     if (p.key === "approvals") return <Approvals items={pendingItems} panels={panels} onReview={onReview} onReviewBulk={onReviewBulk} profiles={profiles} />;
@@ -741,6 +747,8 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
         {notHidden("audit_dashboard") && <SideItem icon={<BarChart3 size={15} />} label="Audit Dashboard" active={tab === "audit_dashboard"} onClick={() => onNavigate("audit_dashboard")} />}
         {notHidden("timeline") && <SideItem icon={<Calendar size={15} />} label="Lab Timeline" active={tab === "timeline"} onClick={() => onNavigate("timeline")} />}
         {notHidden("eom") && <SideItem icon={<Award size={15} />} label="Employee of the Month" active={tab === "eom"} onClick={() => onNavigate("eom")} />}
+        {notHidden("achievements") && <SideItem icon={<Award size={15} />} label="Achievements" active={tab === "achievements"} onClick={() => onNavigate("achievements")} />}
+        {notHidden("labmap") && <SideItem icon={<Wrench size={15} />} label="Lab Map" active={tab === "labmap"} onClick={() => onNavigate("labmap")} />}
 
         <SideGroup icon="📅" label="My Schedule" open={openGroups.schedule} onToggle={() => toggleGroup("schedule")}>
           {notHidden("myschedule") && <SideItem icon={<Calendar size={14} />} label="My Schedule" active={tab === "myschedule"} onClick={() => onNavigate("myschedule")} indent />}

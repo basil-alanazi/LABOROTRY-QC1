@@ -13,7 +13,7 @@ export default function SmartSearch({ onNavigate }) {
         const [
           { data: panels }, { data: staff }, { data: tables }, { data: files },
           { data: equipment }, { data: reject }, { data: panic }, { data: corrective },
-          { data: infection }, { data: shifts },
+          { data: infection }, { data: shifts }, { data: lots }, { data: incidents }, { data: knowledge },
         ] = await Promise.all([
           supabase.from("qc_panels").select("id,name,department,device,analytes").eq("deleted", false),
           supabase.from("staff_members").select("id,full_name,job_number,department").eq("deleted", false),
@@ -25,11 +25,14 @@ export default function SmartSearch({ onNavigate }) {
           supabase.from("corrective_actions").select("id,issue_description,responsible_person").eq("deleted", false).limit(200),
           supabase.from("infection_diseases").select("id,patient_id,infection_type,ward_department").eq("deleted", false).limit(200),
           supabase.from("shift_templates").select("id,code,name").eq("deleted", false),
+          supabase.from("qc_control_lots").select("id,lot_number,panel_id,manufacturer").limit(200),
+          supabase.from("incident_reports").select("id,description,incident_type,department,status").eq("deleted", false).limit(200),
+          supabase.from("knowledge_base").select("id,title,category,description").eq("deleted", false).limit(200),
         ]);
         setData({
           panels: panels || [], staff: staff || [], tables: tables || [], files: files || [],
           equipment: equipment || [], reject: reject || [], panic: panic || [], corrective: corrective || [],
-          infection: infection || [], shifts: shifts || [],
+          infection: infection || [], shifts: shifts || [], lots: lots || [], incidents: incidents || [], knowledge: knowledge || [],
         });
       })();
     }
@@ -71,6 +74,15 @@ export default function SmartSearch({ onNavigate }) {
     });
     data.infection.forEach((r) => {
       if (has(r.patient_id) || has(r.infection_type) || has(r.ward_department)) out.records.push({ id: r.id, label: `${r.patient_id || r.infection_type}`, sub: `Infection Disease · ${r.infection_type || ""}`, tab: "infection" });
+    });
+    data.lots.forEach((l) => {
+      if (has(l.lot_number) || has(l.manufacturer)) out.records.push({ id: l.id, label: `Lot ${l.lot_number}`, sub: `Control Lot${l.manufacturer ? " · " + l.manufacturer : ""}`, tab: "controls" });
+    });
+    data.incidents.forEach((r) => {
+      if (has(r.description) || has(r.incident_type) || has(r.department)) out.records.push({ id: r.id, label: r.description?.slice(0, 40) || r.incident_type || "Incident", sub: `Incident · ${r.status || ""}`, tab: "incident" });
+    });
+    data.knowledge.forEach((k) => {
+      if (has(k.title) || has(k.description)) out.records.push({ id: k.id, label: k.title, sub: `${k.category || "Knowledge Base"}`, tab: "knowledge" });
     });
     return out;
   }, [data, query]);
