@@ -667,7 +667,7 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
   const hiddenPages = config.hidden_pages || [];
   const notHidden = (key) => role === "super" || !hiddenPages.includes(key);
   const isAdmin = role === "admin" || role === "super" || (permissions || []).some((p) => p.level === "admin");
-  const [openGroups, setOpenGroups] = useState({ qc: true, schedule: true, settings: false, tables: true, records: true });
+  const [openGroups, setOpenGroups] = useState({ qc: true, schedule: true, settings: false, tables: true, records: true, dailytools: true, overview: false, team: false });
   const toggleGroup = (k) => setOpenGroups((g) => ({ ...g, [k]: !g[k] }));
 
   const qcItems = [
@@ -742,14 +742,23 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
           {notHidden("handover") && <SideItem icon={<Users size={14} color="#B8860B" />} label="Shift Handover" active={tab === "handover"} onClick={() => onNavigate("handover")} indent />}
         </SideGroup>
 
-        {notHidden("calculate") && <SideItem icon={<Calculator size={15} />} label="Calculate" active={tab === "calculate"} onClick={() => onNavigate("calculate")} />}
-        {notHidden("checklists") && <SideItem icon={<Check size={15} />} label="Checklists" active={tab === "checklists"} onClick={() => onNavigate("checklists")} />}
+        <SideGroup icon="✅" label="Daily Tools" open={openGroups.dailytools} onToggle={() => toggleGroup("dailytools")}>
+          {notHidden("calculate") && <SideItem icon={<Calculator size={14} />} label="Calculate" active={tab === "calculate"} onClick={() => onNavigate("calculate")} indent />}
+          {notHidden("checklists") && <SideItem icon={<Check size={14} />} label="Checklists" active={tab === "checklists"} onClick={() => onNavigate("checklists")} indent />}
+        </SideGroup>
+
+        <SideGroup icon="📊" label="Lab Overview" open={openGroups.overview} onToggle={() => toggleGroup("overview")}>
+          {notHidden("audit_dashboard") && <SideItem icon={<BarChart3 size={14} />} label="Audit Dashboard" active={tab === "audit_dashboard"} onClick={() => onNavigate("audit_dashboard")} indent />}
+          {notHidden("timeline") && <SideItem icon={<Calendar size={14} />} label="Lab Timeline" active={tab === "timeline"} onClick={() => onNavigate("timeline")} indent />}
+          {notHidden("labmap") && <SideItem icon={<Wrench size={14} />} label="Lab Map" active={tab === "labmap"} onClick={() => onNavigate("labmap")} indent />}
+        </SideGroup>
+
+        <SideGroup icon="🏆" label="Team" open={openGroups.team} onToggle={() => toggleGroup("team")}>
+          {notHidden("eom") && <SideItem icon={<Award size={14} />} label="Employee of the Month" active={tab === "eom"} onClick={() => onNavigate("eom")} indent />}
+          {notHidden("achievements") && <SideItem icon={<Award size={14} />} label="Achievements" active={tab === "achievements"} onClick={() => onNavigate("achievements")} indent />}
+        </SideGroup>
+
         {notHidden("knowledge") && <SideItem icon={<FileText size={15} />} label="Knowledge Base" active={tab === "knowledge"} onClick={() => onNavigate("knowledge")} />}
-        {notHidden("audit_dashboard") && <SideItem icon={<BarChart3 size={15} />} label="Audit Dashboard" active={tab === "audit_dashboard"} onClick={() => onNavigate("audit_dashboard")} />}
-        {notHidden("timeline") && <SideItem icon={<Calendar size={15} />} label="Lab Timeline" active={tab === "timeline"} onClick={() => onNavigate("timeline")} />}
-        {notHidden("eom") && <SideItem icon={<Award size={15} />} label="Employee of the Month" active={tab === "eom"} onClick={() => onNavigate("eom")} />}
-        {notHidden("achievements") && <SideItem icon={<Award size={15} />} label="Achievements" active={tab === "achievements"} onClick={() => onNavigate("achievements")} />}
-        {notHidden("labmap") && <SideItem icon={<Wrench size={15} />} label="Lab Map" active={tab === "labmap"} onClick={() => onNavigate("labmap")} />}
 
         <SideGroup icon="📅" label="My Schedule" open={openGroups.schedule} onToggle={() => toggleGroup("schedule")}>
           {notHidden("myschedule") && <SideItem icon={<Calendar size={14} />} label="My Schedule" active={tab === "myschedule"} onClick={() => onNavigate("myschedule")} indent />}
