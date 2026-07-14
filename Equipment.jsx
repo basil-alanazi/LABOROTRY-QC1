@@ -195,6 +195,8 @@ function EquipmentDetail({ equipment, events, canEdit, username, onBack, reload,
       )}
 
       <EquipmentDocuments equipmentId={equipment.id} canEdit={canEdit} username={username} />
+      <EquipmentPPMSchedule equipmentId={equipment.id} canEdit={canEdit} />
+      <EquipmentComplianceRecords equipmentId={equipment.id} canEdit={canEdit} username={username} />
 
       {showAdd && (
         <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 14, marginBottom: 20 }}>
@@ -249,6 +251,188 @@ function EquipmentDetail({ equipment, events, canEdit, username, onBack, reload,
 
 // Device documents — validation/verification reports, why-we-chose-this-device
 // notes, manuals, or any other file tied to a specific piece of equipment.
+function EquipmentPPMSchedule({ equipmentId, canEdit }) {
+  const [items, setItems] = useState([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ task_name: "", frequency: "monthly", last_done: "", next_due: "", notes: "" });
+
+  async function load() {
+    const { data } = await supabase.from("equipment_ppm_schedule").select("*").eq("equipment_id", equipmentId).eq("deleted", false).order("next_due");
+    setItems(data || []);
+  }
+  useEffect(() => { load(); }, [equipmentId]);
+
+  async function addTask() {
+    if (!form.task_name.trim()) return;
+    await supabase.from("equipment_ppm_schedule").insert({ equipment_id: equipmentId, ...form, last_done: form.last_done || null, next_due: form.next_due || null });
+    setForm({ task_name: "", frequency: "monthly", last_done: "", next_due: "", notes: "" });
+    setShowAdd(false);
+    load();
+  }
+  async function markDoneToday(item) {
+    const today = todayISO();
+    const days = { daily: 1, weekly: 7, monthly: 30, quarterly: 91, biannual: 182, annual: 365 }[item.frequency] || 30;
+    const next = new Date(today); next.setDate(next.getDate() + days);
+    await supabase.from("equipment_ppm_schedule").update({ last_done: today, next_due: next.toISOString().slice(0, 10) }).eq("id", item.id);
+    load();
+  }
+  async function removeTask(id) {
+    if (!confirm("Remove this PPM task?")) return;
+    await supabase.from("equipment_ppm_schedule").update({ deleted: true }).eq("id", id);
+    load();
+  }
+
+  const today = todayISO();
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#7B8E8A" }}>PPM SCHEDULE (Planned Preventive Maintenance)</div>
+        {canEdit && <button onClick={() => setShowAdd(true)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "5px 10px", fontSize: 11.5, fontWeight: 600, color: "#516361" }}>+ Add task</button>}
+      </div>
+      {items.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: "#8A9694", marginBottom: 10 }}>No PPM tasks scheduled yet.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+          {items.map((it) => {
+            const overdue = it.next_due && it.next_due < today;
+            return (
+              <div key={it.id} style={{ display: "flex", alignItems: "center", gap: 10, background: overdue ? "#FBEAE6" : "#fff", border: "1px solid " + (overdue ? "#C1432B33" : "#E1E8E5"), borderRadius: 8, padding: "9px 12px" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{it.task_name} <span style={{ fontSize: 10.5, color: "#8A9694", fontWeight: 400 }}>({it.frequency})</span></div>
+                  <div style={{ fontSize: 11, color: overdue ? "#C1432B" : "#8A9694" }}>
+                    {it.last_done ? `Last: ${it.last_done}` : "Never done"} {it.next_due ? `· Next due: ${it.next_due}${overdue ? " (OVERDUE)" : ""}` : ""}
+                  </div>
+                </div>
+                {canEdit && <button onClick={() => markDoneToday(it)} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 6, padding: "5px 10px", fontSize: 11, fontWeight: 600 }}>Done today</button>}
+                {canEdit && <button onClick={() => removeTask(it.id)} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={13} /></button>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {showAdd && (
+        <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 12 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            <input placeholder="Task name (e.g. Filter cleaning)" value={form.task_name} onChange={(e) => setForm((f) => ({ ...f, task_name: e.target.value }))} style={{ ...inputStyle, flex: 1, minWidth: 160 }} />
+            <select value={form.frequency} onChange={(e) => setForm((f) => ({ ...f, frequency: e.target.value }))} style={{ ...inputStyle, width: 130 }}>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="biannual">Every 6 months</option>
+              <option value="annual">Annual</option>
+            </select>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            <label style={{ fontSize: 12, color: "#516361" }}>Last done <input type="date" value={form.last_done} onChange={(e) => setForm((f) => ({ ...f, last_done: e.target.value }))} style={{ ...inputStyle, width: 150, display: "inline-block", marginLeft: 6 }} /></label>
+            <label style={{ fontSize: 12, color: "#516361" }}>Next due <input type="date" value={form.next_due} onChange={(e) => setForm((f) => ({ ...f, next_due: e.target.value }))} style={{ ...inputStyle, width: 150, display: "inline-block", marginLeft: 6 }} /></label>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={addTask} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700 }}>Save</button>
+            <button onClick={() => setShowAdd(false)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 14px", fontSize: 13 }}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EquipmentComplianceRecords({ equipmentId, canEdit, username }) {
+  const [items, setItems] = useState([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [form, setForm] = useState({ record_type: "Acceptance", date: todayISO(), performed_by: "", result: "pass", findings: "", attachment_path: "" });
+
+  async function load() {
+    const { data } = await supabase.from("equipment_compliance_records").select("*").eq("equipment_id", equipmentId).eq("deleted", false).order("date", { ascending: false });
+    setItems(data || []);
+  }
+  useEffect(() => { load(); }, [equipmentId]);
+
+  async function handleUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const extMatch = /\.[a-zA-Z0-9]{1,8}$/.exec(file.name || "");
+    const path = `equipment-compliance/${equipmentId}/${Date.now()}-${Math.random().toString(36).slice(2, 10)}${extMatch ? extMatch[0] : ""}`;
+    const { error } = await supabase.storage.from("attachments").upload(path, file);
+    if (!error) setForm((f) => ({ ...f, attachment_path: path }));
+    setUploading(false);
+  }
+
+  async function addRecord() {
+    await supabase.from("equipment_compliance_records").insert({ equipment_id: equipmentId, ...form, performed_by: form.performed_by || username });
+    setForm({ record_type: "Acceptance", date: todayISO(), performed_by: "", result: "pass", findings: "", attachment_path: "" });
+    setShowAdd(false);
+    load();
+  }
+  async function removeRecord(id) {
+    if (!confirm("Remove this record?")) return;
+    await supabase.from("equipment_compliance_records").update({ deleted: true }).eq("id", id);
+    load();
+  }
+  function fileUrl(path) {
+    return supabase.storage.from("attachments").getPublicUrl(path).data.publicUrl;
+  }
+
+  const RESULT_COLOR = { pass: "#2F6B4F", fail: "#C1432B", pending: "#B8860B" };
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#7B8E8A" }}>ACCEPTANCE / VALIDATION / VERIFICATION</div>
+        {canEdit && <button onClick={() => setShowAdd(true)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "5px 10px", fontSize: 11.5, fontWeight: 600, color: "#516361" }}>+ Add record</button>}
+      </div>
+      {items.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: "#8A9694", marginBottom: 10 }}>No records yet.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+          {items.map((r) => (
+            <div key={r.id} style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "9px 12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", background: RESULT_COLOR[r.result], borderRadius: 4, padding: "2px 7px" }}>{r.result?.toUpperCase()}</span>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{r.record_type}</div>
+                <div style={{ fontSize: 11, color: "#8A9694" }}>{r.date} · {r.performed_by}</div>
+                {canEdit && <button onClick={() => removeRecord(r.id)} style={{ marginLeft: "auto", background: "none", border: "none", color: "#C1432B" }}><Trash2 size={13} /></button>}
+              </div>
+              {r.findings && <div style={{ fontSize: 12, color: "#516361", marginTop: 4 }}>{r.findings}</div>}
+              {r.attachment_path && <a href={fileUrl(r.attachment_path)} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, color: "#0F7173", fontWeight: 600 }}>📎 View attachment</a>}
+            </div>
+          ))}
+        </div>
+      )}
+      {showAdd && (
+        <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 12 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            <select value={form.record_type} onChange={(e) => setForm((f) => ({ ...f, record_type: e.target.value }))} style={{ ...inputStyle, width: 140 }}>
+              <option value="Acceptance">Acceptance</option>
+              <option value="Validation">Validation</option>
+              <option value="Verification">Verification</option>
+            </select>
+            <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} style={{ ...inputStyle, width: 140 }} />
+            <select value={form.result} onChange={(e) => setForm((f) => ({ ...f, result: e.target.value }))} style={{ ...inputStyle, width: 120 }}>
+              <option value="pass">Pass</option>
+              <option value="fail">Fail</option>
+              <option value="pending">Pending</option>
+            </select>
+          </div>
+          <input placeholder="Performed by (defaults to you)" value={form.performed_by} onChange={(e) => setForm((f) => ({ ...f, performed_by: e.target.value }))} style={{ ...inputStyle, marginBottom: 8 }} />
+          <textarea placeholder="Findings / notes" value={form.findings} onChange={(e) => setForm((f) => ({ ...f, findings: e.target.value }))} style={{ ...inputStyle, minHeight: 60, marginBottom: 8 }} />
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#F0F3F2", border: "1px dashed #C7D1CE", borderRadius: 7, padding: "8px 12px", fontSize: 12.5, cursor: "pointer", marginBottom: 10 }}>
+            {uploading ? "Uploading…" : form.attachment_path ? "✅ File attached" : "Attach a file (optional)"}
+            <input type="file" onChange={handleUpload} disabled={uploading} style={{ display: "none" }} />
+          </label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={addRecord} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700 }}>Save</button>
+            <button onClick={() => setShowAdd(false)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 14px", fontSize: 13 }}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EquipmentDocuments({ equipmentId, canEdit, username }) {
   const [files, setFiles] = useState(null);
   const [uploading, setUploading] = useState(false);
