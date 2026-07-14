@@ -162,13 +162,14 @@ export default function App() {
     setRole(null);
     setUsername("");
     setPermissions([]);
+    loadAll(); // refresh account data so a just-changed password works on the next login right away
   }
 
-  // Auto-logout shared lab computers after 20 minutes of no activity, so
+  // Auto-logout shared lab computers after 30 minutes of no activity, so
   // nobody accidentally stays signed in on someone else's session.
   useEffect(() => {
     if (!role) return;
-    const IDLE_LIMIT_MS = 20 * 60 * 1000;
+    const IDLE_LIMIT_MS = 30 * 60 * 1000;
     let timer = setTimeout(logout, IDLE_LIMIT_MS);
     const reset = () => { clearTimeout(timer); timer = setTimeout(logout, IDLE_LIMIT_MS); };
     const events = ["mousedown", "keydown", "touchstart", "scroll"];

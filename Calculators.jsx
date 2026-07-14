@@ -196,6 +196,8 @@ function DilutionCalc() {
   const targetValid = v !== null && t !== null && t > v;
   const diluentForTarget = targetValid ? t - v : null;
   const effectiveFactor = targetValid ? t / v : null;
+  const bothGiven = targetValid && f !== null && f > 0;
+  const mismatch = bothGiven && Math.abs(effectiveFactor - f) > 0.05;
 
   const [ratioFactor, setRatioFactor] = useState("");
   const [finalVolume, setFinalVolume] = useState("");
@@ -231,6 +233,11 @@ function DilutionCalc() {
             <label style={labelStyle}>Dilution factor (e.g. 2 for 1:2)<input style={inputStyle} type="number" value={factor} onChange={(e) => setFactor(e.target.value)} /></label>
             <label style={labelStyle}>Target final volume (optional)<input style={inputStyle} type="number" value={target} onChange={(e) => setTarget(e.target.value)} /></label>
           </div>
+          {mismatch && (
+            <WarnBox>
+              ⚠ These don't match: a 1:{f} dilution of {v} would need a total of {(v * f).toFixed(2)}, not {t}. The result below uses your <strong>target volume</strong> ({t}) — which actually works out to a 1:{effectiveFactor.toFixed(2)} dilution, not 1:{f}. Fix one of the three numbers, or ignore the dilution factor field if the target is what matters.
+            </WarnBox>
+          )}
           {targetValid ? (
             <ResultBox>
               To reach {t} total: add {diluentForTarget.toFixed(2)} of diluent to your {v} of sample &nbsp;→&nbsp; that's a 1:{effectiveFactor.toFixed(2)} dilution
