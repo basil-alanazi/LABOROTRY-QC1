@@ -242,7 +242,7 @@ function DilutionCalc() {
           ) : null}
           {target && t !== null && v !== null && t <= v && <WarnBox>Target final volume must be more than the sample volume you have.</WarnBox>}
         </>
-      ) : (
+      ) : mode === "final" ? (
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
             <label style={labelStyle}>Dilution ratio (e.g. 5 for 1:5)<input style={inputStyle} type="number" value={ratioFactor} onChange={(e) => setRatioFactor(e.target.value)} /></label>
