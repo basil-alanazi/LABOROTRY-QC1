@@ -1,0 +1,233 @@
+import React, { useState, useEffect } from "react";
+import { Plus, Trash2, FileText, Link as LinkIcon, Video, HelpCircle, Wrench, Search } from "lucide-react";
+import { supabase } from "./supabaseClient";
+
+const inputStyle = { width: "100%", border: "1px solid #C7D1CE", borderRadius: 7, padding: "9px 11px", fontSize: 14, boxSizing: "border-box" };
+
+const CATEGORIES = [
+  { key: "SOP", icon: FileText, color: "#3E6ACF" },
+  { key: "IFU", icon: FileText, color: "#2F6B4F" },
+  { key: "Training Video", icon: Video, color: "#B8860B" },
+  { key: "Troubleshooting", icon: Wrench, color: "#C1432B" },
+  { key: "FAQ", icon: HelpCircle, color: "#7A4FA3" },
+  { key: "Parasitology", icon: FileText, color: "#2F6B4F" },
+];
+
+function ImageOrFallback({ src, alt }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <div>
+        <a href={src} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: "#0F7173", fontWeight: 600 }}>📎 Open file</a>
+        <div style={{ fontSize: 11, color: "#8A9694", marginTop: 3 }}>Couldn't preview this image in your browser (this can happen with iPhone HEIC photos) — the link above still opens/downloads it fine.</div>
+      </div>
+    );
+  }
+  return (
+    <a href={src} target="_blank" rel="noreferrer" style={{ display: "block" }}>
+      <img src={src} alt={alt} onError={() => setFailed(true)} style={{ maxWidth: "100%", maxHeight: 320, borderRadius: 8, border: "1px solid #E1E8E5" }} />
+    </a>
+  );
+}
+
+export default function KnowledgeBase({ role, username }) {
+  const canEdit = role === "admin" || role === "super";
+  const [entries, setEntries] = useState(null);
+  const [category, setCategory] = useState("all");
+  const [search, setSearch] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState(blankForm());
+  const [uploading, setUploading] = useState(false);
+  const [galleryDraft, setGalleryDraft] = useState("");
+  const [uploadError, setUploadError] = useState("");
+
+  function blankForm() {
+    return { category: "SOP", title: "", content_type: "text", content: "", description: "" };
+  }
+
+  async function load() {
+    const { data } = await supabase.from("knowledge_base").select("*").eq("deleted", false).order("created_at", { ascending: false });
+    setEntries(data || []);
+  }
+  useEffect(() => { load(); }, []);
+
+  async function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const MAX_MB = 50;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      alert(`This file is ${(file.size / 1024 / 1024).toFixed(1)}MB — please keep uploads under ${MAX_MB}MB. For longer training videos, upload to YouTube (even as "Unlisted") and add it here as a Link instead — much faster and more reliable than uploading the video file itself.`);
+      e.target.value = "";
+      return;
+    }
+    setUploading(true);
+    setUploadError("");
+    // Build a storage key from scratch (random id + extension only) instead
+    // of the original filename — sidesteps any characters Supabase Storage
+    // rejects, no matter what the file was actually called.
+    const extMatch = /\.[a-zA-Z0-9]{1,8}$/.exec(file.name || "");
+    const ext = extMatch ? extMatch[0] : "";
+    const safeKey = `knowledge-base/${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
+    const { error } = await supabase.storage.from("attachments").upload(safeKey, file);
+    if (error) {
+      setUploadError(error.message);
+    } else {
+      setForm((f) => ({ ...f, content_type: "file", content: safeKey, title: f.title || file.name.replace(/\.[a-zA-Z0-9]{1,8}$/, "") }));
+    }
+    setUploading(false);
+  }
+
+  async function addEntry() {
+    if (!form.title.trim()) return;
+    await supabase.from("knowledge_base").insert({ ...form, created_by: username });
+    setForm(blankForm());
+    setGalleryDraft("");
+    setShowAdd(false);
+    load();
+  }
+
+  async function removeEntry(id) {
+    if (!confirm("Remove this entry?")) return;
+    await supabase.from("knowledge_base").update({ deleted: true }).eq("id", id);
+    load();
+  }
+
+  function fileUrl(path) {
+    return supabase.storage.from("attachments").getPublicUrl(path).data.publicUrl;
+  }
+
+  if (entries === null) return <div style={{ padding: 40, textAlign: "center", color: "#8A9694" }}>Loading…</div>;
+
+  const filtered = entries.filter((e) => {
+    if (category !== "all" && e.category !== category) return false;
+    if (search && !`${e.title} ${e.description}`.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700 }}>Knowledge Base</h2>
+        {canEdit && <button onClick={() => setShowAdd(true)} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Add entry</button>}
+      </div>
+      <div style={{ fontSize: 12.5, color: "#7B8E8A", marginBottom: 16 }}>SOPs, IFUs, training videos, troubleshooting guides, and frequently asked questions — all in one place.</div>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 160 }}>
+          <Search size={14} style={{ position: "absolute", left: 10, top: 11, color: "#8A9694" }} />
+          <input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ ...inputStyle, paddingLeft: 30 }} />
+        </div>
+        <select value={category} onChange={(e) => setCategory(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
+          <option value="all">All categories</option>
+          {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.key}</option>)}
+        </select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px 20px", color: "#8A9694" }}>Nothing here yet.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {filtered.map((e) => {
+            const cat = CATEGORIES.find((c) => c.key === e.category) || CATEGORIES[0];
+            const Icon = cat.icon;
+            return (
+              <div key={e.id} style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 14 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: cat.color + "22", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Icon size={15} color={cat.color} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: cat.color, textTransform: "uppercase", marginBottom: 2 }}>{e.category}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#1B2B2E" }}>{e.title}</div>
+                    {e.description && <div style={{ fontSize: 12.5, color: "#7B8E8A", marginTop: 3 }}>{e.description}</div>}
+                    <div style={{ marginTop: 8 }}>
+                      {e.content_type === "file" && (
+                        /\.(jpe?g|png|gif|webp|bmp|heic|heif)$/i.test(e.content) ? (
+                          <ImageOrFallback src={fileUrl(e.content)} alt={e.title} />
+                        ) : (
+                          <a href={fileUrl(e.content)} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: "#0F7173", fontWeight: 600 }}>📎 Open file</a>
+                        )
+                      )}
+                      {e.content_type === "link" && <a href={e.content} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: "#0F7173", fontWeight: 600 }}><LinkIcon size={12} style={{ verticalAlign: -1 }} /> Open link</a>}
+                      {e.content_type === "text" && <div style={{ fontSize: 13, color: "#516361", whiteSpace: "pre-wrap", background: "#F8FAF9", borderRadius: 7, padding: 10, marginTop: 4 }}>{e.content}</div>}
+                      {e.content_type === "gallery" && (() => {
+                        let images = [];
+                        try { images = JSON.parse(e.content); } catch { images = []; }
+                        return (
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 8, marginTop: 6 }}>
+                            {images.map((img, i) => (
+                              <a key={i} href={img.url} target="_blank" rel="noreferrer" style={{ display: "block" }}>
+                                <img src={img.url} alt={img.caption || ""} style={{ width: "100%", height: 110, objectFit: "cover", borderRadius: 8, border: "1px solid #E1E8E5" }} />
+                                {img.caption && <div style={{ fontSize: 10.5, color: "#8A9694", marginTop: 3 }}>{img.caption}</div>}
+                              </a>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                  {canEdit && <button onClick={() => removeEntry(e.id)} style={{ background: "none", border: "none", color: "#C1432B" }}><Trash2 size={14} /></button>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showAdd && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,25,26,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={() => setShowAdd(false)}>
+          <div style={{ background: "#fff", borderRadius: 12, width: "100%", maxWidth: 420, padding: 20, maxHeight: "85vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 14 }}>Add Knowledge Base entry</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} style={inputStyle}>
+                {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.key}</option>)}
+              </select>
+              <input placeholder="Title" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} style={inputStyle} />
+              <input placeholder="Short description (optional)" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} style={inputStyle} />
+              <div style={{ display: "flex", gap: 6 }}>
+                {["text", "link", "file", "gallery"].map((t) => (
+                  <button key={t} onClick={() => setForm((f) => ({ ...f, content_type: t, content: "" }))} style={{ flex: 1, border: "1px solid " + (form.content_type === t ? "#0F7173" : "#C7D1CE"), background: form.content_type === t ? "#0F7173" : "#fff", color: form.content_type === t ? "#fff" : "#516361", borderRadius: 6, padding: "6px", fontSize: 12, fontWeight: 600, textTransform: "capitalize" }}>{t}</button>
+                ))}
+              </div>
+              {form.content_type === "text" && <textarea placeholder="Write the content (answer, steps, notes…)" value={form.content} onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} rows={5} style={{ ...inputStyle, fontFamily: "inherit" }} />}
+              {form.content_type === "link" && <input placeholder="https://…" value={form.content} onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))} style={inputStyle} />}
+              {form.content_type === "gallery" && (
+                <div>
+                  <textarea
+                    placeholder={"One image per line: image-url | caption\ne.g.\nhttps://example.com/photo1.jpg | Figure A: cyst\nhttps://example.com/photo2.jpg | Figure B: trophozoite"}
+                    value={galleryDraft}
+                    onChange={(e) => {
+                      setGalleryDraft(e.target.value);
+                      const images = e.target.value.split("\n").map((l) => l.trim()).filter(Boolean).map((line) => {
+                        const [url, caption] = line.split("|").map((s) => s?.trim());
+                        return { url, caption: caption || "" };
+                      }).filter((img) => img.url);
+                      setForm((f) => ({ ...f, content: JSON.stringify(images) }));
+                    }}
+                    rows={6}
+                    style={{ ...inputStyle, fontFamily: "inherit", fontSize: 12.5 }}
+                  />
+                  <div style={{ fontSize: 11, color: "#8A9694", marginTop: 4 }}>One image URL per line, optionally " | a caption" after it. Pictures show directly in the app, no need to click through.</div>
+                </div>
+              )}
+              {form.content_type === "file" && (
+                <div>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#F0F3F2", border: "1px dashed #C7D1CE", borderRadius: 7, padding: "10px 14px", fontSize: 13, cursor: "pointer" }}>
+                    {uploading ? "Uploading…" : form.content ? "✅ File attached" : "Choose file"}
+                    <input type="file" onChange={handleFileUpload} disabled={uploading} style={{ display: "none" }} />
+                  </label>
+                  <div style={{ fontSize: 11, color: "#8A9694", marginTop: 4 }}>Max 50MB. For training videos, a YouTube link (Unlisted works fine) is faster than uploading the file — use "Link" above instead.</div>
+                  {uploadError && <div style={{ fontSize: 11.5, color: "#C1432B", marginTop: 4 }}>❌ {uploadError}</div>}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                <button onClick={addEntry} style={{ flex: 1, background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700 }}>Save</button>
+                <button onClick={() => setShowAdd(false)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 8, padding: "11px 16px" }}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
