@@ -78,7 +78,7 @@ export default function EmployeeOfMonth({ role }) {
             {canEdit ? (
               <input type="number" min="0" max="100" value={scoreFor(m.id)} onChange={(e) => typeScore(m.id, e.target.value)} onBlur={() => saveScore(m.id)} style={{ width: 60, border: "1px solid #C7D1CE", borderRadius: 6, padding: "6px 8px", fontSize: 13, textAlign: "center" }} />
             ) : (
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#516361", width: 40, textAlign: "center" }}>{scoreFor(m.id) || "—"}</div>
+              winner?.staff_id === m.id && <span style={{ fontSize: 11, fontWeight: 700, color: "#B8860B" }}>🏆 Winner</span>
             )}
             {canEdit && (
               <button onClick={() => markWinner(m.id)} style={{ background: winner?.staff_id === m.id ? "#0F7173" : "none", color: winner?.staff_id === m.id ? "#fff" : "#516361", border: "1px solid " + (winner?.staff_id === m.id ? "#0F7173" : "#C7D1CE"), borderRadius: 6, padding: "6px 10px", fontSize: 11.5, fontWeight: 600 }}>
