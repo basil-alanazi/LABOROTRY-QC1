@@ -1,7 +1,16 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import RecordModule from "./RecordModule";
 
 export default function CAPA({ role, username }) {
+  const [prefill, setPrefill] = useState(null);
+  useEffect(() => {
+    const raw = sessionStorage.getItem("qc_capa_prefill");
+    if (raw) {
+      try { setPrefill(JSON.parse(raw)); } catch { /* ignore */ }
+      sessionStorage.removeItem("qc_capa_prefill");
+    }
+  }, []);
+
   return (
     <RecordModule
       table="capa_records"
@@ -9,6 +18,7 @@ export default function CAPA({ role, username }) {
       title="CAPA"
       description="Corrective & Preventive Actions — root cause, what fixed it, and what stops it happening again."
       role={role} username={username}
+      prefill={prefill}
       fields={[
         { key: "date_opened", label: "Date Opened", type: "date" },
         { key: "source", label: "Source", type: "select", options: ["audit", "incident", "QC failure", "complaint", "other"] },

@@ -11,7 +11,7 @@ const TYPE_META = {
   fault: { label: "Fault", icon: AlertTriangle, bg: "#FBEAE6", fg: "#C1432B" },
 };
 
-export default function Equipment({ departments, role, username, onNavigate }) {
+export default function Equipment({ departments, role, username, onNavigate, deepLinkEquipmentId, onDeepLinkConsumed }) {
   const [list, setList] = useState(null);
   const [events, setEvents] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -26,6 +26,15 @@ export default function Equipment({ departments, role, username, onNavigate }) {
     setEvents(ev || []);
   }
   useEffect(() => { loadAll(); }, []);
+
+  // Came in from a QR code scan — jump straight to that device once the list has loaded.
+  useEffect(() => {
+    if (deepLinkEquipmentId && list && list.some((e) => e.id === deepLinkEquipmentId)) {
+      setSelected(deepLinkEquipmentId);
+      window.history.replaceState({}, "", "/");
+      onDeepLinkConsumed && onDeepLinkConsumed();
+    }
+  }, [deepLinkEquipmentId, list]);
 
   async function addEquipment() {
     if (!form.name) return;
@@ -151,15 +160,18 @@ export default function Equipment({ departments, role, username, onNavigate }) {
 
 function EquipmentDetail({ equipment, events, canEdit, username, onBack, reload, onNavigate }) {
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ event_type: "maintenance", date: todayISO(), description: "", engineer_name: "", resolved: true, next_due_date: "", file_note: "" });
+  const [showQR, setShowQR] = useState(false);
+  const [form, setForm] = useState({ event_type: "maintenance", date: todayISO(), description: "", engineer_name: "", resolved: true, next_due_date: "", file_note: "", downtime_start: "", downtime_end: "", backup_option: "none", backup_details: "" });
 
   async function addEvent() {
     if (!form.description) return;
     await supabase.from("equipment_events").insert({
       equipment_id: equipment.id, ...form, performed_by: username,
       next_due_date: form.next_due_date || null,
+      downtime_start: form.downtime_start || null,
+      downtime_end: form.downtime_end || null,
     });
-    setForm({ event_type: "maintenance", date: todayISO(), description: "", engineer_name: "", resolved: true, next_due_date: "", file_note: "" });
+    setForm({ event_type: "maintenance", date: todayISO(), description: "", engineer_name: "", resolved: true, next_due_date: "", file_note: "", downtime_start: "", downtime_end: "", backup_option: "none", backup_details: "" });
     setShowAdd(false);
     reload();
   }
@@ -180,7 +192,10 @@ function EquipmentDetail({ equipment, events, canEdit, username, onBack, reload,
       <button onClick={onBack} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 13, fontWeight: 600, marginBottom: 14 }}>← Back to equipment</button>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, flexWrap: "wrap", gap: 10 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700 }}>{equipment.name}</h2>
-        {canEdit && <button onClick={() => setShowAdd(true)} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Log event</button>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setShowQR(true)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 12px", fontSize: 13, fontWeight: 600, color: "#516361" }}>▦ QR code</button>
+          {canEdit && <button onClick={() => setShowAdd(true)} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Log event</button>}
+        </div>
       </div>
       <div style={{ fontSize: 12, color: "#8A9694", marginBottom: 14 }}>{equipment.department}{equipment.serial_number ? ` · SN ${equipment.serial_number}` : ""}{equipment.install_date ? ` · installed ${equipment.install_date}` : ""}</div>
 
@@ -190,13 +205,29 @@ function EquipmentDetail({ equipment, events, canEdit, username, onBack, reload,
           <button onClick={() => { setForm((f) => ({ ...f, event_type: "maintenance" })); setShowAdd(true); }} style={{ background: "#F0F3F2", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 12, fontWeight: 600, color: "#516361" }}>🔧 Log maintenance</button>
           <button onClick={() => { setForm((f) => ({ ...f, event_type: "calibration" })); setShowAdd(true); }} style={{ background: "#F0F3F2", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 12, fontWeight: 600, color: "#516361" }}>✅ Log calibration</button>
           <button onClick={() => { setForm((f) => ({ ...f, event_type: "fault" })); setShowAdd(true); }} style={{ background: "#FBEAE6", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 12, fontWeight: 600, color: "#C1432B" }}>⚠ Log fault</button>
-          {onNavigate && <button onClick={() => onNavigate("incident")} style={{ background: "#FBEAE6", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 12, fontWeight: 600, color: "#C1432B" }}>📋 Create incident</button>}
+          {onNavigate && (
+            <button
+              onClick={() => {
+                sessionStorage.setItem("qc_incident_prefill", JSON.stringify({
+                  department: equipment.department,
+                  description: `Problem with ${equipment.name}`,
+                  date: todayISO(),
+                  reported_by: username,
+                }));
+                onNavigate("incident");
+              }}
+              style={{ background: "#FBEAE6", border: "none", borderRadius: 7, padding: "8px 12px", fontSize: 12, fontWeight: 600, color: "#C1432B" }}
+            >
+              🚨 Report Problem
+            </button>
+          )}
         </div>
       )}
 
       <EquipmentDocuments equipmentId={equipment.id} canEdit={canEdit} username={username} />
       <EquipmentPPMSchedule equipmentId={equipment.id} canEdit={canEdit} />
       <EquipmentComplianceRecords equipmentId={equipment.id} canEdit={canEdit} username={username} />
+      <EquipmentCompetency equipmentId={equipment.id} canEdit={canEdit} username={username} />
 
       {showAdd && (
         <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: 14, marginBottom: 20 }}>
@@ -214,6 +245,23 @@ function EquipmentDetail({ equipment, events, canEdit, username, onBack, reload,
             <label style={{ fontSize: 12.5, color: "#516361" }}>Next due <input type="date" value={form.next_due_date} onChange={(e) => setForm((f) => ({ ...f, next_due_date: e.target.value }))} style={{ ...inputStyle, width: 150, display: "inline-block", marginLeft: 6 }} /></label>
             <label style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 4 }}><input type="checkbox" checked={form.resolved} onChange={(e) => setForm((f) => ({ ...f, resolved: e.target.checked }))} /> Resolved</label>
           </div>
+          {form.event_type === "fault" && (
+            <div style={{ background: "#F8FAF9", borderRadius: 8, padding: 10, marginBottom: 10 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: "#7B8E8A", marginBottom: 6 }}>DOWNTIME</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                <label style={{ fontSize: 12, color: "#516361" }}>Down since <input type="datetime-local" value={form.downtime_start} onChange={(e) => setForm((f) => ({ ...f, downtime_start: e.target.value }))} style={{ ...inputStyle, width: 190, display: "inline-block", marginLeft: 4 }} /></label>
+                <label style={{ fontSize: 12, color: "#516361" }}>Back up <input type="datetime-local" value={form.downtime_end} onChange={(e) => setForm((f) => ({ ...f, downtime_end: e.target.value }))} style={{ ...inputStyle, width: 190, display: "inline-block", marginLeft: 4 }} /></label>
+              </div>
+              <select value={form.backup_option} onChange={(e) => setForm((f) => ({ ...f, backup_option: e.target.value }))} style={{ ...inputStyle, marginBottom: 8 }}>
+                <option value="none">No backup — full stop</option>
+                <option value="backup_device">Used a backup device</option>
+                <option value="sent_external">Sent samples externally</option>
+              </select>
+              {form.backup_option !== "none" && (
+                <input placeholder={form.backup_option === "backup_device" ? "Which backup device?" : "Which lab did you send to?"} value={form.backup_details} onChange={(e) => setForm((f) => ({ ...f, backup_details: e.target.value }))} style={inputStyle} />
+              )}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={addEvent} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700 }}>Save</button>
             <button onClick={() => setShowAdd(false)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 14px", fontSize: 13 }}>Cancel</button>
@@ -240,6 +288,30 @@ function EquipmentDetail({ equipment, events, canEdit, username, onBack, reload,
                 </div>
                 <div style={{ fontSize: 13 }}>{ev.description}</div>
                 {ev.next_due_date && <div style={{ fontSize: 11, color: "#8A9694", marginTop: 4 }}>Next due: {ev.next_due_date}</div>}
+                {ev.event_type === "fault" && (ev.downtime_start || ev.backup_option) && (
+                  <div style={{ fontSize: 11, color: "#8A9694", marginTop: 4 }}>
+                    {ev.downtime_start && `Down: ${new Date(ev.downtime_start).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`}
+                    {ev.downtime_end && ` → ${new Date(ev.downtime_end).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`}
+                    {ev.backup_option === "backup_device" && ` · Backup device: ${ev.backup_details || "—"}`}
+                    {ev.backup_option === "sent_external" && ` · Sent to: ${ev.backup_details || "—"}`}
+                    {ev.backup_option === "none" && " · No backup — full stop"}
+                  </div>
+                )}
+                {ev.event_type === "fault" && onNavigate && (
+                  <button
+                    onClick={() => {
+                      sessionStorage.setItem("qc_capa_prefill", JSON.stringify({
+                        source: "equipment fault",
+                        issue_description: `${equipment.name}: ${ev.description}`,
+                        date_opened: todayISO(),
+                      }));
+                      onNavigate("capa");
+                    }}
+                    style={{ marginTop: 6, background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 600, color: "#516361" }}
+                  >
+                    📋 Create CAPA from this
+                  </button>
+                )}
               </div>
             );
           })}
@@ -427,6 +499,119 @@ function EquipmentComplianceRecords({ equipmentId, canEdit, username }) {
             <button onClick={addRecord} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 14px", fontSize: 13, fontWeight: 700 }}>Save</button>
             <button onClick={() => setShowAdd(false)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 14px", fontSize: 13 }}>Cancel</button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EquipmentCompetency({ equipmentId, canEdit, username }) {
+  const [staff, setStaff] = useState([]);
+  const [records, setRecords] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+
+  async function load() {
+    const { data: s } = await supabase.from("staff_members").select("*").eq("deleted", false).order("full_name");
+    const { data: r } = await supabase.from("equipment_competency").select("*").eq("equipment_id", equipmentId).eq("deleted", false);
+    setStaff(s || []);
+    setRecords(r || []);
+  }
+  useEffect(() => { load(); }, [equipmentId]);
+
+  function recordFor(staffId) {
+    return records.find((r) => r.staff_id === staffId);
+  }
+
+  function startEdit(staffId) {
+    const existing = recordFor(staffId);
+    setEditingId(staffId);
+    setEditForm(existing ? { ...existing } : { status: "competent", trained_date: todayISO(), trained_by: username, expiry_date: "", notes: "" });
+  }
+
+  async function saveEdit(staffId) {
+    await supabase.from("equipment_competency").upsert(
+      { equipment_id: equipmentId, staff_id: staffId, status: editForm.status, trained_date: editForm.trained_date || null, trained_by: editForm.trained_by, expiry_date: editForm.expiry_date || null, notes: editForm.notes },
+      { onConflict: "equipment_id,staff_id" }
+    );
+    setEditingId(null);
+    load();
+  }
+
+  const STATUS_META = {
+    competent: { label: "Competent", color: "#2F6B4F", bg: "#E8F2EC" },
+    needs_retraining: { label: "Needs retraining", color: "#B8860B", bg: "#FBF3DF" },
+    not_trained: { label: "Not trained", color: "#8A9694", bg: "#F0F3F2" },
+  };
+  const today = todayISO();
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#7B8E8A", marginBottom: 8 }}>AUTHORIZED OPERATORS (Training & Competency)</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {staff.map((m) => {
+          const rec = recordFor(m.id);
+          const expired = rec?.expiry_date && rec.expiry_date < today;
+          const meta = STATUS_META[rec?.status] || STATUS_META.not_trained;
+          const isEditing = editingId === m.id;
+          return (
+            <div key={m.id} style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 8, padding: "9px 12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>{m.full_name}</div>
+                <span style={{ fontSize: 10.5, fontWeight: 700, color: meta.color, background: meta.bg, borderRadius: 4, padding: "2px 8px" }}>{expired ? "EXPIRED" : meta.label.toUpperCase()}</span>
+                {canEdit && !isEditing && <button onClick={() => startEdit(m.id)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "4px 9px", fontSize: 11 }}>Edit</button>}
+              </div>
+              {rec && !isEditing && (
+                <div style={{ fontSize: 11, color: "#8A9694", marginTop: 3 }}>
+                  Trained {rec.trained_date || "—"} by {rec.trained_by || "—"}{rec.expiry_date ? ` · expires ${rec.expiry_date}` : ""}
+                </div>
+              )}
+              {isEditing && (
+                <div style={{ marginTop: 8, borderTop: "1px solid #EEF2F0", paddingTop: 8 }}>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                    <select value={editForm.status} onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))} style={{ ...inputStyle, width: 150 }}>
+                      <option value="competent">Competent</option>
+                      <option value="needs_retraining">Needs retraining</option>
+                      <option value="not_trained">Not trained</option>
+                    </select>
+                    <label style={{ fontSize: 11.5, color: "#516361" }}>Trained <input type="date" value={editForm.trained_date || ""} onChange={(e) => setEditForm((f) => ({ ...f, trained_date: e.target.value }))} style={{ ...inputStyle, width: 140, display: "inline-block", marginLeft: 4 }} /></label>
+                    <label style={{ fontSize: 11.5, color: "#516361" }}>Expires <input type="date" value={editForm.expiry_date || ""} onChange={(e) => setEditForm((f) => ({ ...f, expiry_date: e.target.value }))} style={{ ...inputStyle, width: 140, display: "inline-block", marginLeft: 4 }} /></label>
+                  </div>
+                  <input placeholder="Trained by" value={editForm.trained_by || ""} onChange={(e) => setEditForm((f) => ({ ...f, trained_by: e.target.value }))} style={{ ...inputStyle, marginBottom: 8 }} />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => saveEdit(m.id)} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 700 }}>Save</button>
+                    <button onClick={() => setEditingId(null)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 6, padding: "6px 12px", fontSize: 12 }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {showQR && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,25,26,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={() => setShowQR(false)}>
+          <div className="qr-print-card" style={{ background: "#fff", borderRadius: 12, padding: 24, textAlign: "center", maxWidth: 320 }} onClick={(e) => e.stopPropagation()}>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(`https://rabia-lab.com/equipment/${equipment.id}`)}`}
+              alt="QR code"
+              style={{ width: 220, height: 220 }}
+            />
+            <div style={{ fontWeight: 700, fontSize: 15, marginTop: 10 }}>{equipment.name}</div>
+            <div style={{ fontSize: 12, color: "#8A9694" }}>{equipment.department}{equipment.serial_number ? ` · SN ${equipment.serial_number}` : ""}</div>
+            <div style={{ fontSize: 11, color: "#8A9694", marginTop: 6 }}>Scan to open this device's page directly</div>
+            <div className="no-print" style={{ display: "flex", gap: 8, marginTop: 16, justifyContent: "center" }}>
+              <button onClick={() => window.print()} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 13, fontWeight: 700 }}>🖨️ Print label</button>
+              <button onClick={() => setShowQR(false)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 16px", fontSize: 13 }}>Close</button>
+            </div>
+          </div>
+          <style>{`
+            @media print {
+              body * { visibility: hidden; }
+              .qr-print-card, .qr-print-card * { visibility: visible; }
+              .qr-print-card { position: fixed; top: 40px; left: 50%; transform: translateX(-50%); }
+            }
+          `}</style>
         </div>
       )}
     </div>

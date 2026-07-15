@@ -47,6 +47,7 @@ export const BUILT_IN_PAGES = [
   { key: "eom", label: "Employee of the Month" },
   { key: "achievements", label: "Achievements" },
   { key: "labmap", label: "Lab Map" },
+  { key: "visitors", label: "Visitor Log" },
   { key: "myschedule", label: "My Schedule" },
   { key: "assignment", label: "Daily Assignment" },
   { key: "breakhistory", label: "Break History" },

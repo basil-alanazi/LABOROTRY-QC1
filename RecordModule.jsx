@@ -39,16 +39,16 @@ async function readFileAsGrid(file) {
   throw new Error("Unsupported file — use Excel (.xlsx/.xls/.csv) or Word (.docx).");
 }
 
-export default function RecordModule({ table, moduleKey, title, description, fields: coreFields, role, username }) {
+export default function RecordModule({ table, moduleKey, title, description, fields: coreFields, role, username, prefill }) {
   const [rows, setRows] = useState(null);
   const [customFields, setCustomFields] = useState([]);
   const [fieldOptions, setFieldOptions] = useState([]); // [{field_key, option_value, sort_order}]
-  const [showAdd, setShowAdd] = useState(false);
+  const [showAdd, setShowAdd] = useState(!!prefill);
   const [showFieldAdd, setShowFieldAdd] = useState(false);
   const [showListManager, setShowListManager] = useState(false);
   const [newFieldLabel, setNewFieldLabel] = useState("");
   const [newFieldPosition, setNewFieldPosition] = useState("end");
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState(prefill || {});
   const [importing, setImporting] = useState(false);
   const canEdit = role === "admin" || role === "super";
 

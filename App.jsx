@@ -15,6 +15,7 @@ import HomePage from "./HomePage";
 import AuditTrail from "./AuditTrail";
 import BackupExport from "./BackupExport";
 import SmartSearch from "./SmartSearch";
+import GlobalSearch from "./GlobalSearch";
 import KPI from "./KPI";
 import DateNav from "./DateNav";
 import NotificationBell from "./NotificationBell";
@@ -29,6 +30,7 @@ import LabTimeline from "./LabTimeline";
 import EmployeeOfMonth from "./EmployeeOfMonth";
 import AchievementSystem from "./AchievementSystem";
 import LabMap from "./LabMap";
+import VisitorLog from "./VisitorLog";
 import { playAlertSound } from "./sounds";
 import Equipment from "./Equipment";
 import LotComparison from "./LotComparison";
@@ -90,7 +92,14 @@ export default function App() {
   const [pinnedTables, setPinnedTables] = useState([]);
   const [allTables, setAllTables] = useState([]);
   const [profiles, setProfiles] = useState({});
-  const [tab, setTab] = useState("home");
+  const [tab, setTab] = useState(() => {
+    if (window.location.pathname.startsWith("/equipment/")) return "equipment";
+    return "home";
+  });
+  const [deepLinkEquipmentId, setDeepLinkEquipmentId] = useState(() => {
+    const m = window.location.pathname.match(/^\/equipment\/([^/]+)/);
+    return m ? m[1] : null;
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("qc_dark") === "1");
   useEffect(() => { localStorage.setItem("qc_dark", darkMode ? "1" : "0"); }, [darkMode]);
@@ -377,6 +386,8 @@ export default function App() {
         }
       `}</style>
 
+      <GlobalSearch onNavigate={setTab} />
+
       <div className="app-topbar" style={{ background: config.sidebar_color || "#1B2B2E", padding: "14px 16px", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 30 }}>
         <button onClick={() => setSidebarOpen(true)} style={{ background: "none", border: "none", color: "#F0F3F2" }}><Menu size={22} /></button>
         <div style={{ color: "#F0F3F2", fontWeight: 700, fontSize: 15 }}>{config.app_title || "QC Log"}</div>
@@ -415,7 +426,7 @@ export default function App() {
         {tab === "audit" && (roleFor(tab) === "admin" || role === "super") && <AuditTrail />}
         {tab === "backup" && (roleFor(tab) === "admin" || role === "super") && <BackupExport />}
         {tab === "kpi" && (roleFor(tab) === "admin" || role === "super") && <KPI panels={panels} entries={activeEntries} baselines={baselines} />}
-        {tab === "equipment" && (roleFor(tab) === "admin" || role === "super") && <Equipment departments={config.departments || []} role={roleFor(tab)} username={username} onNavigate={setTab} />}
+        {tab === "equipment" && (roleFor(tab) === "admin" || role === "super") && <Equipment departments={config.departments || []} role={roleFor(tab)} username={username} onNavigate={setTab} deepLinkEquipmentId={deepLinkEquipmentId} onDeepLinkConsumed={() => setDeepLinkEquipmentId(null)} />}
         {tab === "reject" && (roleFor(tab) === "admin" || role === "super") && <RejectSample role={roleFor(tab)} username={username} />}
         {tab === "panic" && (roleFor(tab) === "admin" || role === "super") && <PanicValue role={roleFor(tab)} username={username} />}
         {tab === "corrective" && (roleFor(tab) === "admin" || role === "super") && <CorrectiveAction role={roleFor(tab)} username={username} />}
@@ -436,6 +447,7 @@ export default function App() {
         {tab === "eom" && <EmployeeOfMonth role={roleFor("eom")} />}
         {tab === "achievements" && <AchievementSystem />}
         {tab === "labmap" && <LabMap onNavigate={setTab} />}
+        {tab === "visitors" && <VisitorLog role={roleFor("visitors")} username={username} />}
         {tab === "assignment" && <DailyAssignment role={roleFor(tab)} />}
         {tab === "breakhistory" && (roleFor(tab) === "admin" || role === "super") && <BreakHistory />}
         {tab.startsWith("pinned:") && (() => {
@@ -523,6 +535,7 @@ function Portal({ config, permissions, allTables, username, panels, entries, bas
     if (p.key === "eom") return <EmployeeOfMonth role={effectiveRole} />;
     if (p.key === "achievements") return <AchievementSystem />;
     if (p.key === "labmap") return <LabMap />;
+    if (p.key === "visitors") return <VisitorLog role={effectiveRole} username={username} />;
     if (p.key === "settings") return <Settings config={config} panels={panels} role="admin" username={username} baselines={baselines} reload={() => {}} />;
     if (p.key === "qc") return <Dashboard panels={panels} entries={entries} baselines={baselines} role={effectiveRole} busy={busy} onSubmit={onSubmit} onDelete={onDelete} profiles={profiles} />;
     if (p.key === "approvals") return <Approvals items={pendingItems} panels={panels} onReview={onReview} onReviewBulk={onReviewBulk} profiles={profiles} />;
@@ -670,6 +683,19 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
   const [openGroups, setOpenGroups] = useState({ qc: true, schedule: true, settings: false, tables: true, records: true, dailytools: true, overview: false, team: false });
   const toggleGroup = (k) => setOpenGroups((g) => ({ ...g, [k]: !g[k] }));
 
+  const [favorites, setFavorites] = useState([]);
+  const [showFavPicker, setShowFavPicker] = useState(false);
+  useEffect(() => {
+    setFavorites(profiles?.[username]?.favorite_pages || []);
+  }, [username, profiles]);
+  async function toggleFavorite(key) {
+    const next = favorites.includes(key) ? favorites.filter((k) => k !== key) : [...favorites, key];
+    setFavorites(next);
+    await supabase.from("user_profiles").upsert({ username, favorite_pages: next }, { onConflict: "username" });
+  }
+  const ALL_PAGE_META = {};
+  BUILT_IN_PAGES.forEach((p) => { ALL_PAGE_META[p.key] = p.label; });
+
   const qcItems = [
     { key: "qc", label: "QC Entry", icon: LayoutGrid, show: true },
     { key: "kpi", label: "KPI", icon: BarChart3, show: isAdmin },
@@ -728,6 +754,21 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
         <SideItem icon={<MessageCircle size={15} />} label="Chat" active={tab === "chat"} onClick={() => onNavigate("chat")} />
         <SideItem icon={<Bot size={15} />} label="Assistant" active={tab === "assistant"} onClick={() => onNavigate("assistant")} />
 
+        {favorites.length > 0 && (
+          <div style={{ margin: "8px 0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 8px", marginBottom: 4 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#8FA39E", letterSpacing: 0.3 }}>⭐ FAVORITES</span>
+              <button onClick={() => setShowFavPicker(true)} style={{ background: "none", border: "none", color: "#8FA39E", fontSize: 11, cursor: "pointer" }}>Edit</button>
+            </div>
+            {favorites.filter((k) => notHidden(k)).map((k) => (
+              <SideItem key={k} icon={<span>⭐</span>} label={ALL_PAGE_META[k] || k} active={tab === k} onClick={() => onNavigate(k)} />
+            ))}
+          </div>
+        )}
+        {favorites.length === 0 && (
+          <button onClick={() => setShowFavPicker(true)} style={{ background: "none", border: "none", color: "#8FA39E", fontSize: 11.5, textAlign: "left", padding: "6px 8px", cursor: "pointer" }}>⭐ Add favorites…</button>
+        )}
+
         <SideGroup icon="🧪" label="Quality Control" open={openGroups.qc} onToggle={() => toggleGroup("qc")}>
           {qcItems.map((i) => <SideItem key={i.key} icon={<i.icon size={14} />} label={i.label} active={tab === i.key} onClick={() => onNavigate(i.key)} indent />)}
         </SideGroup>
@@ -751,6 +792,7 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
           {notHidden("audit_dashboard") && <SideItem icon={<BarChart3 size={14} />} label="Audit Dashboard" active={tab === "audit_dashboard"} onClick={() => onNavigate("audit_dashboard")} indent />}
           {notHidden("timeline") && <SideItem icon={<Calendar size={14} />} label="Lab Timeline" active={tab === "timeline"} onClick={() => onNavigate("timeline")} indent />}
           {notHidden("labmap") && <SideItem icon={<Wrench size={14} />} label="Lab Map" active={tab === "labmap"} onClick={() => onNavigate("labmap")} indent />}
+          {notHidden("visitors") && <SideItem icon={<Users size={14} />} label="Visitor Log" active={tab === "visitors"} onClick={() => onNavigate("visitors")} indent />}
         </SideGroup>
 
         <SideGroup icon="🏆" label="Team" open={openGroups.team} onToggle={() => toggleGroup("team")}>
@@ -799,6 +841,24 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
           <LogOut size={14} /> Log out
         </button>
       </div>
+
+      {showFavPicker && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,25,26,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 80 }} onClick={() => setShowFavPicker(false)}>
+          <div style={{ background: "#fff", borderRadius: 12, width: "100%", maxWidth: 340, maxHeight: "80vh", overflowY: "auto", padding: 18 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4, color: "#1B2B2E" }}>⭐ Edit favorites</div>
+            <div style={{ fontSize: 12, color: "#8A9694", marginBottom: 12 }}>Pick the pages you use most — they'll show at the top of your sidebar.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {BUILT_IN_PAGES.filter((p) => notHidden(p.key)).map((p) => (
+                <label key={p.key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 6, background: favorites.includes(p.key) ? "#F0F3F2" : "transparent", cursor: "pointer" }}>
+                  <input type="checkbox" checked={favorites.includes(p.key)} onChange={() => toggleFavorite(p.key)} />
+                  <span style={{ fontSize: 13, color: "#1B2B2E" }}>{p.label}</span>
+                </label>
+              ))}
+            </div>
+            <button onClick={() => setShowFavPicker(false)} style={{ marginTop: 14, width: "100%", background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "9px", fontWeight: 700, fontSize: 13 }}>Done</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

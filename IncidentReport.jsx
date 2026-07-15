@@ -1,7 +1,16 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import RecordModule from "./RecordModule";
 
 export default function IncidentReport({ role, username }) {
+  const [prefill, setPrefill] = useState(null);
+  useEffect(() => {
+    const raw = sessionStorage.getItem("qc_incident_prefill");
+    if (raw) {
+      try { setPrefill(JSON.parse(raw)); } catch { /* ignore */ }
+      sessionStorage.removeItem("qc_incident_prefill");
+    }
+  }, []);
+
   return (
     <RecordModule
       table="incident_reports"
@@ -9,6 +18,7 @@ export default function IncidentReport({ role, username }) {
       title="Incident Report"
       description="Anything unusual that happened in the lab — equipment issue, safety concern, sample mix-up, near-miss, etc."
       role={role} username={username}
+      prefill={prefill}
       fields={[
         { key: "date", label: "Date", type: "date" },
         { key: "time", label: "Time", type: "text" },
