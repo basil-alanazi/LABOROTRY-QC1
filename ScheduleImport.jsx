@@ -48,10 +48,15 @@ export default function ScheduleImport({ staff, month, onApply }) {
   }
 
   function confirmApply() {
+    const norm = (s) => (s || "").trim().toLowerCase().replace(/\s+/g, " ");
     const withIds = result.entries.map((e) => {
-      const staffMember = staff.find((s) => s.full_name === e.staffName);
+      const staffMember = staff.find((s) => norm(s.full_name) === norm(e.staffName));
       return { ...e, staffId: staffMember?.id };
     }).filter((e) => e.staffId);
+    if (withIds.length < result.entries.length) {
+      const dropped = result.entries.length - withIds.length;
+      if (!confirm(`${dropped} row(s) couldn't be matched to a staff ID at the last step and will be skipped. Continue with the remaining ${withIds.length}?`)) return;
+    }
     onApply(withIds);
     setResult(null);
   }
