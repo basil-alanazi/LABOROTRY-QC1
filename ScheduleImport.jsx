@@ -31,8 +31,9 @@ export default function ScheduleImport({ staff, month, onApply }) {
         setError(`Couldn't match any data in this file to your current staff.${foundList}${knownList}`);
       } else {
         setResult({
-          entries: entries.map((e) => ({ ...e, day: Math.min(e.day, daysInMonth) })).filter((e) => e.day >= 1 && e.day <= daysInMonth),
+          entries: entries.map((e) => ({ ...e, day: Math.min(e.day, daysInMonth), date: `${year}-${mo.padStart(2, "0")}-${String(Math.min(e.day, daysInMonth)).padStart(2, "0")}` })).filter((e) => e.day >= 1 && e.day <= daysInMonth),
           unmatchedStaffHeaders: [...new Set(unmatchedStaffHeaders)].filter(Boolean),
+          targetMonth: month,
         });
       }
     } catch (err) {
@@ -78,6 +79,9 @@ export default function ScheduleImport({ staff, month, onApply }) {
 
       {result && result.entries.length > 0 && (
         <div style={{ background: "#FBF8F0", border: "1px solid #E8DCC0", borderRadius: 8, padding: 10, marginTop: 10 }}>
+          <div style={{ background: "#0F7173", color: "#fff", borderRadius: 6, padding: "8px 10px", marginBottom: 10, fontSize: 13, fontWeight: 700, textAlign: "center" }}>
+            Saving to: {new Date(result.targetMonth + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+          </div>
           {result.unmatchedStaffHeaders.length > 0 && (
             <div style={{ fontSize: 11.5, color: "#C1432B", marginBottom: 8 }}>
               Heads up: these names in the file didn't match any staff on your roster, so they were skipped: {result.unmatchedStaffHeaders.join(", ")}

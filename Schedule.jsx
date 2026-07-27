@@ -96,15 +96,14 @@ export default function Schedule({ departments, role, username }) {
 
   async function importScheduleEntries(parsedEntries) {
     if (!parsedEntries.length) { alert("Nothing to save — no rows had a matched staff ID."); return; }
-    const [year, mo] = month.split("-");
     const rows = parsedEntries.map((e) => ({
       staff_id: e.staffId,
-      date: `${year}-${mo}-${String(e.day).padStart(2, "0")}`,
+      date: e.date,
       shift_code: e.shift_code || "",
     }));
     const { error } = await supabase.from("schedule_entries").upsert(rows, { onConflict: "staff_id,date" });
     if (error) { alert(`Couldn't save the schedule: ${error.message}`); return; }
-    alert(`Saved ${rows.length} shift cell(s) for ${month}.`);
+    alert(`Saved ${rows.length} shift cell(s) for ${rows[0]?.date?.slice(0, 7)}.`);
     loadAll();
   }
 
