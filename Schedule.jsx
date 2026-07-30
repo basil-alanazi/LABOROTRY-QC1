@@ -245,20 +245,6 @@ export default function Schedule({ departments, role, username }) {
 
       <div className="no-print" style={{ marginBottom: 16 }}>
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={inputStyle} />
-        <button onClick={() => {
-          const [y, m] = month.split("-");
-          const monthEntries = (entries || []).filter((e) => e.date?.startsWith(`${y}-${m}`));
-          const majid = staff.find((s) => s.full_name?.toLowerCase().includes("majid") || s.full_name?.includes("ماجد"));
-          const majidEntries = majid ? monthEntries.filter((e) => e.staff_id === majid.id) : [];
-          alert(
-            `Selected month: ${month}\n` +
-            `Total entries in DB for this month: ${monthEntries.length}\n` +
-            `Total entries in DB (all months): ${(entries || []).length}\n` +
-            (majid ? `\nMajid's staff_id: ${majid.id}\nMajid's entries this month: ${majidEntries.length}\n` +
-              majidEntries.slice(0, 5).map((e) => `  ${e.date} → "${e.shift_code}"`).join("\n")
-              : "\nCouldn't find a staff member matching 'Majid'/'ماجد' — check exact spelling on Staff page.")
-          );
-        }} style={{ ...inputStyle, background: "#F0F3F2", cursor: "pointer" }}>🔍 Debug</button>
         {canEdit && staff.length > 0 && (
           <div style={{ marginTop: 12 }}>
             <ScheduleImport staff={staff} month={month} onApply={importScheduleEntries} />
