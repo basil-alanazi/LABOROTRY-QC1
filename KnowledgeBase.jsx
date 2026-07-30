@@ -13,23 +13,6 @@ const CATEGORIES = [
   { key: "Parasitology", icon: FileText, color: "#2F6B4F" },
 ];
 
-function ImageOrFallback({ src, alt }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) {
-    return (
-      <div>
-        <a href={src} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: "#0F7173", fontWeight: 600 }}>📎 Open file</a>
-        <div style={{ fontSize: 11, color: "#8A9694", marginTop: 3 }}>Couldn't preview this image in your browser (this can happen with iPhone HEIC photos) — the link above still opens/downloads it fine.</div>
-      </div>
-    );
-  }
-  return (
-    <a href={src} target="_blank" rel="noreferrer" style={{ display: "block" }}>
-      <img src={src} alt={alt} onError={() => setFailed(true)} style={{ maxWidth: "100%", maxHeight: 320, borderRadius: 8, border: "1px solid #E1E8E5" }} />
-    </a>
-  );
-}
-
 export default function KnowledgeBase({ role, username }) {
   const canEdit = role === "admin" || role === "super";
   const [entries, setEntries] = useState(null);
@@ -65,9 +48,8 @@ export default function KnowledgeBase({ role, username }) {
     // Build a storage key from scratch (random id + extension only) instead
     // of the original filename — sidesteps any characters Supabase Storage
     // rejects, no matter what the file was actually called.
-    const MIME_EXT = { "image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp", "image/bmp": ".bmp", "image/heic": ".heic", "image/heif": ".heif" };
-    const nameExtMatch = /\.[a-zA-Z0-9]{1,8}$/.exec(file.name || "");
-    const ext = MIME_EXT[file.type] || (nameExtMatch ? nameExtMatch[0] : "");
+    const extMatch = /\.[a-zA-Z0-9]{1,8}$/.exec(file.name || "");
+    const ext = extMatch ? extMatch[0] : "";
     const safeKey = `knowledge-base/${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
     const { error } = await supabase.storage.from("attachments").upload(safeKey, file);
     if (error) {
@@ -142,7 +124,7 @@ export default function KnowledgeBase({ role, username }) {
                     <div style={{ fontSize: 14, fontWeight: 700, color: "#1B2B2E" }}>{e.title}</div>
                     {e.description && <div style={{ fontSize: 12.5, color: "#7B8E8A", marginTop: 3 }}>{e.description}</div>}
                     <div style={{ marginTop: 8 }}>
-                      {e.content_type === "file" && <ImageOrFallback src={fileUrl(e.content)} alt={e.title} />}
+                      {e.content_type === "file" && <a href={fileUrl(e.content)} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: "#0F7173", fontWeight: 600 }}>📎 Open file</a>}
                       {e.content_type === "link" && <a href={e.content} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, color: "#0F7173", fontWeight: 600 }}><LinkIcon size={12} style={{ verticalAlign: -1 }} /> Open link</a>}
                       {e.content_type === "text" && <div style={{ fontSize: 13, color: "#516361", whiteSpace: "pre-wrap", background: "#F8FAF9", borderRadius: 7, padding: 10, marginTop: 4 }}>{e.content}</div>}
                       {e.content_type === "gallery" && (() => {
