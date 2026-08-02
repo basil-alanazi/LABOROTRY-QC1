@@ -924,6 +924,7 @@ function AnalyteReviewBadge({ status }) {
 function Dashboard({ panels, entries, baselines, role, busy, onSubmit, onDelete, profiles }) {
   const today = todayISO();
   const [selectedPanelId, setSelectedPanelId] = useState(null);
+  const [selectedDevice, setSelectedDevice] = useState(null); // { department, device } or null
   const departments = [...new Set(panels.map((p) => p.department))];
 
   if (panels.length === 0) {
@@ -944,31 +945,62 @@ function Dashboard({ panels, entries, baselines, role, busy, onSubmit, onDelete,
     );
   }
 
+  // Step 2: a device is selected — show its control levels (the individual panels for that device).
+  if (selectedDevice) {
+    const devicePanels = panels.filter((p) => p.department === selectedDevice.department && (p.device || "—") === selectedDevice.device);
+    return (
+      <div>
+        <button onClick={() => setSelectedDevice(null)} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 13, fontWeight: 600, marginBottom: 16, display: "flex", alignItems: "center", gap: 4 }}>← Back to {selectedDevice.department}</button>
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{selectedDevice.device}</div>
+        <div style={{ fontSize: 12.5, color: "#7B8E8A", marginBottom: 18 }}>Pick which control / level you're entering.</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {devicePanels.map((panel) => {
+            const todaysEntry = entries.find((e) => e.panel_id === panel.id && e.date === today);
+            // Show just the level/control part of the name (strip the device name prefix if present).
+            const label = panel.name.replace(selectedDevice.device, "").replace(/^[\s—-]+/, "") || panel.name;
+            return (
+              <button key={panel.id} onClick={() => setSelectedPanelId(panel.id)} style={{ textAlign: "left", background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14.5 }}>{label}</div>
+                  <div style={{ fontSize: 11.5, color: "#8A9694" }}>lot {panel.lot_number || "—"} · {(panel.analytes || []).length} analytes</div>
+                </div>
+                {todaysEntry ? <ReviewSummaryBadge entry={todaysEntry} /> : <span style={{ fontSize: 11.5, color: "#B8860B", fontWeight: 600 }}>Not entered today</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // Step 1: pick a department, then a device within it.
   return (
     <div>
       <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Pick a device to enter or review its QC — for today or any other day.</div>
-      {departments.map((dept) => (
-        <div key={dept} style={{ marginBottom: 28 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: deptColor(dept, departments) }} />
-            <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: 0.3 }}>{dept}</span>
+      {departments.map((dept) => {
+        const deptPanels = panels.filter((p) => p.department === dept);
+        const devices = [...new Set(deptPanels.map((p) => p.device || "—"))];
+        return (
+          <div key={dept} style={{ marginBottom: 28 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: deptColor(dept, departments) }} />
+              <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: 0.3 }}>{dept}</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
+              {devices.map((device) => {
+                const devicePanels = deptPanels.filter((p) => (p.device || "—") === device);
+                const enteredToday = devicePanels.filter((p) => entries.some((e) => e.panel_id === p.id && e.date === today)).length;
+                return (
+                  <button key={device} onClick={() => devicePanels.length === 1 ? setSelectedPanelId(devicePanels[0].id) : setSelectedDevice({ department: dept, device })} style={{ textAlign: "left", background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "14px 16px" }}>
+                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>{device}</div>
+                    <div style={{ fontSize: 11, color: "#8A9694", marginTop: 3 }}>{devicePanels.length > 1 ? `${devicePanels.length} controls · ` : ""}{enteredToday}/{devicePanels.length} entered today</div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {panels.filter((p) => p.department === dept).map((panel) => {
-              const todaysEntry = entries.find((e) => e.panel_id === panel.id && e.date === today);
-              return (
-                <button key={panel.id} onClick={() => setSelectedPanelId(panel.id)} style={{ textAlign: "left", background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 14.5 }}>{panel.name}</div>
-                    <div style={{ fontSize: 11.5, color: "#8A9694" }}>lot {panel.lot_number || "—"} · {(panel.analytes || []).length} analytes</div>
-                  </div>
-                  {todaysEntry ? <ReviewSummaryBadge entry={todaysEntry} /> : <span style={{ fontSize: 11.5, color: "#B8860B", fontWeight: 600 }}>Not entered today</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
