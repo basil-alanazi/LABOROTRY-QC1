@@ -501,6 +501,32 @@ function EquipmentComplianceRecords({ equipmentId, canEdit, username }) {
           </div>
         </div>
       )}
+
+      {showQR && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,25,26,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={() => setShowQR(false)}>
+          <div className="qr-print-card" style={{ background: "#fff", borderRadius: 12, padding: 24, textAlign: "center", maxWidth: 320 }} onClick={(e) => e.stopPropagation()}>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(`https://rabia-lab.com/equipment/${equipment.id}`)}`}
+              alt="QR code"
+              style={{ width: 220, height: 220 }}
+            />
+            <div style={{ fontWeight: 700, fontSize: 15, marginTop: 10 }}>{equipment.name}</div>
+            <div style={{ fontSize: 12, color: "#8A9694" }}>{equipment.department}{equipment.serial_number ? ` · SN ${equipment.serial_number}` : ""}</div>
+            <div style={{ fontSize: 11, color: "#8A9694", marginTop: 6 }}>Scan to open this device's page directly</div>
+            <div className="no-print" style={{ display: "flex", gap: 8, marginTop: 16, justifyContent: "center" }}>
+              <button onClick={() => window.print()} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 13, fontWeight: 700 }}>🖨️ Print label</button>
+              <button onClick={() => setShowQR(false)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 16px", fontSize: 13 }}>Close</button>
+            </div>
+          </div>
+          <style>{`
+            @media print {
+              body * { visibility: hidden; }
+              .qr-print-card, .qr-print-card * { visibility: visible; }
+              .qr-print-card { position: fixed; top: 40px; left: 50%; transform: translateX(-50%); }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 }
@@ -588,32 +614,6 @@ function EquipmentCompetency({ equipmentId, canEdit, username }) {
           );
         })}
       </div>
-
-      {showQR && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,25,26,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }} onClick={() => setShowQR(false)}>
-          <div className="qr-print-card" style={{ background: "#fff", borderRadius: 12, padding: 24, textAlign: "center", maxWidth: 320 }} onClick={(e) => e.stopPropagation()}>
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(`https://rabia-lab.com/equipment/${equipment.id}`)}`}
-              alt="QR code"
-              style={{ width: 220, height: 220 }}
-            />
-            <div style={{ fontWeight: 700, fontSize: 15, marginTop: 10 }}>{equipment.name}</div>
-            <div style={{ fontSize: 12, color: "#8A9694" }}>{equipment.department}{equipment.serial_number ? ` · SN ${equipment.serial_number}` : ""}</div>
-            <div style={{ fontSize: 11, color: "#8A9694", marginTop: 6 }}>Scan to open this device's page directly</div>
-            <div className="no-print" style={{ display: "flex", gap: 8, marginTop: 16, justifyContent: "center" }}>
-              <button onClick={() => window.print()} style={{ background: "#0F7173", color: "#fff", border: "none", borderRadius: 7, padding: "8px 16px", fontSize: 13, fontWeight: 700 }}>🖨️ Print label</button>
-              <button onClick={() => setShowQR(false)} style={{ background: "none", border: "1px solid #C7D1CE", borderRadius: 7, padding: "8px 16px", fontSize: 13 }}>Close</button>
-            </div>
-          </div>
-          <style>{`
-            @media print {
-              body * { visibility: hidden; }
-              .qr-print-card, .qr-print-card * { visibility: visible; }
-              .qr-print-card { position: fixed; top: 40px; left: 50%; transform: translateX(-50%); }
-            }
-          `}</style>
-        </div>
-      )}
     </div>
   );
 }
