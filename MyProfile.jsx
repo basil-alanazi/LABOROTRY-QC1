@@ -9,6 +9,7 @@ const labelStyle = { fontSize: 12.5, fontWeight: 600, color: "#516361" };
 export default function MyProfile({ username }) {
   const [fullName, setFullName] = useState("");
   const [employeeId, setEmployeeId] = useState("");
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -93,6 +94,7 @@ export default function MyProfile({ username }) {
       if (data) {
         setFullName(data.full_name || "");
         setEmployeeId(data.employee_id || "");
+        setEmail(data.email || "");
       }
       setLoading(false);
     }
@@ -101,6 +103,11 @@ export default function MyProfile({ username }) {
   }, [username]);
 
   async function save() {
+    const trimmedEmail = email.trim();
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError("That email address doesn't look right.");
+      return;
+    }
     setSaving(true);
     setError("");
     setSaved(false);
@@ -108,6 +115,7 @@ export default function MyProfile({ username }) {
       username,
       full_name: fullName.trim(),
       employee_id: employeeId.trim(),
+      email: trimmedEmail,
       updated_at: new Date().toISOString(),
     });
     setSaving(false);
@@ -141,6 +149,13 @@ export default function MyProfile({ username }) {
           Employee ID
           <input style={inputStyle} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} placeholder="e.g. 4521" />
         </label>
+        <label style={labelStyle}>
+          Email <span style={{ fontWeight: 400, color: "#8A9694" }}>(optional)</span>
+          <input type="email" style={inputStyle} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+        </label>
+        <div style={{ fontSize: 12, color: "#8A9694" }}>
+          Add your email to turn on a verification code at login (sent to this address each time). Leave it blank to keep signing in with just your username and password.
+        </div>
 
         <div style={{ background: "#F7F9F8", borderRadius: 7, padding: "10px 12px", fontSize: 12.5, color: "#516361" }}>
           Your signature will appear as: <b>{previewSignature}</b>

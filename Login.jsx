@@ -8,6 +8,7 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
   const [rawPassword, setPassword] = useState("");
   const [error, setError] = useState("");
   const [forcedAccount, setForcedAccount] = useState(null); // { table, id, username, role, permissions }
+  const [otpPending, setOtpPending] = useState(null); // { role, who, permissions, maskedEmail }
 
   async function logAuth(action, who) {
     await supabase.from("audit_log").insert({ action, entity: "auth", description: who, performed_by: who });
@@ -19,24 +20,49 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
     onLogin(role, who, permissions);
   }
 
-  function submit(e) {
+  async function proceedAfterPassword(role, who, permissions) {
+    setError("");
+    const { data: profile } = await supabase.from("user_profiles").select("email").eq("username", who).maybeSingle();
+    const email = (profile?.email || "").trim();
+    if (!email) {
+      finishLogin(role, who, permissions);
+      return;
+    }
+    try {
+      const res = await fetch("/api/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: who }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Couldn't send the verification code. Try again.");
+        return;
+      }
+      setOtpPending({ role, who, permissions, maskedEmail: data.email });
+    } catch {
+      setError("Couldn't send the verification code. Try again.");
+    }
+  }
+
+  async function submit(e) {
     e.preventDefault();
     const username = rawUsername.trim();
     const password = rawPassword.trim();
     if (username === config.super_username && password === config.super_password) {
-      finishLogin("super", username);
+      proceedAfterPassword("super", username);
       return;
     }
     if (username === config.admin_username && password === config.admin_password) {
-      finishLogin("admin", username);
+      proceedAfterPassword("admin", username);
       return;
     }
     if (username === config.admin2_username && password === config.admin2_password) {
-      finishLogin("admin", username);
+      proceedAfterPassword("admin", username);
       return;
     }
     if (username === config.lab_username && password === config.lab_password) {
-      finishLogin("staff", username);
+      proceedAfterPassword("staff", username);
       return;
     }
     const staffMatch = (staffAccounts || []).find((s) => s.username === username && s.password === password);
@@ -45,7 +71,7 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
         setForcedAccount({ table: "staff_accounts", id: staffMatch.id, username, role: "staff", permissions: staffMatch.permissions || [] });
         return;
       }
-      finishLogin("staff", username, staffMatch.permissions || []);
+      proceedAfterPassword("staff", username, staffMatch.permissions || []);
       return;
     }
     const portalMatch = (portalAccounts || []).find((s) => s.username === username && s.password === password);
@@ -54,14 +80,24 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
         setForcedAccount({ table: "portal_accounts", id: portalMatch.id, username, role: "portal", permissions: portalMatch.permissions || [] });
         return;
       }
-      finishLogin("portal", username, portalMatch.permissions || []);
+      proceedAfterPassword("portal", username, portalMatch.permissions || []);
       return;
     }
     setError("Incorrect username or password.");
   }
 
+  if (otpPending) {
+    return (
+      <OtpVerify
+        pending={otpPending}
+        onBack={() => setOtpPending(null)}
+        onVerified={() => finishLogin(otpPending.role, otpPending.who, otpPending.permissions)}
+      />
+    );
+  }
+
   if (forcedAccount) {
-    return <ForcePasswordChange account={forcedAccount} onDone={(role, who, permissions) => finishLogin(role, who, permissions)} />;
+    return <ForcePasswordChange account={forcedAccount} onDone={(role, who, permissions) => proceedAfterPassword(role, who, permissions)} />;
   }
 
   return (
@@ -134,6 +170,81 @@ function ForcePasswordChange({ account, onDone }) {
         <button type="submit" disabled={busy} style={{ marginTop: 18, width: "100%", background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: 14, opacity: busy ? 0.6 : 1 }}>
           {busy ? "Saving…" : "Save & continue"}
         </button>
+      </form>
+    </div>
+  );
+}
+
+function OtpVerify({ pending, onBack, onVerified }) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+
+  async function verify(e) {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      const res = await fetch("/api/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: pending.who, code: code.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.valid) {
+        setError(data.error || "Incorrect code.");
+        return;
+      }
+      onVerified();
+    } catch {
+      setError("Something went wrong. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resend() {
+    setResending(true);
+    setError("");
+    setResent(false);
+    try {
+      const res = await fetch("/api/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: pending.who }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Couldn't resend the code."); return; }
+      setResent(true);
+    } catch {
+      setError("Couldn't resend the code.");
+    } finally {
+      setResending(false);
+    }
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#F0F3F2", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'IBM Plex Sans', sans-serif", padding: 16 }}>
+      <form onSubmit={verify} style={{ background: "#fff", borderRadius: 14, padding: 32, width: "100%", maxWidth: 360, border: "1px solid #E1E8E5" }}>
+        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Enter verification code</div>
+        <div style={{ fontSize: 12.5, color: "#7B8E8A", marginBottom: 20 }}>We sent a 6-digit code to <b>{pending.maskedEmail}</b>.</div>
+
+        <label style={{ fontSize: 12.5, fontWeight: 600, color: "#516361" }}>Code
+          <input style={inputStyle} value={code} onChange={(e) => setCode(e.target.value)} autoFocus inputMode="numeric" maxLength={6} />
+        </label>
+
+        {error && <div style={{ color: "#C1432B", fontSize: 12.5, marginTop: 10 }}>{error}</div>}
+        {resent && <div style={{ color: "#2F6B4F", fontSize: 12.5, marginTop: 10 }}>New code sent.</div>}
+
+        <button type="submit" disabled={busy} style={{ marginTop: 18, width: "100%", background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: 14, opacity: busy ? 0.6 : 1 }}>
+          {busy ? "Verifying…" : "Verify & continue"}
+        </button>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14 }}>
+          <button type="button" onClick={onBack} style={{ background: "none", border: "none", color: "#8FA39E", fontSize: 12.5, fontWeight: 600 }}>← Back</button>
+          <button type="button" onClick={resend} disabled={resending} style={{ background: "none", border: "none", color: "#0F7173", fontSize: 12.5, fontWeight: 600 }}>{resending ? "Sending…" : "Resend code"}</button>
+        </div>
       </form>
     </div>
   );
