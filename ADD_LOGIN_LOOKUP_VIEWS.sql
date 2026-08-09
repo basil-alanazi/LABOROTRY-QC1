@@ -21,13 +21,13 @@ create or replace view login_lookup as
   select username, 'portal'::text, ('portal-' || id || '@rabia-lab.internal')::text, id
   from portal_accounts
   union all
-  select nullif(super_username, ''), 'super', 'super@rabia-lab.internal', null::bigint from app_config where id = 1
+  select nullif(super_username, ''), 'super', 'super@rabia-lab.internal', null::uuid from app_config where id = 1
   union all
-  select nullif(admin_username, ''), 'admin', 'admin@rabia-lab.internal', null::bigint from app_config where id = 1
+  select nullif(admin_username, ''), 'admin', 'admin@rabia-lab.internal', null::uuid from app_config where id = 1
   union all
-  select nullif(admin2_username, ''), 'admin', 'admin2@rabia-lab.internal', null::bigint from app_config where id = 1
+  select nullif(admin2_username, ''), 'admin', 'admin2@rabia-lab.internal', null::uuid from app_config where id = 1
   union all
-  select nullif(lab_username, ''), 'staff', 'lab@rabia-lab.internal', null::bigint from app_config where id = 1;
+  select nullif(lab_username, ''), 'staff', 'lab@rabia-lab.internal', null::uuid from app_config where id = 1;
 
 grant select on login_lookup to anon, authenticated;
 
