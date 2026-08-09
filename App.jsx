@@ -165,6 +165,7 @@ export default function App() {
   }
   function logout() {
     supabase.from("audit_log").insert({ action: "logout", entity: "auth", description: username, performed_by: username });
+    supabase.auth.signOut();
     localStorage.removeItem("qc_role");
     localStorage.removeItem("qc_username");
     localStorage.removeItem("qc_permissions");

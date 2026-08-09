@@ -94,7 +94,14 @@ export default function Settings({ config, panels, role, staffAccounts, username
 
   async function addStaffAccount() {
     if (!newStaff.username || !newStaff.password) return;
-    const { error } = await supabase.from("staff_accounts").insert(newStaff);
+    const { data, error } = await supabase.from("staff_accounts").insert(newStaff).select().single();
+    if (!error && data) {
+      await fetch("/api/set-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ table: "staff_accounts", id: data.id, password: newStaff.password }),
+      }).catch(() => {});
+    }
     setStaffMsg(error ? "That username may already exist." : "Account created.");
     setNewStaff({ username: "", password: "" });
     reload();
@@ -211,6 +218,16 @@ export default function Settings({ config, panels, role, staffAccounts, username
 
   async function saveCreds() {
     const { error } = await supabase.from("app_config").update(creds).eq("id", 1);
+    if (!error) {
+      const changedSlots = ["super", "admin", "admin2", "lab"].filter((slot) => creds[`${slot}_password`] !== config[`${slot}_password`]);
+      await Promise.all(changedSlots.map((slot) =>
+        fetch("/api/set-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slot, password: creds[`${slot}_password`] }),
+        }).catch(() => {})
+      ));
+    }
     setMsg(error ? "Could not save." : "Saved.");
     reload();
     setTimeout(() => setMsg(""), 2500);

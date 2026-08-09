@@ -155,7 +155,11 @@ export default function OwnerSettings({ config, reload }) {
   async function resetPassword(table, id, currentUsername) {
     const newPw = prompt(`New password for ${currentUsername}:`);
     if (!newPw) return;
-    await supabase.from(table).update({ password: newPw, must_change_password: true }).eq("id", id);
+    await fetch("/api/set-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ table, id, password: newPw, mustChangePassword: true }),
+    });
     loadExtras();
   }
 
@@ -441,13 +445,22 @@ function AccountModal({ customTables, existing, table = "portal_accounts", onClo
   async function save() {
     if (!username || !password) return;
     const permissions = Object.entries(perms).map(([page, level]) => ({ page, level }));
+    let id = existing?.id;
     if (existing) {
+      const passwordChanged = password !== existing.password;
       const { error } = await supabase.from(table).update({ username, password, permissions }).eq("id", existing.id);
       if (error) { setMsg("Could not save — username may already exist."); return; }
+      if (!passwordChanged) { onCreated(); onClose(); return; }
     } else {
-      const { error } = await supabase.from(table).insert({ username, password, permissions });
+      const { data, error } = await supabase.from(table).insert({ username, password, permissions }).select().single();
       if (error) { setMsg("Could not create — username may already exist."); return; }
+      id = data.id;
     }
+    await fetch("/api/set-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ table, id, password }),
+    }).catch(() => {});
     onCreated();
     onClose();
   }

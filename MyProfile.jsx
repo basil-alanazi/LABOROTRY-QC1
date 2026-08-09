@@ -38,11 +38,23 @@ export default function MyProfile({ username }) {
     if (trimmed !== confirmPassword.trim()) { setPwMsg("Passwords don't match."); return; }
     setPwSaving(true);
     try {
-      const { data: s } = await supabase.from("staff_accounts").update({ password: trimmed, must_change_password: false }).eq("username", username).select();
-      if (s && s.length > 0) { setPwMsg("Password updated."); setNewPassword(""); setConfirmPassword(""); return; }
-      const { data: p } = await supabase.from("portal_accounts").update({ password: trimmed, must_change_password: false }).eq("username", username).select();
-      if (p && p.length > 0) { setPwMsg("Password updated."); setNewPassword(""); setConfirmPassword(""); return; }
-      setPwMsg("Couldn't find an individual login for this username — shared accounts (like the main staff/admin logins) can't be changed here.");
+      const { data: s } = await supabase.from("staff_accounts").select("id").eq("username", username).maybeSingle();
+      const { data: p } = s ? { data: null } : await supabase.from("portal_accounts").select("id").eq("username", username).maybeSingle();
+      const table = s ? "staff_accounts" : p ? "portal_accounts" : null;
+      const id = s?.id || p?.id;
+      if (!table) {
+        setPwMsg("Couldn't find an individual login for this username — shared accounts (like the main staff/admin logins) can't be changed here.");
+        return;
+      }
+      const res = await fetch("/api/set-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ table, id, password: trimmed, mustChangePassword: false }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Save failed");
+      setPwMsg("Password updated.");
+      setNewPassword("");
+      setConfirmPassword("");
     } catch (err) {
       setPwMsg(`Save failed: ${err.message}`);
     } finally {

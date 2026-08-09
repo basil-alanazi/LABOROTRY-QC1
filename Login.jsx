@@ -20,6 +20,20 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
     onLogin(role, who, permissions);
   }
 
+  // Best-effort: establishes a real Supabase Auth session (so auth.uid()
+  // is populated for RLS) alongside the existing plaintext check. Login
+  // itself never depends on this succeeding — if the account hasn't been
+  // migrated yet (see api/migrate-auth-users.js), we just continue without
+  // a verified session, exactly like before this existed.
+  async function authThenProceed(email, password, role, who, permissions) {
+    try {
+      await supabase.auth.signInWithPassword({ email, password });
+    } catch {
+      // ignored — see comment above
+    }
+    proceedAfterPassword(role, who, permissions);
+  }
+
   async function proceedAfterPassword(role, who, permissions) {
     setError("");
     const { data: profile } = await supabase.from("user_profiles").select("email").eq("username", who).maybeSingle();
@@ -50,19 +64,19 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
     const username = rawUsername.trim();
     const password = rawPassword.trim();
     if (username === config.super_username && password === config.super_password) {
-      proceedAfterPassword("super", username);
+      authThenProceed("super@rabia-lab.internal", password, "super", username);
       return;
     }
     if (username === config.admin_username && password === config.admin_password) {
-      proceedAfterPassword("admin", username);
+      authThenProceed("admin@rabia-lab.internal", password, "admin", username);
       return;
     }
     if (username === config.admin2_username && password === config.admin2_password) {
-      proceedAfterPassword("admin", username);
+      authThenProceed("admin2@rabia-lab.internal", password, "admin", username);
       return;
     }
     if (username === config.lab_username && password === config.lab_password) {
-      proceedAfterPassword("staff", username);
+      authThenProceed("lab@rabia-lab.internal", password, "staff", username);
       return;
     }
     const staffMatch = (staffAccounts || []).find((s) => s.username === username && s.password === password);
@@ -71,7 +85,7 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
         setForcedAccount({ table: "staff_accounts", id: staffMatch.id, username, role: "staff", permissions: staffMatch.permissions || [] });
         return;
       }
-      proceedAfterPassword("staff", username, staffMatch.permissions || []);
+      authThenProceed(`staff-${staffMatch.id}@rabia-lab.internal`, password, "staff", username, staffMatch.permissions || []);
       return;
     }
     const portalMatch = (portalAccounts || []).find((s) => s.username === username && s.password === password);
@@ -80,7 +94,7 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
         setForcedAccount({ table: "portal_accounts", id: portalMatch.id, username, role: "portal", permissions: portalMatch.permissions || [] });
         return;
       }
-      proceedAfterPassword("portal", username, portalMatch.permissions || []);
+      authThenProceed(`portal-${portalMatch.id}@rabia-lab.internal`, password, "portal", username, portalMatch.permissions || []);
       return;
     }
     setError("Incorrect username or password.");
@@ -147,7 +161,20 @@ function ForcePasswordChange({ account, onDone }) {
     if (!trimmed || trimmed.length < 4) { setError("Choose a password at least 4 characters long."); return; }
     if (trimmed !== pw2.trim()) { setError("Passwords don't match."); return; }
     setBusy(true);
-    await supabase.from(account.table).update({ password: trimmed, must_change_password: false }).eq("id", account.id);
+    try {
+      const res = await fetch("/api/set-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ table: account.table, id: account.id, password: trimmed, mustChangePassword: false }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Save failed");
+      const prefix = account.table === "staff_accounts" ? "staff" : "portal";
+      await supabase.auth.signInWithPassword({ email: `${prefix}-${account.id}@rabia-lab.internal`, password: trimmed }).catch(() => {});
+    } catch (err) {
+      setError(err.message || "Couldn't save the new password. Try again.");
+      setBusy(false);
+      return;
+    }
     setBusy(false);
     onDone(account.role, account.username, account.permissions);
   }

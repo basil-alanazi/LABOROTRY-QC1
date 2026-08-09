@@ -93,7 +93,14 @@ export default function StaffMembers({ departments, role }) {
       if (!jobNumber) { noJobNumber++; continue; }
 
       if (!existingUsernames.has(jobNumber)) {
-        await supabase.from("staff_accounts").insert({ username: jobNumber, password: jobNumber, must_change_password: true });
+        const { data: newAccount } = await supabase.from("staff_accounts").insert({ username: jobNumber, password: jobNumber, must_change_password: true }).select().single();
+        if (newAccount) {
+          await fetch("/api/set-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ table: "staff_accounts", id: newAccount.id, password: jobNumber, mustChangePassword: true }),
+          }).catch(() => {});
+        }
         created++;
       } else {
         alreadyHadLogin++;
