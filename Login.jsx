@@ -1,14 +1,28 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FlaskConical, Lock } from "lucide-react";
 import { supabase } from "./supabaseClient";
 import { playWelcomeChime } from "./sounds";
 
-export default function Login({ config, staffAccounts, portalAccounts, onLogin }) {
+// Login credentials are verified entirely through Supabase Auth
+// (supabase.auth.signInWithPassword) — never by fetching passwords into
+// the browser and comparing them in JS. login_lookup is a view (safe to
+// read while signed out — see ADD_LOGIN_LOOKUP_VIEWS.sql) that maps a
+// typed username to the internal synthetic email Auth knows it by; it
+// exposes no passwords or other account data. public_branding is the
+// same idea for the handful of Settings fields the sign-in screen itself
+// needs to render before anyone is authenticated.
+export default function Login({ onLogin }) {
   const [rawUsername, setUsername] = useState("");
   const [rawPassword, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const [forcedAccount, setForcedAccount] = useState(null); // { table, id, username, role, permissions }
   const [otpPending, setOtpPending] = useState(null); // { role, who, permissions, maskedEmail }
+  const [branding, setBranding] = useState({});
+
+  useEffect(() => {
+    supabase.from("public_branding").select("*").maybeSingle().then(({ data }) => setBranding(data || {}));
+  }, []);
 
   async function logAuth(action, who) {
     await supabase.from("audit_log").insert({ action, entity: "auth", description: who, performed_by: who });
@@ -18,20 +32,6 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
     playWelcomeChime();
     await logAuth("login", who);
     onLogin(role, who, permissions);
-  }
-
-  // Best-effort: establishes a real Supabase Auth session (so auth.uid()
-  // is populated for RLS) alongside the existing plaintext check. Login
-  // itself never depends on this succeeding — if the account hasn't been
-  // migrated yet (see api/migrate-auth-users.js), we just continue without
-  // a verified session, exactly like before this existed.
-  async function authThenProceed(email, password, role, who, permissions) {
-    try {
-      await supabase.auth.signInWithPassword({ email, password });
-    } catch {
-      // ignored — see comment above
-    }
-    proceedAfterPassword(role, who, permissions);
   }
 
   async function proceedAfterPassword(role, who, permissions) {
@@ -63,41 +63,36 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
     e.preventDefault();
     const username = rawUsername.trim();
     const password = rawPassword.trim();
-    if (username === config.super_username && password === config.super_password) {
-      authThenProceed("super@rabia-lab.internal", password, "super", username);
-      return;
-    }
-    if (username === config.admin_username && password === config.admin_password) {
-      authThenProceed("admin@rabia-lab.internal", password, "admin", username);
-      return;
-    }
-    if (username === config.admin2_username && password === config.admin2_password) {
-      authThenProceed("admin2@rabia-lab.internal", password, "admin", username);
-      return;
-    }
-    if (username === config.lab_username && password === config.lab_password) {
-      authThenProceed("lab@rabia-lab.internal", password, "staff", username);
-      return;
-    }
-    const staffMatch = (staffAccounts || []).find((s) => s.username === username && s.password === password);
-    if (staffMatch) {
-      if (staffMatch.must_change_password) {
-        setForcedAccount({ table: "staff_accounts", id: staffMatch.id, username, role: "staff", permissions: staffMatch.permissions || [] });
+    if (!username || !password) return;
+    setError("");
+    setBusy(true);
+    try {
+      const { data: lookup } = await supabase.from("login_lookup").select("*").eq("username", username).maybeSingle();
+      if (!lookup) { setError("Incorrect username or password."); return; }
+
+      const { error: authError } = await supabase.auth.signInWithPassword({ email: lookup.auth_email, password });
+      if (authError) { setError("Incorrect username or password."); return; }
+
+      // Shared/fixed logins (super, admin, admin2, the shared staff login)
+      // have no individual row to check — nothing more to look up.
+      if (!lookup.account_id) {
+        proceedAfterPassword(lookup.kind, username);
         return;
       }
-      authThenProceed(`staff-${staffMatch.id}@rabia-lab.internal`, password, "staff", username, staffMatch.permissions || []);
-      return;
-    }
-    const portalMatch = (portalAccounts || []).find((s) => s.username === username && s.password === password);
-    if (portalMatch) {
-      if (portalMatch.must_change_password) {
-        setForcedAccount({ table: "portal_accounts", id: portalMatch.id, username, role: "portal", permissions: portalMatch.permissions || [] });
+
+      // Individual staff/portal login — now that we have a verified
+      // session, read the actual row to get must_change_password/permissions.
+      const table = lookup.kind === "portal" ? "portal_accounts" : "staff_accounts";
+      const { data: account } = await supabase.from(table).select("*").eq("id", lookup.account_id).maybeSingle();
+      if (!account) { setError("Account not found."); return; }
+      if (account.must_change_password) {
+        setForcedAccount({ table, id: account.id, username, role: lookup.kind, permissions: account.permissions || [] });
         return;
       }
-      authThenProceed(`portal-${portalMatch.id}@rabia-lab.internal`, password, "portal", username, portalMatch.permissions || []);
-      return;
+      proceedAfterPassword(lookup.kind, username, account.permissions || []);
+    } finally {
+      setBusy(false);
     }
-    setError("Incorrect username or password.");
   }
 
   if (otpPending) {
@@ -115,16 +110,16 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: config.page_bg_color || "#F0F3F2", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'IBM Plex Sans', sans-serif", padding: 16 }}>
+    <div style={{ minHeight: "100vh", background: branding.page_bg_color || "#F0F3F2", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'IBM Plex Sans', sans-serif", padding: 16 }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');`}</style>
       <form onSubmit={submit} style={{ background: "#fff", borderRadius: 14, padding: 32, width: "100%", maxWidth: 360, border: "1px solid #E1E8E5" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
-          <div style={{ background: config.sidebar_color || "#1B2B2E", borderRadius: 8, padding: 8 }}>
-            {config.logo_url ? <img src={config.logo_url} alt="logo" style={{ width: 28, height: 28, borderRadius: 5, objectFit: "contain" }} /> : <FlaskConical size={20} color="#5FBFB0" />}
+          <div style={{ background: branding.sidebar_color || "#1B2B2E", borderRadius: 8, padding: 8 }}>
+            {branding.logo_url ? <img src={branding.logo_url} alt="logo" style={{ width: 28, height: 28, borderRadius: 5, objectFit: "contain" }} /> : <FlaskConical size={20} color="#5FBFB0" />}
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>{config.app_title || "QC Log"}</div>
-            <div style={{ fontSize: 12, color: "#7B8E8A" }}>{config.app_subtitle || "Rabia Hospital · Quality Control"}</div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{branding.app_title || "QC Log"}</div>
+            <div style={{ fontSize: 12, color: "#7B8E8A" }}>{branding.app_subtitle || "Rabia Hospital · Quality Control"}</div>
           </div>
         </div>
 
@@ -137,8 +132,8 @@ export default function Login({ config, staffAccounts, portalAccounts, onLogin }
 
         {error && <div style={{ color: "#C1432B", fontSize: 12.5, marginTop: 10 }}>{error}</div>}
 
-        <button type="submit" style={{ marginTop: 18, width: "100%", background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-          <Lock size={14} /> Sign in
+        <button type="submit" disabled={busy} style={{ marginTop: 18, width: "100%", background: "#0F7173", color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy ? 0.7 : 1 }}>
+          <Lock size={14} /> {busy ? "Signing in…" : "Sign in"}
         </button>
 
         <div style={{ marginTop: 18, textAlign: "center", fontSize: 12, color: "#8FA39E", letterSpacing: 0.3 }}>
