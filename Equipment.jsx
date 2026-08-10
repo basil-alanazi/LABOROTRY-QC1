@@ -171,6 +171,17 @@ function EquipmentDetail({ equipment, events, canEdit, username, onBack, reload,
       downtime_start: form.downtime_start || null,
       downtime_end: form.downtime_end || null,
     });
+    if (form.event_type === "fault") {
+      fetch("/api/broadcast-notification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `⚠ ${equipment.name} out of service`,
+          body: `${form.description} — logged by ${username}.`,
+          tag: "equipment-fault",
+        }),
+      }).catch(() => {});
+    }
     setForm({ event_type: "maintenance", date: todayISO(), description: "", engineer_name: "", resolved: true, next_due_date: "", file_note: "", downtime_start: "", downtime_end: "", backup_option: "none", backup_details: "" });
     setShowAdd(false);
     reload();

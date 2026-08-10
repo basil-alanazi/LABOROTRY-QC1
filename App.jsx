@@ -245,7 +245,19 @@ export default function App() {
         }
       }
 
-      if (Object.values(colors).includes("red")) playAlertSound();
+      if (Object.values(colors).includes("red")) {
+        playAlertSound();
+        const redAnalytes = Object.keys(colors).filter((name) => colors[name] === "red");
+        fetch("/api/broadcast-notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: `⚠ QC out of control — ${panel.name}`,
+            body: `${redAnalytes.join(", ")} flagged red on ${date}. Entered by ${username}.`,
+            tag: "qc-red",
+          }),
+        }).catch(() => {});
+      }
 
       if (existingEntry) {
         await supabase.from("qc_entries").update({
