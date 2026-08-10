@@ -129,13 +129,16 @@ function overlapsByPeriod(shift) {
 // Classifies a shift template into exactly ONE period — "morning" / "evening"
 // / "night" / null (off) — whichever window the shift overlaps the most.
 // Each shift belongs to a single tab; nobody is duplicated across tabs.
+// Based purely on actual time overlap — night_shift is a separate flag
+// (used elsewhere for "is this shift still active past midnight" checks)
+// and isn't a reliable signal for which period tab a shift belongs in, since
+// admins tick it for any shift that runs late, not just night-dominant ones.
 export function classifyShift(shift) {
   const overlaps = overlapsByPeriod(shift);
   const entries = Object.entries(overlaps);
   if (entries.length === 0) return null;
   const [bestName, bestOverlap] = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
   if (bestOverlap <= 0) return null;
-  if (shift?.night_shift) return "night";
   return bestName;
 }
 
@@ -145,6 +148,5 @@ export function classifyShift(shift) {
 export function periodsForShift(shift) {
   const overlaps = overlapsByPeriod(shift);
   const periods = Object.entries(overlaps).filter(([, v]) => v >= OVERLAP_THRESHOLD_MIN).map(([k]) => k);
-  if (shift?.night_shift && !periods.includes("night")) periods.push("night");
   return periods;
 }
