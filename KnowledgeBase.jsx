@@ -11,6 +11,9 @@ const CATEGORIES = [
   { key: "Troubleshooting", icon: Wrench, color: "#C1432B" },
   { key: "FAQ", icon: HelpCircle, color: "#7A4FA3" },
   { key: "Parasitology", icon: FileText, color: "#2F6B4F" },
+  // Uploaded PDFs here are what the Assistant (SmartAssistant.jsx) reads
+  // from to answer free-form policy questions — see api/ask-policy.js.
+  { key: "Policy", icon: FileText, color: "#8A5A2B" },
 ];
 
 export default function KnowledgeBase({ role, username }) {
