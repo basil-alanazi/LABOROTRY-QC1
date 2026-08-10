@@ -162,6 +162,11 @@ export default function App() {
     setRole(newRole);
     setUsername(newUsername);
     setPermissions(newPermissions || []);
+    // The mount-time load (below) ran before any session existed and so
+    // couldn't read the now-authenticated-only tables — reload with the
+    // fresh session now that one exists.
+    ensureConfig();
+    loadAll();
   }
   function logout() {
     supabase.from("audit_log").insert({ action: "logout", entity: "auth", description: username, performed_by: username });
@@ -337,10 +342,16 @@ export default function App() {
     return items;
   }, [activeEntries]);
 
+  // Checked before the data-loading gate below: app_config/qc_panels/qc_entries
+  // now require an authenticated session to read (see
+  // ADD_AUTH_MIGRATION_STEP3_RETIGHTEN.sql), so a signed-out visitor would
+  // never see them load — Login has to render regardless of whether that
+  // fetch has (or ever will, pre-login) succeeded.
+  if (!role) return <Login onLogin={handleLogin} />;
+
   if (!config || panels === null || entries === null) {
     return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "IBM Plex Mono, monospace", color: "#4A5A5C" }}>Loading…</div>;
   }
-  if (!role) return <Login config={config} staffAccounts={staffAccounts} portalAccounts={portalAccounts} onLogin={handleLogin} />;
 
   if (role === "portal") {
     return (
