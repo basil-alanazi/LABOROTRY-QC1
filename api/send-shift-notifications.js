@@ -1,12 +1,14 @@
 // Runs on a schedule (see vercel.json). Checks who has a shift starting in
 // about an hour, and who just finished a shift, and pushes a notification
-// to anyone subscribed. Uses the anon key — fine here since every table's
-// RLS policy is "allow all" (see supabase_schema.sql notes).
+// to anyone subscribed. Uses the service role key — this runs with no
+// user session, and every table now requires one (see
+// ADD_AUTH_MIGRATION_STEP2_TIGHTEN_RLS.sql), so the anon key would only
+// ever see empty results here.
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // Public VAPID key — safe to hardcode, it's meant to be public (matches pushNotifications.js).
 const vapidPublic = "BG1GixDqBtaS_l5ZCEtdp31H7NFkzHtN_h4ZErPbO5g3Yy5UlxV3psvqE3dUxJhj9zsdWdDsuluiL2tUJKcTbR0";
 const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
