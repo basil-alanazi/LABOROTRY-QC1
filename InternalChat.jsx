@@ -40,9 +40,15 @@ export default function InternalChat({ username, config, staffAccounts, portalAc
 
   async function send() {
     if (!body.trim() || !contact) return;
-    await supabase.from("chat_messages").insert({ from_username: username, to_username: contact, body: body.trim() });
+    const messageBody = body.trim();
+    await supabase.from("chat_messages").insert({ from_username: username, to_username: contact, body: messageBody });
     setBody("");
     loadThread(contact);
+    fetch("/api/send-chat-notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to: contact, from: username, body: messageBody }),
+    }).catch(() => {});
   }
 
   return (
