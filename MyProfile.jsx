@@ -132,7 +132,7 @@ export default function MyProfile({ username }) {
     });
     setSaving(false);
     if (err) {
-      setError("Could not save. Please try again.");
+      setError(`Could not save: ${err.message}`);
       return;
     }
     setSaved(true);
