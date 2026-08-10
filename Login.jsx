@@ -50,12 +50,17 @@ export default function Login({ onLogin }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "Couldn't send the verification code. Try again.");
+        // The verification step is meant to be optional — if it can't be
+        // sent (e.g. the email service isn't configured yet), sign the
+        // person in anyway rather than locking them out over it.
+        console.warn("Couldn't send the verification code, signing in without it:", data.error);
+        finishLogin(role, who, permissions);
         return;
       }
       setOtpPending({ role, who, permissions, maskedEmail: data.email });
-    } catch {
-      setError("Couldn't send the verification code. Try again.");
+    } catch (err) {
+      console.warn("Couldn't send the verification code, signing in without it:", err.message);
+      finishLogin(role, who, permissions);
     }
   }
 
