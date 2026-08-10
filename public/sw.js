@@ -27,3 +27,33 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(event.request))
   );
 });
+
+// Without this, webpush.sendNotification() on the server succeeds (the
+// push service accepts and delivers the message) but nothing ever
+// appears on screen — the browser only shows a notification if the
+// service worker's "push" handler explicitly asks it to.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: "QC Log", body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "QC Log", {
+      body: data.body || "",
+      tag: data.tag || undefined,
+      icon: "/icon-192.png",
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: "window" }).then((clientList) => {
+      if (clientList.length > 0) return clientList[0].focus();
+      return clients.openWindow("/");
+    })
+  );
+});
