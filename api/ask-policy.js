@@ -19,6 +19,14 @@ const SYSTEM_INSTRUCTION = `Your name is Najd AI. You are a friendly, helpful pe
 
 If policy documents are attached and the question is about lab policy, procedures, or "how do we do X", answer from those documents specifically and say so. If the documents don't cover it, say that plainly rather than guessing. For everything else (general questions, casual conversation), just answer normally from your own knowledge — but make clear when something is general knowledge rather than this lab's specific policy, so nobody mistakes it for an official answer.`;
 
+// Attaching the policy PDF(s) makes Gemini read the whole document on
+// every call, which adds real latency even for plain small talk — so
+// only do it when the question actually looks policy-related.
+const POLICY_HINT = /(policy|policies|procedure|protocol|guideline|sop\b|بوليس|سياس|إجراء|اجراء|بروتوكول|لائحة|دليل|كيف نسوي|كيف نشتغل|كيف نتعامل)/i;
+function looksPolicyRelated(question) {
+  return POLICY_HINT.test(question);
+}
+
 async function uploadToGeminiFiles(buf, displayName, apiKey) {
   const start = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`, {
     method: "POST",
@@ -58,30 +66,33 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: "Missing GEMINI_API_KEY" });
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
-  const { data: docs } = await supabase
-    .from("knowledge_base")
-    .select("id, title, content")
-    .eq("category", "Policy")
-    .eq("content_type", "file");
 
   const fileParts = [];
   const failures = [];
-  const CACHE_MAX_AGE_MS = 44 * 60 * 60 * 1000; // Gemini keeps files ~48h — refresh a bit before that
-  for (const doc of docs || []) {
-    try {
-      const { data: cached } = await supabase.from("gemini_file_cache").select("*").eq("knowledge_base_id", doc.id).maybeSingle();
-      if (cached && Date.now() - new Date(cached.uploaded_at).getTime() < CACHE_MAX_AGE_MS) {
-        fileParts.push({ file_data: { mime_type: "application/pdf", file_uri: cached.file_uri } });
-        continue;
+  if (looksPolicyRelated(question)) {
+    const { data: docs } = await supabase
+      .from("knowledge_base")
+      .select("id, title, content")
+      .eq("category", "Policy")
+      .eq("content_type", "file");
+
+    const CACHE_MAX_AGE_MS = 44 * 60 * 60 * 1000; // Gemini keeps files ~48h — refresh a bit before that
+    for (const doc of docs || []) {
+      try {
+        const { data: cached } = await supabase.from("gemini_file_cache").select("*").eq("knowledge_base_id", doc.id).maybeSingle();
+        if (cached && Date.now() - new Date(cached.uploaded_at).getTime() < CACHE_MAX_AGE_MS) {
+          fileParts.push({ file_data: { mime_type: "application/pdf", file_uri: cached.file_uri } });
+          continue;
+        }
+        const { data: blob, error } = await supabase.storage.from("attachments").download(doc.content);
+        if (error || !blob) throw new Error(error?.message || "no data returned");
+        const buf = Buffer.from(await blob.arrayBuffer());
+        const file = await uploadToGeminiFiles(buf, doc.title || doc.content, apiKey);
+        await supabase.from("gemini_file_cache").upsert({ knowledge_base_id: doc.id, file_uri: file.uri, uploaded_at: new Date().toISOString() });
+        fileParts.push({ file_data: { mime_type: "application/pdf", file_uri: file.uri } });
+      } catch (err) {
+        failures.push(`${doc.title || doc.content}: ${err.message}`);
       }
-      const { data: blob, error } = await supabase.storage.from("attachments").download(doc.content);
-      if (error || !blob) throw new Error(error?.message || "no data returned");
-      const buf = Buffer.from(await blob.arrayBuffer());
-      const file = await uploadToGeminiFiles(buf, doc.title || doc.content, apiKey);
-      await supabase.from("gemini_file_cache").upsert({ knowledge_base_id: doc.id, file_uri: file.uri, uploaded_at: new Date().toISOString() });
-      fileParts.push({ file_data: { mime_type: "application/pdf", file_uri: file.uri } });
-    } catch (err) {
-      failures.push(`${doc.title || doc.content}: ${err.message}`);
     }
   }
 
