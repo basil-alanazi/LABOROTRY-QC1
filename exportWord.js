@@ -13,8 +13,11 @@ function rtfEscape(v) {
 export function downloadTableAsWord(title, headers, rows, filename) {
   const colCount = headers.length;
   const colWidth = Math.max(800, Math.floor(9000 / colCount));
+  // Single-line border on all four sides of every cell, so the table
+  // prints as a full grid instead of borderless columns.
+  const BORDER = "\\clbrdrt\\brdrs\\brdrw10\\clbrdrl\\brdrs\\brdrw10\\clbrdrb\\brdrs\\brdrw10\\clbrdrr\\brdrs\\brdrw10";
   let acc = 0;
-  const cellDefs = Array.from({ length: colCount }, () => { acc += colWidth; return `\\cellx${acc}`; }).join("");
+  const cellDefs = Array.from({ length: colCount }, () => { acc += colWidth; return `${BORDER}\\cellx${acc}`; }).join("");
 
   function rtfRow(cells, bold) {
     const cellText = cells.map((c) => `\\intbl ${bold ? "\\b " : ""}${rtfEscape(c)}${bold ? "\\b0 " : ""}\\cell`).join("");
