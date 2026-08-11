@@ -8,6 +8,12 @@
 // follow-up question doesn't lose the thread.
 import { createClient } from "@supabase/supabase-js";
 
+// Requests the longest execution time Vercel's plan allows — a
+// download+upload+generate round trip involving a large PDF can run
+// past the platform default (10s), especially on the first,
+// not-yet-cached call.
+export const config = { maxDuration: 60 };
+
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // Google retires model names over time — if this ever 404s again, check

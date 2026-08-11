@@ -67,8 +67,8 @@ export default function SmartAssistant({ panels, entries }) {
       const data = await res.json();
       if (!res.ok) return `Couldn't reach the assistant: ${data.error || "unknown error"}`;
       return data.answer;
-    } catch {
-      return "I couldn't quite match that, and couldn't reach the assistant either. Try: \"last QC for [analyte]\", \"who's working today\", or \"equipment faults\".";
+    } catch (err) {
+      return `Couldn't reach the assistant (${err.message || "connection problem"}). Try: "last QC for [analyte]", "who's working today", or "equipment faults".`;
     }
   }
 
