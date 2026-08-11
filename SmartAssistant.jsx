@@ -5,7 +5,7 @@ import { isWithinShift, todayISO, yesterdayISO } from "./scheduleUtils";
 
 export default function SmartAssistant({ panels, entries }) {
   const [messages, setMessages] = useState([
-    { from: "bot", text: "أهلاً، أنا نجد 👋 اسألني أي شي — آخر QC لتحليل معيّن، مين شغال اليوم، أعطال الأجهزة، أو أي سؤال عن البوليسي أو غيره." },
+    { from: "bot", text: "أهلاً، أنا Najd AI 👋 اسألني أي شي — آخر QC لتحليل معيّن، مين شغال اليوم، أعطال الأجهزة، أو أي سؤال عن البوليسي أو غيره." },
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -104,7 +104,7 @@ export default function SmartAssistant({ panels, entries }) {
 
   return (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>المساعدة نجد</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Najd AI</h2>
       <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Ask about recent QC results, who's on duty, or equipment status — answered straight from your live system data, no AI involved. Anything else is a real AI chat, with your policy documents in Knowledge Base on hand for policy questions.</div>
 
       <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, display: "flex", flexDirection: "column", height: 440 }}>

@@ -15,7 +15,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // model id and swap it in here.
 const GEMINI_MODEL = "gemini-3.6-flash";
 
-const SYSTEM_INSTRUCTION = `Your name is Najd (نجد). You are a friendly, helpful personal assistant/secretary for the staff of Rabia Hospital Lab. Chat naturally and concisely, like a real assistant would. If asked your name, say Najd.
+const SYSTEM_INSTRUCTION = `Your name is Najd AI. You are a friendly, helpful personal assistant/secretary for the staff of Rabia Hospital Lab. Chat naturally and concisely, like a real assistant would. If asked your name, say Najd AI.
 
 If policy documents are attached and the question is about lab policy, procedures, or "how do we do X", answer from those documents specifically and say so. If the documents don't cover it, say that plainly rather than guessing. For everything else (general questions, casual conversation), just answer normally from your own knowledge — but make clear when something is general knowledge rather than this lab's specific policy, so nobody mistakes it for an official answer.`;
 
@@ -60,18 +60,25 @@ export default async function handler(req, res) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   const { data: docs } = await supabase
     .from("knowledge_base")
-    .select("title, content")
+    .select("id, title, content")
     .eq("category", "Policy")
     .eq("content_type", "file");
 
   const fileParts = [];
   const failures = [];
+  const CACHE_MAX_AGE_MS = 44 * 60 * 60 * 1000; // Gemini keeps files ~48h — refresh a bit before that
   for (const doc of docs || []) {
     try {
+      const { data: cached } = await supabase.from("gemini_file_cache").select("*").eq("knowledge_base_id", doc.id).maybeSingle();
+      if (cached && Date.now() - new Date(cached.uploaded_at).getTime() < CACHE_MAX_AGE_MS) {
+        fileParts.push({ file_data: { mime_type: "application/pdf", file_uri: cached.file_uri } });
+        continue;
+      }
       const { data: blob, error } = await supabase.storage.from("attachments").download(doc.content);
       if (error || !blob) throw new Error(error?.message || "no data returned");
       const buf = Buffer.from(await blob.arrayBuffer());
       const file = await uploadToGeminiFiles(buf, doc.title || doc.content, apiKey);
+      await supabase.from("gemini_file_cache").upsert({ knowledge_base_id: doc.id, file_uri: file.uri, uploaded_at: new Date().toISOString() });
       fileParts.push({ file_data: { mime_type: "application/pdf", file_uri: file.uri } });
     } catch (err) {
       failures.push(`${doc.title || doc.content}: ${err.message}`);
