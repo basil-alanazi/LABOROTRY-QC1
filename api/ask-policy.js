@@ -29,18 +29,19 @@ export default async function handler(req, res) {
   }
 
   const fileParts = [];
+  const downloadErrors = [];
   let totalBytes = 0;
   for (const doc of docs) {
     const { data: blob, error } = await supabase.storage.from("attachments").download(doc.content);
-    if (error || !blob) continue;
+    if (error || !blob) { downloadErrors.push(`${doc.title || doc.content}: ${error?.message || "no data returned"}`); continue; }
     const buf = Buffer.from(await blob.arrayBuffer());
-    if (totalBytes + buf.length > MAX_INLINE_BYTES) continue; // skip if it would blow the request size budget
+    if (totalBytes + buf.length > MAX_INLINE_BYTES) { downloadErrors.push(`${doc.title || doc.content}: too large to include`); continue; }
     totalBytes += buf.length;
     fileParts.push({ inline_data: { mime_type: "application/pdf", data: buf.toString("base64") } });
   }
 
   if (fileParts.length === 0) {
-    return res.status(200).json({ answer: "Couldn't load the policy documents — try again in a moment." });
+    return res.status(200).json({ answer: `Couldn't load the policy documents: ${downloadErrors.join("; ") || "unknown reason"}` });
   }
 
   const prompt = `You are answering a question for hospital lab staff, based ONLY on the attached policy document(s). If the answer isn't in the documents, say so clearly instead of guessing. Keep the answer concise and practical.\n\nQuestion: ${question}`;
