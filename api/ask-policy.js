@@ -1,9 +1,11 @@
-// Answers free-form questions using whatever PDFs are uploaded under the
-// "Policy" category in Knowledge Base. Gemini reads PDFs natively (no
-// separate text-extraction step) — the files just get downloaded here
-// (service role, bypasses RLS — this runs with no user session), uploaded
-// to Gemini's File API (handles files far larger than the ~20MB inline
-// request limit — up to 2GB), then referenced in the question.
+// Backs the Assistant's general chat fallback (SmartAssistant.jsx) — used
+// whenever a question doesn't match one of its live-data patterns (on
+// duty, equipment faults, last QC). Chats normally like a personal
+// assistant, but also has direct access to whatever PDFs are uploaded
+// under Knowledge Base → Policy (Gemini reads PDFs natively, no
+// text-extraction step) and is told to prefer those for anything
+// policy-related. Keeps the conversation so far in context, so a
+// follow-up question doesn't lose the thread.
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -12,6 +14,10 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // https://ai.google.dev/gemini-api/docs/models for the current Flash-tier
 // model id and swap it in here.
 const GEMINI_MODEL = "gemini-3.6-flash";
+
+const SYSTEM_INSTRUCTION = `Your name is Najd (نجد). You are a friendly, helpful personal assistant/secretary for the staff of Rabia Hospital Lab. Chat naturally and concisely, like a real assistant would. If asked your name, say Najd.
+
+If policy documents are attached and the question is about lab policy, procedures, or "how do we do X", answer from those documents specifically and say so. If the documents don't cover it, say that plainly rather than guessing. For everything else (general questions, casual conversation), just answer normally from your own knowledge — but make clear when something is general knowledge rather than this lab's specific policy, so nobody mistakes it for an official answer.`;
 
 async function uploadToGeminiFiles(buf, displayName, apiKey) {
   const start = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`, {
@@ -45,7 +51,7 @@ async function uploadToGeminiFiles(buf, displayName, apiKey) {
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
-  const { question } = req.body || {};
+  const { question, history } = req.body || {};
   if (!question) return res.status(400).json({ error: "Missing question" });
   if (!supabaseUrl || !supabaseServiceKey) return res.status(500).json({ error: "Missing Supabase env vars" });
   const apiKey = process.env.GEMINI_API_KEY;
@@ -58,13 +64,9 @@ export default async function handler(req, res) {
     .eq("category", "Policy")
     .eq("content_type", "file");
 
-  if (!docs || docs.length === 0) {
-    return res.status(200).json({ answer: "No policy documents are uploaded yet — add one under Knowledge Base → Policy first." });
-  }
-
   const fileParts = [];
   const failures = [];
-  for (const doc of docs) {
+  for (const doc of docs || []) {
     try {
       const { data: blob, error } = await supabase.storage.from("attachments").download(doc.content);
       if (error || !blob) throw new Error(error?.message || "no data returned");
@@ -76,18 +78,21 @@ export default async function handler(req, res) {
     }
   }
 
-  if (fileParts.length === 0) {
-    return res.status(200).json({ answer: `Couldn't load the policy documents: ${failures.join("; ") || "unknown reason"}` });
-  }
+  const priorTurns = (Array.isArray(history) ? history : [])
+    .filter((h) => h?.text)
+    .map((h) => ({ role: h.role === "user" ? "user" : "model", parts: [{ text: h.text }] }));
 
-  const prompt = `You are answering a question for hospital lab staff, based ONLY on the attached policy document(s). If the answer isn't in the documents, say so clearly instead of guessing. Keep the answer concise and practical.\n\nQuestion: ${question}`;
+  const contents = [
+    ...priorTurns,
+    { role: "user", parts: [{ text: question }, ...fileParts] },
+  ];
 
   const geminiRes = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, ...fileParts] }] }),
+      body: JSON.stringify({ system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] }, contents }),
     }
   );
 
@@ -96,6 +101,7 @@ export default async function handler(req, res) {
     return res.status(502).json({ error: `Gemini request failed: ${detail}` });
   }
   const data = await geminiRes.json();
-  const answer = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "Couldn't get an answer — try rephrasing the question.";
+  let answer = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "Couldn't get an answer — try rephrasing the question.";
+  if (failures.length > 0) answer += `\n\n(Couldn't load: ${failures.join("; ")})`;
   res.status(200).json({ answer });
 }

@@ -776,7 +776,7 @@ function AppSidebar({ config, role, username, tab, onNavigate, onLogout, pending
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
         <SideItem icon={<Home size={15} />} label="Dashboard" active={tab === "home"} onClick={() => onNavigate("home")} />
         <SideItem icon={<MessageCircle size={15} />} label="Chat" active={tab === "chat"} onClick={() => onNavigate("chat")} />
-        <SideItem icon={<Bot size={15} />} label="Assistant" active={tab === "assistant"} onClick={() => onNavigate("assistant")} />
+        <SideItem icon={<Bot size={15} />} label="نجد" active={tab === "assistant"} onClick={() => onNavigate("assistant")} />
 
         {favorites.length > 0 && (
           <div style={{ margin: "8px 0" }}>

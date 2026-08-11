@@ -5,7 +5,7 @@ import { isWithinShift, todayISO, yesterdayISO } from "./scheduleUtils";
 
 export default function SmartAssistant({ panels, entries }) {
   const [messages, setMessages] = useState([
-    { from: "bot", text: "Hi! Ask me things like \"last QC for glucose\", \"who's working today\", \"equipment faults\" — or any question about our policies." },
+    { from: "bot", text: "أهلاً، أنا نجد 👋 اسألني أي شي — آخر QC لتحليل معيّن، مين شغال اليوم، أعطال الأجهزة، أو أي سؤال عن البوليسي أو غيره." },
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -54,19 +54,21 @@ export default function SmartAssistant({ panels, entries }) {
       return `Last QC for ${analyteName} (${panel.name}): ${withValue.values[analyteName]} on ${withValue.date}, status ${color.toUpperCase()}.`;
     }
 
-    // Nothing above matched — fall back to asking Gemini over whatever
-    // policy PDFs are uploaded in Knowledge Base → Policy.
+    // Nothing above matched — fall back to Gemini, general-purpose, with
+    // the policy PDFs available as reference and the conversation so far
+    // for context (so a follow-up question doesn't lose the thread).
     try {
+      const history = messages.map((m) => ({ role: m.from === "user" ? "user" : "model", text: m.text }));
       const res = await fetch("/api/ask-policy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question, history }),
       });
       const data = await res.json();
-      if (!res.ok) return `Couldn't check the policy documents: ${data.error || "unknown error"}`;
+      if (!res.ok) return `Couldn't reach the assistant: ${data.error || "unknown error"}`;
       return data.answer;
     } catch {
-      return "I couldn't quite match that, and couldn't reach the policy assistant either. Try: \"last QC for [analyte]\", \"who's working today\", or \"equipment faults\".";
+      return "I couldn't quite match that, and couldn't reach the assistant either. Try: \"last QC for [analyte]\", \"who's working today\", or \"equipment faults\".";
     }
   }
 
@@ -102,8 +104,8 @@ export default function SmartAssistant({ panels, entries }) {
 
   return (
     <div>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Assistant</h2>
-      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Ask about recent QC results, who's on duty, or equipment status — answered straight from your live system data, no AI involved. Anything else gets checked against the policy documents in Knowledge Base using AI.</div>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>المساعدة نجد</h2>
+      <div style={{ fontSize: 13, color: "#7B8E8A", marginBottom: 20 }}>Ask about recent QC results, who's on duty, or equipment status — answered straight from your live system data, no AI involved. Anything else is a real AI chat, with your policy documents in Knowledge Base on hand for policy questions.</div>
 
       <div style={{ background: "#fff", border: "1px solid #E1E8E5", borderRadius: 10, display: "flex", flexDirection: "column", height: 440 }}>
         <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
