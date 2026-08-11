@@ -8,7 +8,10 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const GEMINI_MODEL = "gemini-2.0-flash";
+// Google retires model names over time — if this ever 404s again, check
+// https://ai.google.dev/gemini-api/docs/models for the current Flash-tier
+// model id and swap it in here.
+const GEMINI_MODEL = "gemini-3.6-flash";
 
 async function uploadToGeminiFiles(buf, displayName, apiKey) {
   const start = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`, {
