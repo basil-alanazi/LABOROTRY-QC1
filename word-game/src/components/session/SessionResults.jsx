@@ -25,7 +25,7 @@ export default function SessionResults({ gameId, results, myId, hostId, currentU
         className="text-center"
       >
         <div className="text-6xl mb-2">🎉</div>
-        <h1 className="text-2xl font-black">انتهت اللعبة</h1>
+        <h1 className="font-display font-bold text-2xl">انتهت اللعبة</h1>
         <p className="text-primary font-black text-3xl mt-1">{(mine?.score || 0).toLocaleString('en-US')} نقطة</p>
       </motion.div>
 

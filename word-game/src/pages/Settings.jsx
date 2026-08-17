@@ -36,7 +36,7 @@ export default function Settings() {
 
   return (
     <div className="flex flex-col gap-6 pb-6">
-      <h1 className="text-2xl font-black">⚙️ الإعدادات</h1>
+      <h1 className="font-display font-bold text-2xl">⚙️ الإعدادات</h1>
 
       <Card className="p-5 flex flex-col gap-4">
         <div className="flex items-center gap-3">

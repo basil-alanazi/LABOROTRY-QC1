@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../lib/auth'
 import Input from '../components/ui/Input'
 import Button from '../components/ui/Button'
+import BrandMark from '../components/BrandMark'
 
 export default function Register() {
   const { signUpWithEmail } = useAuth()
@@ -68,10 +69,9 @@ export default function Register() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-sm"
       >
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-2">🎉</div>
-          <h1 className="text-2xl font-black">انضم لـ جمعتنا</h1>
-          <p className="text-ink-muted font-bold text-sm">اللعبة تجمعنا</p>
+        <div className="flex flex-col items-center gap-2 mb-8">
+          <BrandMark size="lg" stacked />
+          <p className="text-ink-muted font-bold text-sm">انضم لـ جمعتنا — اللعبة تجمعنا</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

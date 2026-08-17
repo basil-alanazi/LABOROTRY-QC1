@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { Moon, Sun, LogOut, Settings } from 'lucide-react'
 import { NAV_ITEMS } from './navItems'
 import Avatar from '../ui/Avatar'
+import BrandMark from '../BrandMark'
 import { useAuth } from '../../lib/auth'
 import { useTheme } from '../../lib/theme'
 
@@ -11,9 +12,8 @@ export default function Sidebar() {
 
   return (
     <aside className="hidden md:flex flex-col w-64 shrink-0 h-screen sticky top-0 border-s border-line bg-surface px-4 py-6">
-      <div className="flex items-center gap-2 px-2 mb-8">
-        <span className="text-2xl">🎉</span>
-        <span className="font-black text-lg">جمعتنا</span>
+      <div className="px-2 mb-8">
+        <BrandMark size="sm" />
       </div>
 
       <nav className="flex flex-col gap-1 flex-1">

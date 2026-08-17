@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useAuth } from '../lib/auth'
 import Input from '../components/ui/Input'
 import Button from '../components/ui/Button'
+import BrandMark from '../components/BrandMark'
 
 export default function Login() {
   const { signInWithIdentifier, signInWithPhoneOtp, verifyPhoneOtp } = useAuth()
@@ -66,9 +67,8 @@ export default function Login() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-sm"
       >
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-2">🎉</div>
-          <h1 className="text-2xl font-black">جمعتنا</h1>
+        <div className="flex flex-col items-center gap-2 mb-8">
+          <BrandMark size="lg" stacked />
           <p className="text-ink-muted font-bold text-sm">اللعبة تجمعنا</p>
         </div>
 

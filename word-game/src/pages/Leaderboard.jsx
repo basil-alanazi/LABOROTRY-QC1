@@ -76,7 +76,7 @@ export default function Leaderboard() {
 
   return (
     <div className="flex flex-col gap-6 pb-6">
-      <h1 className="text-2xl font-black">🏆 المتصدرون</h1>
+      <h1 className="font-display font-bold text-2xl">🏆 المتصدرون</h1>
 
       <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1">
         {TABS.map((t) => (
