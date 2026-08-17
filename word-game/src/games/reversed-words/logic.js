@@ -1,6 +1,4 @@
-// بنك الكلمات: عربي وإنجليزي مخلوطين
 export const WORDS = [
-  // عربي - عام
   'قلم', 'كتاب', 'شمس', 'قمر', 'بحر', 'جبل', 'نهر', 'شجرة', 'زهرة', 'طائر',
   'سيارة', 'طائرة', 'قطار', 'بيت', 'مدرسة', 'مستشفى', 'مطبخ', 'حديقة', 'مكتبة', 'ملعب',
   'تفاح', 'موز', 'برتقال', 'عنب', 'فراولة', 'خبز', 'حليب', 'عسل', 'قهوة', 'شاي',
@@ -9,7 +7,6 @@ export const WORDS = [
   'صيف', 'شتاء', 'ربيع', 'خريف', 'مطر', 'ثلج', 'ريح', 'غيم', 'نجمة', 'سماء',
   'معلم', 'طبيب', 'مهندس', 'طيار', 'شرطي', 'طباخ', 'فنان', 'كاتب', 'رياضي', 'ممرض',
   'مختبر', 'تحليل', 'عينة', 'جهاز', 'أنبوب', 'ميكروسكوب', 'قفازات', 'كمامة', 'نتيجة', 'تقرير',
-  // English - general
   'apple', 'orange', 'banana', 'grape', 'lemon', 'mango', 'cherry', 'melon', 'peach', 'berry',
   'house', 'garden', 'school', 'bridge', 'castle', 'forest', 'island', 'desert', 'valley', 'river',
   'guitar', 'piano', 'violin', 'trumpet', 'drum', 'flute', 'camera', 'laptop', 'tablet', 'phone',
@@ -45,10 +42,21 @@ export function normalize(str) {
   return str.trim().toLowerCase().replace(/[ً-ْ]/g, '')
 }
 
-// يرجع كلمة عشوائية غير مكررة عن آخر N كلمات
-export function pickWord(recentIds = []) {
-  const available = WORDS.map((_, i) => i).filter((i) => !recentIds.includes(i))
+export function pickRoundKey(recentKeys = []) {
+  const available = WORDS.map((_, i) => i).filter((i) => !recentKeys.includes(i))
   const pool = available.length ? available : WORDS.map((_, i) => i)
-  const id = pool[Math.floor(Math.random() * pool.length)]
-  return { id, word: WORDS[id] }
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+
+export function getRoundData(key) {
+  const word = WORDS[key]
+  return { scrambled: scramble(word), length: Array.from(word).length, isArabicWord: isArabic(word) }
+}
+
+export function checkAnswer(key, guess) {
+  return normalize(guess) === normalize(WORDS[key])
+}
+
+export function revealAnswer(key) {
+  return WORDS[key]
 }

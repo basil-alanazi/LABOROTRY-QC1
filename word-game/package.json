@@ -1,5 +1,5 @@
 {
-  "name": "maqlouba-word-game",
+  "name": "jamatna",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -10,11 +10,16 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
+    "framer-motion": "^13.1.0",
+    "lucide-react": "^1.31.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^4.2.1",
+    "tailwindcss": "^4.3.3",
     "vite": "^5.2.0"
   }
 }
