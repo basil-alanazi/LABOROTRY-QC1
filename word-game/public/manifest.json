@@ -1,0 +1,15 @@
+{
+  "name": "مقلوبة — لعبة كلمات",
+  "short_name": "مقلوبة",
+  "description": "لعبة كلمات معكوسة جماعية أونلاين — أول واحد يحل ياخذ النقطة",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#120a24",
+  "theme_color": "#6d28d9",
+  "orientation": "portrait",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
