@@ -3,6 +3,7 @@ import categories from './categories'
 import truthOrDare from './truth-or-dare'
 import impostor from './impostor'
 import matchDiffer from './match-differ'
+import drawGuess from './draw-guess'
 
 // كل لعبة جديدة تضاف هنا فقط — بدون أي تعديل على بقية النظام
 export const GAME_REGISTRY = {
@@ -11,6 +12,7 @@ export const GAME_REGISTRY = {
   'truth-or-dare': truthOrDare,
   impostor: impostor,
   'spot-diff': matchDiffer,
+  'draw-guess': drawGuess,
 }
 
 export function getGame(id) {
