@@ -115,9 +115,9 @@ export default function SessionLobby({ code, gameModule, players, myId, isHost, 
           </div>
           {gameModule.hasLanguageOption && (
             <div>
-              <p className="font-bold text-sm text-ink-muted mb-2">لغة الكلمات</p>
+              <p className="font-bold text-sm text-ink-muted mb-2">{gameModule.languageLabel || 'لغة الكلمات'}</p>
               <div className="flex gap-2">
-                {LANGUAGE_OPTIONS.map((opt) => (
+                {(gameModule.languageOptions || LANGUAGE_OPTIONS).map((opt) => (
                   <button
                     key={opt.key}
                     onClick={() => updateConfig({ ...config, language: opt.key })}

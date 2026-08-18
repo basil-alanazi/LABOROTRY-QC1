@@ -7,6 +7,18 @@ export const WORDS_AR = [
   'صيف', 'شتاء', 'ربيع', 'خريف', 'مطر', 'ثلج', 'ريح', 'غيم', 'نجمة', 'سماء',
   'معلم', 'طبيب', 'مهندس', 'طيار', 'شرطي', 'طباخ', 'فنان', 'كاتب', 'رياضي', 'ممرض',
   'مختبر', 'تحليل', 'عينة', 'جهاز', 'أنبوب', 'ميكروسكوب', 'قفازات', 'كمامة', 'نتيجة', 'تقرير',
+  'صحراء', 'جزيرة', 'واحة', 'شلال', 'بركان', 'كهف', 'وادي', 'سهل', 'غابة', 'شاطئ',
+  'ذراع', 'رجل', 'عين', 'أذن', 'أنف', 'شفة', 'شعر', 'ظهر', 'كتف', 'ركبة',
+  'مرآة', 'سجادة', 'وسادة', 'بطانية', 'ثلاجة', 'غسالة', 'مكواة', 'مروحة', 'مصباح', 'سلم',
+  'دفتر', 'مسطرة', 'ممحاة', 'مقص', 'غراء', 'حقيبة', 'سبورة', 'طباشير', 'فصل', 'امتحان',
+  'كرة', 'مضرب', 'شبكة', 'حكم', 'بطولة', 'سباق', 'فريق', 'هدف', 'ميدالية', 'كأس',
+  'موسيقى', 'غيتار', 'طبل', 'بيانو', 'لوحة', 'فرشاة', 'ألوان', 'مسرح', 'فيلم', 'أغنية',
+  'إنترنت', 'برنامج', 'تطبيق', 'روبوت', 'طابعة', 'سماعة', 'شاحن', 'بطارية', 'خادم', 'رسالة',
+  'فرح', 'حزن', 'غضب', 'خوف', 'أمل', 'حب', 'صداقة', 'ثقة', 'صبر', 'شجاعة',
+  'نسيم', 'عاصفة', 'ضباب', 'فيضان', 'زلزال', 'شفق', 'فجر', 'غروب', 'شروق', 'برق',
+  'دراجة', 'حافلة', 'سفينة', 'مركب', 'صاروخ', 'منطاد', 'زورق', 'مصعد', 'نفق', 'جسر',
+  'مزارع', 'صياد', 'نجار', 'حداد', 'خياط', 'بستاني', 'حارس', 'بائع', 'سائق', 'مصور',
+  'أرز', 'لحم', 'بيض', 'زبدة', 'بطاطس', 'طماطم', 'خيار', 'جزر', 'بصل', 'ثوم',
 ]
 
 export const WORDS_EN = [
@@ -17,6 +29,19 @@ export const WORDS_EN = [
   'planet', 'galaxy', 'rocket', 'comet', 'meteor', 'star', 'moon', 'orbit', 'cloud', 'storm',
   'doctor', 'teacher', 'pilot', 'artist', 'writer', 'nurse', 'farmer', 'singer', 'lawyer', 'chef',
   'sample', 'result', 'report', 'device', 'pipette', 'gloves', 'reagent', 'analyzer', 'control', 'quality',
+  'finger', 'elbow', 'shoulder', 'ankle', 'wrist', 'eyebrow', 'forehead', 'cheek', 'thumb', 'knuckle',
+  'pillow', 'blanket', 'mirror', 'carpet', 'fridge', 'kettle', 'blender', 'toaster', 'candle', 'curtain',
+  'pencil', 'eraser', 'scissors', 'stapler', 'notebook', 'backpack', 'calendar', 'marker', 'folder', 'ruler',
+  'soccer', 'tennis', 'hockey', 'boxing', 'archery', 'cycling', 'swimming', 'wrestling', 'bowling', 'fencing',
+  'keyboard', 'monitor', 'printer', 'speaker', 'charger', 'battery', 'router', 'browser', 'server', 'firewall',
+  'bicycle', 'scooter', 'subway', 'tractor', 'airplane', 'elevator', 'submarine', 'helicopter', 'ferry', 'caravan',
+  'volcano', 'glacier', 'canyon', 'plateau', 'lagoon', 'meadow', 'swamp', 'cave', 'dune', 'waterfall',
+  'courage', 'patience', 'honesty', 'freedom', 'wisdom', 'kindness', 'loyalty', 'humor', 'silence', 'harmony',
+  'plumber', 'electrician', 'mechanic', 'butcher', 'tailor', 'baker', 'florist', 'librarian', 'dentist', 'surgeon',
+  'pasta', 'cheese', 'yogurt', 'sausage', 'pancake', 'waffle', 'muffin', 'biscuit', 'noodle', 'spinach',
+  'thunder', 'lightning', 'drizzle', 'blizzard', 'sunshine', 'breeze', 'humidity', 'temperature', 'hurricane', 'tornado',
+  'giraffe', 'cheetah', 'kangaroo', 'octopus', 'jellyfish', 'scorpion', 'peacock', 'ostrich', 'hedgehog', 'raccoon',
+  'umbrella', 'suitcase', 'telescope', 'compass', 'lantern', 'anchor', 'bucket', 'hammer', 'wrench', 'ladder',
 ]
 
 const RTL_REGEX = /[؀-ۿ]/

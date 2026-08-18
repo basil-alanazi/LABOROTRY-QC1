@@ -22,6 +22,8 @@ export function useGameSession(code, profile) {
   const isHostRef = useRef(false)
   const scoresRef = useRef({})
   const playersRef = useRef({})
+  const configRef = useRef(config)
+  const sessionRowRef = useRef(null)
   const recentKeysRef = useRef([])
   const resolvedRoundRef = useRef(null)
   const timeoutTimerRef = useRef(null)
@@ -36,6 +38,14 @@ export function useGameSession(code, profile) {
   useEffect(() => {
     playersRef.current = players
   }, [players])
+
+  useEffect(() => {
+    configRef.current = config
+  }, [config])
+
+  useEffect(() => {
+    sessionRowRef.current = sessionRow
+  }, [sessionRow])
 
   // تحميل الجلسة من قاعدة البيانات
   useEffect(() => {
@@ -61,26 +71,24 @@ export function useGameSession(code, profile) {
     }
   }, [code])
 
-  const startRound = useCallback(
-    (index) => {
-      const gm = gameModuleRef.current
-      const key = gm.pickRoundKey(recentKeysRef.current, config.language, Object.keys(playersRef.current))
-      recentKeysRef.current = [key, ...recentKeysRef.current].slice(0, RECENT_MEMORY)
-      const data = gm.getRoundData(key, config.language)
-      const roundId = crypto.randomUUID()
-      const endsAt = Date.now() + config.roundSeconds * 1000
-      resolvedRoundRef.current = null
-      channelRef.current?.send({
-        type: 'broadcast',
-        event: 'round-start',
-        payload: { roundIndex: index, roundId, key, data, endsAt },
-      })
-    },
-    [config.roundSeconds, config.language]
-  )
+  const startRound = useCallback((index) => {
+    const gm = gameModuleRef.current
+    const cfg = configRef.current
+    const key = gm.pickRoundKey(recentKeysRef.current, cfg.language, Object.keys(playersRef.current))
+    recentKeysRef.current = [key, ...recentKeysRef.current].slice(0, RECENT_MEMORY)
+    const data = gm.getRoundData(key, cfg.language)
+    const roundId = crypto.randomUUID()
+    const endsAt = Date.now() + cfg.roundSeconds * 1000
+    resolvedRoundRef.current = null
+    channelRef.current?.send({
+      type: 'broadcast',
+      event: 'round-start',
+      payload: { roundIndex: index, roundId, key, data, endsAt },
+    })
+  }, [])
 
   const finishGame = useCallback((finalScores) => {
-    const ranked = Object.entries(players)
+    const ranked = Object.entries(playersRef.current)
       .map(([id, p]) => ({ id, name: p.name, avatarUrl: p.avatarUrl, score: finalScores[id] || 0 }))
       .sort((a, b) => b.score - a.score)
       .map((p, i) => ({ ...p, rank: i + 1 }))
@@ -94,10 +102,9 @@ export function useGameSession(code, profile) {
     supabase
       .from('game_sessions')
       .update({ status: 'finished', finished_at: new Date().toISOString() })
-      .eq('id', sessionRow.id)
+      .eq('id', sessionRowRef.current.id)
       .then(() => {})
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, sessionRow])
+  }, [])
 
   // الاتصال بقناة الجلسة اللحظية
   useEffect(() => {
@@ -128,9 +135,11 @@ export function useGameSession(code, profile) {
         setPlayers(map)
       })
       .on('broadcast', { event: 'config-update' }, ({ payload }) => {
+        configRef.current = payload
         setConfig(payload)
       })
       .on('broadcast', { event: 'game-start' }, ({ payload }) => {
+        configRef.current = payload
         setConfig(payload)
         setStatus('playing')
         setScores({})
@@ -158,11 +167,11 @@ export function useGameSession(code, profile) {
                 roundIndex: payload.roundIndex,
                 winnerId: null,
                 winnerName: null,
-                word: gm.revealAnswer(payload.key, config.language),
+                word: gm.revealAnswer(payload.key, configRef.current.language),
                 scores: scoresRef.current,
               },
             })
-          }, config.roundSeconds * 1000 + 250)
+          }, configRef.current.roundSeconds * 1000 + 250)
         }
       })
       .on('broadcast', { event: 'round-result' }, ({ payload }) => {
@@ -174,7 +183,7 @@ export function useGameSession(code, profile) {
         if (isHostRef.current) {
           if (nextRoundTimerRef.current) clearTimeout(nextRoundTimerRef.current)
           nextRoundTimerRef.current = setTimeout(() => {
-            if (payload.roundIndex >= config.rounds) {
+            if (payload.roundIndex >= configRef.current.rounds) {
               finishGame(payload.scores)
             } else {
               startRound(payload.roundIndex + 1)
