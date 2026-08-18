@@ -18,8 +18,9 @@ const TURN_TIMEOUT_MS = 45000
 const WIN_PAUSE_MS = 5000
 
 const CARD_DIMS = { lg: 'w-20 h-28', md: 'w-14 h-20', sm: 'w-11 h-16' }
-const CARD_CORNER_TEXT = { lg: 'text-xs', md: 'text-[0.6rem]', sm: 'text-[0.55rem]' }
-const CARD_VAL_TEXT = { lg: 'text-3xl', md: 'text-xl', sm: 'text-base' }
+const CARD_PAD = { lg: '3.5px', md: '3px', sm: '2.5px' }
+const CARD_CORNER_TEXT = { lg: 'text-sm', md: 'text-[0.68rem]', sm: 'text-[0.6rem]' }
+const CARD_VAL_TEXT = { lg: 'text-4xl', md: 'text-2xl', sm: 'text-lg' }
 
 function CardFace({ cardId, size = 'md', dim = false }) {
   const dims = CARD_DIMS[size]
@@ -38,26 +39,33 @@ function CardFace({ cardId, size = 'md', dim = false }) {
 
   return (
     <div
-      className={`${dims} relative rounded-xl border-[3px] border-white shadow-pop shrink-0 overflow-hidden ${dim ? 'opacity-40' : ''}`}
-      style={{ background: bg }}
+      className={`${dims} rounded-xl shadow-pop shrink-0 ${dim ? 'opacity-40' : ''}`}
+      style={{ background: '#0d0d10', padding: CARD_PAD[size] }}
     >
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div
-          className="bg-white flex items-center justify-center"
-          style={{ width: '76%', height: '132%', borderRadius: '50%', transform: 'rotate(-22deg)' }}
-        >
-          <span className={`font-black ${valCls}`} style={{ color: ovalTextColor, transform: 'rotate(22deg)' }}>
-            {label}
-          </span>
-        </div>
-      </div>
-      <span className={`absolute top-1 right-1.5 font-black text-white leading-none ${cornerCls}`}>{label}</span>
-      <span
-        className={`absolute bottom-1 left-1.5 font-black text-white leading-none ${cornerCls}`}
-        style={{ transform: 'rotate(180deg)' }}
+      <div
+        className="relative w-full h-full rounded-[0.6rem] border-[2.5px] border-white overflow-hidden"
+        style={{ background: bg }}
       >
-        {label}
-      </span>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div
+            className="bg-white flex items-center justify-center"
+            style={{ width: '78%', height: '138%', borderRadius: '50%', transform: 'rotate(-22deg)' }}
+          >
+            <span className={`font-black ${valCls}`} style={{ color: ovalTextColor, transform: 'rotate(22deg)' }}>
+              {label}
+            </span>
+          </div>
+        </div>
+        <span className={`absolute top-1 right-1.5 font-black text-white leading-none drop-shadow ${cornerCls}`}>
+          {label}
+        </span>
+        <span
+          className={`absolute bottom-1 left-1.5 font-black text-white leading-none drop-shadow ${cornerCls}`}
+          style={{ transform: 'rotate(180deg)' }}
+        >
+          {label}
+        </span>
+      </div>
     </div>
   )
 }
