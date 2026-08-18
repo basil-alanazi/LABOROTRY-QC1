@@ -17,31 +17,47 @@ import {
 const TURN_TIMEOUT_MS = 45000
 const WIN_PAUSE_MS = 5000
 
+const CARD_DIMS = { lg: 'w-20 h-28', md: 'w-14 h-20', sm: 'w-11 h-16' }
+const CARD_CORNER_TEXT = { lg: 'text-xs', md: 'text-[0.6rem]', sm: 'text-[0.55rem]' }
+const CARD_VAL_TEXT = { lg: 'text-3xl', md: 'text-xl', sm: 'text-base' }
+
 function CardFace({ cardId, size = 'md', dim = false }) {
-  const sizeClass = size === 'lg' ? 'w-20 h-28 text-2xl' : size === 'sm' ? 'w-10 h-14 text-xs' : 'w-14 h-20 text-lg'
+  const dims = CARD_DIMS[size]
   if (!cardId) {
-    return <div className={`${sizeClass} rounded-xl border-2 border-dashed border-line`} />
+    return <div className={`${dims} rounded-xl border-2 border-dashed border-line shrink-0`} />
   }
-  if (isWild(cardId)) {
-    const label = cardId === 'wild4' ? '+4' : '★'
-    return (
-      <div
-        className={`${sizeClass} rounded-xl flex items-center justify-center font-black text-white shadow-pop shrink-0 ${dim ? 'opacity-40' : ''}`}
-        style={{ background: 'conic-gradient(#ef4444,#eab308,#22c55e,#3b82f6,#ef4444)' }}
-      >
-        {label}
-      </div>
-    )
-  }
-  const c = colorOf(cardId)
-  const k = kindOf(cardId)
-  const label = k === 'skip' ? '🚫' : k === 'reverse' ? '🔁' : k === 'draw2' ? '+2' : k
+  const wild = isWild(cardId)
+  const label = wild ? (cardId === 'wild4' ? '+4' : '★') : (() => {
+    const k = kindOf(cardId)
+    return k === 'skip' ? '🚫' : k === 'reverse' ? '🔁' : k === 'draw2' ? '+2' : k
+  })()
+  const bg = wild ? 'conic-gradient(#ef4444,#eab308,#22c55e,#3b82f6,#ef4444)' : COLOR_META[colorOf(cardId)].bg
+  const ovalTextColor = wild ? '#1a1a1a' : COLOR_META[colorOf(cardId)].bg
+  const cornerCls = CARD_CORNER_TEXT[size]
+  const valCls = CARD_VAL_TEXT[size]
+
   return (
     <div
-      className={`${sizeClass} rounded-xl flex items-center justify-center font-black text-white shadow-pop shrink-0 border-2 border-white/30 ${dim ? 'opacity-40' : ''}`}
-      style={{ background: COLOR_META[c].bg }}
+      className={`${dims} relative rounded-xl border-[3px] border-white shadow-pop shrink-0 overflow-hidden ${dim ? 'opacity-40' : ''}`}
+      style={{ background: bg }}
     >
-      {label}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div
+          className="bg-white flex items-center justify-center"
+          style={{ width: '76%', height: '132%', borderRadius: '50%', transform: 'rotate(-22deg)' }}
+        >
+          <span className={`font-black ${valCls}`} style={{ color: ovalTextColor, transform: 'rotate(22deg)' }}>
+            {label}
+          </span>
+        </div>
+      </div>
+      <span className={`absolute top-1 right-1.5 font-black text-white leading-none ${cornerCls}`}>{label}</span>
+      <span
+        className={`absolute bottom-1 left-1.5 font-black text-white leading-none ${cornerCls}`}
+        style={{ transform: 'rotate(180deg)' }}
+      >
+        {label}
+      </span>
     </div>
   )
 }
