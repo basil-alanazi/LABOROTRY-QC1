@@ -16,12 +16,30 @@ const LANGUAGE_OPTIONS = [
 export default function SessionLobby({ code, gameModule, players, myId, isHost, config, updateConfig, startGame }) {
   const [copied, setCopied] = useState(false)
   const playerList = Object.entries(players).map(([id, p]) => ({ id, ...p }))
+  const teams = config.teams || {}
 
   function copyCode() {
     navigator.clipboard?.writeText(code)
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }
+
+  function cycleTeam(playerId) {
+    const current = teams[playerId] || null
+    const next = current === null ? 'A' : current === 'A' ? 'B' : null
+    const nextTeams = { ...teams }
+    if (next === null) delete nextTeams[playerId]
+    else nextTeams[playerId] = next
+    updateConfig({ ...config, teams: nextTeams })
+  }
+
+  const teamACount = playerList.filter((p) => teams[p.id] === 'A').length
+  const teamBCount = playerList.filter((p) => teams[p.id] === 'B').length
+  const teamsValid =
+    playerList.length > 0 &&
+    playerList.every((p) => teams[p.id]) &&
+    teamACount >= 2 &&
+    teamBCount >= 2
 
   return (
     <div className="flex flex-col gap-6 pb-6">
@@ -113,7 +131,41 @@ export default function SessionLobby({ code, gameModule, players, myId, isHost, 
               </div>
             </div>
           )}
-          <Button variant="accent" size="lg" full onClick={startGame}>
+          {gameModule.hasTeams && (
+            <div>
+              <p className="font-bold text-sm text-ink-muted mb-2">وزّع الفرق (اضغط على أي لاعب يبدل فريقه)</p>
+              <div className="flex flex-col gap-2">
+                {playerList.map((p) => {
+                  const team = teams[p.id] || null
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => cycleTeam(p.id)}
+                      className={`flex items-center gap-3 rounded-btn px-3 py-2.5 border-2 transition-colors ${
+                        team === 'A'
+                          ? 'border-primary bg-primary-soft'
+                          : team === 'B'
+                            ? 'border-accent bg-accent-soft'
+                            : 'border-line bg-surface'
+                      }`}
+                    >
+                      <Avatar name={p.name} src={p.avatarUrl} size="sm" />
+                      <span className="font-bold flex-1 text-start">{p.name}</span>
+                      <span className="text-xs font-black">
+                        {team === 'A' ? 'فريق أ' : team === 'B' ? 'فريق ب' : 'بدون فريق'}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+              {!teamsValid && (
+                <p className="text-danger text-xs mt-2">
+                  لازم كل لاعب يكون بفريق، وكل فريق فيه لاعبين على الأقل
+                </p>
+              )}
+            </div>
+          )}
+          <Button variant="accent" size="lg" full onClick={startGame} disabled={gameModule.hasTeams && !teamsValid}>
             🚀 ابدأ اللعبة
           </Button>
         </Card>
