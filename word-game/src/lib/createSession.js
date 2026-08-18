@@ -14,6 +14,7 @@ export async function createSession(gameId, hostId) {
       host_id: hostId,
       rounds: gm.defaultRounds,
       round_seconds: gm.defaultSeconds,
+      word_language: gm.defaultLanguage || 'mixed',
       status: 'lobby',
     })
     .select()

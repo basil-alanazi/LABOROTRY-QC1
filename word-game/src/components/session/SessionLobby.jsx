@@ -7,6 +7,11 @@ import Card from '../ui/Card'
 
 const ROUND_OPTIONS = [5, 10, 15, 20]
 const TIME_OPTIONS = [15, 25, 35]
+const LANGUAGE_OPTIONS = [
+  { key: 'ar', label: 'عربي' },
+  { key: 'en', label: 'English' },
+  { key: 'mixed', label: 'خليط' },
+]
 
 export default function SessionLobby({ code, gameModule, players, myId, isHost, config, updateConfig, startGame }) {
   const [copied, setCopied] = useState(false)
@@ -90,6 +95,24 @@ export default function SessionLobby({ code, gameModule, players, myId, isHost, 
               ))}
             </div>
           </div>
+          {gameModule.hasLanguageOption && (
+            <div>
+              <p className="font-bold text-sm text-ink-muted mb-2">لغة الكلمات</p>
+              <div className="flex gap-2">
+                {LANGUAGE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.key}
+                    onClick={() => updateConfig({ ...config, language: opt.key })}
+                    className={`flex-1 py-2.5 rounded-btn font-black transition-colors ${
+                      config.language === opt.key ? 'bg-primary text-primary-ink' : 'bg-surface-2 text-ink-muted'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <Button variant="accent" size="lg" full onClick={startGame}>
             🚀 ابدأ اللعبة
           </Button>

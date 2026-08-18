@@ -11,7 +11,7 @@ export function useGameSession(code, profile) {
   const [players, setPlayers] = useState({}) // id -> {name, avatarUrl}
   const [scores, setScores] = useState({})
   const [status, setStatus] = useState('lobby') // lobby | playing | finished
-  const [config, setConfig] = useState({ rounds: 10, roundSeconds: 25 })
+  const [config, setConfig] = useState({ rounds: 10, roundSeconds: 25, language: 'mixed' })
   const [round, setRound] = useState(null)
   const [roundPhase, setRoundPhase] = useState('playing') // playing | result
   const [resultInfo, setResultInfo] = useState(null)
@@ -48,7 +48,7 @@ export function useGameSession(code, profile) {
         }
         setSessionRow(data)
         setStatus(data.status)
-        setConfig({ rounds: data.rounds, roundSeconds: data.round_seconds })
+        setConfig({ rounds: data.rounds, roundSeconds: data.round_seconds, language: data.word_language || 'mixed' })
         gameModuleRef.current = getGame(data.game_id)
       })
     return () => {
@@ -59,9 +59,9 @@ export function useGameSession(code, profile) {
   const startRound = useCallback(
     (index) => {
       const gm = gameModuleRef.current
-      const key = gm.pickRoundKey(recentKeysRef.current)
+      const key = gm.pickRoundKey(recentKeysRef.current, config.language)
       recentKeysRef.current = [key, ...recentKeysRef.current].slice(0, RECENT_MEMORY)
-      const data = gm.getRoundData(key)
+      const data = gm.getRoundData(key, config.language)
       const roundId = crypto.randomUUID()
       const endsAt = Date.now() + config.roundSeconds * 1000
       resolvedRoundRef.current = null
@@ -71,7 +71,7 @@ export function useGameSession(code, profile) {
         payload: { roundIndex: index, roundId, key, data, endsAt },
       })
     },
-    [config.roundSeconds]
+    [config.roundSeconds, config.language]
   )
 
   const finishGame = useCallback((finalScores) => {
@@ -153,7 +153,7 @@ export function useGameSession(code, profile) {
                 roundIndex: payload.roundIndex,
                 winnerId: null,
                 winnerName: null,
-                word: gm.revealAnswer(payload.key),
+                word: gm.revealAnswer(payload.key, config.language),
                 scores: scoresRef.current,
               },
             })
@@ -285,6 +285,7 @@ export function useGameSession(code, profile) {
         status: 'playing',
         rounds: config.rounds,
         round_seconds: config.roundSeconds,
+        word_language: config.language,
         started_at: new Date().toISOString(),
       })
       .eq('id', sessionRow.id)
@@ -294,7 +295,7 @@ export function useGameSession(code, profile) {
 
   function submitGuess(guessText) {
     const gm = gameModuleRef.current
-    if (!round || !gm.checkAnswer(round.key, guessText)) return false
+    if (!round || !gm.checkAnswer(round.key, guessText, config.language)) return false
     channelRef.current?.send({
       type: 'broadcast',
       event: 'guess',
@@ -303,7 +304,7 @@ export function useGameSession(code, profile) {
         roundIndex: round.roundIndex,
         playerId: profile.id,
         playerName: profile.display_name,
-        word: gm.revealAnswer(round.key),
+        word: gm.revealAnswer(round.key, config.language),
       },
     })
     return true

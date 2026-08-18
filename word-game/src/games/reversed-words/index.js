@@ -11,6 +11,8 @@ export default {
   color: 'primary',
   defaultRounds: 10,
   defaultSeconds: 25,
+  defaultLanguage: 'mixed',
+  hasLanguageOption: true,
   minPlayers: 1,
   maxPlayers: 12,
   pickRoundKey,

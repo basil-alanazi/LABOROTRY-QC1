@@ -1,4 +1,4 @@
-export const WORDS = [
+export const WORDS_AR = [
   'قلم', 'كتاب', 'شمس', 'قمر', 'بحر', 'جبل', 'نهر', 'شجرة', 'زهرة', 'طائر',
   'سيارة', 'طائرة', 'قطار', 'بيت', 'مدرسة', 'مستشفى', 'مطبخ', 'حديقة', 'مكتبة', 'ملعب',
   'تفاح', 'موز', 'برتقال', 'عنب', 'فراولة', 'خبز', 'حليب', 'عسل', 'قهوة', 'شاي',
@@ -7,6 +7,9 @@ export const WORDS = [
   'صيف', 'شتاء', 'ربيع', 'خريف', 'مطر', 'ثلج', 'ريح', 'غيم', 'نجمة', 'سماء',
   'معلم', 'طبيب', 'مهندس', 'طيار', 'شرطي', 'طباخ', 'فنان', 'كاتب', 'رياضي', 'ممرض',
   'مختبر', 'تحليل', 'عينة', 'جهاز', 'أنبوب', 'ميكروسكوب', 'قفازات', 'كمامة', 'نتيجة', 'تقرير',
+]
+
+export const WORDS_EN = [
   'apple', 'orange', 'banana', 'grape', 'lemon', 'mango', 'cherry', 'melon', 'peach', 'berry',
   'house', 'garden', 'school', 'bridge', 'castle', 'forest', 'island', 'desert', 'valley', 'river',
   'guitar', 'piano', 'violin', 'trumpet', 'drum', 'flute', 'camera', 'laptop', 'tablet', 'phone',
@@ -20,6 +23,12 @@ const RTL_REGEX = /[؀-ۿ]/
 
 export function isArabic(word) {
   return RTL_REGEX.test(word)
+}
+
+export function getPool(language = 'mixed') {
+  if (language === 'ar') return WORDS_AR
+  if (language === 'en') return WORDS_EN
+  return [...WORDS_AR, ...WORDS_EN]
 }
 
 export function scramble(word) {
@@ -42,21 +51,22 @@ export function normalize(str) {
   return str.trim().toLowerCase().replace(/[ً-ْ]/g, '')
 }
 
-export function pickRoundKey(recentKeys = []) {
-  const available = WORDS.map((_, i) => i).filter((i) => !recentKeys.includes(i))
-  const pool = available.length ? available : WORDS.map((_, i) => i)
-  return pool[Math.floor(Math.random() * pool.length)]
+export function pickRoundKey(recentKeys = [], language = 'mixed') {
+  const pool = getPool(language)
+  const available = pool.map((_, i) => i).filter((i) => !recentKeys.includes(i))
+  const idxPool = available.length ? available : pool.map((_, i) => i)
+  return idxPool[Math.floor(Math.random() * idxPool.length)]
 }
 
-export function getRoundData(key) {
-  const word = WORDS[key]
+export function getRoundData(key, language = 'mixed') {
+  const word = getPool(language)[key]
   return { scrambled: scramble(word), length: Array.from(word).length, isArabicWord: isArabic(word) }
 }
 
-export function checkAnswer(key, guess) {
-  return normalize(guess) === normalize(WORDS[key])
+export function checkAnswer(key, guess, language = 'mixed') {
+  return normalize(guess) === normalize(getPool(language)[key])
 }
 
-export function revealAnswer(key) {
-  return WORDS[key]
+export function revealAnswer(key, language = 'mixed') {
+  return getPool(language)[key]
 }

@@ -43,7 +43,12 @@ export default function GameScreen({
   return (
     <div className="fixed inset-0 z-50 bg-canvas flex flex-col">
       <div className="flex items-center justify-between px-5 pt-5">
-        <button onClick={onExit} className="w-9 h-9 rounded-full bg-surface-2 flex items-center justify-center text-ink-muted">
+        <button
+          type="button"
+          aria-label="خروج"
+          onClick={onExit}
+          className="relative z-10 w-9 h-9 rounded-full bg-surface-2 flex items-center justify-center text-ink-muted"
+        >
           <X size={18} />
         </button>
         <div className="text-center">
