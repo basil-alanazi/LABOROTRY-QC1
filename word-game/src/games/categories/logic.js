@@ -3,6 +3,15 @@ export const LETTERS = [
   'ع', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'ي',
 ]
 
+export const FIELDS = [
+  { key: 'jamad', label: 'جماد' },
+  { key: 'nabat', label: 'نبات' },
+  { key: 'hayawan', label: 'حيوان' },
+  { key: 'dawla', label: 'دولة' },
+  { key: 'ismWalad', label: 'اسم ولد' },
+  { key: 'ismBint', label: 'اسم بنت' },
+]
+
 const ALEF_VARIANTS = ['أ', 'إ', 'آ', 'ا']
 
 function normalizeAlef(ch) {
@@ -19,23 +28,24 @@ export function startsWithLetter(word, letter) {
   return normalizeAlef(w[0]) === normalizeAlef(letter)
 }
 
-export function pickRoundKey(recentKeys = []) {
-  const available = LETTERS.map((_, i) => i).filter((i) => !recentKeys.includes(i))
-  const idxPool = available.length ? available : LETTERS.map((_, i) => i)
-  return idxPool[Math.floor(Math.random() * idxPool.length)]
+export function pickLetter(recentLetters = []) {
+  const available = LETTERS.filter((l) => !recentLetters.includes(l))
+  const pool = available.length ? available : LETTERS
+  return pool[Math.floor(Math.random() * pool.length)]
 }
 
-export function getRoundData(key) {
-  return { letter: LETTERS[key] }
-}
-
-export function checkAnswer(key, guess) {
-  const letter = LETTERS[key]
-  if (!guess || typeof guess !== 'object') return false
-  const { jamad, nabat, insan, balad } = guess
-  return [jamad, nabat, insan, balad].every((w) => startsWithLetter(w, letter))
-}
-
-export function revealAnswer(key) {
-  return LETTERS[key]
+export function scoreField(playerWords, letter) {
+  const normalized = {}
+  for (const [pid, word] of Object.entries(playerWords)) {
+    normalized[pid] = startsWithLetter(word, letter) ? normalizeWord(word).toLowerCase() : null
+  }
+  const counts = {}
+  for (const v of Object.values(normalized)) {
+    if (v) counts[v] = (counts[v] || 0) + 1
+  }
+  const points = {}
+  for (const [pid, v] of Object.entries(normalized)) {
+    points[pid] = !v ? 0 : counts[v] > 1 ? 1 : 2
+  }
+  return points
 }
