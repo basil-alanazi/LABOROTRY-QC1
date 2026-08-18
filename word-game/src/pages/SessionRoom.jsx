@@ -47,6 +47,21 @@ export default function SessionRoom() {
 
   if (session.status === 'playing') {
     const GameScreen = session.gameModule.GameScreen
+
+    if (session.gameModule.customFlow) {
+      return (
+        <GameScreen
+          code={code}
+          profile={profile}
+          players={session.players}
+          isHost={session.isHost}
+          config={session.config}
+          onExit={() => navigate('/games')}
+          finishGame={session.finishGame}
+        />
+      )
+    }
+
     if (!session.round) {
       return (
         <div className="flex items-center justify-center py-20">

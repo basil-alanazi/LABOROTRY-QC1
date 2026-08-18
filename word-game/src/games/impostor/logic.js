@@ -1,28 +1,33 @@
-export const WORDS = [
-  'قهوة', 'شاي', 'مطعم', 'مستشفى', 'مطار', 'مدرسة', 'جامعة', 'شاطئ',
-  'جبل', 'صحراء', 'سيارة', 'دراجة', 'طيار', 'طبيب', 'مهندس', 'معلم',
-  'شرطي', 'طباخ', 'كتاب', 'قلم', 'هاتف', 'حاسوب', 'ساعة', 'مرآة',
-  'مفتاح', 'باب', 'نافذة', 'ثلاجة', 'فرن', 'سرير', 'وسادة', 'بطانية',
-  'حديقة', 'ملعب', 'سينما', 'مكتبة', 'صيدلية', 'بنك', 'فندق', 'مسبح',
+export const QUESTION_PAIRS = [
+  { normal: 'وش أكثر شي تحبه بالصبح؟', impostor: 'وش أكثر شي تكرهه بالصبح؟' },
+  { normal: 'وش أفضل أكلة عندك؟', impostor: 'وش أسوأ أكلة عندك؟' },
+  { normal: 'مين أكثر شخص يضحكك؟', impostor: 'مين أكثر شخص يضايقك؟' },
+  { normal: 'وش أحلى ذكرى ليك؟', impostor: 'وش أسوأ ذكرى ليك؟' },
+  { normal: 'لو تسافر، وين تحب تروح؟', impostor: 'لو تسافر، وين ما تحب تروح أبد؟' },
+  { normal: 'وش أكثر شي يفرحك؟', impostor: 'وش أكثر شي يحزنك؟' },
+  { normal: 'مين أكثر شخص تثق فيه؟', impostor: 'مين أكثر شخص ما تثق فيه؟' },
+  { normal: 'وش هوايتك المفضلة؟', impostor: 'وش أكثر شي تكره تسويه؟' },
+  { normal: 'وش أكثر فيلم عجبك؟', impostor: 'وش أكثر فيلم ما عجبك؟' },
+  { normal: 'وش أحلى يوم بالأسبوع؟', impostor: 'وش أسوأ يوم بالأسبوع؟' },
+  { normal: 'وش أكثر صوت يريحك؟', impostor: 'وش أكثر صوت يضايقك؟' },
+  { normal: 'وش أكثر شي تفتخر فيه بنفسك؟', impostor: 'وش أكثر شي تندم عليه؟' },
+  { normal: 'مين تتمنى تكون مثله؟', impostor: 'مين ما تحب تكون مثله أبد؟' },
+  { normal: 'وش أحلى هدية استلمتها؟', impostor: 'وش أسوأ هدية استلمتها؟' },
+  { normal: 'وش أكثر مكان يريحك؟', impostor: 'وش أكثر مكان يوترك؟' },
+  { normal: 'لو تقدر تكتسب موهبة، وش تختار؟', impostor: 'لو تقدر توقف موهبة عندك، وش تختار؟' },
+  { normal: 'وش أكثر شي يضحك بالمجموعة هذي؟', impostor: 'وش أكثر شي يزعجك بالمجموعة هذي؟' },
+  { normal: 'وش أكثر لبس مريح لك؟', impostor: 'وش أكثر لبس ما ترتاح فيه؟' },
+  { normal: 'مين أكثر واحد يشبهك بالطبع؟', impostor: 'مين أكثر واحد يختلف عنك بالطبع؟' },
+  { normal: 'وش أكثر شي تنتظره هالأسبوع؟', impostor: 'وش أكثر شي يتضايق منه هالأسبوع؟' },
+  { normal: 'وش أفضل موسم عندك؟', impostor: 'وش أسوأ موسم عندك؟' },
+  { normal: 'وش أكثر لعبة تحبها؟', impostor: 'وش أكثر لعبة ما تطيقها؟' },
+  { normal: 'مين أكثر شخص مؤثر فيك؟', impostor: 'مين أكثر شخص مزعج بحياتك؟' },
+  { normal: 'وش أكثر شي يخليك مرتاح؟', impostor: 'وش أكثر شي يوترك؟' },
 ]
 
-export function pickRoundKey(recentKeys = [], language, playerIds = []) {
-  const recentWordIdx = recentKeys.map((k) => k?.wordIndex)
-  const availableWords = WORDS.map((_, i) => i).filter((i) => !recentWordIdx.includes(i))
-  const wordPool = availableWords.length ? availableWords : WORDS.map((_, i) => i)
-  const wordIndex = wordPool[Math.floor(Math.random() * wordPool.length)]
-  const impostorId = playerIds.length ? playerIds[Math.floor(Math.random() * playerIds.length)] : null
-  return { wordIndex, impostorId }
-}
-
-export function getRoundData(key) {
-  return { word: WORDS[key.wordIndex], impostorId: key.impostorId }
-}
-
-export function checkAnswer(key, guessPlayerId) {
-  return !!key?.impostorId && guessPlayerId === key.impostorId
-}
-
-export function revealAnswer(key) {
-  return { word: WORDS[key.wordIndex], impostorId: key.impostorId }
+export function pickQuestionPair(recentIndices = []) {
+  const available = QUESTION_PAIRS.map((_, i) => i).filter((i) => !recentIndices.includes(i))
+  const pool = available.length ? available : QUESTION_PAIRS.map((_, i) => i)
+  const idx = pool[Math.floor(Math.random() * pool.length)]
+  return { idx, pair: QUESTION_PAIRS[idx] }
 }

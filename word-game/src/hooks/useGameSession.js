@@ -135,7 +135,7 @@ export function useGameSession(code, profile) {
         setStatus('playing')
         setScores({})
         setFinalResults(null)
-        if (isHostRef.current) {
+        if (isHostRef.current && !gameModuleRef.current?.customFlow) {
           setTimeout(() => startRound(1), 400)
         }
       })
@@ -334,5 +334,6 @@ export function useGameSession(code, profile) {
     updateConfig,
     startGame,
     submitGuess,
+    finishGame,
   }
 }

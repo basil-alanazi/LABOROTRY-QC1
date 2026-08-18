@@ -1,23 +1,19 @@
 import GameScreen from './GameScreen'
-import { pickRoundKey, getRoundData, checkAnswer, revealAnswer } from './logic'
 
 export default {
   id: 'impostor',
   name: 'من الإمبوستر؟',
-  description: 'خمن مين الدخيل بينكم قبل ما يكشفكم.',
+  description: 'كل واحد ياخذ سؤال إلا الإمبوستر ياخذ سؤال مختلف.',
   longDescription:
-    'كل جولة الكل ياخذ نفس الكلمة إلا واحد (الإمبوستر) اللي ما يعرفها. ناقشوا بدون ما تبوحون بالكلمة، وحاولوا تمسكوا الإمبوستر قبل لا ينجو.',
+    'كل الكل ياخذون نفس السؤال إلا الإمبوستر (أو اثنين أحيانًا) ياخذون سؤال مختلف شوي. الكل يجاوب، وبعدها تشوفون كل الإجابات جنب السؤال الأصلي وتحاولون تكتشفون مين الإمبوستر بالتصويت.',
   icon: '🕵️',
   color: 'danger',
   defaultRounds: 6,
-  defaultSeconds: 60,
+  defaultSeconds: 25,
   defaultLanguage: 'ar',
   hasLanguageOption: false,
   minPlayers: 3,
   maxPlayers: 12,
-  pickRoundKey,
-  getRoundData,
-  checkAnswer,
-  revealAnswer,
+  customFlow: true,
   GameScreen,
 }
