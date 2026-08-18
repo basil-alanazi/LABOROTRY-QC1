@@ -195,6 +195,7 @@ export function useGameSession(code, profile) {
             winnerId: payload.playerId,
             winnerName: payload.playerName,
             word: payload.word,
+            answer: payload.answer,
             scores: newScores,
           },
         })
@@ -305,6 +306,7 @@ export function useGameSession(code, profile) {
         playerId: profile.id,
         playerName: profile.display_name,
         word: gm.revealAnswer(round.key, config.language),
+        answer: guessText,
       },
     })
     return true
