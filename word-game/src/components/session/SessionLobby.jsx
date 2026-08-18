@@ -81,38 +81,42 @@ export default function SessionLobby({ code, gameModule, players, myId, isHost, 
 
       {isHost ? (
         <Card className="p-5 flex flex-col gap-5">
-          <div>
-            <p className="font-bold text-sm text-ink-muted mb-2">عدد الجولات</p>
-            <div className="flex gap-2">
-              {ROUND_OPTIONS.map((n) => (
-                <button
-                  key={n}
-                  onClick={() => updateConfig({ ...config, rounds: n })}
-                  className={`flex-1 py-2.5 rounded-btn font-black transition-colors ${
-                    config.rounds === n ? 'bg-primary text-primary-ink' : 'bg-surface-2 text-ink-muted'
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="font-bold text-sm text-ink-muted mb-2">وقت كل جولة</p>
-            <div className="flex gap-2">
-              {TIME_OPTIONS.map((n) => (
-                <button
-                  key={n}
-                  onClick={() => updateConfig({ ...config, roundSeconds: n })}
-                  className={`flex-1 py-2.5 rounded-btn font-black transition-colors ${
-                    config.roundSeconds === n ? 'bg-primary text-primary-ink' : 'bg-surface-2 text-ink-muted'
-                  }`}
-                >
-                  {n}ث
-                </button>
-              ))}
-            </div>
-          </div>
+          {!gameModule.hideRoundConfig && (
+            <>
+              <div>
+                <p className="font-bold text-sm text-ink-muted mb-2">عدد الجولات</p>
+                <div className="flex gap-2">
+                  {ROUND_OPTIONS.map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => updateConfig({ ...config, rounds: n })}
+                      className={`flex-1 py-2.5 rounded-btn font-black transition-colors ${
+                        config.rounds === n ? 'bg-primary text-primary-ink' : 'bg-surface-2 text-ink-muted'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="font-bold text-sm text-ink-muted mb-2">وقت كل جولة</p>
+                <div className="flex gap-2">
+                  {TIME_OPTIONS.map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => updateConfig({ ...config, roundSeconds: n })}
+                      className={`flex-1 py-2.5 rounded-btn font-black transition-colors ${
+                        config.roundSeconds === n ? 'bg-primary text-primary-ink' : 'bg-surface-2 text-ink-muted'
+                      }`}
+                    >
+                      {n}ث
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
           {gameModule.hasLanguageOption && (
             <div>
               <p className="font-bold text-sm text-ink-muted mb-2">{gameModule.languageLabel || 'لغة الكلمات'}</p>
