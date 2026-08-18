@@ -65,6 +65,8 @@ export default function SessionRoom() {
         resultInfo={session.resultInfo}
         onSubmitGuess={session.submitGuess}
         onExit={() => navigate('/games')}
+        players={session.players}
+        myId={profile.id}
       />
     )
   }

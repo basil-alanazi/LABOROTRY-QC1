@@ -1,10 +1,14 @@
 import reversedWords from './reversed-words'
 import categories from './categories'
+import truthOrDare from './truth-or-dare'
+import impostor from './impostor'
 
 // كل لعبة جديدة تضاف هنا فقط — بدون أي تعديل على بقية النظام
 export const GAME_REGISTRY = {
   'reversed-words': reversedWords,
   categories: categories,
+  'truth-or-dare': truthOrDare,
+  impostor: impostor,
 }
 
 export function getGame(id) {

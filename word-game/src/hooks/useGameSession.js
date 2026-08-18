@@ -21,6 +21,7 @@ export function useGameSession(code, profile) {
   const channelRef = useRef(null)
   const isHostRef = useRef(false)
   const scoresRef = useRef({})
+  const playersRef = useRef({})
   const recentKeysRef = useRef([])
   const resolvedRoundRef = useRef(null)
   const timeoutTimerRef = useRef(null)
@@ -31,6 +32,10 @@ export function useGameSession(code, profile) {
   useEffect(() => {
     scoresRef.current = scores
   }, [scores])
+
+  useEffect(() => {
+    playersRef.current = players
+  }, [players])
 
   // تحميل الجلسة من قاعدة البيانات
   useEffect(() => {
@@ -59,7 +64,7 @@ export function useGameSession(code, profile) {
   const startRound = useCallback(
     (index) => {
       const gm = gameModuleRef.current
-      const key = gm.pickRoundKey(recentKeysRef.current, config.language)
+      const key = gm.pickRoundKey(recentKeysRef.current, config.language, Object.keys(playersRef.current))
       recentKeysRef.current = [key, ...recentKeysRef.current].slice(0, RECENT_MEMORY)
       const data = gm.getRoundData(key, config.language)
       const roundId = crypto.randomUUID()
