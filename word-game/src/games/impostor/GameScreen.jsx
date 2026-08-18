@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
-import { supabase } from '../../lib/supabaseClient'
 import { pickQuestionPair } from './logic'
 import Avatar from '../../components/ui/Avatar'
 
@@ -12,7 +11,7 @@ const RECENT_MEMORY = 6
 const DOUBLE_IMPOSTOR_CHANCE = 0.25
 const MIN_PLAYERS_FOR_DOUBLE = 5
 
-export default function ImpostorGameScreen({ code, profile, players, isHost, config, onExit, finishGame }) {
+export default function ImpostorGameScreen({ code, profile, players, isHost, config, onExit, finishGame, channel }) {
   const [phase, setPhase] = useState('waiting') // waiting | answering | reveal | voting | result
   const [roundData, setRoundData] = useState(null)
   const [answers, setAnswers] = useState({})
@@ -107,7 +106,7 @@ export default function ImpostorGameScreen({ code, profile, players, isHost, con
   }, [])
 
   useEffect(() => {
-    const channel = supabase.channel(`session-${code}`, { config: { broadcast: { self: true } } })
+    if (!channel) return
     channelRef.current = channel
 
     channel
@@ -201,19 +200,24 @@ export default function ImpostorGameScreen({ code, profile, players, isHost, con
           }, RESULT_PAUSE_MS)
         }
       })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED' && isHost) {
-          setTimeout(() => startRound(1), 400)
-        }
-      })
+
+    if (isHost) {
+      setTimeout(() => startRound(1), 400)
+    }
 
     return () => {
       if (answerTimerRef.current) clearTimeout(answerTimerRef.current)
       if (voteTimerRef.current) clearTimeout(voteTimerRef.current)
-      supabase.removeChannel(channel)
+      channel
+        .off('broadcast', { event: 'impostor-round-start' })
+        .off('broadcast', { event: 'impostor-answer' })
+        .off('broadcast', { event: 'impostor-reveal' })
+        .off('broadcast', { event: 'impostor-open-voting' })
+        .off('broadcast', { event: 'impostor-vote' })
+        .off('broadcast', { event: 'impostor-round-result' })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code])
+  }, [channel])
 
   function submitAnswer(e) {
     e.preventDefault()

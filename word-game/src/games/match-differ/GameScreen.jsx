@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
-import { supabase } from '../../lib/supabaseClient'
 import { pickQuestion, evaluateTeam } from './logic'
 
 const ANSWER_TIMEOUT_MS = 30000
 const RESULT_PAUSE_MS = 4500
 const RECENT_MEMORY = 8
 
-export default function GameScreen({ code, profile, players, isHost, config, onExit, finishGame }) {
+export default function GameScreen({ code, profile, players, isHost, config, onExit, finishGame, channel }) {
   const [phase, setPhase] = useState('answering') // answering | result
   const [roundData, setRoundData] = useState(null)
   const [myAnswer, setMyAnswer] = useState('')
@@ -91,7 +90,7 @@ export default function GameScreen({ code, profile, players, isHost, config, onE
   )
 
   useEffect(() => {
-    const channel = supabase.channel(`session-${code}`, { config: { broadcast: { self: true } } })
+    if (!channel) return
     channelRef.current = channel
 
     channel
@@ -140,18 +139,20 @@ export default function GameScreen({ code, profile, players, isHost, config, onE
           }, RESULT_PAUSE_MS)
         }
       })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED' && isHost) {
-          setTimeout(() => startRound(1), 400)
-        }
-      })
+
+    if (isHost) {
+      setTimeout(() => startRound(1), 400)
+    }
 
     return () => {
       if (answerTimerRef.current) clearTimeout(answerTimerRef.current)
-      supabase.removeChannel(channel)
+      channel
+        .off('broadcast', { event: 'matchdiffer-round-start' })
+        .off('broadcast', { event: 'matchdiffer-answer' })
+        .off('broadcast', { event: 'matchdiffer-round-result' })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code])
+  }, [channel])
 
   function submitAnswer(e) {
     e.preventDefault()

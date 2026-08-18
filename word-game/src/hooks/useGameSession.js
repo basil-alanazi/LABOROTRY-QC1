@@ -335,5 +335,6 @@ export function useGameSession(code, profile) {
     startGame,
     submitGuess,
     finishGame,
+    channel: channelRef.current,
   }
 }

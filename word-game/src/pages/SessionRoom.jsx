@@ -58,6 +58,7 @@ export default function SessionRoom() {
           config={session.config}
           onExit={() => navigate('/games')}
           finishGame={session.finishGame}
+          channel={session.channel}
         />
       )
     }

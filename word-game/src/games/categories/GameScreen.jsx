@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
-import { supabase } from '../../lib/supabaseClient'
 import { FIELDS, pickLetter, scoreField } from './logic'
 
 const GRACE_MS = 2500
@@ -11,7 +10,7 @@ const RECENT_MEMORY = 6
 
 const EMPTY_FIELDS = { jamad: '', nabat: '', hayawan: '', dawla: '', ismWalad: '', ismBint: '' }
 
-export default function GameScreen({ code, profile, players, isHost, config, onExit, finishGame }) {
+export default function GameScreen({ code, profile, players, isHost, config, onExit, finishGame, channel }) {
   const [phase, setPhase] = useState('answering') // answering | stopped | result
   const [roundData, setRoundData] = useState(null)
   const [fields, setFields] = useState(EMPTY_FIELDS)
@@ -88,7 +87,7 @@ export default function GameScreen({ code, profile, players, isHost, config, onE
   }, [])
 
   useEffect(() => {
-    const channel = supabase.channel(`session-${code}`, { config: { broadcast: { self: true } } })
+    if (!channel) return
     channelRef.current = channel
 
     channel
@@ -158,19 +157,22 @@ export default function GameScreen({ code, profile, players, isHost, config, onE
           }, RESULT_PAUSE_MS)
         }
       })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED' && isHost) {
-          setTimeout(() => startRound(1), 400)
-        }
-      })
+
+    if (isHost) {
+      setTimeout(() => startRound(1), 400)
+    }
 
     return () => {
       if (graceTimerRef.current) clearTimeout(graceTimerRef.current)
       if (finalTimerRef.current) clearTimeout(finalTimerRef.current)
-      supabase.removeChannel(channel)
+      channel
+        .off('broadcast', { event: 'atobis-round-start' })
+        .off('broadcast', { event: 'atobis-stop' })
+        .off('broadcast', { event: 'atobis-submit' })
+        .off('broadcast', { event: 'atobis-round-result' })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code])
+  }, [channel])
 
   function updateField(key, value) {
     setFields((f) => ({ ...f, [key]: value }))
