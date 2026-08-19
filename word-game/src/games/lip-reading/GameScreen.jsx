@@ -19,9 +19,11 @@ export default function LipReadingGameScreen({ profile, players, isHost, config,
   const playersRef = useRef(players)
   const roundDataRef = useRef(null)
   const recentRef = useRef([])
-  const orderRef = useRef(null)
+  const teamOrderRef = useRef(null)
   const answerTimerRef = useRef(null)
   const resolvedRef = useRef(null)
+
+  const teams = config.teams || {}
 
   useEffect(() => {
     scoresRef.current = scores
@@ -34,13 +36,23 @@ export default function LipReadingGameScreen({ profile, players, isHost, config,
   }, [roundData])
 
   const isSpeaker = roundData?.speakerId === profile.id
+  const myTeam = teams[profile.id]
+  const onActiveTeam = roundData && myTeam === roundData.activeTeam
 
   const startRound = useCallback((index) => {
-    if (!orderRef.current) {
-      orderRef.current = Object.keys(playersRef.current).sort(() => Math.random() - 0.5)
+    if (!teamOrderRef.current) {
+      const teamA = Object.keys(teams)
+        .filter((id) => teams[id] === 'A')
+        .sort(() => Math.random() - 0.5)
+      const teamB = Object.keys(teams)
+        .filter((id) => teams[id] === 'B')
+        .sort(() => Math.random() - 0.5)
+      teamOrderRef.current = { A: teamA, B: teamB }
     }
-    const order = orderRef.current
-    const speakerId = order[(index - 1) % order.length]
+    const activeTeam = index % 2 === 1 ? 'A' : 'B'
+    const teamMembers = teamOrderRef.current[activeTeam]
+    const turnsForThisTeam = Math.ceil(index / 2) - 1
+    const speakerId = teamMembers[turnsForThisTeam % teamMembers.length]
     const speakerName = playersRef.current[speakerId]?.name || '؟'
     const { idx, word } = pickWord(recentRef.current)
     recentRef.current = [idx, ...recentRef.current].slice(0, RECENT_MEMORY)
@@ -48,28 +60,30 @@ export default function LipReadingGameScreen({ profile, players, isHost, config,
     channelRef.current?.send({
       type: 'broadcast',
       event: 'lips-round-start',
-      payload: { roundIndex: index, roundId, speakerId, speakerName, word },
+      payload: { roundIndex: index, roundId, activeTeam, speakerId, speakerName, word },
     })
-  }, [])
+  }, [teams])
 
-  const finishRound = useCallback((roundId, roundIndex, winnerId, winnerName, word) => {
-    if (resolvedRef.current === roundId) return
-    resolvedRef.current = roundId
-    if (answerTimerRef.current) clearTimeout(answerTimerRef.current)
+  const finishRound = useCallback(
+    (roundId, roundIndex, activeTeam, winnerId, winnerName, word) => {
+      if (resolvedRef.current === roundId) return
+      resolvedRef.current = roundId
+      if (answerTimerRef.current) clearTimeout(answerTimerRef.current)
 
-    const rd = roundDataRef.current
-    const newScores = { ...scoresRef.current }
-    if (winnerId) {
-      newScores[winnerId] = (newScores[winnerId] || 0) + 100
-      if (rd?.speakerId) newScores[rd.speakerId] = (newScores[rd.speakerId] || 0) + 50
-    }
+      const newScores = { ...scoresRef.current }
+      if (winnerId) {
+        const teamMembers = Object.keys(teams).filter((id) => teams[id] === activeTeam)
+        for (const pid of teamMembers) newScores[pid] = (newScores[pid] || 0) + 100
+      }
 
-    channelRef.current?.send({
-      type: 'broadcast',
-      event: 'lips-round-result',
-      payload: { roundId, roundIndex, winnerId, winnerName, word, scores: newScores },
-    })
-  }, [])
+      channelRef.current?.send({
+        type: 'broadcast',
+        event: 'lips-round-result',
+        payload: { roundId, roundIndex, activeTeam, winnerId, winnerName, word, scores: newScores },
+      })
+    },
+    [teams]
+  )
 
   useEffect(() => {
     if (!channel) return
@@ -85,7 +99,7 @@ export default function LipReadingGameScreen({ profile, players, isHost, config,
         if (isHost) {
           if (answerTimerRef.current) clearTimeout(answerTimerRef.current)
           answerTimerRef.current = setTimeout(() => {
-            finishRound(payload.roundId, payload.roundIndex, null, null, payload.word)
+            finishRound(payload.roundId, payload.roundIndex, payload.activeTeam, null, null, payload.word)
           }, ANSWER_TIMEOUT_MS)
         }
       })
@@ -118,15 +132,20 @@ export default function LipReadingGameScreen({ profile, players, isHost, config,
   function awardWinner(winnerId) {
     if (!isSpeaker || !roundData) return
     const p = players[winnerId]
-    finishRound(roundData.roundId, roundData.roundIndex, winnerId, p?.name, roundData.word)
+    finishRound(roundData.roundId, roundData.roundIndex, roundData.activeTeam, winnerId, p?.name, roundData.word)
   }
 
   function noOneKnew() {
     if (!isSpeaker || !roundData) return
-    finishRound(roundData.roundId, roundData.roundIndex, null, null, roundData.word)
+    finishRound(roundData.roundId, roundData.roundIndex, roundData.activeTeam, null, null, roundData.word)
   }
 
-  const others = Object.entries(players).filter(([id]) => id !== profile.id)
+  const teammates = Object.entries(players).filter(([id]) => teams[id] === myTeam && id !== profile.id)
+
+  const teamScore = (t) =>
+    Object.keys(teams)
+      .filter((id) => teams[id] === t)
+      .reduce((sum, id) => sum + (scores[id] || 0), 0)
 
   return (
     <div className="fixed inset-0 z-50 bg-canvas flex flex-col">
@@ -148,6 +167,15 @@ export default function LipReadingGameScreen({ profile, players, isHost, config,
         <div className="w-9" />
       </div>
 
+      <div className="flex items-center justify-center gap-4 px-5 pt-3">
+        <div className={`flex-1 max-w-[9rem] rounded-btn py-2 text-center font-black ${roundData?.activeTeam === 'A' ? 'bg-primary-soft text-primary' : 'bg-surface-2 text-ink-muted'}`}>
+          فريق أ · {teamScore('A')}
+        </div>
+        <div className={`flex-1 max-w-[9rem] rounded-btn py-2 text-center font-black ${roundData?.activeTeam === 'B' ? 'bg-accent-soft text-accent' : 'bg-surface-2 text-ink-muted'}`}>
+          فريق ب · {teamScore('B')}
+        </div>
+      </div>
+
       <div className="flex-1 flex flex-col items-center px-6 gap-5 overflow-y-auto py-6">
         <AnimatePresence mode="wait">
           {phase === 'speaking' && roundData && (
@@ -162,12 +190,12 @@ export default function LipReadingGameScreen({ profile, players, isHost, config,
                 <>
                   <div className="w-full rounded-card shadow-pop p-6 flex flex-col items-center gap-2 text-center bg-primary-soft">
                     <span className="text-4xl">🤐</span>
-                    <p className="text-xs text-ink-muted font-bold">حرّك شفايفك بدون ما تطلع صوت</p>
+                    <p className="text-xs text-ink-muted font-bold">حرّك شفايفك بدون ما تطلع صوت لفريقك</p>
                     <p className="text-2xl font-black text-primary">{roundData.word}</p>
                   </div>
-                  <p className="text-xs text-ink-muted text-center">لما حد يخمنها صح، اضغط على اسمه تحت</p>
+                  <p className="text-xs text-ink-muted text-center">لما أحد فريقك يخمنها صح، اضغط على اسمه تحت</p>
                   <div className="w-full grid grid-cols-2 gap-2.5">
-                    {others.map(([id, p]) => (
+                    {teammates.map(([id, p]) => (
                       <button
                         key={id}
                         onClick={() => awardWinner(id)}
@@ -186,13 +214,17 @@ export default function LipReadingGameScreen({ profile, players, isHost, config,
                     محد عرفها ⏱️
                   </motion.button>
                 </>
-              ) : (
+              ) : onActiveTeam ? (
                 <div className="w-full rounded-card shadow-pop p-8 flex flex-col items-center gap-3 text-center bg-primary-soft">
                   <span className="text-5xl">👀</span>
-                  <p className="font-black text-lg">
-                    {roundData.speakerName} يحرّك شفايفه الحين
-                  </p>
-                  <p className="text-sm text-ink-muted">خمّنوا بصوت عالي — محد يكتب ولا شي، اللعبة بره الجوال!</p>
+                  <p className="font-black text-lg">{roundData.speakerName} من فريقك يحرّك شفايفه الحين</p>
+                  <p className="text-sm text-ink-muted">خمّن بصوت عالي — محد يكتب ولا شي، اللعبة بره الجوال!</p>
+                </div>
+              ) : (
+                <div className="w-full rounded-card shadow-pop p-8 flex flex-col items-center gap-3 text-center bg-surface-2">
+                  <span className="text-5xl">⏳</span>
+                  <p className="font-black text-lg">فريق {roundData.activeTeam === 'A' ? 'أ' : 'ب'} يلعب الحين</p>
+                  <p className="text-sm text-ink-muted">استنوا دوركم، وحاولوا ما تساعدونهم 😉</p>
                 </div>
               )}
             </motion.div>
@@ -210,7 +242,8 @@ export default function LipReadingGameScreen({ profile, players, isHost, config,
               <p className="text-xl font-black text-primary">الكلمة كانت: {lastResult.word}</p>
               {lastResult.winnerId ? (
                 <p className="font-bold text-lg text-success">
-                  {lastResult.winnerName} خمنها صح! 🎉 <span className="text-primary">+100</span>
+                  {lastResult.winnerName} خمنها صح! فريق {lastResult.activeTeam === 'A' ? 'أ' : 'ب'} ياخذ{' '}
+                  <span className="text-primary">+100</span> لكل عضو 🎉
                 </p>
               ) : (
                 <p className="font-bold text-lg text-danger">محد عرفها ⏱️</p>
