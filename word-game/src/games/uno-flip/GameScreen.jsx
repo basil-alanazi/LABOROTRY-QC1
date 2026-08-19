@@ -11,6 +11,8 @@ import {
   dealInitialState,
   playCard,
   drawCardForPlayer,
+  callUno,
+  catchUno,
   computeFinalScores,
 } from './logic'
 
@@ -32,13 +34,14 @@ function CardFace({ cardId, side, size = 'md', dim = false }) {
   const label = wild
     ? cardId === 'wilddraw'
       ? side === 'dark'
-        ? '+5'
+        ? '🎨'
         : '+4'
       : '★'
     : (() => {
         const k = kindOf(cardId)
-        const drawLabel = side === 'dark' ? '+3' : '+2'
-        return k === 'skip' ? '🚫' : k === 'reverse' ? '🔁' : k === 'draw' ? drawLabel : k === 'flip' ? '🔃' : k
+        const drawLabel = side === 'dark' ? '+5' : '+2'
+        const skipLabel = side === 'dark' ? '⛔' : '🚫'
+        return k === 'skip' ? skipLabel : k === 'reverse' ? '🔁' : k === 'draw' ? drawLabel : k === 'flip' ? '🔃' : k
       })()
   const bg = wild
     ? side === 'dark'
@@ -152,6 +155,10 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
           next = playCard(s, payload.playerId, payload.cardId, payload.chosenColor)
         } else if (payload.type === 'draw') {
           next = drawCardForPlayer(s, payload.playerId)
+        } else if (payload.type === 'call-uno') {
+          next = callUno(s, payload.playerId)
+        } else if (payload.type === 'catch-uno') {
+          next = catchUno(s, payload.targetId, payload.byId)
         }
         if (next !== s) broadcastState(next)
       })
@@ -203,6 +210,14 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
     if (!state || state.winnerId) return
     if (state.turnOrder[state.turnIndex] !== profile.id) return
     sendAction({ type: 'draw', playerId: profile.id })
+  }
+
+  function handleCallUno() {
+    sendAction({ type: 'call-uno', playerId: profile.id })
+  }
+
+  function handleCatchUno(targetId) {
+    sendAction({ type: 'catch-uno', targetId, byId: profile.id })
   }
 
   if (!state) {
@@ -261,15 +276,18 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
           const p = players[id]
           const count = state.hands[id]?.length || 0
           const isTurn = state.turnOrder[state.turnIndex] === id
+          const catchable = state.unoPending?.playerId === id
           return (
             <div
               key={id}
               className={`flex flex-col items-center gap-1 rounded-card px-2.5 py-2 border-2 transition-colors ${
-                isTurn
-                  ? 'border-primary bg-primary-soft'
-                  : side === 'dark'
-                    ? 'border-white/10 bg-white/5'
-                    : 'border-line bg-surface'
+                catchable
+                  ? 'border-danger bg-danger-soft'
+                  : isTurn
+                    ? 'border-primary bg-primary-soft'
+                    : side === 'dark'
+                      ? 'border-white/10 bg-white/5'
+                      : 'border-line bg-surface'
               }`}
             >
               <Avatar name={p?.name} src={p?.avatarUrl} size="sm" />
@@ -280,7 +298,17 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
                 <CardBack size="sm" side={side} />
                 <span className={`text-xs font-black ${side === 'dark' ? 'text-white' : ''}`}>{count}</span>
               </div>
-              {count === 1 && <span className="text-[0.6rem] font-black text-danger">UNO!</span>}
+              {catchable ? (
+                <motion.button
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => handleCatchUno(id)}
+                  className="text-[0.6rem] font-black text-white bg-danger rounded-pill px-2 py-0.5 mt-0.5"
+                >
+                  امسك! ⚠️
+                </motion.button>
+              ) : (
+                count === 1 && <span className="text-[0.6rem] font-black text-danger">UNO!</span>
+              )}
             </div>
           )
         })}
@@ -301,6 +329,16 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
         <p className={`text-sm font-black text-center ${side === 'dark' ? 'text-white' : ''}`}>
           {state.winnerId ? '' : myTurn ? 'دورك الحين! 🎯' : `دور ${players[state.turnOrder[state.turnIndex]]?.name || '؟'}...`}
         </p>
+
+        {state.unoPending?.playerId === profile.id && (
+          <motion.button
+            whileTap={{ scale: 0.94 }}
+            onClick={handleCallUno}
+            className="bg-danger text-white font-black rounded-pill px-6 py-2.5 shadow-pop"
+          >
+            قلت أونو! 🗣️
+          </motion.button>
+        )}
       </div>
 
       <div className="px-4 pb-4">

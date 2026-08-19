@@ -11,6 +11,8 @@ import {
   dealInitialState,
   playCard,
   drawCardForPlayer,
+  callUno,
+  catchUno,
   computeFinalScores,
 } from './logic'
 
@@ -137,6 +139,10 @@ export default function UnoGameScreen({ code, profile, players, isHost, onExit, 
           next = playCard(s, payload.playerId, payload.cardId, payload.chosenColor)
         } else if (payload.type === 'draw') {
           next = drawCardForPlayer(s, payload.playerId)
+        } else if (payload.type === 'call-uno') {
+          next = callUno(s, payload.playerId)
+        } else if (payload.type === 'catch-uno') {
+          next = catchUno(s, payload.targetId, payload.byId)
         }
         if (next !== s) broadcastState(next)
       })
@@ -190,6 +196,14 @@ export default function UnoGameScreen({ code, profile, players, isHost, onExit, 
     sendAction({ type: 'draw', playerId: profile.id })
   }
 
+  function handleCallUno() {
+    sendAction({ type: 'call-uno', playerId: profile.id })
+  }
+
+  function handleCatchUno(targetId) {
+    sendAction({ type: 'catch-uno', targetId, byId: profile.id })
+  }
+
   if (!state) {
     return (
       <div className="fixed inset-0 z-50 bg-canvas flex items-center justify-center">
@@ -236,11 +250,12 @@ export default function UnoGameScreen({ code, profile, players, isHost, onExit, 
           const p = players[id]
           const count = state.hands[id]?.length || 0
           const isTurn = state.turnOrder[state.turnIndex] === id
+          const catchable = state.unoPending?.playerId === id
           return (
             <div
               key={id}
               className={`flex flex-col items-center gap-1 rounded-card px-2.5 py-2 border-2 transition-colors ${
-                isTurn ? 'border-primary bg-primary-soft' : 'border-line bg-surface'
+                catchable ? 'border-danger bg-danger-soft' : isTurn ? 'border-primary bg-primary-soft' : 'border-line bg-surface'
               }`}
             >
               <Avatar name={p?.name} src={p?.avatarUrl} size="sm" />
@@ -249,7 +264,17 @@ export default function UnoGameScreen({ code, profile, players, isHost, onExit, 
                 <CardBack size="sm" />
                 <span className="text-xs font-black">{count}</span>
               </div>
-              {count === 1 && <span className="text-[0.6rem] font-black text-danger">UNO!</span>}
+              {catchable ? (
+                <motion.button
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => handleCatchUno(id)}
+                  className="text-[0.6rem] font-black text-white bg-danger rounded-pill px-2 py-0.5 mt-0.5"
+                >
+                  امسك! ⚠️
+                </motion.button>
+              ) : (
+                count === 1 && <span className="text-[0.6rem] font-black text-danger">UNO!</span>
+              )}
             </div>
           )
         })}
@@ -270,6 +295,16 @@ export default function UnoGameScreen({ code, profile, players, isHost, onExit, 
         <p className="text-sm font-black text-center">
           {state.winnerId ? '' : myTurn ? 'دورك الحين! 🎯' : `دور ${players[state.turnOrder[state.turnIndex]]?.name || '؟'}...`}
         </p>
+
+        {state.unoPending?.playerId === profile.id && (
+          <motion.button
+            whileTap={{ scale: 0.94 }}
+            onClick={handleCallUno}
+            className="bg-danger text-white font-black rounded-pill px-6 py-2.5 shadow-pop"
+          >
+            قلت أونو! 🗣️
+          </motion.button>
+        )}
       </div>
 
       <div className="px-4 pb-4">

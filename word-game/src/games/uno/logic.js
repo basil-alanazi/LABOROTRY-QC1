@@ -84,6 +84,8 @@ function drawCards(state, n) {
   return drawn
 }
 
+export const UNO_PENALTY = 2
+
 export function dealInitialState(playerIds) {
   const state = {
     deck: shuffle(createDeck()),
@@ -94,6 +96,7 @@ export function dealInitialState(playerIds) {
     direction: 1,
     currentColor: null,
     winnerId: null,
+    unoPending: null,
     turnId: crypto.randomUUID(),
     lastAction: { type: 'start' },
   }
@@ -159,6 +162,7 @@ export function playCard(state, playerId, cardId, chosenColor) {
 
   if (next.hands[playerId].length === 0) {
     next.winnerId = playerId
+    next.unoPending = null
     next.turnId = crypto.randomUUID()
     next.lastAction = { type: 'win', by: playerId, card: cardId }
     return next
@@ -186,6 +190,7 @@ export function playCard(state, playerId, cardId, chosenColor) {
   for (let i = 0; i < steps; i++) {
     next.turnIndex = nextIndex(next.turnIndex, next.turnOrder.length, next.direction)
   }
+  next.unoPending = next.hands[playerId].length === 1 ? { playerId } : state.unoPending
   next.turnId = crypto.randomUUID()
   next.lastAction = { type: 'play', by: playerId, card: cardId, color: next.currentColor }
   return next
@@ -198,8 +203,25 @@ export function drawCardForPlayer(state, playerId) {
   const next = { ...state, hands: { ...state.hands } }
   next.hands[playerId] = [...next.hands[playerId], ...drawCards(next, 1)]
   next.turnIndex = nextIndex(next.turnIndex, next.turnOrder.length, next.direction)
+  if (next.unoPending?.playerId === playerId) next.unoPending = null
   next.turnId = crypto.randomUUID()
   next.lastAction = { type: 'draw', by: playerId }
+  return next
+}
+
+export function callUno(state, playerId) {
+  if (state.unoPending?.playerId !== playerId) return state
+  return { ...state, unoPending: null, turnId: crypto.randomUUID(), lastAction: { type: 'call-uno', by: playerId } }
+}
+
+export function catchUno(state, targetPlayerId, byPlayerId) {
+  if (state.unoPending?.playerId !== targetPlayerId) return state
+  if (targetPlayerId === byPlayerId) return state
+  const next = { ...state, hands: { ...state.hands } }
+  next.hands[targetPlayerId] = [...next.hands[targetPlayerId], ...drawCards(next, UNO_PENALTY)]
+  next.unoPending = null
+  next.turnId = crypto.randomUUID()
+  next.lastAction = { type: 'uno-penalty', by: byPlayerId, target: targetPlayerId }
   return next
 }
 

@@ -65,12 +65,14 @@ export function kindOf(cardId) {
 }
 
 export function drawAmount(side) {
-  return side === 'dark' ? 3 : 2
+  return side === 'dark' ? 5 : 2
 }
 
-export function wildDrawAmount(side) {
-  return side === 'dark' ? 5 : 4
+export function wildDrawAmount() {
+  return 4
 }
+
+export const UNO_PENALTY = 2
 
 export function cardPoints(cardId) {
   if (isWild(cardId)) return cardId === 'wilddraw' ? 60 : 40
@@ -103,6 +105,19 @@ function drawCards(state, n) {
   return state.deck.splice(0, n)
 }
 
+function drawUntilColor(state, targetColor) {
+  const drawn = []
+  const cap = 200
+  for (let i = 0; i < cap; i++) {
+    refillDeckIfNeeded(state, 1)
+    if (state.deck.length === 0) break
+    const card = state.deck.shift()
+    drawn.push(card)
+    if (!isWild(card) && colorOf(card, state.side) === targetColor) break
+  }
+  return drawn
+}
+
 const NON_STARTER_KINDS = new Set(['flip'])
 
 function isEligibleStarter(cardId) {
@@ -120,6 +135,7 @@ export function dealInitialState(playerIds) {
     side: 'light',
     currentColor: null,
     winnerId: null,
+    unoPending: null,
     turnId: crypto.randomUUID(),
     lastAction: { type: 'start' },
   }
@@ -185,6 +201,7 @@ export function playCard(state, playerId, cardId, chosenColor) {
 
   if (next.hands[playerId].length === 0) {
     next.winnerId = playerId
+    next.unoPending = null
     next.turnId = crypto.randomUUID()
     next.lastAction = { type: 'win', by: playerId, card: cardId }
     return next
@@ -193,7 +210,7 @@ export function playCard(state, playerId, cardId, chosenColor) {
   const kind = kindOf(cardId)
   let steps = 1
   if (kind === 'skip') {
-    steps = 2
+    steps = next.side === 'dark' ? 0 : 2
   } else if (kind === 'reverse') {
     next.direction = next.direction * -1
     steps = next.turnOrder.length === 2 ? 2 : 1
@@ -205,7 +222,8 @@ export function playCard(state, playerId, cardId, chosenColor) {
   } else if (kind === 'wilddraw') {
     const victimIdx = nextIndex(next.turnIndex, next.turnOrder.length, next.direction)
     const victim = next.turnOrder[victimIdx]
-    next.hands[victim] = [...next.hands[victim], ...drawCards(next, wildDrawAmount(next.side))]
+    const drawn = next.side === 'dark' ? drawUntilColor(next, next.currentColor) : drawCards(next, wildDrawAmount(next.side))
+    next.hands[victim] = [...next.hands[victim], ...drawn]
     steps = 2
   } else if (kind === 'flip') {
     next.side = next.side === 'light' ? 'dark' : 'light'
@@ -216,6 +234,7 @@ export function playCard(state, playerId, cardId, chosenColor) {
   for (let i = 0; i < steps; i++) {
     next.turnIndex = nextIndex(next.turnIndex, next.turnOrder.length, next.direction)
   }
+  next.unoPending = next.hands[playerId].length === 1 ? { playerId } : state.unoPending
   next.turnId = crypto.randomUUID()
   next.lastAction = { type: 'play', by: playerId, card: cardId, color: next.currentColor, side: next.side }
   return next
@@ -228,8 +247,25 @@ export function drawCardForPlayer(state, playerId) {
   const next = { ...state, hands: { ...state.hands } }
   next.hands[playerId] = [...next.hands[playerId], ...drawCards(next, 1)]
   next.turnIndex = nextIndex(next.turnIndex, next.turnOrder.length, next.direction)
+  if (next.unoPending?.playerId === playerId) next.unoPending = null
   next.turnId = crypto.randomUUID()
   next.lastAction = { type: 'draw', by: playerId }
+  return next
+}
+
+export function callUno(state, playerId) {
+  if (state.unoPending?.playerId !== playerId) return state
+  return { ...state, unoPending: null, turnId: crypto.randomUUID(), lastAction: { type: 'call-uno', by: playerId } }
+}
+
+export function catchUno(state, targetPlayerId, byPlayerId) {
+  if (state.unoPending?.playerId !== targetPlayerId) return state
+  if (targetPlayerId === byPlayerId) return state
+  const next = { ...state, hands: { ...state.hands } }
+  next.hands[targetPlayerId] = [...next.hands[targetPlayerId], ...drawCards(next, UNO_PENALTY)]
+  next.unoPending = null
+  next.turnId = crypto.randomUUID()
+  next.lastAction = { type: 'uno-penalty', by: byPlayerId, target: targetPlayerId }
   return next
 }
 
