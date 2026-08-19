@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, RotateCcw, ArrowRight } from 'lucide-react'
 import Avatar from '../../components/ui/Avatar'
+import { playUnoChime, playLaughChime, playStrongLaughChime, playFlipChime } from '../../lib/sound'
 import {
   isWild,
   colorOf,
@@ -100,8 +101,9 @@ function CardBack({ size = 'sm', side }) {
 export default function UnoFlipGameScreen({ code, profile, players, isHost, onExit, finishGame, channel }) {
   const [state, setState] = useState(null)
   const [pendingWild, setPendingWild] = useState(null)
-  const [pendingUnoCard, setPendingUnoCard] = useState(null)
   const [ended, setEnded] = useState(false)
+  const [yaHataf, setYaHataf] = useState(false)
+  const [flipBanner, setFlipBanner] = useState(null)
 
   const channelRef = useRef(null)
   const stateRef = useRef(null)
@@ -109,6 +111,8 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
   const turnTimerRef = useRef(null)
   const resolvedTurnRef = useRef(null)
   const finishedRef = useRef(false)
+  const lastActionSeenRef = useRef(null)
+  const lastSideSeenRef = useRef(null)
 
   useEffect(() => {
     playersRef.current = players
@@ -187,6 +191,39 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state?.winnerId])
 
+  useEffect(() => {
+    if (!state?.side) return
+    if (lastSideSeenRef.current === null) {
+      lastSideSeenRef.current = state.side
+      return
+    }
+    if (lastSideSeenRef.current === state.side) return
+    lastSideSeenRef.current = state.side
+    playFlipChime()
+    setFlipBanner(state.side)
+    setTimeout(() => setFlipBanner(null), 1600)
+  }, [state?.side])
+
+  useEffect(() => {
+    const a = state?.lastAction
+    if (!a || a === lastActionSeenRef.current) return
+    lastActionSeenRef.current = a
+    if (a.type === 'call-uno') {
+      playUnoChime()
+    } else if (a.type === 'uno-penalty') {
+      playLaughChime()
+    } else if (a.type === 'play') {
+      const kind = kindOf(a.card)
+      if (kind === 'draw') {
+        playLaughChime()
+      } else if (kind === 'wilddraw') {
+        playStrongLaughChime()
+        setYaHataf(true)
+        setTimeout(() => setYaHataf(false), 1600)
+      }
+    }
+  }, [state?.lastAction])
+
   function sendAction(payload) {
     channelRef.current?.send({ type: 'broadcast', event: 'unoflip-action', payload })
   }
@@ -198,34 +235,13 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
       setPendingWild(cardId)
       return
     }
-    if ((state.hands[profile.id] || []).length === 2) {
-      setPendingUnoCard({ cardId })
-      return
-    }
     sendAction({ type: 'play', playerId: profile.id, cardId })
   }
 
   function chooseColor(c) {
     if (!pendingWild) return
-    if ((state.hands[profile.id] || []).length === 2) {
-      setPendingUnoCard({ cardId: pendingWild, chosenColor: c })
-      setPendingWild(null)
-      return
-    }
     sendAction({ type: 'play', playerId: profile.id, cardId: pendingWild, chosenColor: c })
     setPendingWild(null)
-  }
-
-  function confirmSaidUno() {
-    if (!pendingUnoCard) return
-    sendAction({
-      type: 'play',
-      playerId: profile.id,
-      cardId: pendingUnoCard.cardId,
-      chosenColor: pendingUnoCard.chosenColor,
-      saidUno: true,
-    })
-    setPendingUnoCard(null)
   }
 
   function handleDraw() {
@@ -293,74 +309,84 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
         <div className="w-9" />
       </div>
 
-      <div className="flex flex-wrap items-center justify-center gap-3 px-4 pt-3">
-        {others.map((id) => {
-          const p = players[id]
-          const count = state.hands[id]?.length || 0
-          const isTurn = state.turnOrder[state.turnIndex] === id
-          const catchable = state.unoPending?.playerId === id
-          return (
-            <div
-              key={id}
-              className={`flex flex-col items-center gap-1 rounded-card px-2.5 py-2 border-2 transition-colors ${
-                catchable
-                  ? 'border-danger bg-danger-soft'
-                  : isTurn
-                    ? 'border-primary bg-primary-soft'
-                    : side === 'dark'
-                      ? 'border-white/10 bg-white/5'
-                      : 'border-line bg-surface'
-              }`}
-            >
-              <Avatar name={p?.name} src={p?.avatarUrl} size="sm" />
-              <span className={`text-[0.65rem] font-bold truncate max-w-[4.5rem] ${side === 'dark' ? 'text-white' : ''}`}>
-                {p?.name}
-              </span>
-              <div className="flex items-center gap-1">
-                <CardBack size="sm" side={side} />
-                <span className={`text-xs font-black ${side === 'dark' ? 'text-white' : ''}`}>{count}</span>
+      <div
+        className={`flex-1 flex flex-col mx-3 mt-2 rounded-[2.5rem] border-4 overflow-hidden transition-colors duration-500 ${
+          side === 'dark' ? 'bg-gradient-to-b from-white/10 to-white/5 border-white/15' : 'bg-gradient-to-b from-success-soft to-success-soft/40 border-success/25'
+        }`}
+      >
+        <div className="flex items-start justify-center gap-3 px-4 pt-4 flex-wrap">
+          {others.map((id, idx) => {
+            const p = players[id]
+            const count = state.hands[id]?.length || 0
+            const isTurn = state.turnOrder[state.turnIndex] === id
+            const catchable = state.unoPending?.playerId === id
+            const n = others.length
+            const t = n > 1 ? idx / (n - 1) : 0.5
+            const lift = Math.sin(t * Math.PI) * 16
+            return (
+              <div
+                key={id}
+                style={{ transform: `translateY(${-lift}px)` }}
+                className={`flex flex-col items-center gap-1 rounded-card px-2.5 py-2 border-2 transition-colors backdrop-blur-sm ${
+                  catchable
+                    ? 'border-danger bg-danger-soft'
+                    : isTurn
+                      ? 'border-primary bg-primary-soft'
+                      : side === 'dark'
+                        ? 'border-white/10 bg-white/10'
+                        : 'border-line bg-surface/90'
+                }`}
+              >
+                <Avatar name={p?.name} src={p?.avatarUrl} size="sm" />
+                <span className={`text-[0.65rem] font-bold truncate max-w-[4.5rem] ${side === 'dark' ? 'text-white' : ''}`}>
+                  {p?.name}
+                </span>
+                <div className="flex items-center gap-1">
+                  <CardBack size="sm" side={side} />
+                  <span className={`text-xs font-black ${side === 'dark' ? 'text-white' : ''}`}>{count}</span>
+                </div>
+                {catchable ? (
+                  <motion.button
+                    whileTap={{ scale: 0.92 }}
+                    onClick={() => handleCatchUno(id)}
+                    className="text-[0.6rem] font-black text-white bg-danger rounded-pill px-2 py-0.5 mt-0.5"
+                  >
+                    امسك! ⚠️
+                  </motion.button>
+                ) : (
+                  count === 1 && <span className="text-[0.6rem] font-black text-danger">UNO!</span>
+                )}
               </div>
-              {catchable ? (
-                <motion.button
-                  whileTap={{ scale: 0.92 }}
-                  onClick={() => handleCatchUno(id)}
-                  className="text-[0.6rem] font-black text-white bg-danger rounded-pill px-2 py-0.5 mt-0.5"
-                >
-                  امسك! ⚠️
-                </motion.button>
-              ) : (
-                count === 1 && <span className="text-[0.6rem] font-black text-danger">UNO!</span>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="flex-1 flex flex-col items-center justify-center gap-4">
-        <div className="flex items-center gap-6">
-          <button onClick={handleDraw} disabled={!myTurn} className="flex flex-col items-center gap-1 disabled:opacity-50">
-            <CardBack size="lg" side={side} />
-            <span className={`text-xs font-bold ${side === 'dark' ? 'text-white/70' : 'text-ink-muted'}`}>اسحب</span>
-          </button>
-          <CardFace cardId={top} side={side} size="lg" />
+            )
+          })}
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`text-xs font-bold ${side === 'dark' ? 'text-white/70' : 'text-ink-muted'}`}>اللون الحالي:</span>
-          <span className="w-5 h-5 rounded-full border-2 border-white shadow" style={{ background: meta[state.currentColor]?.bg }} />
-        </div>
-        <p className={`text-sm font-black text-center ${side === 'dark' ? 'text-white' : ''}`}>
-          {state.winnerId ? '' : myTurn ? 'دورك الحين! 🎯' : `دور ${players[state.turnOrder[state.turnIndex]]?.name || '؟'}...`}
-        </p>
 
-        {state.unoPending?.playerId === profile.id && (
-          <motion.button
-            whileTap={{ scale: 0.94 }}
-            onClick={handleCallUno}
-            className="bg-danger text-white font-black rounded-pill px-6 py-2.5 shadow-pop"
-          >
-            قلت أونو! 🗣️
-          </motion.button>
-        )}
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
+          <div className="flex items-center gap-6">
+            <button onClick={handleDraw} disabled={!myTurn} className="flex flex-col items-center gap-1 disabled:opacity-50">
+              <CardBack size="lg" side={side} />
+              <span className={`text-xs font-bold ${side === 'dark' ? 'text-white/70' : 'text-ink-muted'}`}>اسحب</span>
+            </button>
+            <CardFace cardId={top} side={side} size="lg" />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-bold ${side === 'dark' ? 'text-white/70' : 'text-ink-muted'}`}>اللون الحالي:</span>
+            <span className="w-5 h-5 rounded-full border-2 border-white shadow" style={{ background: meta[state.currentColor]?.bg }} />
+          </div>
+          <p className={`text-sm font-black text-center ${side === 'dark' ? 'text-white' : ''}`}>
+            {state.winnerId ? '' : myTurn ? 'دورك الحين! 🎯' : `دور ${players[state.turnOrder[state.turnIndex]]?.name || '؟'}...`}
+          </p>
+
+          {state.unoPending?.playerId === profile.id && (
+            <motion.button
+              whileTap={{ scale: 0.94 }}
+              onClick={handleCallUno}
+              className="bg-danger text-white font-black rounded-pill px-6 py-2.5 shadow-pop"
+            >
+              قلت أونو! 🗣️
+            </motion.button>
+          )}
+        </div>
       </div>
 
       <div className="px-4 pb-4">
@@ -414,29 +440,31 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
       </AnimatePresence>
 
       <AnimatePresence>
-        {pendingUnoCard && (
+        {flipBanner && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-10 bg-black/50 flex items-center justify-center px-8"
+            initial={{ opacity: 0, scale: 0.7, rotate: 8 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="fixed inset-0 z-30 flex items-center justify-center pointer-events-none"
           >
-            <motion.div
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              className="bg-surface rounded-card p-6 flex flex-col items-center gap-4 w-full max-w-xs text-center"
-            >
-              <span className="text-4xl">🗣️</span>
-              <p className="font-black text-lg">هذي آخر ورقتك بعدها!</p>
-              <p className="text-sm text-ink-muted">لازم تقول "أونو" قبل لا تنزلها</p>
-              <motion.button
-                whileTap={{ scale: 0.96 }}
-                onClick={confirmSaidUno}
-                className="w-full bg-danger text-white font-black text-lg rounded-btn py-3.5"
-              >
-                قلت أونو! 🗣️ العب
-              </motion.button>
-            </motion.div>
+            <span className="text-5xl font-black text-white drop-shadow-lg text-center" style={{ WebkitTextStroke: '2px #000' }}>
+              {flipBanner === 'dark' ? 'انقلبت! 🌑 الجانب المظلم' : 'انقلبت! ☀️ الجانب الفاتح'}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {yaHataf && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.7, rotate: -6 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="fixed inset-0 z-30 flex items-center justify-center pointer-events-none"
+          >
+            <span className="text-6xl font-black text-white drop-shadow-lg" style={{ WebkitTextStroke: '2px #000' }}>
+              يا هطف! 😂
+            </span>
           </motion.div>
         )}
       </AnimatePresence>
