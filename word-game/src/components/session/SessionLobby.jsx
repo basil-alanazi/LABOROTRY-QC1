@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, Copy } from 'lucide-react'
+import { Check, Copy, Share2 } from 'lucide-react'
 import { useState } from 'react'
 import Avatar from '../ui/Avatar'
 import Button from '../ui/Button'
@@ -15,13 +15,33 @@ const LANGUAGE_OPTIONS = [
 
 export default function SessionLobby({ code, gameModule, players, myId, isHost, config, updateConfig, startGame }) {
   const [copied, setCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
   const playerList = Object.entries(players).map(([id, p]) => ({ id, ...p }))
   const teams = config.teams || {}
+  const inviteUrl = `${window.location.origin}/session/${code}`
 
   function copyCode() {
     navigator.clipboard?.writeText(code)
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
+  }
+
+  async function shareInvite() {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: gameModule.name,
+          text: `تعال العب ${gameModule.name} وياي على جمعتنا!`,
+          url: inviteUrl,
+        })
+        return
+      } catch {
+        // المستخدم ألغى المشاركة أو ما تدعمها — نكمل بنسخ الرابط
+      }
+    }
+    navigator.clipboard?.writeText(inviteUrl)
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 1500)
   }
 
   function cycleTeam(playerId) {
@@ -53,7 +73,14 @@ export default function SessionLobby({ code, gameModule, players, myId, isHost, 
           {code}
           {copied ? <Check size={16} /> : <Copy size={16} />}
         </button>
-        <p className="text-sm text-ink-muted">شارك الرمز مع جماعتك للانضمام</p>
+        <button
+          onClick={shareInvite}
+          className="flex items-center gap-2 bg-accent text-accent-ink font-bold text-sm rounded-pill px-4 py-2"
+        >
+          {linkCopied ? <Check size={15} /> : <Share2 size={15} />}
+          {linkCopied ? 'انتسخ الرابط ✅' : 'أرسل رابط الدعوة'}
+        </button>
+        <p className="text-sm text-ink-muted">اللي يفتح الرابط يدخل الجلسة على طول، بدون ما يسجل شي</p>
       </div>
 
       <Card className="p-5">

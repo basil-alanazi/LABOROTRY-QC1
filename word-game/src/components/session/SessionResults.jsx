@@ -52,8 +52,8 @@ export default function SessionResults({ gameId, results, myId, hostId, currentU
         <Button variant="primary" size="lg" full onClick={playAgain}>
           العب مرة ثانية
         </Button>
-        <Button variant="ghost" size="lg" full onClick={() => navigate('/friends')}>
-          تحدى جماعتك
+        <Button variant="ghost" size="lg" full onClick={() => navigate('/games')}>
+          لعبة ثانية
         </Button>
         <Button variant="outline" size="lg" full onClick={() => navigate('/')}>
           العودة للرئيسية

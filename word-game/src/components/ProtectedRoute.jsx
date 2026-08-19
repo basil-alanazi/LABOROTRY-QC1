@@ -1,9 +1,9 @@
-import { Navigate } from 'react-router-dom'
-import { useAuth } from '../lib/auth'
+import { useProfile } from '../lib/profile'
+import Onboarding from '../pages/Onboarding'
 import AppShell from './layout/AppShell'
 
 export default function ProtectedRoute({ children }) {
-  const { session, loading } = useAuth()
+  const { profile, loading } = useProfile()
 
   if (loading) {
     return (
@@ -13,7 +13,7 @@ export default function ProtectedRoute({ children }) {
     )
   }
 
-  if (!session) return <Navigate to="/login" replace />
+  if (!profile) return <Onboarding />
 
   return <AppShell>{children}</AppShell>
 }

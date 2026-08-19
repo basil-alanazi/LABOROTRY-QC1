@@ -1,4 +1,4 @@
-import { useAuth } from '../lib/auth'
+import { useProfile } from '../lib/profile'
 import Avatar from '../components/ui/Avatar'
 import Card from '../components/ui/Card'
 
@@ -12,7 +12,7 @@ const ACHIEVEMENTS = [
 ]
 
 export default function Profile() {
-  const { profile } = useAuth()
+  const { profile } = useProfile()
   if (!profile) return null
 
   const unlocked = ACHIEVEMENTS.filter((a) => a.test(profile))
@@ -29,7 +29,6 @@ export default function Profile() {
         <Avatar name={profile.display_name} src={profile.avatar_url} size="xl" />
         <div>
           <h1 className="text-xl font-black">{profile.display_name}</h1>
-          <p className="text-ink-muted text-sm">@{profile.username}</p>
         </div>
         <span className="bg-primary-soft text-primary font-black text-sm rounded-pill px-4 py-1.5">
           Level {profile.level}

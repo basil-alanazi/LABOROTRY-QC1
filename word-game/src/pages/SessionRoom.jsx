@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAuth } from '../lib/auth'
+import { useProfile } from '../lib/profile'
 import { useGameSession } from '../hooks/useGameSession'
 import SessionLobby from '../components/session/SessionLobby'
 import SessionResults from '../components/session/SessionResults'
@@ -7,7 +7,7 @@ import SessionResults from '../components/session/SessionResults'
 export default function SessionRoom() {
   const { code } = useParams()
   const navigate = useNavigate()
-  const { profile } = useAuth()
+  const { profile } = useProfile()
   const session = useGameSession(code, profile)
 
   if (session.notFound) {

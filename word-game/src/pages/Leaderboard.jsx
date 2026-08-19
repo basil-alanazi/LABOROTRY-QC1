@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { useAuth } from '../lib/auth'
+import { useProfile } from '../lib/profile'
 import Avatar from '../components/ui/Avatar'
 import Card from '../components/ui/Card'
 
@@ -32,7 +32,7 @@ function rangeStart(tab) {
 }
 
 export default function Leaderboard() {
-  const { profile } = useAuth()
+  const { profile } = useProfile()
   const [tab, setTab] = useState('all')
   const [rows, setRows] = useState(null)
 

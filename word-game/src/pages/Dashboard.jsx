@@ -1,8 +1,8 @@
-import { useAuth } from '../lib/auth'
+import { useProfile } from '../lib/profile'
 import GamesGrid from '../components/GamesGrid'
 
 export default function Dashboard() {
-  const { profile } = useAuth()
+  const { profile } = useProfile()
 
   return (
     <div className="flex flex-col gap-8 pb-6">

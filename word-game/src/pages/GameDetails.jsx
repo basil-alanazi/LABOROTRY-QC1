@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { getGame } from '../games/registry'
 import { createSession } from '../lib/createSession'
-import { useAuth } from '../lib/auth'
+import { useProfile } from '../lib/profile'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -10,7 +10,7 @@ import Input from '../components/ui/Input'
 export default function GameDetails() {
   const { gameId } = useParams()
   const navigate = useNavigate()
-  const { profile } = useAuth()
+  const { profile } = useProfile()
   const game = getGame(gameId)
   const [starting, setStarting] = useState(false)
   const [joinCode, setJoinCode] = useState('')

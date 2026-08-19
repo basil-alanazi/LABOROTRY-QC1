@@ -1,13 +1,13 @@
 import { NavLink } from 'react-router-dom'
-import { Moon, Sun, LogOut, Settings } from 'lucide-react'
+import { Moon, Sun, Settings } from 'lucide-react'
 import { NAV_ITEMS } from './navItems'
 import Avatar from '../ui/Avatar'
 import BrandMark from '../BrandMark'
-import { useAuth } from '../../lib/auth'
+import { useProfile } from '../../lib/profile'
 import { useTheme } from '../../lib/theme'
 
 export default function Sidebar() {
-  const { profile, signOut } = useAuth()
+  const { profile } = useProfile()
   const { theme, toggleTheme } = useTheme()
 
   return (
@@ -53,14 +53,6 @@ export default function Sidebar() {
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           {theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}
-        </button>
-
-        <button
-          onClick={signOut}
-          className="flex items-center gap-3 px-3.5 py-2.5 rounded-btn font-bold text-sm text-danger hover:bg-danger-soft transition-colors"
-        >
-          <LogOut size={18} />
-          تسجيل الخروج
         </button>
 
         {profile && (
