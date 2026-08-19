@@ -7,6 +7,7 @@ import drawGuess from './draw-guess'
 import uno from './uno'
 import unoFlip from './uno-flip'
 import stopClock from './stop-clock'
+import lipReading from './lip-reading'
 
 // كل لعبة جديدة تضاف هنا فقط — بدون أي تعديل على بقية النظام
 export const GAME_REGISTRY = {
@@ -19,6 +20,7 @@ export const GAME_REGISTRY = {
   uno: uno,
   'uno-flip': unoFlip,
   'stop-clock': stopClock,
+  'lip-reading': lipReading,
 }
 
 export function getGame(id) {
