@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { getGame } from '../games/registry'
 import { createSession } from '../lib/createSession'
@@ -10,10 +10,15 @@ import Input from '../components/ui/Input'
 export default function GameDetails() {
   const { gameId } = useParams()
   const navigate = useNavigate()
-  const { profile } = useProfile()
+  const { profile, updateProfile } = useProfile()
   const game = getGame(gameId)
   const [starting, setStarting] = useState(false)
   const [joinCode, setJoinCode] = useState('')
+  const [name, setName] = useState(profile?.display_name || '')
+
+  useEffect(() => {
+    setName(profile?.display_name || '')
+  }, [profile?.id])
 
   if (!game) {
     return (
@@ -26,9 +31,18 @@ export default function GameDetails() {
     )
   }
 
+  async function ensureName() {
+    const trimmed = name.trim()
+    if (trimmed && trimmed !== profile.display_name) {
+      await updateProfile({ display_name: trimmed })
+    }
+  }
+
   async function handleStart() {
+    if (!name.trim()) return
     setStarting(true)
     try {
+      await ensureName()
       const session = await createSession(game.id, profile.id)
       navigate(`/session/${session.code}`)
     } finally {
@@ -36,9 +50,10 @@ export default function GameDetails() {
     }
   }
 
-  function handleJoin(e) {
+  async function handleJoin(e) {
     e.preventDefault()
-    if (!joinCode.trim()) return
+    if (!joinCode.trim() || !name.trim()) return
+    await ensureName()
     navigate(`/session/${joinCode.trim().toUpperCase()}`)
   }
 
@@ -52,7 +67,17 @@ export default function GameDetails() {
           <span className="bg-surface-2 rounded-pill px-3 py-1">{game.defaultRounds} جولات</span>
           <span className="bg-surface-2 rounded-pill px-3 py-1">{game.defaultSeconds} ثانية/جولة</span>
         </div>
-        <Button size="lg" full onClick={handleStart} disabled={starting} className="mt-2">
+      </Card>
+
+      <Card className="p-5 flex flex-col gap-3">
+        <h2 className="font-bold text-sm text-ink-muted">وش اسمك اللعبة هذي؟</h2>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="اكتب اسمك..."
+          maxLength={20}
+        />
+        <Button size="lg" full onClick={handleStart} disabled={starting || !name.trim()}>
           {starting ? 'جارٍ التجهيز...' : '+ ابدأ جلسة'}
         </Button>
       </Card>
@@ -68,7 +93,7 @@ export default function GameDetails() {
             className="text-center tracking-[0.3em] font-black"
             maxLength={4}
           />
-          <Button type="submit" variant="soft">
+          <Button type="submit" variant="soft" disabled={!name.trim()}>
             انضمام
           </Button>
         </form>

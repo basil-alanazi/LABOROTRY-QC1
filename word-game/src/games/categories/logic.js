@@ -35,9 +35,15 @@ export function pickLetter(recentLetters = []) {
 }
 
 export function scoreField(playerWords, letter) {
+  return scoreFieldWithOverrides(playerWords, letter, {})
+}
+
+export function scoreFieldWithOverrides(playerWords, letter, overrides = {}) {
   const normalized = {}
   for (const [pid, word] of Object.entries(playerWords)) {
-    normalized[pid] = startsWithLetter(word, letter) ? normalizeWord(word).toLowerCase() : null
+    const baseValid = startsWithLetter(word, letter)
+    const valid = overrides[pid] !== undefined ? overrides[pid] : baseValid
+    normalized[pid] = valid ? normalizeWord(word).toLowerCase() : null
   }
   const counts = {}
   for (const v of Object.values(normalized)) {

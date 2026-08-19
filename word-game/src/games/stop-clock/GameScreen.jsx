@@ -7,6 +7,7 @@ import { createInitialState, processStop, processBust, computeFinalScores } from
 const WIN_PAUSE_MS = 5000
 const BUST_GRACE_MS = 120
 const FLASH_MS = 1500
+const START_FLASH_MS = 2000
 
 function formatTarget(seconds) {
   return Math.max(0, seconds).toFixed(2)
@@ -83,9 +84,10 @@ export default function StopClockGameScreen({ profile, players, isHost, onExit, 
   }, [channel])
 
   useEffect(() => {
-    if (!state?.lastEvent || state.lastEvent.type === 'start') return
+    if (!state?.lastEvent) return
+    const isStart = state.lastEvent.type === 'start'
     setFlash({ type: state.lastEvent.type, playerId: state.lastEvent.playerId })
-    const t = setTimeout(() => setFlash(null), FLASH_MS)
+    const t = setTimeout(() => setFlash(null), isStart ? START_FLASH_MS : FLASH_MS)
     return () => clearTimeout(t)
   }, [state?.lastEvent])
 
@@ -170,10 +172,10 @@ export default function StopClockGameScreen({ profile, players, isHost, onExit, 
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.8, opacity: 0 }}
                 className={`w-40 h-40 rounded-full flex items-center justify-center text-6xl ${
-                  flash.type === 'success' ? 'bg-success-soft' : 'bg-danger-soft'
+                  flash.type === 'success' ? 'bg-success-soft' : flash.type === 'start' ? 'bg-primary-soft' : 'bg-danger-soft'
                 }`}
               >
-                {flash.type === 'success' ? '✅' : '❌'}
+                {flash.type === 'success' ? '✅' : flash.type === 'start' ? '🚦' : '❌'}
               </motion.div>
             ) : (
               <motion.div
@@ -192,7 +194,9 @@ export default function StopClockGameScreen({ profile, players, isHost, onExit, 
           {flash
             ? flash.type === 'success'
               ? `${players[flash.playerId]?.name || '؟'} أوقفها قبل الهدف! ✅`
-              : `${players[flash.playerId]?.name || '؟'} عدّى الهدف! ❌`
+              : flash.type === 'start'
+                ? 'يلا! العد بدأ الحين 🚦'
+                : `${players[flash.playerId]?.name || '؟'} عدّى الهدف! ❌`
             : myTurn
               ? 'دورك الحين! 🎯'
               : `دور ${players[state.activePlayers[state.turnIndex]]?.name || '؟'}...`}
