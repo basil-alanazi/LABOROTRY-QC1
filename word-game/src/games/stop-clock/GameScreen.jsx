@@ -2,19 +2,19 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import Avatar from '../../components/ui/Avatar'
-import { createInitialState, processStop, processBust, computeFinalScores, elapsedNow } from './logic'
+import { createInitialState, processStop, processBust, computeFinalScores } from './logic'
 
 const WIN_PAUSE_MS = 5000
 const BUST_GRACE_MS = 120
+const FLASH_MS = 1500
 
-function formatTime(seconds) {
-  const clamped = Math.max(0, seconds)
-  return clamped.toFixed(2).padStart(5, '0')
+function formatTarget(seconds) {
+  return Math.max(0, seconds).toFixed(2)
 }
 
 export default function StopClockGameScreen({ profile, players, isHost, onExit, finishGame, channel }) {
   const [state, setState] = useState(null)
-  const [display, setDisplay] = useState(0)
+  const [flash, setFlash] = useState(null) // { type: 'success' | 'bust', playerId }
   const [ended, setEnded] = useState(false)
 
   const channelRef = useRef(null)
@@ -23,7 +23,6 @@ export default function StopClockGameScreen({ profile, players, isHost, onExit, 
   const bustTimerRef = useRef(null)
   const resolvedTokenRef = useRef(null)
   const finishedRef = useRef(false)
-  const rafRef = useRef(null)
 
   useEffect(() => {
     playersRef.current = players
@@ -84,19 +83,11 @@ export default function StopClockGameScreen({ profile, players, isHost, onExit, 
   }, [channel])
 
   useEffect(() => {
-    if (!state || state.winnerId) {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      return
-    }
-    function tick() {
-      setDisplay(Math.min(elapsedNow(state), state.target))
-      rafRef.current = requestAnimationFrame(tick)
-    }
-    rafRef.current = requestAnimationFrame(tick)
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    }
-  }, [state])
+    if (!state?.lastEvent || state.lastEvent.type === 'start') return
+    setFlash({ type: state.lastEvent.type, playerId: state.lastEvent.playerId })
+    const t = setTimeout(() => setFlash(null), FLASH_MS)
+    return () => clearTimeout(t)
+  }, [state?.lastEvent])
 
   useEffect(() => {
     if (!state?.winnerId || finishedRef.current) return
@@ -125,8 +116,6 @@ export default function StopClockGameScreen({ profile, players, isHost, onExit, 
 
   const myTurn = state.activePlayers[state.turnIndex] === profile.id
   const eliminatedSet = new Set(state.eliminatedOrder)
-  const closeness = state.target > 0 ? Math.min(1, display / state.target) : 0
-  const urgent = closeness > 0.85
 
   return (
     <div className="fixed inset-0 z-50 bg-canvas flex flex-col">
@@ -167,29 +156,46 @@ export default function StopClockGameScreen({ profile, players, isHost, onExit, 
         })}
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6">
+      <div className="flex-1 flex flex-col items-center justify-center gap-7 px-6">
         <p className="text-sm font-black text-ink-muted">
-          🎯 الهدف: <span className="text-primary">{formatTime(state.target)}</span> ثانية
+          🎯 الهدف: <span className="text-primary">{formatTarget(state.target)}</span> ثانية
         </p>
 
-        <motion.div
-          animate={urgent ? { scale: [1, 1.03, 1] } : {}}
-          transition={{ repeat: urgent ? Infinity : 0, duration: 0.5 }}
-          className={`text-6xl sm:text-7xl font-black tabular-nums ${urgent ? 'text-danger' : 'text-ink'}`}
-        >
-          {formatTime(display)}
-        </motion.div>
-
-        <div className="w-full max-w-xs h-2.5 rounded-full bg-surface-2 overflow-hidden">
-          <motion.div
-            className={`h-full rounded-full ${urgent ? 'bg-danger' : 'bg-primary'}`}
-            animate={{ width: `${closeness * 100}%` }}
-            transition={{ ease: 'linear', duration: 0.1 }}
-          />
+        <div className="relative w-40 h-40 flex items-center justify-center">
+          <AnimatePresence mode="wait">
+            {flash ? (
+              <motion.div
+                key="flash"
+                initial={{ scale: 0.6, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                className={`w-40 h-40 rounded-full flex items-center justify-center text-6xl ${
+                  flash.type === 'success' ? 'bg-success-soft' : 'bg-danger-soft'
+                }`}
+              >
+                {flash.type === 'success' ? '✅' : '❌'}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="pulse"
+                animate={{ scale: [1, 1.08, 1], opacity: [0.7, 1, 0.7] }}
+                transition={{ repeat: Infinity, duration: 1.1, ease: 'easeInOut' }}
+                className="w-40 h-40 rounded-full bg-primary-soft flex items-center justify-center text-6xl"
+              >
+                ⏱️
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <p className="text-sm font-black text-center">
-          {myTurn ? 'دورك الحين! 🎯' : `دور ${players[state.activePlayers[state.turnIndex]]?.name || '؟'}...`}
+          {flash
+            ? flash.type === 'success'
+              ? `${players[flash.playerId]?.name || '؟'} أوقفها قبل الهدف! ✅`
+              : `${players[flash.playerId]?.name || '؟'} عدّى الهدف! ❌`
+            : myTurn
+              ? 'دورك الحين! 🎯'
+              : `دور ${players[state.activePlayers[state.turnIndex]]?.name || '؟'}...`}
         </p>
 
         <motion.button
@@ -200,31 +206,6 @@ export default function StopClockGameScreen({ profile, players, isHost, onExit, 
         >
           إيقاف 🛑
         </motion.button>
-
-        <AnimatePresence mode="wait">
-          {state.lastEvent?.type === 'success' && (
-            <motion.p
-              key={state.roundId + '-' + state.turnIndex}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-xs font-bold text-success"
-            >
-              ✅ {players[state.lastEvent.playerId]?.name} أوقفها عند {formatTime(state.lastEvent.stoppedAt)}
-            </motion.p>
-          )}
-          {state.lastEvent?.type === 'bust' && (
-            <motion.p
-              key={'bust-' + state.roundId}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-xs font-bold text-danger"
-            >
-              ❌ {players[state.lastEvent.playerId]?.name} خرج عند {formatTime(state.lastEvent.stoppedAt)}
-            </motion.p>
-          )}
-        </AnimatePresence>
       </div>
 
       <AnimatePresence>
