@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, RotateCcw, ArrowRight, Ban } from 'lucide-react'
 import Avatar from '../../components/ui/Avatar'
-import { speakUno, playLaughChime, playStrongLaughChime } from '../../lib/sound'
+import { speakUno, speakYaHataf, playLaughChime, playStrongLaughChime } from '../../lib/sound'
 import {
   COLORS,
   COLOR_META,
@@ -190,7 +190,8 @@ export default function UnoGameScreen({ code, profile, players, isHost, onExit, 
       } else if (kind === 'wild4') {
         playStrongLaughChime()
         setYaHataf(true)
-        setTimeout(() => setYaHataf(false), 1600)
+        setTimeout(() => speakYaHataf(), 550)
+        setTimeout(() => setYaHataf(false), 2200)
       }
     }
   }, [state?.lastAction])

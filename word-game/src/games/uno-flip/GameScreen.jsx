@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X, RotateCcw, ArrowRight, Ban } from 'lucide-react'
 import Avatar from '../../components/ui/Avatar'
-import { speakUno, playLaughChime, playStrongLaughChime, playFlipChime } from '../../lib/sound'
+import { speakUno, speakYaHataf, playLaughChime, playStrongLaughChime, playFlipChime } from '../../lib/sound'
 import {
   isWild,
   colorOf,
@@ -221,7 +221,8 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
       } else if (kind === 'wilddraw') {
         playStrongLaughChime()
         setYaHataf(true)
-        setTimeout(() => setYaHataf(false), 1600)
+        setTimeout(() => speakYaHataf(), 550)
+        setTimeout(() => setYaHataf(false), 2200)
       }
     }
   }, [state?.lastAction])

@@ -52,17 +52,28 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
   }
 }
 
-export function speakUno() {
+function speak(text, { rate = 1.05, pitch = 1.15 } = {}) {
   if (typeof window === 'undefined' || !window.speechSynthesis) return
   if (!voicesReady) arabicVoice = pickArabicVoice()
-  window.speechSynthesis.cancel()
-  const u = new SpeechSynthesisUtterance('أونو!')
+  const u = new SpeechSynthesisUtterance(text)
   u.lang = arabicVoice?.lang || 'ar-SA'
   if (arabicVoice) u.voice = arabicVoice
-  u.rate = 1.05
-  u.pitch = 1.15
+  u.rate = rate
+  u.pitch = pitch
   u.volume = 1
   window.speechSynthesis.speak(u)
+}
+
+export function speakUno() {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return
+  window.speechSynthesis.cancel()
+  speak('أونو!')
+}
+
+export function speakYaHataf() {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return
+  window.speechSynthesis.cancel()
+  speak('يا هطف!', { rate: 0.95, pitch: 0.85 })
 }
 
 export function playFlipChime() {
