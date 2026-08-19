@@ -6,7 +6,6 @@ import { FIELDS, pickLetter, startsWithLetter, scoreFieldWithOverrides } from '.
 const GRACE_MS = 2500
 const FINAL_TIMEOUT_MS = 8000
 const REVIEW_TIMEOUT_MS = 30000
-const RESULT_PAUSE_MS = 5500
 const RECENT_MEMORY = 6
 
 const EMPTY_FIELDS = { jamad: '', nabat: '', hayawan: '', dawla: '', ismWalad: '', ismBint: '' }
@@ -190,15 +189,6 @@ export default function GameScreen({ code, profile, players, isHost, config, onE
         setLastResult(payload)
         setScores(payload.scores)
         setPhase('result')
-        if (isHost) {
-          setTimeout(() => {
-            if (payload.roundIndex >= config.rounds) {
-              finishGame(payload.scores)
-            } else {
-              startRound(payload.roundIndex + 1)
-            }
-          }, RESULT_PAUSE_MS)
-        }
       })
 
     if (isHost) {
@@ -239,6 +229,15 @@ export default function GameScreen({ code, profile, players, isHost, config, onE
       event: 'atobis-toggle-valid',
       payload: { roundId: roundData.roundId, field, playerId, valid: !currentValid },
     })
+  }
+
+  function advanceRound() {
+    if (!isHost || !lastResult) return
+    if (lastResult.roundIndex >= config.rounds) {
+      finishGame(lastResult.scores)
+    } else {
+      startRound(lastResult.roundIndex + 1)
+    }
   }
 
   const filledCount = FIELDS.filter((f) => fields[f.key].trim()).length
@@ -440,6 +439,18 @@ export default function GameScreen({ code, profile, players, isHost, config, onE
                   </tbody>
                 </table>
               </div>
+
+              {isHost ? (
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={advanceRound}
+                  className="w-full bg-primary text-primary-ink font-black text-lg rounded-btn py-3.5"
+                >
+                  {lastResult.roundIndex >= config.rounds ? '🏁 اعرض النتيجة النهائية' : '▶️ الجولة الجاية'}
+                </motion.button>
+              ) : (
+                <p className="text-xs text-ink-muted text-center">بانتظار المضيف ينقلنا للجولة الجاية...</p>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

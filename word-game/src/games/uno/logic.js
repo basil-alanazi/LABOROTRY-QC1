@@ -134,7 +134,7 @@ export function dealInitialState(playerIds) {
   return state
 }
 
-export function playCard(state, playerId, cardId, chosenColor) {
+export function playCard(state, playerId, cardId, chosenColor, saidUno = false) {
   if (state.winnerId) return state
   if (state.turnOrder[state.turnIndex] !== playerId) return state
   const hand = state.hands[playerId]
@@ -190,7 +190,7 @@ export function playCard(state, playerId, cardId, chosenColor) {
   for (let i = 0; i < steps; i++) {
     next.turnIndex = nextIndex(next.turnIndex, next.turnOrder.length, next.direction)
   }
-  next.unoPending = next.hands[playerId].length === 1 ? { playerId } : state.unoPending
+  next.unoPending = next.hands[playerId].length === 1 && !saidUno ? { playerId } : state.unoPending
   next.turnId = crypto.randomUUID()
   next.lastAction = { type: 'play', by: playerId, card: cardId, color: next.currentColor }
   return next

@@ -9,6 +9,7 @@ import unoFlip from './uno-flip'
 import stopClock from './stop-clock'
 import lipReading from './lip-reading'
 import screw from './screw'
+import sallfa from './sallfa'
 
 // كل لعبة جديدة تضاف هنا فقط — بدون أي تعديل على بقية النظام
 export const GAME_REGISTRY = {
@@ -23,6 +24,7 @@ export const GAME_REGISTRY = {
   'stop-clock': stopClock,
   'lip-reading': lipReading,
   screw: screw,
+  sallfa: sallfa,
 }
 
 export function getGame(id) {

@@ -100,6 +100,7 @@ function CardBack({ size = 'sm', side }) {
 export default function UnoFlipGameScreen({ code, profile, players, isHost, onExit, finishGame, channel }) {
   const [state, setState] = useState(null)
   const [pendingWild, setPendingWild] = useState(null)
+  const [pendingUnoCard, setPendingUnoCard] = useState(null)
   const [ended, setEnded] = useState(false)
 
   const channelRef = useRef(null)
@@ -152,7 +153,7 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
         if (!s) return
         let next = s
         if (payload.type === 'play') {
-          next = playCard(s, payload.playerId, payload.cardId, payload.chosenColor)
+          next = playCard(s, payload.playerId, payload.cardId, payload.chosenColor, payload.saidUno)
         } else if (payload.type === 'draw') {
           next = drawCardForPlayer(s, payload.playerId)
         } else if (payload.type === 'call-uno') {
@@ -197,13 +198,34 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
       setPendingWild(cardId)
       return
     }
+    if ((state.hands[profile.id] || []).length === 2) {
+      setPendingUnoCard({ cardId })
+      return
+    }
     sendAction({ type: 'play', playerId: profile.id, cardId })
   }
 
   function chooseColor(c) {
     if (!pendingWild) return
+    if ((state.hands[profile.id] || []).length === 2) {
+      setPendingUnoCard({ cardId: pendingWild, chosenColor: c })
+      setPendingWild(null)
+      return
+    }
     sendAction({ type: 'play', playerId: profile.id, cardId: pendingWild, chosenColor: c })
     setPendingWild(null)
+  }
+
+  function confirmSaidUno() {
+    if (!pendingUnoCard) return
+    sendAction({
+      type: 'play',
+      playerId: profile.id,
+      cardId: pendingUnoCard.cardId,
+      chosenColor: pendingUnoCard.chosenColor,
+      saidUno: true,
+    })
+    setPendingUnoCard(null)
   }
 
   function handleDraw() {
@@ -386,6 +408,34 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
                   </button>
                 ))}
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {pendingUnoCard && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-10 bg-black/50 flex items-center justify-center px-8"
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              className="bg-surface rounded-card p-6 flex flex-col items-center gap-4 w-full max-w-xs text-center"
+            >
+              <span className="text-4xl">🗣️</span>
+              <p className="font-black text-lg">هذي آخر ورقتك بعدها!</p>
+              <p className="text-sm text-ink-muted">لازم تقول "أونو" قبل لا تنزلها</p>
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={confirmSaidUno}
+                className="w-full bg-danger text-white font-black text-lg rounded-btn py-3.5"
+              >
+                قلت أونو! 🗣️ العب
+              </motion.button>
             </motion.div>
           </motion.div>
         )}
