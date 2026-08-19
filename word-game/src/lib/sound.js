@@ -34,6 +34,37 @@ export function playUnoChime() {
   tone(audioCtx, 784.0, now + 0.2, 0.28) // G5
 }
 
+let arabicVoice = null
+let voicesReady = false
+
+function pickArabicVoice() {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return null
+  const voices = window.speechSynthesis.getVoices()
+  if (!voices.length) return null
+  voicesReady = true
+  return voices.find((v) => v.lang?.toLowerCase().startsWith('ar')) || null
+}
+
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  arabicVoice = pickArabicVoice()
+  window.speechSynthesis.onvoiceschanged = () => {
+    arabicVoice = pickArabicVoice()
+  }
+}
+
+export function speakUno() {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return
+  if (!voicesReady) arabicVoice = pickArabicVoice()
+  window.speechSynthesis.cancel()
+  const u = new SpeechSynthesisUtterance('أونو!')
+  u.lang = arabicVoice?.lang || 'ar-SA'
+  if (arabicVoice) u.voice = arabicVoice
+  u.rate = 1.05
+  u.pitch = 1.15
+  u.volume = 1
+  window.speechSynthesis.speak(u)
+}
+
 export function playFlipChime() {
   const audioCtx = getCtx()
   if (!audioCtx) return

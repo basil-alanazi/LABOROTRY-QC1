@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { X, RotateCcw, ArrowRight } from 'lucide-react'
+import { X, RotateCcw, ArrowRight, Ban } from 'lucide-react'
 import Avatar from '../../components/ui/Avatar'
-import { playUnoChime, playLaughChime, playStrongLaughChime, playFlipChime } from '../../lib/sound'
+import { speakUno, playLaughChime, playStrongLaughChime, playFlipChime } from '../../lib/sound'
 import {
   isWild,
   colorOf,
@@ -19,6 +19,8 @@ import {
 
 const TURN_TIMEOUT_MS = 45000
 const WIN_PAUSE_MS = 5000
+
+const OCTAGON_CLIP = 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)'
 
 const CARD_DIMS = { lg: 'w-20 h-28', md: 'w-14 h-20', sm: 'w-11 h-16' }
 const CARD_PAD = { lg: '3.5px', md: '3px', sm: '2.5px' }
@@ -209,7 +211,7 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
     if (!a || a === lastActionSeenRef.current) return
     lastActionSeenRef.current = a
     if (a.type === 'call-uno') {
-      playUnoChime()
+      speakUno()
     } else if (a.type === 'uno-penalty') {
       playLaughChime()
     } else if (a.type === 'play') {
@@ -309,83 +311,106 @@ export default function UnoFlipGameScreen({ code, profile, players, isHost, onEx
         <div className="w-9" />
       </div>
 
-      <div
-        className={`flex-1 flex flex-col mx-3 mt-2 rounded-[2.5rem] border-4 overflow-hidden transition-colors duration-500 ${
-          side === 'dark' ? 'bg-gradient-to-b from-white/10 to-white/5 border-white/15' : 'bg-gradient-to-b from-success-soft to-success-soft/40 border-success/25'
-        }`}
-      >
-        <div className="flex items-start justify-center gap-3 px-4 pt-4 flex-wrap">
-          {others.map((id, idx) => {
-            const p = players[id]
-            const count = state.hands[id]?.length || 0
-            const isTurn = state.turnOrder[state.turnIndex] === id
-            const catchable = state.unoPending?.playerId === id
-            const n = others.length
-            const t = n > 1 ? idx / (n - 1) : 0.5
-            const lift = Math.sin(t * Math.PI) * 16
-            return (
-              <div
-                key={id}
-                style={{ transform: `translateY(${-lift}px)` }}
-                className={`flex flex-col items-center gap-1 rounded-card px-2.5 py-2 border-2 transition-colors backdrop-blur-sm ${
-                  catchable
-                    ? 'border-danger bg-danger-soft'
-                    : isTurn
-                      ? 'border-primary bg-primary-soft'
-                      : side === 'dark'
-                        ? 'border-white/10 bg-white/10'
-                        : 'border-line bg-surface/90'
-                }`}
-              >
-                <Avatar name={p?.name} src={p?.avatarUrl} size="sm" />
-                <span className={`text-[0.65rem] font-bold truncate max-w-[4.5rem] ${side === 'dark' ? 'text-white' : ''}`}>
-                  {p?.name}
-                </span>
-                <div className="flex items-center gap-1">
-                  <CardBack size="sm" side={side} />
-                  <span className={`text-xs font-black ${side === 'dark' ? 'text-white' : ''}`}>{count}</span>
+      <div className="flex-1 relative mx-3 mt-2 mb-1">
+        <div
+          className="absolute inset-0 transition-[background] duration-500"
+          style={{
+            clipPath: OCTAGON_CLIP,
+            background:
+              side === 'dark'
+                ? 'linear-gradient(155deg, #26263a 0%, #14141f 55%, #050508 100%)'
+                : 'linear-gradient(155deg, #3a2a1c 0%, #1c130c 55%, #090604 100%)',
+            boxShadow: 'inset 0 0 0 2px rgba(255,255,255,0.06)',
+          }}
+        />
+        <div
+          className="absolute flex flex-col overflow-hidden transition-[background] duration-500"
+          style={{
+            inset: '16px',
+            clipPath: OCTAGON_CLIP,
+            background:
+              side === 'dark'
+                ? 'radial-gradient(120% 90% at 50% 12%, #4c1d95 0%, #2e1065 45%, #150633 100%)'
+                : 'radial-gradient(120% 90% at 50% 12%, #dc2626 0%, #b91c1c 45%, #7f1d1d 100%)',
+          }}
+        >
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.16]">
+            <span className="text-white font-black italic" style={{ fontSize: '3.4rem', letterSpacing: '-2px' }}>
+              UNO
+            </span>
+          </div>
+          <div className="absolute top-3 left-4 opacity-25 pointer-events-none">
+            <Ban size={26} className="text-white" />
+          </div>
+          <div className="absolute top-3 right-4 opacity-25 pointer-events-none">
+            <ArrowRight size={24} className="text-white rotate-180" />
+          </div>
+
+          <div className="relative flex items-start justify-center gap-3 px-4 pt-5 flex-wrap">
+            {others.map((id, idx) => {
+              const p = players[id]
+              const count = state.hands[id]?.length || 0
+              const isTurn = state.turnOrder[state.turnIndex] === id
+              const catchable = state.unoPending?.playerId === id
+              const n = others.length
+              const t = n > 1 ? idx / (n - 1) : 0.5
+              const lift = Math.sin(t * Math.PI) * 16
+              return (
+                <div
+                  key={id}
+                  style={{ transform: `translateY(${-lift}px)` }}
+                  className={`flex flex-col items-center gap-1 rounded-card px-2.5 py-2 border-2 transition-colors bg-surface/90 backdrop-blur-sm ${
+                    catchable ? 'border-danger bg-danger-soft' : isTurn ? 'border-primary bg-primary-soft' : 'border-line'
+                  }`}
+                >
+                  <Avatar name={p?.name} src={p?.avatarUrl} size="sm" />
+                  <span className="text-[0.65rem] font-bold truncate max-w-[4.5rem]">{p?.name}</span>
+                  <div className="flex items-center gap-1">
+                    <CardBack size="sm" side={side} />
+                    <span className="text-xs font-black">{count}</span>
+                  </div>
+                  {catchable ? (
+                    <motion.button
+                      whileTap={{ scale: 0.92 }}
+                      onClick={() => handleCatchUno(id)}
+                      className="text-[0.6rem] font-black text-white bg-danger rounded-pill px-2 py-0.5 mt-0.5"
+                    >
+                      امسك! ⚠️
+                    </motion.button>
+                  ) : (
+                    count === 1 && <span className="text-[0.6rem] font-black text-danger">UNO!</span>
+                  )}
                 </div>
-                {catchable ? (
-                  <motion.button
-                    whileTap={{ scale: 0.92 }}
-                    onClick={() => handleCatchUno(id)}
-                    className="text-[0.6rem] font-black text-white bg-danger rounded-pill px-2 py-0.5 mt-0.5"
-                  >
-                    امسك! ⚠️
-                  </motion.button>
-                ) : (
-                  count === 1 && <span className="text-[0.6rem] font-black text-danger">UNO!</span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        <div className="flex-1 flex flex-col items-center justify-center gap-4">
-          <div className="flex items-center gap-6">
-            <button onClick={handleDraw} disabled={!myTurn} className="flex flex-col items-center gap-1 disabled:opacity-50">
-              <CardBack size="lg" side={side} />
-              <span className={`text-xs font-bold ${side === 'dark' ? 'text-white/70' : 'text-ink-muted'}`}>اسحب</span>
-            </button>
-            <CardFace cardId={top} side={side} size="lg" />
+              )
+            })}
           </div>
-          <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold ${side === 'dark' ? 'text-white/70' : 'text-ink-muted'}`}>اللون الحالي:</span>
-            <span className="w-5 h-5 rounded-full border-2 border-white shadow" style={{ background: meta[state.currentColor]?.bg }} />
-          </div>
-          <p className={`text-sm font-black text-center ${side === 'dark' ? 'text-white' : ''}`}>
-            {state.winnerId ? '' : myTurn ? 'دورك الحين! 🎯' : `دور ${players[state.turnOrder[state.turnIndex]]?.name || '؟'}...`}
-          </p>
 
-          {state.unoPending?.playerId === profile.id && (
-            <motion.button
-              whileTap={{ scale: 0.94 }}
-              onClick={handleCallUno}
-              className="bg-danger text-white font-black rounded-pill px-6 py-2.5 shadow-pop"
-            >
-              قلت أونو! 🗣️
-            </motion.button>
-          )}
+          <div className="relative flex-1 flex flex-col items-center justify-center gap-4">
+            <div className="flex items-center gap-6">
+              <button onClick={handleDraw} disabled={!myTurn} className="flex flex-col items-center gap-1 disabled:opacity-50">
+                <CardBack size="lg" side={side} />
+                <span className="text-xs font-bold text-white/80">اسحب</span>
+              </button>
+              <CardFace cardId={top} side={side} size="lg" />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-white/80">اللون الحالي:</span>
+              <span className="w-5 h-5 rounded-full border-2 border-white shadow" style={{ background: meta[state.currentColor]?.bg }} />
+            </div>
+            <p className="text-sm font-black text-center text-white">
+              {state.winnerId ? '' : myTurn ? 'دورك الحين! 🎯' : `دور ${players[state.turnOrder[state.turnIndex]]?.name || '؟'}...`}
+            </p>
+
+            {state.unoPending?.playerId === profile.id && (
+              <motion.button
+                whileTap={{ scale: 0.94 }}
+                onClick={handleCallUno}
+                className="bg-white text-danger font-black rounded-pill px-6 py-2.5 shadow-pop"
+              >
+                قلت أونو! 🗣️
+              </motion.button>
+            )}
+          </div>
         </div>
       </div>
 
