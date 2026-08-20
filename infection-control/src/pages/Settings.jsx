@@ -3,10 +3,11 @@ import { Plus, Trash2, Save, UserPlus, KeyRound, ListPlus } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
 import { sha256Hex } from "../lib/hash";
+import { PATIENT_FIELDS, DEFAULT_PATIENT_FIELDS } from "../lib/patientFields";
 
 const DEFAULT_PASSWORD = "123456";
 const emptyNewUser = { username: "", display_name: "", role: "staff", department: "" };
-const emptyNewChecklist = { name: "", departments: [], items: "", baseline: "" };
+const emptyNewChecklist = { name: "", departments: [], items: "", baseline: "", fields: [...DEFAULT_PATIENT_FIELDS] };
 
 function slugCode(name) {
   const base = name
@@ -81,6 +82,7 @@ export default function Settings() {
         name_ar: checklist.name_ar,
         items: checklist.items,
         departments: checklist.departments,
+        fields: checklist.fields ?? DEFAULT_PATIENT_FIELDS,
         baseline: checklist.baseline,
         active: checklist.active,
       })
@@ -94,10 +96,24 @@ export default function Settings() {
     updateChecklist(checklist.id, { departments: next });
   }
 
+  function toggleChecklistField(checklist, key) {
+    const current = checklist.fields ?? DEFAULT_PATIENT_FIELDS;
+    const has = current.includes(key);
+    const next = has ? current.filter((k) => k !== key) : [...current, key];
+    updateChecklist(checklist.id, { fields: next });
+  }
+
   function toggleNewChecklistDept(dept) {
     setNewChecklist((nc) => ({
       ...nc,
       departments: nc.departments.includes(dept) ? nc.departments.filter((d) => d !== dept) : [...nc.departments, dept],
+    }));
+  }
+
+  function toggleNewChecklistField(key) {
+    setNewChecklist((nc) => ({
+      ...nc,
+      fields: nc.fields.includes(key) ? nc.fields.filter((k) => k !== key) : [...nc.fields, key],
     }));
   }
 
@@ -122,6 +138,7 @@ export default function Settings() {
       name_en: name,
       items,
       departments: newChecklist.departments,
+      fields: newChecklist.fields,
       baseline: newChecklist.baseline,
       active: true,
       sort_order: maxSort + 1,
@@ -262,6 +279,28 @@ export default function Settings() {
               ))}
             </div>
 
+            <label className="mb-1 block text-xs font-medium text-slate-500">Patient fields shown on the entry form</label>
+            <div className="mb-3 flex flex-wrap gap-2">
+              {PATIENT_FIELDS.map((f) => (
+                <label
+                  key={f.key}
+                  className={`cursor-pointer rounded-full border px-3 py-1 text-xs ${
+                    (c.fields ?? DEFAULT_PATIENT_FIELDS).includes(f.key)
+                      ? "border-teal-500 bg-teal-50 text-teal-700"
+                      : "border-slate-200 text-slate-500"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="hidden"
+                    checked={(c.fields ?? DEFAULT_PATIENT_FIELDS).includes(f.key)}
+                    onChange={() => toggleChecklistField(c, f.key)}
+                  />
+                  {f.label}
+                </label>
+              ))}
+            </div>
+
             <label className="mb-1 block text-xs font-medium text-slate-500">Bundle items (one per line)</label>
             <textarea
               className="input min-h-[140px] font-mono text-xs"
@@ -309,6 +348,21 @@ export default function Settings() {
               >
                 <input type="checkbox" className="hidden" checked={newChecklist.departments.includes(d)} onChange={() => toggleNewChecklistDept(d)} />
                 {d}
+              </label>
+            ))}
+          </div>
+
+          <label className="mb-1 block text-xs font-medium text-slate-500">Patient fields shown on the entry form</label>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {PATIENT_FIELDS.map((f) => (
+              <label
+                key={f.key}
+                className={`cursor-pointer rounded-full border px-3 py-1 text-xs ${
+                  newChecklist.fields.includes(f.key) ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 text-slate-500"
+                }`}
+              >
+                <input type="checkbox" className="hidden" checked={newChecklist.fields.includes(f.key)} onChange={() => toggleNewChecklistField(f.key)} />
+                {f.label}
               </label>
             ))}
           </div>
