@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState } from "react";
-import { CheckCircle2, XCircle, MinusCircle } from "lucide-react";
+import { CheckCircle2, XCircle, MinusCircle, Paperclip, X } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import {
   HH_MOMENTS,
   OBSERVER_ROLES,
+  HH_ATTACHMENTS_BUCKET,
   computeHHCompliance,
   visitDurationMinutes,
   EXPECTED_VISIT_MIN_MINUTES,
@@ -31,9 +32,11 @@ export default function HandHygieneEntry() {
   const [missed, setMissed] = useState(false);
   const [handWash, setHandWash] = useState(false);
   const [handRub, setHandRub] = useState(false);
+  const [attachment, setAttachment] = useState(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const observerRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const departments = config?.hh_departments ?? [];
   const compliance = useMemo(() => computeHHCompliance(fields, missed ? 1 : null), [fields, missed]);
@@ -50,6 +53,8 @@ export default function HandHygieneEntry() {
     setMissed(false);
     setHandWash(false);
     setHandRub(false);
+    setAttachment(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     observerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     observerRef.current?.focus();
   }
@@ -69,6 +74,21 @@ export default function HandHygieneEntry() {
     setSaving(true);
     setMessage(null);
 
+    let attachment_path = null;
+    let attachment_name = null;
+    if (attachment) {
+      const safeName = attachment.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${department}/${date}-${Date.now()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage.from(HH_ATTACHMENTS_BUCKET).upload(path, attachment);
+      if (uploadError) {
+        setSaving(false);
+        setMessage({ type: "error", text: "Could not upload attachment: " + uploadError.message });
+        return;
+      }
+      attachment_path = path;
+      attachment_name = attachment.name;
+    }
+
     const { error } = await supabase.from("hh_observations").insert({
       date,
       department,
@@ -82,6 +102,8 @@ export default function HandHygieneEntry() {
       total_opportunities: compliance.totalOpportunities,
       compliant: compliance.compliant,
       compliance_pct: compliance.compliancePct,
+      attachment_path,
+      attachment_name,
       done_by: session?.username,
     });
 
@@ -191,6 +213,38 @@ export default function HandHygieneEntry() {
           <input type="checkbox" checked={handRub} onChange={(e) => setHandRub(e.target.checked)} />
           Hand rub used
         </label>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-xs font-medium text-slate-500">Attachment (photo or file, optional)</label>
+        <div className="flex items-center gap-3">
+          <label className="flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+            <Paperclip className="h-4 w-4" />
+            {attachment ? "Change file" : "Choose file"}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf,.doc,.docx"
+              className="hidden"
+              onChange={(e) => setAttachment(e.target.files?.[0] ?? null)}
+            />
+          </label>
+          {attachment && (
+            <span className="flex items-center gap-1 text-xs text-slate-600">
+              {attachment.name}
+              <button
+                type="button"
+                onClick={() => {
+                  setAttachment(null);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+                className="text-slate-400 hover:text-red-500"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3 rounded-xl bg-slate-50 p-4 text-center">
