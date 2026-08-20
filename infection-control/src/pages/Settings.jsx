@@ -1,17 +1,28 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Save, UserPlus, KeyRound } from "lucide-react";
+import { Plus, Trash2, Save, UserPlus, KeyRound, ListPlus } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
 import { sha256Hex } from "../lib/hash";
 
 const DEFAULT_PASSWORD = "123456";
 const emptyNewUser = { username: "", display_name: "", role: "staff", department: "" };
+const emptyNewChecklist = { name: "", departments: [], items: "", baseline: "" };
+
+function slugCode(name) {
+  const base = name
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return base || `CHECKLIST_${Date.now()}`;
+}
 
 export default function Settings() {
   const { config, reloadConfig, isOwner, session } = useAuth();
   const [departments, setDepartments] = useState([]);
   const [newDept, setNewDept] = useState("");
   const [checklistTypes, setChecklistTypes] = useState([]);
+  const [newChecklist, setNewChecklist] = useState(emptyNewChecklist);
   const [users, setUsers] = useState([]);
   const [newUser, setNewUser] = useState(emptyNewUser);
   const [message, setMessage] = useState(null);
@@ -81,6 +92,47 @@ export default function Settings() {
     const has = checklist.departments?.includes(dept);
     const next = has ? checklist.departments.filter((d) => d !== dept) : [...(checklist.departments ?? []), dept];
     updateChecklist(checklist.id, { departments: next });
+  }
+
+  function toggleNewChecklistDept(dept) {
+    setNewChecklist((nc) => ({
+      ...nc,
+      departments: nc.departments.includes(dept) ? nc.departments.filter((d) => d !== dept) : [...nc.departments, dept],
+    }));
+  }
+
+  async function addChecklist() {
+    const name = newChecklist.name.trim();
+    if (!name) {
+      flash("Checklist name is required");
+      return;
+    }
+    const items = newChecklist.items
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (items.length === 0) {
+      flash("Add at least one bundle item");
+      return;
+    }
+    const maxSort = checklistTypes.reduce((m, c) => Math.max(m, c.sort_order ?? 0), 0);
+    const { error } = await supabase.from("checklist_types").insert({
+      code: slugCode(name),
+      name_ar: name,
+      name_en: name,
+      items,
+      departments: newChecklist.departments,
+      baseline: newChecklist.baseline,
+      active: true,
+      sort_order: maxSort + 1,
+    });
+    if (error) {
+      flash(error.message.includes("duplicate") ? "A checklist with a similar name already exists" : "Could not create checklist");
+      return;
+    }
+    setNewChecklist(emptyNewChecklist);
+    loadChecklists();
+    flash("Checklist created");
   }
 
   async function passwordField(plain) {
@@ -234,6 +286,57 @@ export default function Settings() {
             </button>
           </div>
         ))}
+
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold text-slate-700">New Checklist</h3>
+
+          <label className="mb-1 block text-xs font-medium text-slate-500">Name</label>
+          <input
+            className="input mb-3"
+            value={newChecklist.name}
+            onChange={(e) => setNewChecklist({ ...newChecklist, name: e.target.value })}
+            placeholder="e.g. Hand Hygiene"
+          />
+
+          <label className="mb-1 block text-xs font-medium text-slate-500">Departments</label>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {departments.map((d) => (
+              <label
+                key={d}
+                className={`cursor-pointer rounded-full border px-3 py-1 text-xs ${
+                  newChecklist.departments.includes(d) ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 text-slate-500"
+                }`}
+              >
+                <input type="checkbox" className="hidden" checked={newChecklist.departments.includes(d)} onChange={() => toggleNewChecklistDept(d)} />
+                {d}
+              </label>
+            ))}
+          </div>
+
+          <label className="mb-1 block text-xs font-medium text-slate-500">Bundle items (one per line)</label>
+          <textarea
+            className="input mb-3 min-h-[140px] font-mono text-xs"
+            value={newChecklist.items}
+            onChange={(e) => setNewChecklist({ ...newChecklist, items: e.target.value })}
+            placeholder={"1. First question or step\n2. Second question or step"}
+          />
+
+          <label className="mb-1 block text-xs font-medium text-slate-500">Baseline (reserved for future use)</label>
+          <input
+            className="input"
+            value={newChecklist.baseline}
+            onChange={(e) => setNewChecklist({ ...newChecklist, baseline: e.target.value })}
+            placeholder="Optional — fill in whenever you need it"
+          />
+
+          <button
+            onClick={addChecklist}
+            className="mt-4 flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700"
+          >
+            <ListPlus className="h-4 w-4" />
+            Add Checklist
+          </button>
+        </div>
       </section>
 
       {isOwner && (
