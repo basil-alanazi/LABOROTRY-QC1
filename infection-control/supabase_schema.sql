@@ -3,20 +3,29 @@
 
 create extension if not exists pgcrypto;
 
--- Accounts (simple username/password login, no Supabase Auth) + shared settings.
+-- Shared settings (simple username/password login lives in the users table).
 create table if not exists app_config (
   id int primary key default 1,
-  staff_username text not null default 'ward',
-  staff_password text not null default 'ward123',
-  ic_username text not null default 'ic',
-  ic_password text not null default 'ic123',
-  ic2_username text not null default 'ic2',
-  ic2_password text not null default 'ic2123',
-  owner_username text not null default 'owner',
-  owner_password text not null default 'owner123',
   departments jsonb not null default '["ICU","NICU","Surgery","OB/GYN"]'::jsonb
 );
 insert into app_config (id) values (1) on conflict (id) do nothing;
+
+-- Real per-person accounts, created by the owner from Settings. Every audit
+-- action (created/resolved/deleted) is attributed to the account that did it.
+create table if not exists users (
+  id uuid primary key default gen_random_uuid(),
+  username text not null unique,
+  password text not null,
+  display_name text not null default '',
+  role text not null default 'staff', -- 'owner' | 'ic' | 'staff'
+  department text,                    -- optional home department for staff users
+  active boolean not null default true,
+  created_by text,
+  created_at timestamptz not null default now()
+);
+insert into users (username, password, display_name, role)
+values ('owner', 'owner123', 'Owner', 'owner')
+on conflict (username) do nothing;
 
 -- One checklist type = one bundle (SSI / CAUTI / VAE / CLABSI), with its list of
 -- bundle components and which departments audit against it.
@@ -51,6 +60,8 @@ create table if not exists ward_round_audits (
   comments text not null default '',
   action_status text not null default 'none',  -- none | open | resolved
   done_by text not null default '',
+  resolved_by text,
+  resolved_at timestamptz,
   deleted boolean not null default false,
   deleted_by text,
   deleted_at timestamptz,
@@ -69,11 +80,13 @@ create table if not exists audit_log (
 );
 
 alter table app_config enable row level security;
+alter table users enable row level security;
 alter table checklist_types enable row level security;
 alter table ward_round_audits enable row level security;
 alter table audit_log enable row level security;
 
 create policy "allow all app_config" on app_config for all using (true) with check (true);
+create policy "allow all users" on users for all using (true) with check (true);
 create policy "allow all checklist_types" on checklist_types for all using (true) with check (true);
 create policy "allow all ward_round_audits" on ward_round_audits for all using (true) with check (true);
 create policy "allow all audit_log" on audit_log for all using (true) with check (true);

@@ -202,13 +202,38 @@ export const ward_round_audits = [
 
 export const app_config = {
   id: 1,
-  staff_username: "ward",
-  staff_password: "ward123",
-  ic_username: "ic",
-  ic_password: "ic123",
-  ic2_username: "ic2",
-  ic2_password: "ic2123",
-  owner_username: "owner",
-  owner_password: "owner123",
   departments: DEPARTMENTS,
 };
+
+export const users = [
+  {
+    id: "user-owner",
+    username: "owner",
+    password: "owner123",
+    display_name: "Owner",
+    role: "owner",
+    department: null,
+    active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "user-ic",
+    username: "ic",
+    password: "ic123",
+    display_name: "Infection Control",
+    role: "ic",
+    department: null,
+    active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "user-ward",
+    username: "ward",
+    password: "ward123",
+    display_name: "Ward Staff",
+    role: "staff",
+    department: "ICU",
+    active: true,
+    created_at: new Date().toISOString(),
+  },
+];

@@ -15,7 +15,7 @@ const emptyPatient = { patient_name: "", mrn: "", age: "", diagnosis: "" };
 export default function Today() {
   const { session, config } = useAuth();
   const [checklistTypes, setChecklistTypes] = useState([]);
-  const [department, setDepartment] = useState("");
+  const [department, setDepartment] = useState(() => session?.department || "");
   const [checklistCode, setChecklistCode] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [patient, setPatient] = useState(emptyPatient);

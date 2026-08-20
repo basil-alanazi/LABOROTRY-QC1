@@ -14,4 +14,5 @@ export const supabase =
         app_config: [seed.app_config],
         checklist_types: seed.checklist_types,
         ward_round_audits: seed.ward_round_audits,
+        users: seed.users,
       });

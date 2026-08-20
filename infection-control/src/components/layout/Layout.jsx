@@ -26,7 +26,7 @@ export default function Layout({ children }) {
             <span className="text-lg font-bold">Infection Control</span>
           </div>
           <div className="flex items-center gap-3 text-sm text-slate-500">
-            <span>{session?.username}</span>
+            <span>{session?.displayName}</span>
             <button
               onClick={handleLogout}
               className="flex items-center gap-1 rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"

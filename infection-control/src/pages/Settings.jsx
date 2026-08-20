@@ -1,39 +1,37 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save, UserPlus } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
 
+const emptyNewUser = { username: "", password: "", display_name: "", role: "staff", department: "" };
+
 export default function Settings() {
-  const { config, reloadConfig, isOwner } = useAuth();
+  const { config, reloadConfig, isOwner, session } = useAuth();
   const [departments, setDepartments] = useState([]);
   const [newDept, setNewDept] = useState("");
   const [checklistTypes, setChecklistTypes] = useState([]);
-  const [accounts, setAccounts] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [newUser, setNewUser] = useState(emptyNewUser);
   const [message, setMessage] = useState(null);
 
   useEffect(() => {
-    if (config) {
-      setDepartments(config.departments ?? []);
-      setAccounts({
-        staff_username: config.staff_username,
-        staff_password: config.staff_password,
-        ic_username: config.ic_username,
-        ic_password: config.ic_password,
-        ic2_username: config.ic2_username,
-        ic2_password: config.ic2_password,
-        owner_username: config.owner_username,
-        owner_password: config.owner_password,
-      });
-    }
+    if (config) setDepartments(config.departments ?? []);
   }, [config]);
 
   useEffect(() => {
     loadChecklists();
-  }, []);
+    if (isOwner) loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOwner]);
 
   async function loadChecklists() {
     const { data } = await supabase.from("checklist_types").select("*").order("sort_order");
     setChecklistTypes(data ?? []);
+  }
+
+  async function loadUsers() {
+    const { data } = await supabase.from("users").select("*").order("created_at");
+    setUsers(data ?? []);
   }
 
   function flash(text) {
@@ -82,10 +80,55 @@ export default function Settings() {
     updateChecklist(checklist.id, { departments: next });
   }
 
-  async function saveAccounts() {
-    await supabase.from("app_config").update(accounts).eq("id", 1);
-    reloadConfig();
-    flash("Accounts saved");
+  async function addUser() {
+    const username = newUser.username.trim();
+    if (!username || !newUser.password) {
+      flash("Username and password are required");
+      return;
+    }
+    const { error } = await supabase.from("users").insert({
+      username,
+      password: newUser.password,
+      display_name: newUser.display_name.trim() || username,
+      role: newUser.role,
+      department: newUser.department || null,
+      created_by: session?.username,
+    });
+    if (error) {
+      flash(error.message.includes("duplicate") ? "That username is already taken" : "Could not create user");
+      return;
+    }
+    setNewUser(emptyNewUser);
+    loadUsers();
+    flash("User created");
+  }
+
+  function updateUserField(id, patch) {
+    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...patch } : u)));
+  }
+
+  async function saveUser(user) {
+    await supabase
+      .from("users")
+      .update({
+        display_name: user.display_name,
+        password: user.password,
+        role: user.role,
+        department: user.department || null,
+        active: user.active,
+      })
+      .eq("id", user.id);
+    flash(`${user.display_name || user.username} saved`);
+  }
+
+  async function removeUser(user) {
+    if (user.username === session?.username) {
+      flash("You can't delete your own account");
+      return;
+    }
+    if (!confirm(`Delete the account "${user.username}"?`)) return;
+    await supabase.from("users").delete().eq("id", user.id);
+    loadUsers();
   }
 
   if (!config) return null;
@@ -94,7 +137,7 @@ export default function Settings() {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-xl font-bold text-slate-800">Settings</h1>
-        <p className="text-sm text-slate-500">Manage departments, checklist items, and accounts.</p>
+        <p className="text-sm text-slate-500">Manage departments, checklist items, and user accounts.</p>
       </div>
 
       {message && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>}
@@ -168,53 +211,117 @@ export default function Settings() {
         ))}
       </section>
 
-      {isOwner && accounts && (
+      {isOwner && (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-sm font-semibold text-slate-700">Accounts</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <AccountFields
-              title="Ward Staff (entry only)"
-              username={accounts.staff_username}
-              password={accounts.staff_password}
-              onChange={(u, p) => setAccounts({ ...accounts, staff_username: u, staff_password: p })}
-            />
-            <AccountFields
-              title="Infection Control — Primary"
-              username={accounts.ic_username}
-              password={accounts.ic_password}
-              onChange={(u, p) => setAccounts({ ...accounts, ic_username: u, ic_password: p })}
-            />
-            <AccountFields
-              title="Infection Control — Secondary"
-              username={accounts.ic2_username}
-              password={accounts.ic2_password}
-              onChange={(u, p) => setAccounts({ ...accounts, ic2_username: u, ic2_password: p })}
-            />
-            <AccountFields
-              title="Owner (full access)"
-              username={accounts.owner_username}
-              password={accounts.owner_password}
-              onChange={(u, p) => setAccounts({ ...accounts, owner_username: u, owner_password: p })}
-            />
+          <h2 className="mb-1 text-sm font-semibold text-slate-700">User Accounts</h2>
+          <p className="mb-4 text-xs text-slate-500">
+            Create an account for each person, with their own role and permissions — infection control team or any
+            other department. Every entry, resolve, and delete is attributed to the account that did it.
+          </p>
+
+          <div className="flex flex-col gap-3">
+            {users.map((u) => (
+              <div key={u.id} className="grid grid-cols-1 gap-2 rounded-xl border border-slate-100 p-4 sm:grid-cols-6 sm:items-center">
+                <div className="text-sm font-medium text-slate-700 sm:col-span-1">{u.username}</div>
+                <input
+                  className="input sm:col-span-1"
+                  value={u.display_name}
+                  onChange={(e) => updateUserField(u.id, { display_name: e.target.value })}
+                  placeholder="Display name"
+                />
+                <input
+                  className="input sm:col-span-1"
+                  value={u.password}
+                  onChange={(e) => updateUserField(u.id, { password: e.target.value })}
+                  placeholder="Password"
+                />
+                <select
+                  className="input sm:col-span-1"
+                  value={u.role}
+                  onChange={(e) => updateUserField(u.id, { role: e.target.value })}
+                >
+                  <option value="owner">Owner</option>
+                  <option value="ic">Infection Control</option>
+                  <option value="staff">Ward Staff</option>
+                </select>
+                <select
+                  className="input sm:col-span-1"
+                  value={u.department || ""}
+                  onChange={(e) => updateUserField(u.id, { department: e.target.value })}
+                >
+                  <option value="">No department</option>
+                  {departments.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center justify-end gap-2 sm:col-span-1">
+                  <label className="flex items-center gap-1 text-xs text-slate-500">
+                    <input type="checkbox" checked={u.active} onChange={(e) => updateUserField(u.id, { active: e.target.checked })} />
+                    Active
+                  </label>
+                  <button onClick={() => saveUser(u)} className="rounded-lg p-1.5 text-teal-600 hover:bg-teal-50">
+                    <Save className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => removeUser(u)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-          <button onClick={saveAccounts} className="mt-4 flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
-            <Save className="h-4 w-4" />
-            Save Accounts
-          </button>
+
+          <div className="mt-4 grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 p-4 sm:grid-cols-6 sm:items-center">
+            <input
+              className="input sm:col-span-1"
+              value={newUser.username}
+              onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+              placeholder="Username"
+            />
+            <input
+              className="input sm:col-span-1"
+              value={newUser.display_name}
+              onChange={(e) => setNewUser({ ...newUser, display_name: e.target.value })}
+              placeholder="Display name"
+            />
+            <input
+              className="input sm:col-span-1"
+              value={newUser.password}
+              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+              placeholder="Password"
+            />
+            <select
+              className="input sm:col-span-1"
+              value={newUser.role}
+              onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+            >
+              <option value="owner">Owner</option>
+              <option value="ic">Infection Control</option>
+              <option value="staff">Ward Staff</option>
+            </select>
+            <select
+              className="input sm:col-span-1"
+              value={newUser.department}
+              onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
+            >
+              <option value="">No department</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={addUser}
+              className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-1"
+            >
+              <UserPlus className="h-4 w-4" />
+              Add User
+            </button>
+          </div>
         </section>
       )}
-    </div>
-  );
-}
-
-function AccountFields({ title, username, password, onChange }) {
-  return (
-    <div className="rounded-xl border border-slate-100 p-4">
-      <h3 className="mb-2 text-xs font-semibold text-slate-500">{title}</h3>
-      <div className="flex flex-col gap-2">
-        <input className="input" value={username} onChange={(e) => onChange(e.target.value, password)} placeholder="Username" />
-        <input className="input" value={password} onChange={(e) => onChange(username, e.target.value)} placeholder="Password" />
-      </div>
     </div>
   );
 }

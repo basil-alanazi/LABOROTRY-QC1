@@ -4,8 +4,10 @@ import { supabase } from "./supabaseClient";
 const AuthContext = createContext(null);
 const STORAGE_KEY = "ic_session";
 
-// Roles: "staff" (ward staff — entry only), "ic" / "ic2" (infection control
-// team — full access), "owner" (ic-level access + manage accounts/settings).
+// Roles: "staff" (entry only, optionally scoped to a home department),
+// "ic" (infection control team — full access), "owner" (ic-level access +
+// manage users/departments/checklists). Real per-user accounts, created by
+// the owner from Settings, so every action can be attributed to a person.
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(() => {
     try {
@@ -29,19 +31,23 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function login(username, password) {
-    const cfg = config ?? (await loadConfig());
-    if (!cfg) return { ok: false, error: "Could not connect to the server" };
+    const { data: user } = await supabase
+      .from("users")
+      .select("*")
+      .eq("username", username)
+      .eq("password", password)
+      .eq("active", true)
+      .single();
 
-    const matches = [
-      { role: "owner", u: cfg.owner_username, p: cfg.owner_password },
-      { role: "ic", u: cfg.ic_username, p: cfg.ic_password },
-      { role: "ic2", u: cfg.ic2_username, p: cfg.ic2_password },
-      { role: "staff", u: cfg.staff_username, p: cfg.staff_password },
-    ].find((m) => m.u === username && m.p === password);
+    if (!user) return { ok: false, error: "Incorrect username or password" };
 
-    if (!matches) return { ok: false, error: "Incorrect username or password" };
-
-    const s = { username, role: matches.role };
+    const s = {
+      id: user.id,
+      username: user.username,
+      displayName: user.display_name || user.username,
+      role: user.role,
+      department: user.department || "",
+    };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
     setSession(s);
     return { ok: true };
@@ -52,7 +58,7 @@ export function AuthProvider({ children }) {
     setSession(null);
   }
 
-  const isAdmin = session?.role === "owner" || session?.role === "ic" || session?.role === "ic2";
+  const isAdmin = session?.role === "owner" || session?.role === "ic";
   const isOwner = session?.role === "owner";
 
   return (

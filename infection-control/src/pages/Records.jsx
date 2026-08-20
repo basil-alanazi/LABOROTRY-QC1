@@ -19,6 +19,7 @@ const REPORT_HEADERS = [
   "Compliance %",
   "Status",
   "Recorded By",
+  "Resolved By",
   "Comments",
 ];
 
@@ -37,6 +38,7 @@ function toReportRow(row) {
     row.compliance_pct != null ? `${row.compliance_pct}%` : "",
     row.not_met_count > 0 ? (row.action_status === "resolved" ? "Resolved" : "Action Needed") : "",
     row.done_by,
+    row.resolved_by || "",
     row.comments,
   ];
 }
@@ -83,7 +85,10 @@ export default function Records() {
   }, [filters]);
 
   async function markResolved(id) {
-    await supabase.from("ward_round_audits").update({ action_status: "resolved" }).eq("id", id);
+    await supabase
+      .from("ward_round_audits")
+      .update({ action_status: "resolved", resolved_by: session?.username, resolved_at: new Date().toISOString() })
+      .eq("id", id);
     load();
   }
 
@@ -238,6 +243,8 @@ function RecordRow({ row, expanded, onToggle, isAdmin, onResolve, onDelete }) {
               <div>Age: {row.age || "—"}</div>
               <div>Diagnosis: {row.diagnosis || "—"}</div>
               <div>Recorded by: {row.done_by || "—"}</div>
+              {row.action_status === "resolved" && <div>Resolved by: {row.resolved_by || "—"}</div>}
+              {row.deleted && <div>Deleted by: {row.deleted_by || "—"}</div>}
             </div>
             <div className="flex flex-col gap-1">
               {(row.items ?? []).map((it, idx) => (
