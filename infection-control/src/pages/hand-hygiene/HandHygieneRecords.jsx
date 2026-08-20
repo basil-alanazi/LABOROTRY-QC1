@@ -4,12 +4,20 @@ import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
-import { HH_MOMENTS } from "../../lib/handHygiene";
+import {
+  HH_MOMENTS,
+  visitDurationMinutes,
+  EXPECTED_VISIT_MIN_MINUTES,
+  EXPECTED_VISIT_MAX_MINUTES,
+} from "../../lib/handHygiene";
 
 const REPORT_HEADERS = [
   "Date",
   "Department",
   "Observer",
+  "Time From",
+  "Time To",
+  "Duration (min)",
   ...HH_MOMENTS.map((m) => m.label),
   "Missed",
   "Hand Wash",
@@ -29,6 +37,9 @@ function toReportRow(row) {
     row.date,
     row.department,
     row.observer,
+    row.time_from || "",
+    row.time_to || "",
+    visitDurationMinutes(row.time_from, row.time_to) ?? "",
     ...HH_MOMENTS.map((m) => cell(row[m.key])),
     cell(row.missed),
     cell(row.hand_wash),
@@ -188,6 +199,15 @@ function ObservationRow({ row, expanded, onToggle, isAdmin, onDelete }) {
         <tr className="border-t border-slate-100 bg-slate-50/60">
           <td colSpan={5} className="px-4 py-4">
             <div className="mb-3 grid grid-cols-2 gap-2 text-xs text-slate-500 sm:grid-cols-4">
+              <div>
+                Time: {row.time_from && row.time_to ? `${row.time_from}–${row.time_to}` : "—"}
+                {(() => {
+                  const d = visitDurationMinutes(row.time_from, row.time_to);
+                  if (d == null) return null;
+                  const out = d < EXPECTED_VISIT_MIN_MINUTES || d > EXPECTED_VISIT_MAX_MINUTES;
+                  return <span className={out ? "font-medium text-red-600" : ""}> ({d} min)</span>;
+                })()}
+              </div>
               <div>Hand wash: {row.hand_wash === 1 ? "Yes" : "—"}</div>
               <div>Hand rub: {row.hand_rub === 1 ? "Yes" : "—"}</div>
               <div>Total opportunities: {row.total_opportunities}</div>

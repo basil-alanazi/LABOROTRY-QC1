@@ -12,6 +12,24 @@ export const HH_MOMENTS = [
 
 export const OBSERVER_ROLES = ["Doctor", "Nurse", "Housekeeping", "Lab", "Radiology", "Other"];
 
+// The visit is expected to take 10-20 minutes; used to flag outliers in Records.
+export const EXPECTED_VISIT_MIN_MINUTES = 10;
+export const EXPECTED_VISIT_MAX_MINUTES = 20;
+
+// Duration in minutes between two "HH:MM" (or "HH:MM:SS") time strings, or
+// null if either is missing/invalid. Assumes the visit doesn't cross midnight.
+export function visitDurationMinutes(timeFrom, timeTo) {
+  if (!timeFrom || !timeTo) return null;
+  const toMinutes = (t) => {
+    const [h, m] = t.split(":").map(Number);
+    return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null;
+  };
+  const from = toMinutes(timeFrom);
+  const to = toMinutes(timeTo);
+  if (from == null || to == null || to < from) return null;
+  return to - from;
+}
+
 // Each moment (and "missed") is 1 = compliant/performed, 0 = missed/not
 // performed, or null/undefined = not applicable to this observation.
 // Total Opportunities = filled moments + (1 if "missed" is filled).
