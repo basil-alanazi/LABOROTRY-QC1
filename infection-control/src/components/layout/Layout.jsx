@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { ClipboardList, LayoutDashboard, ListChecks, Settings as SettingsIcon, LogOut, ShieldPlus } from "lucide-react";
 import { useAuth } from "../../lib/auth.jsx";
+import { supabase } from "../../lib/supabaseClient";
 
 const linkClass = ({ isActive }) =>
   `flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -58,6 +59,11 @@ export default function Layout({ children }) {
           )}
         </nav>
       </header>
+      {supabase.isMock && (
+        <div className="bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800">
+          وضع معاينة — بيانات تجريبية غير متصلة بقاعدة بيانات حقيقية، وما تُحفظ بعد تحديث الصفحة
+        </div>
+      )}
       <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
     </div>
   );

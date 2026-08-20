@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldPlus } from "lucide-react";
 import { useAuth } from "../lib/auth.jsx";
+import { supabase } from "../lib/supabaseClient";
 
 export default function Login() {
   const { login } = useAuth();
@@ -49,6 +50,11 @@ export default function Login() {
             />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
+          {supabase.isMock && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              وضع معاينة — جرّب: owner / owner123 (كل الصلاحيات) أو ward / ward123 (إدخال فقط)
+            </p>
+          )}
           <button
             type="submit"
             disabled={busy}
