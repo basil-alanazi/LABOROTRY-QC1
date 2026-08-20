@@ -28,24 +28,29 @@ Once the Vercel project is linked to this GitHub repo, every push to `main` rede
 automatically at the same stable URL — no manual redeploy step needed.
 
 ## 4) Default account (change the password immediately from Settings)
-- **Owner** (full access + user management): `owner` / `owner123`
+- **Owner**: `owner` / `owner123`
 
 Every other person gets their own account — the owner creates it from **Settings → User Accounts**
-(username, password, display name, role, and an optional home department). Roles:
+(username, display name, role, optional home department). New accounts always start with the
+password **123456** and are required to set their own password the moment they first log in.
+Passwords are stored hashed — nobody, including the owner, can see anyone's password; the owner
+can only **reset** an account back to 123456 (e.g. if someone forgets theirs), which forces a
+change again on their next login. Roles:
 - **Owner** — everything, including creating/editing/deleting user accounts
-- **Infection Control** — full data access: all departments, Records, Dashboard, Settings (checklists/departments), but not user accounts
-- **Ward Staff** — entry only (Daily Ward Round + Records), optionally defaulted to one department
+- **Infection Control** — full access: Daily Ward Round, Records, Dashboard, Settings (checklists/departments), but not user accounts
+- **Ward Staff** — reserved for a future module (department-specific Hand Hygiene audits); for now these accounts only see their Profile page
 
 Because each person logs in with their own account, every entry, resolved action, and deletion
 is attributed to the real person who did it — visible in Records and in the exported reports.
 
 ## 5) How it works
-1. Any account opens **"Daily Ward Round"**, picks a department then a checklist type (only checklists linked to that department show up)
-2. Fills in patient details and marks each bundle item: MET / NOT MET / N/A
+1. Daily Ward Round and Records are for the Infection Control team (Infection Control + Owner roles) only. Ward Staff accounts only see their own Profile for now.
+2. **"Daily Ward Round"**: pick a department then a checklist type (only checklists linked to that department show up), fill in patient details and mark each bundle item MET / NOT MET / N/A. Saving jumps focus straight back to Patient Name so the next patient can be entered right away.
 3. The system computes MET / Applicable / NOT MET / Compliance% automatically on save
 4. **"Records"**: all past audits, filterable by department/checklist/date, with the ability to resolve any "Action Needed" item — export the filtered list to Excel or PDF
-5. **"Dashboard"** (Infection Control team only): monthly summary — total audits, overall compliance, by checklist and by department (same logic as the Excel Dashboard sheet) — export to Excel or PDF
-6. **"Settings"**: add/remove departments and edit each checklist's items and department links (Infection Control team); manage user accounts (owner only)
+5. **"Dashboard"**: compliance summary by checklist and by department, either for a calendar month or any custom date range you pick — export either view to Excel or PDF
+6. **"Settings"**: add/remove departments, edit each checklist's items/department links/baseline note, and manage user accounts (owner only)
+7. **"Profile"** (everyone): view your own account details and change your own password any time
 
 ## Important note on checklist items
 Some bundle-item texts in the original Excel file were cut off (the sheet truncates around

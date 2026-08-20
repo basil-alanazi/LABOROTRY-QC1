@@ -214,6 +214,7 @@ export const users = [
     role: "owner",
     department: null,
     active: true,
+    must_change_password: false,
     created_at: new Date().toISOString(),
   },
   {
@@ -224,6 +225,7 @@ export const users = [
     role: "ic",
     department: null,
     active: true,
+    must_change_password: false,
     created_at: new Date().toISOString(),
   },
   {
@@ -234,6 +236,7 @@ export const users = [
     role: "staff",
     department: "ICU",
     active: true,
+    must_change_password: false,
     created_at: new Date().toISOString(),
   },
 ];

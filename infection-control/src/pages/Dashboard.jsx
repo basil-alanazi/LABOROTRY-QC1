@@ -23,13 +23,20 @@ function monthBounds(monthStr) {
   return { from, to };
 }
 
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
 export default function Dashboard() {
+  const [mode, setMode] = useState("month"); // "month" | "range"
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [range, setRange] = useState(() => ({ from: todayStr(), to: todayStr() }));
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const { from, to } = mode === "month" ? monthBounds(month) : range;
+  const periodLabel = mode === "month" ? month : `${from} to ${to}`;
+
   useEffect(() => {
-    const { from, to } = monthBounds(month);
+    if (!from || !to) return;
     setLoading(true);
     supabase
       .from("ward_round_audits")
@@ -41,7 +48,7 @@ export default function Dashboard() {
         setRows(data ?? []);
         setLoading(false);
       });
-  }, [month]);
+  }, [from, to]);
 
   const byChecklist = useMemo(() => {
     const map = new Map();
@@ -87,14 +94,14 @@ export default function Dashboard() {
   }, [rows]);
 
   function exportExcel() {
-    downloadExcel(`infection-control-dashboard-${month}`, [
+    downloadExcel(`infection-control-dashboard-${from}-to-${to}`, [
       { name: "By Checklist", headers: CHECKLIST_HEADERS, rows: byChecklist.map(toChecklistRow) },
       { name: "By Department", headers: DEPARTMENT_HEADERS, rows: byDepartment.map(toDepartmentRow) },
     ]);
   }
 
   function exportPdf() {
-    downloadPdf(`infection-control-dashboard-${month}`, `Infection Control — Monthly Dashboard (${month})`, [
+    downloadPdf(`infection-control-dashboard-${from}-to-${to}`, `Infection Control — Dashboard (${periodLabel})`, [
       { title: "By Checklist Type", headers: CHECKLIST_HEADERS, rows: byChecklist.map(toChecklistRow) },
       { title: "By Department", headers: DEPARTMENT_HEADERS, rows: byDepartment.map(toDepartmentRow) },
     ]);
@@ -102,13 +109,45 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-800">Dashboard</h1>
-          <p className="text-sm text-slate-500">Monthly compliance summary across checklists and departments.</p>
+          <p className="text-sm text-slate-500">Compliance summary across checklists and departments.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <input type="month" className="input w-auto" value={month} onChange={(e) => setMonth(e.target.value)} />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs">
+            <button
+              onClick={() => setMode("month")}
+              className={`rounded-md px-3 py-1 font-medium ${mode === "month" ? "bg-teal-600 text-white" : "text-slate-500"}`}
+            >
+              Month
+            </button>
+            <button
+              onClick={() => setMode("range")}
+              className={`rounded-md px-3 py-1 font-medium ${mode === "range" ? "bg-teal-600 text-white" : "text-slate-500"}`}
+            >
+              Custom range
+            </button>
+          </div>
+          {mode === "month" ? (
+            <input type="month" className="input w-auto" value={month} onChange={(e) => setMonth(e.target.value)} />
+          ) : (
+            <>
+              <input
+                type="date"
+                className="input w-auto"
+                value={range.from}
+                onChange={(e) => setRange({ ...range, from: e.target.value })}
+              />
+              <span className="text-xs text-slate-400">to</span>
+              <input
+                type="date"
+                className="input w-auto"
+                value={range.to}
+                onChange={(e) => setRange({ ...range, to: e.target.value })}
+              />
+            </>
+          )}
           <button
             onClick={exportExcel}
             disabled={rows.length === 0}
@@ -210,7 +249,7 @@ function Table({ rows, columns, loading }) {
           ))}
         </tbody>
       </table>
-      {!loading && rows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No data for this month</p>}
+      {!loading && rows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No data for this period</p>}
     </div>
   );
 }
