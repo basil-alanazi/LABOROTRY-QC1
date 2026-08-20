@@ -10,7 +10,10 @@ export const HH_MOMENTS = [
   { key: "wearing_glove", label: "Wearing glove" },
 ];
 
-export const OBSERVER_ROLES = ["Doctor", "Nurse", "Housekeeping", "Lab", "Radiology", "Other"];
+// Fallback used when app_config.hh_observer_roles isn't set yet. The real
+// list (and which roles apply to which department) is configurable from
+// Settings — see hh_observer_roles / hh_department_observers.
+export const DEFAULT_OBSERVER_ROLES = ["Doctor", "Nurse", "Housekeeping", "Lab Staff", "Radiology"];
 
 export const HH_ATTACHMENTS_BUCKET = "hh-attachments";
 

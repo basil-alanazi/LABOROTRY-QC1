@@ -7,7 +7,9 @@ create extension if not exists pgcrypto;
 create table if not exists app_config (
   id int primary key default 1,
   departments jsonb not null default '["ICU","NICU","Surgery","OB/GYN"]'::jsonb,
-  hh_departments jsonb not null default '["ICU","Medical Ward","Surgical Ward","Emergency","Pediatric","NICU","OPD","OT","Labor & Delivery","Dialysis","Other"]'::jsonb
+  hh_departments jsonb not null default '["ICU","Medical Ward","Surgical Ward","Emergency","Pediatric","NICU","OPD","OT","Labor & Delivery","Dialysis","Other"]'::jsonb,
+  hh_observer_roles jsonb not null default '["Doctor","Nurse","Housekeeping","Lab Staff","Radiology"]'::jsonb,
+  hh_department_observers jsonb not null default '{}'::jsonb  -- { "Lab": ["Lab Staff"], ... } — which roles show for each HH department; unlisted departments show all roles
 );
 insert into app_config (id) values (1) on conflict (id) do nothing;
 
