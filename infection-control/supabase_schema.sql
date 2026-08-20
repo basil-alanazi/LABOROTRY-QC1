@@ -14,7 +14,7 @@ create table if not exists app_config (
   ic2_password text not null default 'ic2123',
   owner_username text not null default 'owner',
   owner_password text not null default 'owner123',
-  departments jsonb not null default '["ICU","NICU","الجراحة","النساء"]'::jsonb
+  departments jsonb not null default '["ICU","NICU","Surgery","OB/GYN"]'::jsonb
 );
 insert into app_config (id) values (1) on conflict (id) do nothing;
 
@@ -83,7 +83,7 @@ create policy "allow all audit_log" on audit_log for all using (true) with check
 -- (the sheet itself truncates around 60 characters) — finish the exact
 -- official wording for those from Settings → checklist items before go-live.
 insert into checklist_types (code, name_ar, name_en, items, departments, sort_order) values
-('SSI', 'الجراحة (SSI)', 'Surgical Site Infection', '[
+('SSI', 'Surgical Site Infection (SSI)', 'Surgical Site Infection', '[
   "1. Antibiotic(s) was (were) given within one (1) hour before incision",
   "2. Prophylactic antibiotic(s) is (are) consistent with our guidelines",
   "3. Discontinuation of prophylactic antibiotic(s) within 24 hours",
@@ -91,9 +91,9 @@ insert into checklist_types (code, name_ar, name_en, items, departments, sort_or
   "5. Maintenance of pre/postoperative glucose control — Serum glucose target met",
   "6. Maintenance of pre/postoperative normothermia (for applicable procedures)",
   "7. Use appropriate antiseptic solution"
-]'::jsonb, '["الجراحة","النساء"]'::jsonb, 1),
+]'::jsonb, '["Surgery","OB/GYN"]'::jsonb, 1),
 
-('CAUTI', 'قسطرة المسالك البولية (CAUTI)', 'Catheter-Associated UTI', '[
+('CAUTI', 'Catheter-Associated UTI (CAUTI)', 'Catheter-Associated UTI', '[
   "1. Avoid unnecessary urinary catheters",
   "2. Insert using aseptic technique",
   "3. Hand hygiene before insertion of urinary catheter",
@@ -108,9 +108,9 @@ insert into checklist_types (code, name_ar, name_en, items, departments, sort_or
   "12. Routine hygiene (cleansing of the meatal surface)",
   "13. Collection of urine samples should follow aseptic technique",
   "14. Review urinary catheter necessity daily and remove promptly when no longer indicated"
-]'::jsonb, '["ICU","الجراحة","النساء"]'::jsonb, 2),
+]'::jsonb, '["ICU","Surgery","OB/GYN"]'::jsonb, 2),
 
-('VAE_ICU', 'أجهزة التنفس - ICU (VAE)', 'Ventilator-Associated Event — ICU', '[
+('VAE_ICU', 'Ventilator-Associated Event — ICU (VAE)', 'Ventilator-Associated Event — ICU', '[
   "1. Elevation of the head of the bed to between 30 and 45 degrees",
   "2. Daily sedative interruption & daily assessment of readiness to extubate",
   "3. Peptic ulcer disease (PUD) prophylaxis",
@@ -118,7 +118,7 @@ insert into checklist_types (code, name_ar, name_en, items, departments, sort_or
   "5. Daily oral care with appropriate antiseptic solution"
 ]'::jsonb, '["ICU"]'::jsonb, 3),
 
-('VAE_NICU', 'أجهزة التنفس - NICU (VAE)', 'Ventilator-Associated Event — NICU', '[
+('VAE_NICU', 'Ventilator-Associated Event — NICU (VAE)', 'Ventilator-Associated Event — NICU', '[
   "1. Hand hygiene",
   "2. Semi-recumbent position",
   "3. Mouth rinse with an appropriate solution",
@@ -126,7 +126,7 @@ insert into checklist_types (code, name_ar, name_en, items, departments, sort_or
   "5. Daily assessment of readiness to extubate"
 ]'::jsonb, '["NICU"]'::jsonb, 4),
 
-('CLABSI_ICU', 'القسطرة المركزية - ICU (CLABSI)', 'Central Line-Associated Bloodstream Infection — ICU', '[
+('CLABSI_ICU', 'Central Line-Associated Bloodstream Infection — ICU (CLABSI)', 'Central Line-Associated Bloodstream Infection — ICU', '[
   "1. Hand hygiene",
   "2. Maximal barrier precautions",
   "3. Cap",
@@ -145,7 +145,7 @@ insert into checklist_types (code, name_ar, name_en, items, departments, sort_or
   "16. Proper replacement of administration sets"
 ]'::jsonb, '["ICU"]'::jsonb, 5),
 
-('CLABSI_NICU', 'القسطرة المركزية - NICU (CLABSI)', 'Central Line-Associated Bloodstream Infection — NICU', '[
+('CLABSI_NICU', 'Central Line-Associated Bloodstream Infection — NICU (CLABSI)', 'Central Line-Associated Bloodstream Infection — NICU', '[
   "1. Hand hygiene",
   "2. Maximal barrier precautions",
   "3. Cap",

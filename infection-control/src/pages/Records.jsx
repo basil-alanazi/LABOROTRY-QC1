@@ -50,7 +50,7 @@ export default function Records() {
   }
 
   async function remove(id) {
-    if (!confirm("حذف هذا السجل؟")) return;
+    if (!confirm("Delete this record?")) return;
     await supabase
       .from("ward_round_audits")
       .update({ deleted: true, deleted_by: session?.username, deleted_at: new Date().toISOString() })
@@ -61,13 +61,13 @@ export default function Records() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-800">السجلات</h1>
-        <p className="text-sm text-slate-500">جولات التدقيق السابقة لكل الأقسام.</p>
+        <h1 className="text-xl font-bold text-slate-800">Records</h1>
+        <p className="text-sm text-slate-500">Past ward round audits across all departments.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-4">
         <select className="input" value={filters.department} onChange={(e) => setFilters({ ...filters, department: e.target.value })}>
-          <option value="">كل الأقسام</option>
+          <option value="">All Departments</option>
           {(config?.departments ?? []).map((d) => (
             <option key={d} value={d}>
               {d}
@@ -75,7 +75,7 @@ export default function Records() {
           ))}
         </select>
         <select className="input" value={filters.checklist} onChange={(e) => setFilters({ ...filters, checklist: e.target.value })}>
-          <option value="">كل القوائم</option>
+          <option value="">All Checklists</option>
           {checklistTypes.map((c) => (
             <option key={c.code} value={c.code}>
               {c.name_ar}
@@ -88,14 +88,14 @@ export default function Records() {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-right text-xs text-slate-500">
+          <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">التاريخ</th>
-              <th className="px-4 py-2 font-medium">القسم</th>
-              <th className="px-4 py-2 font-medium">القائمة</th>
-              <th className="px-4 py-2 font-medium">المريض</th>
-              <th className="px-4 py-2 font-medium">الالتزام</th>
-              <th className="px-4 py-2 font-medium">الحالة</th>
+              <th className="px-4 py-2 font-medium">Date</th>
+              <th className="px-4 py-2 font-medium">Department</th>
+              <th className="px-4 py-2 font-medium">Checklist</th>
+              <th className="px-4 py-2 font-medium">Patient</th>
+              <th className="px-4 py-2 font-medium">Compliance</th>
+              <th className="px-4 py-2 font-medium">Status</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
@@ -113,8 +113,8 @@ export default function Records() {
             ))}
           </tbody>
         </table>
-        {!loading && rows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">لا توجد سجلات مطابقة</p>}
-        {loading && <p className="p-6 text-center text-sm text-slate-400">جارٍ التحميل...</p>}
+        {!loading && rows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No matching records</p>}
+        {loading && <p className="p-6 text-center text-sm text-slate-400">Loading...</p>}
       </div>
     </div>
   );
@@ -136,7 +136,7 @@ function RecordRow({ row, expanded, onToggle, isAdmin, onResolve, onDelete }) {
                 row.action_status === "resolved" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
               }`}
             >
-              {row.action_status === "resolved" ? "تم الإجراء" : "يحتاج إجراء"}
+              {row.action_status === "resolved" ? "Resolved" : "Action Needed"}
             </span>
           ) : (
             <span className="rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-400">—</span>
@@ -145,7 +145,7 @@ function RecordRow({ row, expanded, onToggle, isAdmin, onResolve, onDelete }) {
         <td className="flex items-center justify-end gap-1 px-4 py-2">
           {isAdmin && row.not_met_count > 0 && row.action_status !== "resolved" && (
             <button onClick={onResolve} className="rounded-lg px-2 py-1 text-xs text-teal-600 hover:bg-teal-50">
-              إغلاق
+              Resolve
             </button>
           )}
           {isAdmin && (
@@ -162,10 +162,10 @@ function RecordRow({ row, expanded, onToggle, isAdmin, onResolve, onDelete }) {
         <tr className="border-t border-slate-100 bg-slate-50/60">
           <td colSpan={7} className="px-4 py-4">
             <div className="mb-3 grid grid-cols-2 gap-2 text-xs text-slate-500 sm:grid-cols-4">
-              <div>رقم الملف: {row.mrn || "—"}</div>
-              <div>العمر: {row.age || "—"}</div>
-              <div>التشخيص: {row.diagnosis || "—"}</div>
-              <div>سجّله: {row.done_by || "—"}</div>
+              <div>MRN: {row.mrn || "—"}</div>
+              <div>Age: {row.age || "—"}</div>
+              <div>Diagnosis: {row.diagnosis || "—"}</div>
+              <div>Recorded by: {row.done_by || "—"}</div>
             </div>
             <div className="flex flex-col gap-1">
               {(row.items ?? []).map((it, idx) => (
@@ -180,7 +180,7 @@ function RecordRow({ row, expanded, onToggle, isAdmin, onResolve, onDelete }) {
                         : "font-medium text-slate-400"
                     }
                   >
-                    {it.status === "MET" ? "مطابق" : it.status === "NOT MET" ? "غير مطابق" : "لا ينطبق"}
+                    {it.status === "MET" ? "MET" : it.status === "NOT MET" ? "NOT MET" : "N/A"}
                   </span>
                 </div>
               ))}

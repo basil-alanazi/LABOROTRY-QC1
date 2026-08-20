@@ -76,43 +76,43 @@ export default function Dashboard() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">لوحة المتابعة</h1>
-          <p className="text-sm text-slate-500">ملخص الالتزام الشهري لكل القوائم والأقسام.</p>
+          <h1 className="text-xl font-bold text-slate-800">Dashboard</h1>
+          <p className="text-sm text-slate-500">Monthly compliance summary across checklists and departments.</p>
         </div>
         <input type="month" className="input w-auto" value={month} onChange={(e) => setMonth(e.target.value)} />
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <SummaryCard label="إجمالي التدقيقات" value={totals.audits} />
-        <SummaryCard label="نسبة الالتزام العامة" value={totals.compliance != null ? `${totals.compliance}%` : "—"} />
-        <SummaryCard label="بنود غير مطابقة" value={totals.notMet} highlight={totals.notMet > 0} />
-        <SummaryCard label="أنواع القوائم النشطة" value={totals.checklistTypes} />
+        <SummaryCard label="Total Audits" value={totals.audits} />
+        <SummaryCard label="Overall Compliance" value={totals.compliance != null ? `${totals.compliance}%` : "—"} />
+        <SummaryCard label="NOT MET Items" value={totals.notMet} highlight={totals.notMet > 0} />
+        <SummaryCard label="Active Checklist Types" value={totals.checklistTypes} />
       </div>
 
-      <Section title="حسب نوع القائمة">
+      <Section title="By Checklist Type">
         <Table
           rows={byChecklist}
           columns={[
-            { key: "name", label: "القائمة" },
-            { key: "audits", label: "عدد التدقيقات" },
-            { key: "met", label: "مطابق" },
-            { key: "notMet", label: "غير مطابق" },
-            { key: "applicable", label: "ينطبق عليه" },
-            { key: "compliance", label: "نسبة الالتزام", render: (v) => (v != null ? `${v}%` : "—") },
+            { key: "name", label: "Checklist" },
+            { key: "audits", label: "Audits" },
+            { key: "met", label: "Met" },
+            { key: "notMet", label: "Not Met" },
+            { key: "applicable", label: "Applicable" },
+            { key: "compliance", label: "Compliance", render: (v) => (v != null ? `${v}%` : "—") },
           ]}
           loading={loading}
         />
       </Section>
 
-      <Section title="حسب القسم">
+      <Section title="By Department">
         <Table
           rows={byDepartment}
           columns={[
-            { key: "department", label: "القسم" },
-            { key: "audits", label: "عدد التدقيقات" },
-            { key: "met", label: "مطابق" },
-            { key: "notMet", label: "غير مطابق" },
-            { key: "compliance", label: "نسبة الالتزام", render: (v) => (v != null ? `${v}%` : "—") },
+            { key: "department", label: "Department" },
+            { key: "audits", label: "Audits" },
+            { key: "met", label: "Met" },
+            { key: "notMet", label: "Not Met" },
+            { key: "compliance", label: "Compliance", render: (v) => (v != null ? `${v}%` : "—") },
           ]}
           loading={loading}
         />
@@ -143,7 +143,7 @@ function Table({ rows, columns, loading }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-right text-xs text-slate-500">
+        <thead className="bg-slate-50 text-left text-xs text-slate-500">
           <tr>
             {columns.map((c) => (
               <th key={c.key} className="px-4 py-2 font-medium">
@@ -164,7 +164,7 @@ function Table({ rows, columns, loading }) {
           ))}
         </tbody>
       </table>
-      {!loading && rows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">لا توجد بيانات لهذا الشهر</p>}
+      {!loading && rows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No data for this month</p>}
     </div>
   );
 }

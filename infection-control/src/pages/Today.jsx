@@ -5,9 +5,9 @@ import { useAuth } from "../lib/auth.jsx";
 import { computeCompliance } from "../lib/compliance";
 
 const STATUS_OPTIONS = [
-  { value: "MET", label: "مطابق", icon: CheckCircle2, className: "text-emerald-600 border-emerald-500 bg-emerald-50" },
-  { value: "NOT MET", label: "غير مطابق", icon: XCircle, className: "text-red-600 border-red-500 bg-red-50" },
-  { value: "NA", label: "لا ينطبق", icon: MinusCircle, className: "text-slate-500 border-slate-300 bg-slate-50" },
+  { value: "MET", label: "MET", icon: CheckCircle2, className: "text-emerald-600 border-emerald-500 bg-emerald-50" },
+  { value: "NOT MET", label: "NOT MET", icon: XCircle, className: "text-red-600 border-red-500 bg-red-50" },
+  { value: "NA", label: "N/A", icon: MinusCircle, className: "text-slate-500 border-slate-300 bg-slate-50" },
 ];
 
 const emptyPatient = { patient_name: "", mrn: "", age: "", diagnosis: "" };
@@ -68,12 +68,12 @@ export default function Today() {
   async function handleSave(e) {
     e.preventDefault();
     if (!department || !activeChecklist) {
-      setMessage({ type: "error", text: "اختر القسم ونوع الجولة أولاً" });
+      setMessage({ type: "error", text: "Select a department and checklist type first" });
       return;
     }
     const unset = items.filter((item) => !statuses[item]);
     if (unset.length > 0) {
-      setMessage({ type: "error", text: "أكمل جميع بنود القائمة قبل الحفظ" });
+      setMessage({ type: "error", text: "Complete all checklist items before saving" });
       return;
     }
 
@@ -105,9 +105,9 @@ export default function Today() {
 
     setSaving(false);
     if (error) {
-      setMessage({ type: "error", text: "تعذر الحفظ: " + error.message });
+      setMessage({ type: "error", text: "Could not save: " + error.message });
     } else {
-      setMessage({ type: "success", text: "تم حفظ الجولة بنجاح" });
+      setMessage({ type: "success", text: "Audit saved successfully" });
       resetForm();
     }
   }
@@ -115,13 +115,13 @@ export default function Today() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-800">الجولة اليومية</h1>
-        <p className="text-sm text-slate-500">سجّل تدقيق مريض واحد على قائمة واحدة في تاريخ واحد.</p>
+        <h1 className="text-xl font-bold text-slate-800">Daily Ward Round</h1>
+        <p className="text-sm text-slate-500">Record one patient audit against one checklist on one date.</p>
       </div>
 
       <form onSubmit={handleSave} className="flex flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-          <Field label="التاريخ">
+          <Field label="Date">
             <input
               type="date"
               value={date}
@@ -130,9 +130,9 @@ export default function Today() {
               required
             />
           </Field>
-          <Field label="القسم">
+          <Field label="Department">
             <select value={department} onChange={(e) => setDepartment(e.target.value)} className="input" required>
-              <option value="">اختر القسم</option>
+              <option value="">Select department</option>
               {departments.map((d) => (
                 <option key={d} value={d}>
                   {d}
@@ -140,7 +140,7 @@ export default function Today() {
               ))}
             </select>
           </Field>
-          <Field label="نوع القائمة">
+          <Field label="Checklist Type">
             <select
               value={checklistCode}
               onChange={(e) => setChecklistCode(e.target.value)}
@@ -148,7 +148,7 @@ export default function Today() {
               required
               disabled={!department}
             >
-              <option value="">اختر القائمة</option>
+              <option value="">Select checklist</option>
               {availableChecklists.map((c) => (
                 <option key={c.code} value={c.code}>
                   {c.name_ar}
@@ -160,14 +160,14 @@ export default function Today() {
 
         {department && availableChecklists.length === 0 && (
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
-            لا توجد قوائم تدقيق مرتبطة بهذا القسم — يمكن ربطها من الإعدادات.
+            No checklists are linked to this department yet — link one from Settings.
           </p>
         )}
 
         {activeChecklist && (
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="اسم المريض">
+              <Field label="Patient Name">
                 <input
                   className="input"
                   value={patient.patient_name}
@@ -175,7 +175,7 @@ export default function Today() {
                   required
                 />
               </Field>
-              <Field label="رقم الملف (MRN)">
+              <Field label="MRN">
                 <input
                   className="input"
                   value={patient.mrn}
@@ -183,10 +183,10 @@ export default function Today() {
                   required
                 />
               </Field>
-              <Field label="العمر">
+              <Field label="Age">
                 <input className="input" value={patient.age} onChange={(e) => setPatient({ ...patient, age: e.target.value })} />
               </Field>
-              <Field label="التشخيص">
+              <Field label="Diagnosis">
                 <input
                   className="input"
                   value={patient.diagnosis}
@@ -196,7 +196,7 @@ export default function Today() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <h2 className="text-sm font-semibold text-slate-700">{activeChecklist.name_ar} — بنود الحزمة</h2>
+              <h2 className="text-sm font-semibold text-slate-700">{activeChecklist.name_ar} — Bundle Items</h2>
               {items.map((item) => (
                 <div key={item} className="flex flex-col gap-2 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <span className="text-sm text-slate-700">{item}</span>
@@ -224,18 +224,18 @@ export default function Today() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 text-center sm:grid-cols-4">
-              <Stat label="مطابق" value={compliance.met} />
-              <Stat label="غير مطابق" value={compliance.notMet} />
-              <Stat label="ينطبق عليه" value={compliance.applicable} />
-              <Stat label="نسبة الالتزام" value={compliance.compliancePct != null ? `${compliance.compliancePct}%` : "—"} />
+              <Stat label="Met" value={compliance.met} />
+              <Stat label="Not Met" value={compliance.notMet} />
+              <Stat label="Applicable" value={compliance.applicable} />
+              <Stat label="Compliance" value={compliance.compliancePct != null ? `${compliance.compliancePct}%` : "—"} />
             </div>
 
-            <Field label="ملاحظات / إجراء مطلوب">
+            <Field label="Comments / Action Required">
               <textarea
                 className="input min-h-[80px]"
                 value={comments}
                 onChange={(e) => setComments(e.target.value)}
-                placeholder="اكتب أي إجراء تصحيحي مطلوب في حال وجود بنود غير مطابقة"
+                placeholder="Note any corrective action needed for NOT MET items"
               />
             </Field>
 
@@ -250,7 +250,7 @@ export default function Today() {
               disabled={saving}
               className="self-start rounded-lg bg-teal-600 px-6 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60"
             >
-              {saving ? "جارٍ الحفظ..." : "حفظ الجولة"}
+              {saving ? "Saving..." : "Save Audit"}
             </button>
           </>
         )}

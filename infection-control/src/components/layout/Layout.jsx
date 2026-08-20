@@ -23,7 +23,7 @@ export default function Layout({ children }) {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2 text-teal-700">
             <ShieldPlus className="h-6 w-6" />
-            <span className="text-lg font-bold">مكافحة العدوى</span>
+            <span className="text-lg font-bold">Infection Control</span>
           </div>
           <div className="flex items-center gap-3 text-sm text-slate-500">
             <span>{session?.username}</span>
@@ -32,36 +32,36 @@ export default function Layout({ children }) {
               className="flex items-center gap-1 rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
             >
               <LogOut className="h-4 w-4" />
-              خروج
+              Log out
             </button>
           </div>
         </div>
         <nav className="mx-auto flex max-w-6xl gap-1 px-4 pb-3">
           <NavLink to="/" end className={linkClass}>
             <ClipboardList className="h-4 w-4" />
-            الجولة اليومية
+            Daily Ward Round
           </NavLink>
           <NavLink to="/records" className={linkClass}>
             <ListChecks className="h-4 w-4" />
-            السجلات
+            Records
           </NavLink>
           {isAdmin && (
             <NavLink to="/dashboard" className={linkClass}>
               <LayoutDashboard className="h-4 w-4" />
-              لوحة المتابعة
+              Dashboard
             </NavLink>
           )}
           {isAdmin && (
             <NavLink to="/settings" className={linkClass}>
               <SettingsIcon className="h-4 w-4" />
-              الإعدادات
+              Settings
             </NavLink>
           )}
         </nav>
       </header>
       {supabase.isMock && (
         <div className="bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800">
-          وضع معاينة — بيانات تجريبية غير متصلة بقاعدة بيانات حقيقية، وما تُحفظ بعد تحديث الصفحة
+          Preview mode — sample data, not connected to a real database. Nothing is saved after a page refresh.
         </div>
       )}
       <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>

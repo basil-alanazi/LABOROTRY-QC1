@@ -1,43 +1,45 @@
-# مكافحة العدوى — دليل الإعداد من الصفر
+# Infection Control — Setup Guide
 
-موقع منفصل بالكامل عن QC Tracker وموقع الألعاب — حسابات جديدة لكل شي.
+A completely separate site from QC Tracker and the games site — new accounts for everything.
 
-نظام "الجولة اليومية" لقسم مكافحة العدوى: تدقيق التزام الأقسام (ICU, NICU, الجراحة, النساء)
-بحزم الوقاية القياسية — SSI, CAUTI, VAE, CLABSI — بنفس منطق نموذج الإكسل الورقي
-(مريض واحد + تاريخ واحد + قائمة واحدة = سطر واحد، مع حساب MET/NOT MET/نسبة الالتزام تلقائيًا).
+Daily Ward Round system for the Infection Control department: audits department compliance
+(ICU, NICU, Surgery, OB/GYN) against standard prevention bundles — SSI, CAUTI, VAE, CLABSI —
+following the same logic as the paper/Excel ward round form (one patient + one date + one
+checklist = one row, with MET/NOT MET/compliance% computed automatically).
 
-## 1) Supabase (مشروع جديد)
-1. supabase.com/dashboard/new → مشروع جديد باسم مختلف (مثلاً `infection-control`)
-2. انتظر لين يصير Healthy
-3. SQL Editor → New query → افتح `supabase_schema.sql` → انسخ الكل والصقه → Run
-   (هذا يزرع تلقائيًا الأقسام الأربعة والقوائم الست: SSI, CAUTI, VAE ICU/NICU, CLABSI ICU/NICU)
-4. Project Settings → Data API → انسخ API URL
-5. Project Settings → API Keys → انسخ Publishable key
+## 1) Supabase (new project)
+1. supabase.com/dashboard/new → new project with a distinct name (e.g. `infection-control`)
+2. Wait until it's Healthy
+3. SQL Editor → New query → open `supabase_schema.sql` → copy all and paste it → Run
+   (this automatically seeds the four departments and the six checklists: SSI, CAUTI, VAE ICU/NICU, CLABSI ICU/NICU)
+4. Project Settings → Data API → copy the API URL
+5. Project Settings → API Keys → copy the Publishable key
 
-## 2) GitHub (مستودع جديد أو داخل نفس المستودع)
-ارفع محتويات مجلد `infection-control/` (بما فيها `public` إذا وجد).
+## 2) GitHub (new repo, or inside the same repo)
+Upload the contents of the `infection-control/` folder (including `public` if present).
 
-## 3) Vercel (مشروع جديد)
-1. vercel.com → Add New → Project → استورد المستودع (Root Directory = `infection-control`)
-2. Environment Variables: `VITE_SUPABASE_URL` و `VITE_SUPABASE_ANON_KEY`
+## 3) Vercel (new project)
+1. vercel.com → Add New → Project → import the repo (Root Directory = `infection-control`)
+2. Environment Variables: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
 3. Deploy
 
-## 4) الحسابات الافتراضية (غيّرها فورًا من الإعدادات)
-- **فريق الأقسام** (إدخال فقط): `ward` / `ward123`
-- **مكافحة العدوى — الأول**: `ic` / `ic123`
-- **مكافحة العدوى — الثاني**: `ic2` / `ic2123`
-- **المالك** (صلاحيات كاملة + الحسابات): `owner` / `owner123`
+## 4) Default accounts (change these immediately from Settings)
+- **Ward Staff** (entry only): `ward` / `ward123`
+- **Infection Control — Primary**: `ic` / `ic123`
+- **Infection Control — Secondary**: `ic2` / `ic2123`
+- **Owner** (full access + accounts): `owner` / `owner123`
 
-## 5) كيف يشتغل
-1. أي حساب يفتح **"الجولة اليومية"**، يختار القسم ثم نوع القائمة (تظهر فقط القوائم المرتبطة بالقسم)
-2. يعبّي بيانات المريض ويحدد لكل بند: مطابق / غير مطابق / لا ينطبق
-3. النظام يحسب MET / Applicable / NOT MET / نسبة الالتزام تلقائيًا عند الحفظ
-4. **"السجلات"**: كل الجولات السابقة، قابلة للفلترة حسب القسم/القائمة/التاريخ، وإغلاق أي بند "يحتاج إجراء"
-5. **"لوحة المتابعة"** (فريق مكافحة العدوى فقط): ملخص شهري — عدد التدقيقات، نسبة الالتزام العامة، حسب القائمة وحسب القسم (نفس منطق شيت Dashboard في الإكسل)
-6. **"الإعدادات"** (فريق مكافحة العدوى): إضافة/حذف أقسام، تعديل بنود كل قائمة وربطها بالأقسام، وإدارة الحسابات (المالك فقط)
+## 5) How it works
+1. Any account opens **"Daily Ward Round"**, picks a department then a checklist type (only checklists linked to that department show up)
+2. Fills in patient details and marks each bundle item: MET / NOT MET / N/A
+3. The system computes MET / Applicable / NOT MET / Compliance% automatically on save
+4. **"Records"**: all past audits, filterable by department/checklist/date, with the ability to resolve any "Action Needed" item
+5. **"Dashboard"** (Infection Control team only): monthly summary — total audits, overall compliance, by checklist and by department (same logic as the Excel Dashboard sheet)
+6. **"Settings"** (Infection Control team): add/remove departments, edit each checklist's items and department links, and manage accounts (owner only)
 
-## ملاحظة مهمة عن بنود القوائم
-بعض نصوص بنود الحزمة في ملف الإكسل الأصلي كانت مقطوعة (الشيت يقصّها عند نحو ٦٠ حرف).
-تم زرع القوائم الست بالبنود القياسية المعروفة لهذي الحزم، لكن **راجعها من الإعدادات → قوائم
-التدقيق وأكمل الصياغة الرسمية الدقيقة** (خصوصًا أي إشارة لتعميم أو دليل داخلي) قبل الاعتماد
-عليها فعليًا في التوثيق.
+## Important note on checklist items
+Some bundle-item texts in the original Excel file were cut off (the sheet truncates around
+60 characters). The six checklists were seeded with the standard, widely recognized wording for
+these bundles, but **review them from Settings → Checklists and confirm the exact official
+wording** (especially any reference to an internal policy or protocol) before relying on them
+for official documentation.

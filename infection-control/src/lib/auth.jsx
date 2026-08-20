@@ -30,7 +30,7 @@ export function AuthProvider({ children }) {
 
   async function login(username, password) {
     const cfg = config ?? (await loadConfig());
-    if (!cfg) return { ok: false, error: "تعذر الاتصال بالخادم" };
+    if (!cfg) return { ok: false, error: "Could not connect to the server" };
 
     const matches = [
       { role: "owner", u: cfg.owner_username, p: cfg.owner_password },
@@ -39,7 +39,7 @@ export function AuthProvider({ children }) {
       { role: "staff", u: cfg.staff_username, p: cfg.staff_password },
     ].find((m) => m.u === username && m.p === password);
 
-    if (!matches) return { ok: false, error: "اسم المستخدم أو كلمة المرور غير صحيحة" };
+    if (!matches) return { ok: false, error: "Incorrect username or password" };
 
     const s = { username, role: matches.role };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
