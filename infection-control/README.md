@@ -20,8 +20,12 @@ Upload the contents of the `infection-control/` folder (including `public` if pr
 
 ## 3) Vercel (new project)
 1. vercel.com → Add New → Project → import the repo (Root Directory = `infection-control`)
-2. Environment Variables: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+2. Environment Variables: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (optional — `supabaseClient.js`
+   already defaults to the project's live Supabase instance, so you can skip this and deploy as-is)
 3. Deploy
+
+Once the Vercel project is linked to this GitHub repo, every push to `main` redeploys it
+automatically at the same stable URL — no manual redeploy step needed.
 
 ## 4) Default account (change the password immediately from Settings)
 - **Owner** (full access + user management): `owner` / `owner123`
