@@ -3,6 +3,7 @@ import { CheckCircle2, XCircle, MinusCircle } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
 import { computeCompliance } from "../lib/compliance";
+import { PATIENT_FIELDS, DEFAULT_PATIENT_FIELDS } from "../lib/patientFields";
 
 const STATUS_OPTIONS = [
   { value: "MET", label: "MET", icon: CheckCircle2, className: "text-emerald-600 border-emerald-500 bg-emerald-50" },
@@ -23,7 +24,7 @@ export default function Today() {
   const [comments, setComments] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
-  const patientNameRef = useRef(null);
+  const firstFieldRef = useRef(null);
 
   useEffect(() => {
     supabase
@@ -54,6 +55,11 @@ export default function Today() {
     setStatuses({});
   }, [checklistCode]);
 
+  const activeFields = activeChecklist?.fields ?? DEFAULT_PATIENT_FIELDS;
+  const visibleFields = useMemo(
+    () => PATIENT_FIELDS.filter((f) => activeFields.includes(f.key)),
+    [activeFields]
+  );
   const items = activeChecklist?.items ?? [];
   const compliance = useMemo(() => {
     const list = items.map((item) => ({ item, status: statuses[item] }));
@@ -66,8 +72,8 @@ export default function Today() {
     setComments("");
     // Jump straight back to the first field so the next patient can be
     // entered right away, without scrolling or clicking back in.
-    patientNameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    patientNameRef.current?.focus();
+    firstFieldRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    firstFieldRef.current?.focus();
   }
 
   async function handleSave(e) {
@@ -171,35 +177,21 @@ export default function Today() {
 
         {activeChecklist && (
           <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="Patient Name">
-                <input
-                  ref={patientNameRef}
-                  className="input"
-                  value={patient.patient_name}
-                  onChange={(e) => setPatient({ ...patient, patient_name: e.target.value })}
-                  required
-                />
-              </Field>
-              <Field label="MRN">
-                <input
-                  className="input"
-                  value={patient.mrn}
-                  onChange={(e) => setPatient({ ...patient, mrn: e.target.value })}
-                  required
-                />
-              </Field>
-              <Field label="Age">
-                <input className="input" value={patient.age} onChange={(e) => setPatient({ ...patient, age: e.target.value })} />
-              </Field>
-              <Field label="Diagnosis">
-                <input
-                  className="input"
-                  value={patient.diagnosis}
-                  onChange={(e) => setPatient({ ...patient, diagnosis: e.target.value })}
-                />
-              </Field>
-            </div>
+            {visibleFields.length > 0 && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {visibleFields.map((f, idx) => (
+                  <Field key={f.key} label={f.label}>
+                    <input
+                      ref={idx === 0 ? firstFieldRef : undefined}
+                      className="input"
+                      value={patient[f.key]}
+                      onChange={(e) => setPatient({ ...patient, [f.key]: e.target.value })}
+                      required={f.key === "patient_name" || f.key === "mrn"}
+                    />
+                  </Field>
+                ))}
+              </div>
+            )}
 
             <div className="flex flex-col gap-3">
               <h2 className="text-sm font-semibold text-slate-700">{activeChecklist.name_ar} — Bundle Items</h2>
