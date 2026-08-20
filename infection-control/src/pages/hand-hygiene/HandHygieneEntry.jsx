@@ -2,7 +2,14 @@ import { useMemo, useRef, useState } from "react";
 import { CheckCircle2, XCircle, MinusCircle } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
-import { HH_MOMENTS, OBSERVER_ROLES, computeHHCompliance } from "../../lib/handHygiene";
+import {
+  HH_MOMENTS,
+  OBSERVER_ROLES,
+  computeHHCompliance,
+  visitDurationMinutes,
+  EXPECTED_VISIT_MIN_MINUTES,
+  EXPECTED_VISIT_MAX_MINUTES,
+} from "../../lib/handHygiene";
 
 const STATUS_OPTIONS = [
   { value: 1, label: "Done", icon: CheckCircle2, className: "text-emerald-600 border-emerald-500 bg-emerald-50" },
@@ -18,6 +25,8 @@ export default function HandHygieneEntry() {
   const [department, setDepartment] = useState("");
   const [observer, setObserver] = useState("");
   const [observerOther, setObserverOther] = useState("");
+  const [timeFrom, setTimeFrom] = useState("");
+  const [timeTo, setTimeTo] = useState("");
   const [fields, setFields] = useState(emptyFields);
   const [missed, setMissed] = useState(false);
   const [handWash, setHandWash] = useState(false);
@@ -28,10 +37,15 @@ export default function HandHygieneEntry() {
 
   const departments = config?.hh_departments ?? [];
   const compliance = useMemo(() => computeHHCompliance(fields, missed ? 1 : null), [fields, missed]);
+  const duration = useMemo(() => visitDurationMinutes(timeFrom, timeTo), [timeFrom, timeTo]);
+  const durationOutOfRange =
+    duration != null && (duration < EXPECTED_VISIT_MIN_MINUTES || duration > EXPECTED_VISIT_MAX_MINUTES);
 
   function resetForBlock() {
     setObserver("");
     setObserverOther("");
+    setTimeFrom("");
+    setTimeTo("");
     setFields(emptyFields());
     setMissed(false);
     setHandWash(false);
@@ -59,6 +73,8 @@ export default function HandHygieneEntry() {
       date,
       department,
       observer: observerValue,
+      time_from: timeFrom || null,
+      time_to: timeTo || null,
       ...fields,
       missed: missed ? 1 : null,
       hand_wash: handWash ? 1 : null,
@@ -147,6 +163,24 @@ export default function HandHygieneEntry() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="flex flex-col gap-2 rounded-xl border border-slate-200 p-3">
+        <h2 className="text-sm font-semibold text-slate-700">Visit Time</h2>
+        <p className="text-xs text-slate-500">Expected visit length: {EXPECTED_VISIT_MIN_MINUTES}-{EXPECTED_VISIT_MAX_MINUTES} minutes.</p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:items-end">
+          <Field label="Time From">
+            <input type="time" className="input" value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} />
+          </Field>
+          <Field label="Time To">
+            <input type="time" className="input" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
+          </Field>
+          {duration != null && (
+            <p className={`text-sm font-medium ${durationOutOfRange ? "text-red-600" : "text-emerald-600"}`}>
+              Duration: {duration} min{durationOutOfRange ? " — outside expected range" : ""}
+            </p>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

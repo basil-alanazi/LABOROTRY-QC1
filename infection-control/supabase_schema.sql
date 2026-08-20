@@ -93,6 +93,8 @@ create table if not exists hh_observations (
   date date not null default current_date,
   department text not null,
   observer text not null default '',
+  time_from time,                     -- visit start/end, expected 10-20 minutes
+  time_to time,
   before_touching_patient smallint,   -- 1 = compliant, 0 = missed, null = not applicable
   before_clean_procedure smallint,
   after_body_fluid_risk smallint,
