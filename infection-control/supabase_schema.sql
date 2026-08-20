@@ -36,6 +36,7 @@ create table if not exists checklist_types (
   name_en text not null,
   items jsonb not null default '[]'::jsonb,        -- ["component 1", "component 2", ...]
   departments jsonb not null default '[]'::jsonb,   -- ["ICU","NICU",...] which wards use it
+  baseline text not null default '',                -- free-text reference field, reserved for future use
   active boolean not null default true,
   sort_order int not null default 0
 );
