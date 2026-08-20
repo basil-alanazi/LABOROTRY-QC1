@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, XCircle, MinusCircle } from "lucide-react";
-import { supabase } from "../lib/supabaseClient";
-import { useAuth } from "../lib/auth.jsx";
-import { computeCompliance } from "../lib/compliance";
-import { PATIENT_FIELDS, DEFAULT_PATIENT_FIELDS } from "../lib/patientFields";
+import { supabase } from "../../lib/supabaseClient";
+import { useAuth } from "../../lib/auth.jsx";
+import { computeCompliance } from "../../lib/compliance";
+import { PATIENT_FIELDS, DEFAULT_PATIENT_FIELDS } from "../../lib/patientFields";
 
 const STATUS_OPTIONS = [
   { value: "MET", label: "MET", icon: CheckCircle2, className: "text-emerald-600 border-emerald-500 bg-emerald-50" },
@@ -13,7 +13,7 @@ const STATUS_OPTIONS = [
 
 const emptyPatient = { patient_name: "", mrn: "", age: "", diagnosis: "" };
 
-export default function Today() {
+export default function WardRoundEntry() {
   const { session, config } = useAuth();
   const [checklistTypes, setChecklistTypes] = useState([]);
   const [department, setDepartment] = useState(() => session?.department || "");
@@ -124,12 +124,6 @@ export default function Today() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-800">Daily Ward Round</h1>
-        <p className="text-sm text-slate-500">Record one patient audit against one checklist on one date.</p>
-      </div>
-
       <form onSubmit={handleSave} className="flex flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           <Field label="Date">
@@ -253,7 +247,6 @@ export default function Today() {
           </>
         )}
       </form>
-    </div>
   );
 }
 

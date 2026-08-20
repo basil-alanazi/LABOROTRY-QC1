@@ -6,7 +6,8 @@ create extension if not exists pgcrypto;
 -- Shared settings (simple username/password login lives in the users table).
 create table if not exists app_config (
   id int primary key default 1,
-  departments jsonb not null default '["ICU","NICU","Surgery","OB/GYN"]'::jsonb
+  departments jsonb not null default '["ICU","NICU","Surgery","OB/GYN"]'::jsonb,
+  hh_departments jsonb not null default '["ICU","Medical Ward","Surgical Ward","Emergency","Pediatric","NICU","OPD","OT","Labor & Delivery","Dialysis","Other"]'::jsonb
 );
 insert into app_config (id) values (1) on conflict (id) do nothing;
 
@@ -84,17 +85,46 @@ create table if not exists audit_log (
   created_at timestamptz not null default now()
 );
 
+-- Hand Hygiene daily monitoring — a separate module from the Ward Round
+-- audits above. One row = one observation of one observer's hand-hygiene
+-- moments on one date/department (WHO 5-moments + glove use).
+create table if not exists hh_observations (
+  id uuid primary key default gen_random_uuid(),
+  date date not null default current_date,
+  department text not null,
+  observer text not null default '',
+  before_touching_patient smallint,   -- 1 = compliant, 0 = missed, null = not applicable
+  before_clean_procedure smallint,
+  after_body_fluid_risk smallint,
+  after_touching_patient smallint,
+  after_touching_surroundings smallint,
+  wearing_glove smallint,
+  missed smallint,                    -- opportunity occurred but no category above applies
+  hand_wash smallint,
+  hand_rub smallint,
+  total_opportunities int not null default 0,
+  compliant int not null default 0,
+  compliance_pct numeric,
+  done_by text not null default '',
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
 alter table app_config enable row level security;
 alter table users enable row level security;
 alter table checklist_types enable row level security;
 alter table ward_round_audits enable row level security;
 alter table audit_log enable row level security;
+alter table hh_observations enable row level security;
 
 create policy "allow all app_config" on app_config for all using (true) with check (true);
 create policy "allow all users" on users for all using (true) with check (true);
 create policy "allow all checklist_types" on checklist_types for all using (true) with check (true);
 create policy "allow all ward_round_audits" on ward_round_audits for all using (true) with check (true);
 create policy "allow all audit_log" on audit_log for all using (true) with check (true);
+create policy "allow all hh_observations" on hh_observations for all using (true) with check (true);
 
 -- Seed the six checklist types from the hospital's paper/Excel Daily Ward Round
 -- form. NOTE: a few bundle-component texts were cut off in the source file
