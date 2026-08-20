@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, XCircle, MinusCircle } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
@@ -23,6 +23,7 @@ export default function Today() {
   const [comments, setComments] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
+  const patientNameRef = useRef(null);
 
   useEffect(() => {
     supabase
@@ -63,6 +64,10 @@ export default function Today() {
     setPatient(emptyPatient);
     setStatuses({});
     setComments("");
+    // Jump straight back to the first field so the next patient can be
+    // entered right away, without scrolling or clicking back in.
+    patientNameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    patientNameRef.current?.focus();
   }
 
   async function handleSave(e) {
@@ -169,6 +174,7 @@ export default function Today() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Field label="Patient Name">
                 <input
+                  ref={patientNameRef}
                   className="input"
                   value={patient.patient_name}
                   onChange={(e) => setPatient({ ...patient, patient_name: e.target.value })}

@@ -68,6 +68,7 @@ export default function Settings() {
         name_ar: checklist.name_ar,
         items: checklist.items,
         departments: checklist.departments,
+        baseline: checklist.baseline,
         active: checklist.active,
       })
       .eq("id", checklist.id);
@@ -198,6 +199,14 @@ export default function Settings() {
               className="input min-h-[140px] font-mono text-xs"
               value={(c.items ?? []).join("\n")}
               onChange={(e) => updateChecklist(c.id, { items: e.target.value.split("\n").filter((l) => l.trim() !== "") })}
+            />
+
+            <label className="mb-1 mt-3 block text-xs font-medium text-slate-500">Baseline (reserved for future use)</label>
+            <input
+              className="input"
+              value={c.baseline || ""}
+              onChange={(e) => updateChecklist(c.id, { baseline: e.target.value })}
+              placeholder="Optional — fill in whenever you need it"
             />
 
             <button
