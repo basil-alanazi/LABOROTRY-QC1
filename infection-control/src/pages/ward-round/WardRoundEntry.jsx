@@ -208,6 +208,38 @@ export default function WardRoundEntry() {
               </div>
             )}
 
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium text-slate-500">Attachment (photo or file, optional)</label>
+              <div className="flex items-center gap-3">
+                <label className="flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                  <Paperclip className="h-4 w-4" />
+                  {attachment ? "Change file" : "Choose file"}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,.pdf,.doc,.docx"
+                    className="hidden"
+                    onChange={(e) => setAttachment(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                {attachment && (
+                  <span className="flex items-center gap-1 text-xs text-slate-600">
+                    {attachment.name}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttachment(null);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                      className="text-slate-400 hover:text-red-500"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                )}
+              </div>
+            </div>
+
             <div className="flex flex-col gap-3">
               <h2 className="text-sm font-semibold text-slate-700">{activeChecklist.name_ar} — Bundle Items</h2>
               {items.map((item) => (
@@ -251,38 +283,6 @@ export default function WardRoundEntry() {
                 placeholder="Note any corrective action needed for NOT MET items"
               />
             </Field>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-medium text-slate-500">Attachment (photo or file, optional)</label>
-              <div className="flex items-center gap-3">
-                <label className="flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
-                  <Paperclip className="h-4 w-4" />
-                  {attachment ? "Change file" : "Choose file"}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,.pdf,.doc,.docx"
-                    className="hidden"
-                    onChange={(e) => setAttachment(e.target.files?.[0] ?? null)}
-                  />
-                </label>
-                {attachment && (
-                  <span className="flex items-center gap-1 text-xs text-slate-600">
-                    {attachment.name}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAttachment(null);
-                        if (fileInputRef.current) fileInputRef.current.value = "";
-                      }}
-                      className="text-slate-400 hover:text-red-500"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </span>
-                )}
-              </div>
-            </div>
 
             {message && (
               <p className={`rounded-lg px-3 py-2 text-sm ${message.type === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
