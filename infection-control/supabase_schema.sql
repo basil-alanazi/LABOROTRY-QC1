@@ -1,0 +1,166 @@
+-- Infection Control — Daily Ward Round & Surveillance schema.
+-- Run this once in a NEW Supabase project's SQL Editor.
+
+create extension if not exists pgcrypto;
+
+-- Accounts (simple username/password login, no Supabase Auth) + shared settings.
+create table if not exists app_config (
+  id int primary key default 1,
+  staff_username text not null default 'ward',
+  staff_password text not null default 'ward123',
+  ic_username text not null default 'ic',
+  ic_password text not null default 'ic123',
+  ic2_username text not null default 'ic2',
+  ic2_password text not null default 'ic2123',
+  owner_username text not null default 'owner',
+  owner_password text not null default 'owner123',
+  departments jsonb not null default '["ICU","NICU","الجراحة","النساء"]'::jsonb
+);
+insert into app_config (id) values (1) on conflict (id) do nothing;
+
+-- One checklist type = one bundle (SSI / CAUTI / VAE / CLABSI), with its list of
+-- bundle components and which departments audit against it.
+create table if not exists checklist_types (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  name_ar text not null,
+  name_en text not null,
+  items jsonb not null default '[]'::jsonb,        -- ["component 1", "component 2", ...]
+  departments jsonb not null default '[]'::jsonb,   -- ["ICU","NICU",...] which wards use it
+  active boolean not null default true,
+  sort_order int not null default 0
+);
+
+-- One row = one patient audited on one date against one checklist.
+create table if not exists ward_round_audits (
+  id uuid primary key default gen_random_uuid(),
+  date date not null default current_date,
+  department text not null,
+  checklist_type_id uuid references checklist_types(id),
+  checklist_code text not null,
+  checklist_name_ar text not null default '',
+  patient_name text not null default '',
+  mrn text not null default '',
+  age text not null default '',
+  diagnosis text not null default '',
+  items jsonb not null default '[]'::jsonb,   -- [{"item":"...", "status":"MET|NOT MET|NA"}]
+  met_count int not null default 0,
+  applicable_count int not null default 0,
+  not_met_count int not null default 0,
+  compliance_pct numeric,
+  comments text not null default '',
+  action_status text not null default 'none',  -- none | open | resolved
+  done_by text not null default '',
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  edited_by text,
+  edited_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists audit_log (
+  id uuid primary key default gen_random_uuid(),
+  action text not null,
+  entity text not null,
+  description text not null,
+  performed_by text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table app_config enable row level security;
+alter table checklist_types enable row level security;
+alter table ward_round_audits enable row level security;
+alter table audit_log enable row level security;
+
+create policy "allow all app_config" on app_config for all using (true) with check (true);
+create policy "allow all checklist_types" on checklist_types for all using (true) with check (true);
+create policy "allow all ward_round_audits" on ward_round_audits for all using (true) with check (true);
+create policy "allow all audit_log" on audit_log for all using (true) with check (true);
+
+-- Seed the six checklist types from the hospital's paper/Excel Daily Ward Round
+-- form. NOTE: a few bundle-component texts were cut off in the source file
+-- (the sheet itself truncates around 60 characters) — finish the exact
+-- official wording for those from Settings → checklist items before go-live.
+insert into checklist_types (code, name_ar, name_en, items, departments, sort_order) values
+('SSI', 'الجراحة (SSI)', 'Surgical Site Infection', '[
+  "1. Antibiotic(s) was (were) given within one (1) hour before incision",
+  "2. Prophylactic antibiotic(s) is (are) consistent with our guidelines",
+  "3. Discontinuation of prophylactic antibiotic(s) within 24 hours",
+  "4. Appropriate hair removal — Was hair at the incisional site removed appropriately",
+  "5. Maintenance of pre/postoperative glucose control — Serum glucose target met",
+  "6. Maintenance of pre/postoperative normothermia (for applicable procedures)",
+  "7. Use appropriate antiseptic solution"
+]'::jsonb, '["الجراحة","النساء"]'::jsonb, 1),
+
+('CAUTI', 'قسطرة المسالك البولية (CAUTI)', 'Catheter-Associated UTI', '[
+  "1. Avoid unnecessary urinary catheters",
+  "2. Insert using aseptic technique",
+  "3. Hand hygiene before insertion of urinary catheter",
+  "4. Use sterile equipment (gloves, drape, sponges, sterile solution)",
+  "5. Use of smallest catheter size as possible",
+  "6. Maintain catheters based on recommended guidelines",
+  "7. Maintain a sterile, continuously closed drainage system",
+  "8. Keep catheter properly secured to prevent movement",
+  "9. Keep collection bag below the level of the bladder at all times",
+  "10. Maintain unobstructed urine flow",
+  "11. Empty collection bag regularly",
+  "12. Routine hygiene (cleansing of the meatal surface)",
+  "13. Collection of urine samples should follow aseptic technique",
+  "14. Review urinary catheter necessity daily and remove promptly when no longer indicated"
+]'::jsonb, '["ICU","الجراحة","النساء"]'::jsonb, 2),
+
+('VAE_ICU', 'أجهزة التنفس - ICU (VAE)', 'Ventilator-Associated Event — ICU', '[
+  "1. Elevation of the head of the bed to between 30 and 45 degrees",
+  "2. Daily sedative interruption & daily assessment of readiness to extubate",
+  "3. Peptic ulcer disease (PUD) prophylaxis",
+  "4. Deep venous thrombosis (DVT) prophylaxis (unless contraindicated)",
+  "5. Daily oral care with appropriate antiseptic solution"
+]'::jsonb, '["ICU"]'::jsonb, 3),
+
+('VAE_NICU', 'أجهزة التنفس - NICU (VAE)', 'Ventilator-Associated Event — NICU', '[
+  "1. Hand hygiene",
+  "2. Semi-recumbent position",
+  "3. Mouth rinse with an appropriate solution",
+  "4. Appropriate ventilator circuit care",
+  "5. Daily assessment of readiness to extubate"
+]'::jsonb, '["NICU"]'::jsonb, 4),
+
+('CLABSI_ICU', 'القسطرة المركزية - ICU (CLABSI)', 'Central Line-Associated Bloodstream Infection — ICU', '[
+  "1. Hand hygiene",
+  "2. Maximal barrier precautions",
+  "3. Cap",
+  "4. Mask",
+  "5. Sterile gloves",
+  "6. Sterile gown",
+  "7. Large sterile drape",
+  "8. 2% chlorhexidine in alcohol for adults, pediatrics & neonates ≥2 months",
+  "9. 2% aqueous chlorhexidine for neonates <2 weeks or <1500 g",
+  "10. Subclavian vein for adults, femoral for pediatrics, and appropriate site for neonates",
+  "11. Insertion compliance: compliant for the above (insertion bundle)",
+  "12. Hand hygiene (maintenance)",
+  "13. Daily assessment of catheter necessity with prompt removal",
+  "14. Proper dressing choice (transparent semipermeable dressing)",
+  "15. Proper frequency of dressing change",
+  "16. Proper replacement of administration sets"
+]'::jsonb, '["ICU"]'::jsonb, 5),
+
+('CLABSI_NICU', 'القسطرة المركزية - NICU (CLABSI)', 'Central Line-Associated Bloodstream Infection — NICU', '[
+  "1. Hand hygiene",
+  "2. Maximal barrier precautions",
+  "3. Cap",
+  "4. Mask",
+  "5. Sterile gloves",
+  "6. Sterile gown",
+  "7. Large sterile drape",
+  "8. 2% chlorhexidine in alcohol for adults, pediatrics & neonates ≥2 months",
+  "9. 2% aqueous chlorhexidine for neonates <2 weeks or <1500 g",
+  "10. Subclavian vein for adults, femoral for pediatrics, and appropriate site for neonates",
+  "11. Insertion compliance: compliant for the above (insertion bundle)",
+  "12. Hand hygiene (maintenance)",
+  "13. Daily assessment of catheter necessity with prompt removal",
+  "14. Proper dressing choice (transparent semipermeable dressing)",
+  "15. Proper frequency of dressing change",
+  "16. Proper replacement of administration sets"
+]'::jsonb, '["NICU"]'::jsonb, 6)
+on conflict (code) do nothing;

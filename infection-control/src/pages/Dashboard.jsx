@@ -1,0 +1,170 @@
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../lib/supabaseClient";
+
+function monthBounds(monthStr) {
+  const [y, m] = monthStr.split("-").map(Number);
+  const from = `${monthStr}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const to = `${monthStr}-${String(lastDay).padStart(2, "0")}`;
+  return { from, to };
+}
+
+export default function Dashboard() {
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const { from, to } = monthBounds(month);
+    setLoading(true);
+    supabase
+      .from("ward_round_audits")
+      .select("checklist_code,checklist_name_ar,department,met_count,applicable_count,not_met_count")
+      .eq("deleted", false)
+      .gte("date", from)
+      .lte("date", to)
+      .then(({ data }) => {
+        setRows(data ?? []);
+        setLoading(false);
+      });
+  }, [month]);
+
+  const byChecklist = useMemo(() => {
+    const map = new Map();
+    for (const r of rows) {
+      const key = r.checklist_code;
+      if (!map.has(key)) map.set(key, { name: r.checklist_name_ar, audits: 0, met: 0, applicable: 0, notMet: 0 });
+      const entry = map.get(key);
+      entry.audits += 1;
+      entry.met += r.met_count;
+      entry.applicable += r.applicable_count;
+      entry.notMet += r.not_met_count;
+    }
+    return [...map.values()].map((e) => ({
+      ...e,
+      compliance: e.applicable > 0 ? Math.round((e.met / e.applicable) * 1000) / 10 : null,
+    }));
+  }, [rows]);
+
+  const totals = useMemo(() => {
+    const audits = rows.length;
+    const met = rows.reduce((s, r) => s + r.met_count, 0);
+    const applicable = rows.reduce((s, r) => s + r.applicable_count, 0);
+    const notMet = rows.reduce((s, r) => s + r.not_met_count, 0);
+    const compliance = applicable > 0 ? Math.round((met / applicable) * 1000) / 10 : null;
+    return { audits, compliance, notMet, checklistTypes: byChecklist.length };
+  }, [rows, byChecklist]);
+
+  const byDepartment = useMemo(() => {
+    const map = new Map();
+    for (const r of rows) {
+      if (!map.has(r.department)) map.set(r.department, { audits: 0, met: 0, applicable: 0, notMet: 0 });
+      const entry = map.get(r.department);
+      entry.audits += 1;
+      entry.met += r.met_count;
+      entry.applicable += r.applicable_count;
+      entry.notMet += r.not_met_count;
+    }
+    return [...map.entries()].map(([department, e]) => ({
+      department,
+      ...e,
+      compliance: e.applicable > 0 ? Math.round((e.met / e.applicable) * 1000) / 10 : null,
+    }));
+  }, [rows]);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">لوحة المتابعة</h1>
+          <p className="text-sm text-slate-500">ملخص الالتزام الشهري لكل القوائم والأقسام.</p>
+        </div>
+        <input type="month" className="input w-auto" value={month} onChange={(e) => setMonth(e.target.value)} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <SummaryCard label="إجمالي التدقيقات" value={totals.audits} />
+        <SummaryCard label="نسبة الالتزام العامة" value={totals.compliance != null ? `${totals.compliance}%` : "—"} />
+        <SummaryCard label="بنود غير مطابقة" value={totals.notMet} highlight={totals.notMet > 0} />
+        <SummaryCard label="أنواع القوائم النشطة" value={totals.checklistTypes} />
+      </div>
+
+      <Section title="حسب نوع القائمة">
+        <Table
+          rows={byChecklist}
+          columns={[
+            { key: "name", label: "القائمة" },
+            { key: "audits", label: "عدد التدقيقات" },
+            { key: "met", label: "مطابق" },
+            { key: "notMet", label: "غير مطابق" },
+            { key: "applicable", label: "ينطبق عليه" },
+            { key: "compliance", label: "نسبة الالتزام", render: (v) => (v != null ? `${v}%` : "—") },
+          ]}
+          loading={loading}
+        />
+      </Section>
+
+      <Section title="حسب القسم">
+        <Table
+          rows={byDepartment}
+          columns={[
+            { key: "department", label: "القسم" },
+            { key: "audits", label: "عدد التدقيقات" },
+            { key: "met", label: "مطابق" },
+            { key: "notMet", label: "غير مطابق" },
+            { key: "compliance", label: "نسبة الالتزام", render: (v) => (v != null ? `${v}%` : "—") },
+          ]}
+          loading={loading}
+        />
+      </Section>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, highlight }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className={`text-2xl font-bold ${highlight ? "text-red-600" : "text-slate-800"}`}>{value}</div>
+      <div className="text-xs text-slate-500">{label}</div>
+    </div>
+  );
+}
+
+function Section({ title, children }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function Table({ rows, columns, loading }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <table className="w-full text-sm">
+        <thead className="bg-slate-50 text-right text-xs text-slate-500">
+          <tr>
+            {columns.map((c) => (
+              <th key={c.key} className="px-4 py-2 font-medium">
+                {c.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, idx) => (
+            <tr key={idx} className="border-t border-slate-100">
+              {columns.map((c) => (
+                <td key={c.key} className="px-4 py-2">
+                  {c.render ? c.render(row[c.key]) : row[c.key]}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {!loading && rows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">لا توجد بيانات لهذا الشهر</p>}
+    </div>
+  );
+}

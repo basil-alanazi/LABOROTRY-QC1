@@ -1,0 +1,194 @@
+import { useEffect, useState } from "react";
+import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../lib/auth.jsx";
+
+export default function Records() {
+  const { config, isAdmin, session } = useAuth();
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
+  const [filters, setFilters] = useState({ department: "", checklist: "", from: "", to: "" });
+  const [checklistTypes, setChecklistTypes] = useState([]);
+
+  useEffect(() => {
+    supabase
+      .from("checklist_types")
+      .select("code,name_ar")
+      .order("sort_order")
+      .then(({ data }) => setChecklistTypes(data ?? []));
+  }, []);
+
+  async function load() {
+    setLoading(true);
+    let query = supabase
+      .from("ward_round_audits")
+      .select("*")
+      .eq("deleted", false)
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (filters.department) query = query.eq("department", filters.department);
+    if (filters.checklist) query = query.eq("checklist_code", filters.checklist);
+    if (filters.from) query = query.gte("date", filters.from);
+    if (filters.to) query = query.lte("date", filters.to);
+
+    const { data } = await query;
+    setRows(data ?? []);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
+
+  async function markResolved(id) {
+    await supabase.from("ward_round_audits").update({ action_status: "resolved" }).eq("id", id);
+    load();
+  }
+
+  async function remove(id) {
+    if (!confirm("حذف هذا السجل؟")) return;
+    await supabase
+      .from("ward_round_audits")
+      .update({ deleted: true, deleted_by: session?.username, deleted_at: new Date().toISOString() })
+      .eq("id", id);
+    load();
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-xl font-bold text-slate-800">السجلات</h1>
+        <p className="text-sm text-slate-500">جولات التدقيق السابقة لكل الأقسام.</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-4">
+        <select className="input" value={filters.department} onChange={(e) => setFilters({ ...filters, department: e.target.value })}>
+          <option value="">كل الأقسام</option>
+          {(config?.departments ?? []).map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+        <select className="input" value={filters.checklist} onChange={(e) => setFilters({ ...filters, checklist: e.target.value })}>
+          <option value="">كل القوائم</option>
+          {checklistTypes.map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.name_ar}
+            </option>
+          ))}
+        </select>
+        <input type="date" className="input" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} />
+        <input type="date" className="input" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} />
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-right text-xs text-slate-500">
+            <tr>
+              <th className="px-4 py-2 font-medium">التاريخ</th>
+              <th className="px-4 py-2 font-medium">القسم</th>
+              <th className="px-4 py-2 font-medium">القائمة</th>
+              <th className="px-4 py-2 font-medium">المريض</th>
+              <th className="px-4 py-2 font-medium">الالتزام</th>
+              <th className="px-4 py-2 font-medium">الحالة</th>
+              <th className="px-4 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <RecordRow
+                key={row.id}
+                row={row}
+                expanded={expanded === row.id}
+                onToggle={() => setExpanded(expanded === row.id ? null : row.id)}
+                isAdmin={isAdmin}
+                onResolve={() => markResolved(row.id)}
+                onDelete={() => remove(row.id)}
+              />
+            ))}
+          </tbody>
+        </table>
+        {!loading && rows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">لا توجد سجلات مطابقة</p>}
+        {loading && <p className="p-6 text-center text-sm text-slate-400">جارٍ التحميل...</p>}
+      </div>
+    </div>
+  );
+}
+
+function RecordRow({ row, expanded, onToggle, isAdmin, onResolve, onDelete }) {
+  return (
+    <>
+      <tr className="border-t border-slate-100 hover:bg-slate-50">
+        <td className="px-4 py-2">{row.date}</td>
+        <td className="px-4 py-2">{row.department}</td>
+        <td className="px-4 py-2">{row.checklist_name_ar}</td>
+        <td className="px-4 py-2">{row.patient_name}</td>
+        <td className="px-4 py-2">{row.compliance_pct != null ? `${row.compliance_pct}%` : "—"}</td>
+        <td className="px-4 py-2">
+          {row.not_met_count > 0 ? (
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                row.action_status === "resolved" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+              }`}
+            >
+              {row.action_status === "resolved" ? "تم الإجراء" : "يحتاج إجراء"}
+            </span>
+          ) : (
+            <span className="rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-400">—</span>
+          )}
+        </td>
+        <td className="flex items-center justify-end gap-1 px-4 py-2">
+          {isAdmin && row.not_met_count > 0 && row.action_status !== "resolved" && (
+            <button onClick={onResolve} className="rounded-lg px-2 py-1 text-xs text-teal-600 hover:bg-teal-50">
+              إغلاق
+            </button>
+          )}
+          {isAdmin && (
+            <button onClick={onDelete} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+          <button onClick={onToggle} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="border-t border-slate-100 bg-slate-50/60">
+          <td colSpan={7} className="px-4 py-4">
+            <div className="mb-3 grid grid-cols-2 gap-2 text-xs text-slate-500 sm:grid-cols-4">
+              <div>رقم الملف: {row.mrn || "—"}</div>
+              <div>العمر: {row.age || "—"}</div>
+              <div>التشخيص: {row.diagnosis || "—"}</div>
+              <div>سجّله: {row.done_by || "—"}</div>
+            </div>
+            <div className="flex flex-col gap-1">
+              {(row.items ?? []).map((it, idx) => (
+                <div key={idx} className="flex items-center justify-between rounded-lg bg-white px-3 py-1.5 text-xs">
+                  <span className="text-slate-700">{it.item}</span>
+                  <span
+                    className={
+                      it.status === "MET"
+                        ? "font-medium text-emerald-600"
+                        : it.status === "NOT MET"
+                        ? "font-medium text-red-600"
+                        : "font-medium text-slate-400"
+                    }
+                  >
+                    {it.status === "MET" ? "مطابق" : it.status === "NOT MET" ? "غير مطابق" : "لا ينطبق"}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {row.comments && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{row.comments}</p>}
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
