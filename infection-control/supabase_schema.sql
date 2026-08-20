@@ -67,6 +67,8 @@ create table if not exists ward_round_audits (
   compliance_pct numeric,
   comments text not null default '',
   action_status text not null default 'none',  -- none | open | resolved
+  attachment_path text,               -- path inside the "ward-round-attachments" storage bucket
+  attachment_name text,
   done_by text not null default '',
   resolved_by text,
   resolved_at timestamptz,
@@ -143,6 +145,16 @@ create policy "allow all read hh-attachments" on storage.objects for select usin
 create policy "allow all insert hh-attachments" on storage.objects for insert with check (bucket_id = 'hh-attachments');
 create policy "allow all update hh-attachments" on storage.objects for update using (bucket_id = 'hh-attachments') with check (bucket_id = 'hh-attachments');
 create policy "allow all delete hh-attachments" on storage.objects for delete using (bucket_id = 'hh-attachments');
+
+-- Same, for Ward Round audit attachments.
+insert into storage.buckets (id, name, public)
+values ('ward-round-attachments', 'ward-round-attachments', true)
+on conflict (id) do nothing;
+
+create policy "allow all read ward-round-attachments" on storage.objects for select using (bucket_id = 'ward-round-attachments');
+create policy "allow all insert ward-round-attachments" on storage.objects for insert with check (bucket_id = 'ward-round-attachments');
+create policy "allow all update ward-round-attachments" on storage.objects for update using (bucket_id = 'ward-round-attachments') with check (bucket_id = 'ward-round-attachments');
+create policy "allow all delete ward-round-attachments" on storage.objects for delete using (bucket_id = 'ward-round-attachments');
 
 -- Seed the six checklist types from the hospital's paper/Excel Daily Ward Round
 -- form. NOTE: a few bundle-component texts were cut off in the source file

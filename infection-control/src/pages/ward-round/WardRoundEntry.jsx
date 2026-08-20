@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, XCircle, MinusCircle } from "lucide-react";
+import { CheckCircle2, XCircle, MinusCircle, Paperclip, X } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
-import { computeCompliance } from "../../lib/compliance";
+import { computeCompliance, WARD_ROUND_ATTACHMENTS_BUCKET } from "../../lib/compliance";
 import { PATIENT_FIELDS, DEFAULT_PATIENT_FIELDS } from "../../lib/patientFields";
 
 const STATUS_OPTIONS = [
@@ -22,9 +22,11 @@ export default function WardRoundEntry() {
   const [patient, setPatient] = useState(emptyPatient);
   const [statuses, setStatuses] = useState({});
   const [comments, setComments] = useState("");
+  const [attachment, setAttachment] = useState(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const firstFieldRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     supabase
@@ -70,6 +72,8 @@ export default function WardRoundEntry() {
     setPatient(emptyPatient);
     setStatuses({});
     setComments("");
+    setAttachment(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     // Jump straight back to the first field so the next patient can be
     // entered right away, without scrolling or clicking back in.
     firstFieldRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -91,6 +95,21 @@ export default function WardRoundEntry() {
     setSaving(true);
     setMessage(null);
 
+    let attachment_path = null;
+    let attachment_name = null;
+    if (attachment) {
+      const safeName = attachment.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${department}/${date}-${Date.now()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage.from(WARD_ROUND_ATTACHMENTS_BUCKET).upload(path, attachment);
+      if (uploadError) {
+        setSaving(false);
+        setMessage({ type: "error", text: "Could not upload attachment: " + uploadError.message });
+        return;
+      }
+      attachment_path = path;
+      attachment_name = attachment.name;
+    }
+
     const itemsPayload = items.map((item) => ({ item, status: statuses[item] }));
     const { met, notMet, applicable, compliancePct } = compliance;
 
@@ -111,6 +130,8 @@ export default function WardRoundEntry() {
       compliance_pct: compliancePct,
       comments,
       action_status: notMet > 0 ? "open" : "none",
+      attachment_path,
+      attachment_name,
       done_by: session?.username,
     });
 
@@ -230,6 +251,38 @@ export default function WardRoundEntry() {
                 placeholder="Note any corrective action needed for NOT MET items"
               />
             </Field>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-medium text-slate-500">Attachment (photo or file, optional)</label>
+              <div className="flex items-center gap-3">
+                <label className="flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                  <Paperclip className="h-4 w-4" />
+                  {attachment ? "Change file" : "Choose file"}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,.pdf,.doc,.docx"
+                    className="hidden"
+                    onChange={(e) => setAttachment(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                {attachment && (
+                  <span className="flex items-center gap-1 text-xs text-slate-600">
+                    {attachment.name}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttachment(null);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                      className="text-slate-400 hover:text-red-500"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                )}
+              </div>
+            </div>
 
             {message && (
               <p className={`rounded-lg px-3 py-2 text-sm ${message.type === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>

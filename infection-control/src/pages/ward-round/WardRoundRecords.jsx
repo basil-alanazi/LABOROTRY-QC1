@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Trash2, FileSpreadsheet, FileText } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2, FileSpreadsheet, FileText, Paperclip } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
+import { WARD_ROUND_ATTACHMENTS_BUCKET } from "../../lib/compliance";
+
+function attachmentUrl(path) {
+  if (!path) return null;
+  return supabase.storage.from(WARD_ROUND_ATTACHMENTS_BUCKET).getPublicUrl(path).data.publicUrl;
+}
 
 const REPORT_HEADERS = [
   "Date",
@@ -21,6 +27,7 @@ const REPORT_HEADERS = [
   "Recorded By",
   "Resolved By",
   "Comments",
+  "Attachment",
 ];
 
 function toReportRow(row) {
@@ -40,6 +47,7 @@ function toReportRow(row) {
     row.done_by,
     row.resolved_by || "",
     row.comments,
+    attachmentUrl(row.attachment_path) || "",
   ];
 }
 
@@ -174,6 +182,7 @@ export default function WardRoundRecords() {
               <th className="px-4 py-2 font-medium">Compliance</th>
               <th className="px-4 py-2 font-medium">Status</th>
               <th className="px-4 py-2"></th>
+              <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -219,6 +228,7 @@ function RecordRow({ row, expanded, onToggle, isAdmin, onResolve, onDelete }) {
             <span className="rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-400">—</span>
           )}
         </td>
+        <td className="px-4 py-2">{row.attachment_path && <Paperclip className="h-3.5 w-3.5 text-slate-400" />}</td>
         <td className="flex items-center justify-end gap-1 px-4 py-2">
           {isAdmin && row.not_met_count > 0 && row.action_status !== "resolved" && (
             <button onClick={onResolve} className="rounded-lg px-2 py-1 text-xs text-teal-600 hover:bg-teal-50">
@@ -237,7 +247,7 @@ function RecordRow({ row, expanded, onToggle, isAdmin, onResolve, onDelete }) {
       </tr>
       {expanded && (
         <tr className="border-t border-slate-100 bg-slate-50/60">
-          <td colSpan={7} className="px-4 py-4">
+          <td colSpan={8} className="px-4 py-4">
             <div className="mb-3 grid grid-cols-2 gap-2 text-xs text-slate-500 sm:grid-cols-4">
               <div>MRN: {row.mrn || "—"}</div>
               <div>Age: {row.age || "—"}</div>
@@ -265,6 +275,17 @@ function RecordRow({ row, expanded, onToggle, isAdmin, onResolve, onDelete }) {
               ))}
             </div>
             {row.comments && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">{row.comments}</p>}
+            {row.attachment_path && (
+              <a
+                href={attachmentUrl(row.attachment_path)}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex items-center gap-1 rounded-lg bg-teal-50 px-3 py-1.5 text-xs font-medium text-teal-700 hover:bg-teal-100"
+              >
+                <Paperclip className="h-3.5 w-3.5" />
+                {row.attachment_name || "View attachment"}
+              </a>
+            )}
           </td>
         </tr>
       )}
