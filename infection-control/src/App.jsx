@@ -1,0 +1,59 @@
+import { Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./lib/auth.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import Layout from "./components/layout/Layout.jsx";
+import Login from "./pages/Login.jsx";
+import Today from "./pages/Today.jsx";
+import Records from "./pages/Records.jsx";
+import Dashboard from "./pages/Dashboard.jsx";
+import Settings from "./pages/Settings.jsx";
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Today />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/records"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Records />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <Dashboard />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <Settings />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </AuthProvider>
+  );
+}
