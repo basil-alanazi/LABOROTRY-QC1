@@ -11,7 +11,8 @@ checklist = one row, with MET/NOT MET/compliance% computed automatically).
 1. supabase.com/dashboard/new → new project with a distinct name (e.g. `infection-control`)
 2. Wait until it's Healthy
 3. SQL Editor → New query → open `supabase_schema.sql` → copy all and paste it → Run
-   (this automatically seeds the four departments and the six checklists: SSI, CAUTI, VAE ICU/NICU, CLABSI ICU/NICU)
+   (this automatically seeds the four Ward Round departments, the six checklists — SSI, CAUTI, VAE ICU/NICU, CLABSI ICU/NICU —
+   and the separate Hand Hygiene department list + `hh_observations` table)
 4. Project Settings → Data API → copy the API URL
 5. Project Settings → API Keys → copy the Publishable key
 
@@ -44,12 +45,14 @@ Because each person logs in with their own account, every entry, resolved action
 is attributed to the real person who did it — visible in Records and in the exported reports.
 
 ## 5) How it works
-1. Daily Ward Round and Records are for the Infection Control team (Infection Control + Owner roles) only. Ward Staff accounts only see their own Profile for now.
-2. **"Daily Ward Round"**: pick a department then a checklist type (only checklists linked to that department show up), fill in patient details and mark each bundle item MET / NOT MET / N/A. Saving jumps focus straight back to Patient Name so the next patient can be entered right away.
-3. The system computes MET / Applicable / NOT MET / Compliance% automatically on save
-4. **"Records"**: all past audits, filterable by department/checklist/date, with the ability to resolve any "Action Needed" item — export the filtered list to Excel or PDF
-5. **"Dashboard"**: compliance summary by checklist and by department, either for a calendar month or any custom date range you pick — export either view to Excel or PDF
-6. **"Settings"**: add/remove departments, edit each checklist's items/department links/baseline note, and manage user accounts (owner only)
+1. Daily Checklists and Records are for the Infection Control team (Infection Control + Owner roles) only. Ward Staff accounts only see their own Profile for now.
+2. **"Daily Checklists"** has two tabs, same page/link:
+   - **Ward Round**: pick a department then a checklist type (only checklists linked to that department show up), fill in patient details and mark each bundle item MET / NOT MET / N/A. Saving jumps focus straight back to Patient Name so the next patient can be entered right away.
+   - **Hand Hygiene**: pick a date, department, and observer, then mark each of the 6 hand-hygiene moments (WHO 5 moments + wearing glove) Done / Missed / N/A, plus optional Missed-opportunity/Hand-wash/Hand-rub flags. Saving jumps focus back to Observer so the next observation can be logged right away. This is a separate module — its own department list and its own data — from Ward Round.
+3. The system computes MET / Applicable / NOT MET / Compliance% (Ward Round) or Total Opportunities / Compliant / Compliance% (Hand Hygiene) automatically on save
+4. **"Records"** has the same two tabs: past Ward Round audits (filterable by department/checklist/date, with the ability to resolve any "Action Needed" item) and past Hand Hygiene observations (filterable by department/date) — export either list to Excel or PDF
+5. **"Dashboard"** has the same two tabs: Ward Round's compliance summary by checklist and by department (calendar month or custom date range), and Hand Hygiene's monthly compliance by department plus monthly summary by moment category (against an 80% target, matching the hospital's Monthly Dashboard / HH Category Summary sheets) — export either view to Excel or PDF
+6. **"Settings"**: add/remove departments (separate lists for Ward Round and Hand Hygiene), edit each checklist's items/department links/baseline note, create new checklists, and manage user accounts (owner only)
 7. **"Profile"** (everyone): view your own account details and change your own password any time
 
 ## Important note on checklist items
