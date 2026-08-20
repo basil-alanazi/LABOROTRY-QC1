@@ -100,6 +100,12 @@ export default function HandHygieneEntry() {
         <Field label="Date">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input" required />
         </Field>
+        <Field label="Time From">
+          <input type="time" className="input" value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} />
+        </Field>
+        <Field label="Time To">
+          <input type="time" className="input" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
+        </Field>
         <Field label="Department">
           <select value={department} onChange={(e) => setDepartment(e.target.value)} className="input" required>
             <option value="">Select department</option>
@@ -126,6 +132,13 @@ export default function HandHygieneEntry() {
             ))}
           </select>
         </Field>
+        {duration != null && (
+          <div className="flex items-end pb-2">
+            <p className={`text-sm font-medium ${durationOutOfRange ? "text-red-600" : "text-emerald-600"}`}>
+              Duration: {duration} min{durationOutOfRange ? " — outside expected 10-20 min" : ""}
+            </p>
+          </div>
+        )}
       </div>
 
       {observer === "Other" && (
@@ -163,24 +176,6 @@ export default function HandHygieneEntry() {
             </div>
           </div>
         ))}
-      </div>
-
-      <div className="flex flex-col gap-2 rounded-xl border border-slate-200 p-3">
-        <h2 className="text-sm font-semibold text-slate-700">Visit Time</h2>
-        <p className="text-xs text-slate-500">Expected visit length: {EXPECTED_VISIT_MIN_MINUTES}-{EXPECTED_VISIT_MAX_MINUTES} minutes.</p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:items-end">
-          <Field label="Time From">
-            <input type="time" className="input" value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} />
-          </Field>
-          <Field label="Time To">
-            <input type="time" className="input" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
-          </Field>
-          {duration != null && (
-            <p className={`text-sm font-medium ${durationOutOfRange ? "text-red-600" : "text-emerald-600"}`}>
-              Duration: {duration} min{durationOutOfRange ? " — outside expected range" : ""}
-            </p>
-          )}
-        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
