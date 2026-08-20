@@ -217,6 +217,8 @@ export const app_config = {
   id: 1,
   departments: DEPARTMENTS,
   hh_departments: HH_DEPARTMENTS,
+  hh_observer_roles: ["Doctor", "Nurse", "Housekeeping", "Lab Staff", "Radiology"],
+  hh_department_observers: {},
 };
 
 export const hh_observations = [

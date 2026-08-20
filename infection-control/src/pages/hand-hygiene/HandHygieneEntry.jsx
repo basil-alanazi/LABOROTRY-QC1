@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import {
   HH_MOMENTS,
-  OBSERVER_ROLES,
+  DEFAULT_OBSERVER_ROLES,
   HH_ATTACHMENTS_BUCKET,
   computeHHCompliance,
   visitDurationMinutes,
@@ -19,55 +19,95 @@ const STATUS_OPTIONS = [
 ];
 
 const emptyFields = () => Object.fromEntries(HH_MOMENTS.map((m) => [m.key, null]));
+const emptyEntry = () => ({ fields: emptyFields(), missed: false, handWash: false, handRub: false });
 
 export default function HandHygieneEntry() {
   const { session, config } = useAuth();
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [department, setDepartment] = useState("");
-  const [observer, setObserver] = useState("");
-  const [observerOther, setObserverOther] = useState("");
   const [timeFrom, setTimeFrom] = useState("");
   const [timeTo, setTimeTo] = useState("");
-  const [fields, setFields] = useState(emptyFields);
-  const [missed, setMissed] = useState(false);
-  const [handWash, setHandWash] = useState(false);
-  const [handRub, setHandRub] = useState(false);
+  const [observerData, setObserverData] = useState({});
   const [attachment, setAttachment] = useState(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
-  const observerRef = useRef(null);
+  const departmentRef = useRef(null);
   const fileInputRef = useRef(null);
 
   const departments = config?.hh_departments ?? [];
-  const compliance = useMemo(() => computeHHCompliance(fields, missed ? 1 : null), [fields, missed]);
+  const allRoles = config?.hh_observer_roles ?? DEFAULT_OBSERVER_ROLES;
+  const departmentMap = config?.hh_department_observers ?? {};
+  // Which roles apply to the selected department (configured in Settings);
+  // an unconfigured department falls back to showing every role.
+  const roundObservers = useMemo(() => {
+    if (!department) return [];
+    const allowed = departmentMap[department];
+    return allowed && allowed.length > 0 ? allRoles.filter((r) => allowed.includes(r)) : allRoles;
+  }, [department, departmentMap, allRoles]);
+
+  function getEntry(o) {
+    return observerData[o] ?? emptyEntry();
+  }
+
   const duration = useMemo(() => visitDurationMinutes(timeFrom, timeTo), [timeFrom, timeTo]);
   const durationOutOfRange =
     duration != null && (duration < EXPECTED_VISIT_MIN_MINUTES || duration > EXPECTED_VISIT_MAX_MINUTES);
 
-  function resetForBlock() {
-    setObserver("");
-    setObserverOther("");
+  const perObserverCompliance = useMemo(() => {
+    return Object.fromEntries(
+      roundObservers.map((o) => {
+        const entry = observerData[o] ?? emptyEntry();
+        return [o, computeHHCompliance(entry.fields, entry.missed ? 1 : null)];
+      })
+    );
+  }, [observerData, roundObservers]);
+
+  const roundTotals = useMemo(() => {
+    const active = Object.values(perObserverCompliance).filter((c) => c.totalOpportunities > 0);
+    const totalOpportunities = active.reduce((s, c) => s + c.totalOpportunities, 0);
+    const compliant = active.reduce((s, c) => s + c.compliant, 0);
+    const compliancePct = totalOpportunities > 0 ? Math.round((compliant / totalOpportunities) * 1000) / 10 : null;
+    return { observers: active.length, totalOpportunities, compliant, compliancePct };
+  }, [perObserverCompliance]);
+
+  function setMoment(observer, key, value) {
+    setObserverData((prev) => {
+      const entry = prev[observer] ?? emptyEntry();
+      return { ...prev, [observer]: { ...entry, fields: { ...entry.fields, [key]: value } } };
+    });
+  }
+
+  function toggleFlag(observer, flag) {
+    setObserverData((prev) => {
+      const entry = prev[observer] ?? emptyEntry();
+      return { ...prev, [observer]: { ...entry, [flag]: !entry[flag] } };
+    });
+  }
+
+  function handleDepartmentChange(value) {
+    setDepartment(value);
+    setObserverData({});
+  }
+
+  function resetRound() {
+    setDepartment("");
     setTimeFrom("");
     setTimeTo("");
-    setFields(emptyFields());
-    setMissed(false);
-    setHandWash(false);
-    setHandRub(false);
+    setObserverData({});
     setAttachment(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
-    observerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    observerRef.current?.focus();
+    departmentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    departmentRef.current?.focus();
   }
 
   async function handleSave(e) {
     e.preventDefault();
-    const observerValue = observer === "Other" ? observerOther.trim() : observer;
-    if (!department || !observerValue) {
-      setMessage({ type: "error", text: "Select a department and observer first" });
+    if (!department) {
+      setMessage({ type: "error", text: "Select a department first" });
       return;
     }
-    if (compliance.totalOpportunities === 0) {
-      setMessage({ type: "error", text: "Mark at least one moment before saving" });
+    if (roundTotals.observers === 0) {
+      setMessage({ type: "error", text: "Mark at least one moment for at least one observer before saving" });
       return;
     }
 
@@ -89,36 +129,47 @@ export default function HandHygieneEntry() {
       attachment_name = attachment.name;
     }
 
-    const { error } = await supabase.from("hh_observations").insert({
-      date,
-      department,
-      observer: observerValue,
-      time_from: timeFrom || null,
-      time_to: timeTo || null,
-      ...fields,
-      missed: missed ? 1 : null,
-      hand_wash: handWash ? 1 : null,
-      hand_rub: handRub ? 1 : null,
-      total_opportunities: compliance.totalOpportunities,
-      compliant: compliance.compliant,
-      compliance_pct: compliance.compliancePct,
-      attachment_path,
-      attachment_name,
-      done_by: session?.username,
+    const rows = roundObservers.filter((o) => perObserverCompliance[o].totalOpportunities > 0).map((o) => {
+      const data = observerData[o];
+      const compliance = perObserverCompliance[o];
+      return {
+        date,
+        department,
+        observer: o,
+        time_from: timeFrom || null,
+        time_to: timeTo || null,
+        ...data.fields,
+        missed: data.missed ? 1 : null,
+        hand_wash: data.handWash ? 1 : null,
+        hand_rub: data.handRub ? 1 : null,
+        total_opportunities: compliance.totalOpportunities,
+        compliant: compliance.compliant,
+        compliance_pct: compliance.compliancePct,
+        attachment_path,
+        attachment_name,
+        done_by: session?.username,
+      };
     });
+
+    const { error } = await supabase.from("hh_observations").insert(rows);
 
     setSaving(false);
     if (error) {
       setMessage({ type: "error", text: "Could not save: " + error.message });
     } else {
-      setMessage({ type: "success", text: "Observation saved successfully" });
-      resetForBlock();
+      setMessage({ type: "success", text: `Round saved — ${rows.length} observation(s) recorded` });
+      resetRound();
     }
   }
 
   return (
     <form onSubmit={handleSave} className="flex flex-col gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <p className="text-xs text-slate-500">
+        One round = one visit to a department. Fill in whichever roles you observed during this round, then save them
+        together.
+      </p>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <Field label="Date">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input" required />
         </Field>
@@ -129,7 +180,7 @@ export default function HandHygieneEntry() {
           <input type="time" className="input" value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
         </Field>
         <Field label="Department">
-          <select value={department} onChange={(e) => setDepartment(e.target.value)} className="input" required>
+          <select ref={departmentRef} value={department} onChange={(e) => handleDepartmentChange(e.target.value)} className="input" required>
             <option value="">Select department</option>
             {departments.map((d) => (
               <option key={d} value={d}>
@@ -138,85 +189,77 @@ export default function HandHygieneEntry() {
             ))}
           </select>
         </Field>
-        <Field label="Observer">
-          <select
-            ref={observerRef}
-            value={observer}
-            onChange={(e) => setObserver(e.target.value)}
-            className="input"
-            required
-          >
-            <option value="">Select observer</option>
-            {OBSERVER_ROLES.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-        </Field>
-        {duration != null && (
-          <div className="flex items-end pb-2">
-            <p className={`text-sm font-medium ${durationOutOfRange ? "text-red-600" : "text-emerald-600"}`}>
-              Duration: {duration} min{durationOutOfRange ? " — outside expected 10-20 min" : ""}
-            </p>
-          </div>
-        )}
       </div>
 
-      {observer === "Other" && (
-        <Field label="Observer (specify)">
-          <input className="input" value={observerOther} onChange={(e) => setObserverOther(e.target.value)} required />
-        </Field>
+      {duration != null && (
+        <p className={`text-sm font-medium ${durationOutOfRange ? "text-red-600" : "text-emerald-600"}`}>
+          Round duration: {duration} min{durationOutOfRange ? " — expected 10-20 min max" : ""}
+        </p>
       )}
 
-      <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-slate-700">Hand Hygiene Moments</h2>
-        {HH_MOMENTS.map((m) => (
-          <div
-            key={m.key}
-            className="flex flex-col gap-2 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <span className="text-sm text-slate-700">{m.label}</span>
-            <div className="flex gap-2">
-              {STATUS_OPTIONS.map((opt) => {
-                const Icon = opt.icon;
-                const selected = fields[m.key] === opt.value;
-                return (
-                  <button
-                    type="button"
-                    key={opt.label}
-                    onClick={() => setFields({ ...fields, [m.key]: opt.value })}
-                    className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      selected ? opt.className : "border-slate-200 text-slate-400 hover:border-slate-300"
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {opt.label}
-                  </button>
-                );
-              })}
+      <div className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-slate-700">Observers</h2>
+        {!department && <p className="text-xs text-slate-400">Select a department to see its observer roles.</p>}
+        {roundObservers.map((o) => {
+          const entry = getEntry(o);
+          return (
+            <div key={o} className="rounded-xl border border-slate-200 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-800">{o}</h3>
+                {perObserverCompliance[o].totalOpportunities > 0 && (
+                  <span className="text-xs font-medium text-teal-700">
+                    {perObserverCompliance[o].compliancePct}% ({perObserverCompliance[o].compliant}/
+                    {perObserverCompliance[o].totalOpportunities})
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                {HH_MOMENTS.map((m) => (
+                  <div key={m.key} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-xs text-slate-600">{m.label}</span>
+                    <div className="flex gap-1.5">
+                      {STATUS_OPTIONS.map((opt) => {
+                        const Icon = opt.icon;
+                        const selected = entry.fields[m.key] === opt.value;
+                        return (
+                          <button
+                            type="button"
+                            key={opt.label}
+                            onClick={() => setMoment(o, m.key, opt.value)}
+                            className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium transition-colors ${
+                              selected ? opt.className : "border-slate-200 text-slate-400 hover:border-slate-300"
+                            }`}
+                          >
+                            <Icon className="h-3 w-3" />
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-3 border-t border-slate-100 pt-3">
+                <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                  <input type="checkbox" checked={entry.missed} onChange={() => toggleFlag(o, "missed")} />
+                  Missed opportunity
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                  <input type="checkbox" checked={entry.handWash} onChange={() => toggleFlag(o, "handWash")} />
+                  Hand wash used
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                  <input type="checkbox" checked={entry.handRub} onChange={() => toggleFlag(o, "handRub")} />
+                  Hand rub used
+                </label>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 p-3 text-sm text-slate-700">
-          <input type="checkbox" checked={missed} onChange={(e) => setMissed(e.target.checked)} />
-          Missed opportunity (no hand hygiene performed)
-        </label>
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 p-3 text-sm text-slate-700">
-          <input type="checkbox" checked={handWash} onChange={(e) => setHandWash(e.target.checked)} />
-          Hand wash used
-        </label>
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 p-3 text-sm text-slate-700">
-          <input type="checkbox" checked={handRub} onChange={(e) => setHandRub(e.target.checked)} />
-          Hand rub used
-        </label>
+          );
+        })}
       </div>
 
       <div className="flex flex-col gap-2">
-        <label className="text-xs font-medium text-slate-500">Attachment (photo or file, optional)</label>
+        <label className="text-xs font-medium text-slate-500">Attachment (photo or file, optional — applies to this round)</label>
         <div className="flex items-center gap-3">
           <label className="flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
             <Paperclip className="h-4 w-4" />
@@ -248,9 +291,9 @@ export default function HandHygieneEntry() {
       </div>
 
       <div className="grid grid-cols-3 gap-3 rounded-xl bg-slate-50 p-4 text-center">
-        <Stat label="Total Opportunities" value={compliance.totalOpportunities} />
-        <Stat label="Compliant" value={compliance.compliant} />
-        <Stat label="Compliance" value={compliance.compliancePct != null ? `${compliance.compliancePct}%` : "—"} />
+        <Stat label="Observers Recorded" value={roundTotals.observers} />
+        <Stat label="Total Opportunities" value={roundTotals.totalOpportunities} />
+        <Stat label="Round Compliance" value={roundTotals.compliancePct != null ? `${roundTotals.compliancePct}%` : "—"} />
       </div>
 
       {message && (
@@ -268,7 +311,7 @@ export default function HandHygieneEntry() {
         disabled={saving}
         className="self-start rounded-lg bg-teal-600 px-6 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60"
       >
-        {saving ? "Saving..." : "Save Observation"}
+        {saving ? "Saving..." : "Save Round"}
       </button>
     </form>
   );
