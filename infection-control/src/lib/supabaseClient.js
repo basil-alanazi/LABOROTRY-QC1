@@ -2,11 +2,16 @@ import { createClient } from "@supabase/supabase-js";
 import { createMockClient } from "./mockDb";
 import * as seed from "./mockSeed";
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Defaults to the project's live Supabase instance; override with your own
+// via VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY (see .env.example) if you're
+// running this against a different Supabase project.
+const url = import.meta.env.VITE_SUPABASE_URL || "https://wkevrfndgfuuyiwfllak.supabase.co";
+const key =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrZXZyZm5kZ2Z1dXlpd2ZsbGFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyMjE2NzksImV4cCI6MjEwMjc5NzY3OX0.aoKTxBZxf8ptXHh0r2S2NWeTVyh8p1jCl8chrjKFQQQ";
 
-// No real Supabase project configured yet — fall back to an in-memory
-// preview so the app is still fully clickable. Nothing here persists.
+// If you intentionally want the offline preview instead, unset both env
+// vars AND remove the defaults above. Nothing in preview mode persists.
 export const supabase =
   url && key
     ? createClient(url, key)
