@@ -3,7 +3,7 @@ import { AuthProvider } from "./lib/auth.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import Layout from "./components/layout/Layout.jsx";
 import Login from "./pages/Login.jsx";
-import Today from "./pages/Today.jsx";
+import DailyEntry from "./pages/DailyEntry.jsx";
 import Records from "./pages/Records.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Settings from "./pages/Settings.jsx";
@@ -19,7 +19,7 @@ export default function App() {
           element={
             <ProtectedRoute adminOnly>
               <Layout>
-                <Today />
+                <DailyEntry />
               </Layout>
             </ProtectedRoute>
           }

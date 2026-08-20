@@ -40,7 +40,7 @@ export default function Layout({ children }) {
           {isAdmin && (
             <NavLink to="/" end className={linkClass}>
               <ClipboardList className="h-4 w-4" />
-              Daily Ward Round
+              Daily Checklists
             </NavLink>
           )}
           {isAdmin && (

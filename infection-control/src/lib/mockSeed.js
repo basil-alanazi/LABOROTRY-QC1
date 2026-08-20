@@ -1,5 +1,18 @@
 // Same default rows as supabase_schema.sql, used to power preview mode.
 const DEPARTMENTS = ["ICU", "NICU", "Surgery", "OB/GYN"];
+const HH_DEPARTMENTS = [
+  "ICU",
+  "Medical Ward",
+  "Surgical Ward",
+  "Emergency",
+  "Pediatric",
+  "NICU",
+  "OPD",
+  "OT",
+  "Labor & Delivery",
+  "Dialysis",
+  "Other",
+];
 
 export const checklist_types = [
   {
@@ -203,7 +216,53 @@ export const ward_round_audits = [
 export const app_config = {
   id: 1,
   departments: DEPARTMENTS,
+  hh_departments: HH_DEPARTMENTS,
 };
+
+export const hh_observations = [
+  {
+    id: "hh-1",
+    date: today,
+    department: "ICU",
+    observer: "Nurse",
+    before_touching_patient: 1,
+    before_clean_procedure: 1,
+    after_body_fluid_risk: 1,
+    after_touching_patient: 0,
+    after_touching_surroundings: 1,
+    wearing_glove: 1,
+    missed: null,
+    hand_wash: 1,
+    hand_rub: 0,
+    total_opportunities: 6,
+    compliant: 5,
+    compliance_pct: 83.3,
+    done_by: "ic",
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "hh-2",
+    date: today,
+    department: "NICU",
+    observer: "Doctor",
+    before_touching_patient: 1,
+    before_clean_procedure: 1,
+    after_body_fluid_risk: null,
+    after_touching_patient: 1,
+    after_touching_surroundings: 1,
+    wearing_glove: 1,
+    missed: null,
+    hand_wash: 0,
+    hand_rub: 1,
+    total_opportunities: 5,
+    compliant: 5,
+    compliance_pct: 100,
+    done_by: "ic",
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+];
 
 export const users = [
   {
