@@ -1,3 +1,5 @@
+export const WARD_ROUND_ATTACHMENTS_BUCKET = "ward-round-attachments";
+
 // Given [{ item, status }] where status is "MET" | "NOT MET" | "NA",
 // compute the same MET / Applicable / NOT MET / Compliance% columns as the
 // paper/Excel ward round form.
