@@ -1,7 +1,45 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2, FileSpreadsheet, FileText } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
+import { downloadExcel } from "../lib/exportExcel";
+import { downloadPdf } from "../lib/exportPdf";
+
+const REPORT_HEADERS = [
+  "Date",
+  "Department",
+  "Checklist",
+  "Patient Name",
+  "MRN",
+  "Age",
+  "Diagnosis",
+  "Met",
+  "Not Met",
+  "Applicable",
+  "Compliance %",
+  "Status",
+  "Recorded By",
+  "Comments",
+];
+
+function toReportRow(row) {
+  return [
+    row.date,
+    row.department,
+    row.checklist_name_ar,
+    row.patient_name,
+    row.mrn,
+    row.age,
+    row.diagnosis,
+    row.met_count,
+    row.not_met_count,
+    row.applicable_count,
+    row.compliance_pct != null ? `${row.compliance_pct}%` : "",
+    row.not_met_count > 0 ? (row.action_status === "resolved" ? "Resolved" : "Action Needed") : "",
+    row.done_by,
+    row.comments,
+  ];
+}
 
 export default function Records() {
   const { config, isAdmin, session } = useAuth();
@@ -58,11 +96,45 @@ export default function Records() {
     load();
   }
 
+  function exportExcel() {
+    downloadExcel(`infection-control-records-${new Date().toISOString().slice(0, 10)}`, [
+      { name: "Records", headers: REPORT_HEADERS, rows: rows.map(toReportRow) },
+    ]);
+  }
+
+  function exportPdf() {
+    downloadPdf(
+      `infection-control-records-${new Date().toISOString().slice(0, 10)}`,
+      "Infection Control — Ward Round Records",
+      [{ headers: REPORT_HEADERS, rows: rows.map(toReportRow) }]
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-800">Records</h1>
-        <p className="text-sm text-slate-500">Past ward round audits across all departments.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">Records</h1>
+          <p className="text-sm text-slate-500">Past ward round audits across all departments.</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={exportExcel}
+            disabled={rows.length === 0}
+            className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            Export Excel
+          </button>
+          <button
+            onClick={exportPdf}
+            disabled={rows.length === 0}
+            className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            Export PDF
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-4">
