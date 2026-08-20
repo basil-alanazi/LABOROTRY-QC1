@@ -12,7 +12,8 @@ checklist = one row, with MET/NOT MET/compliance% computed automatically).
 2. Wait until it's Healthy
 3. SQL Editor → New query → open `supabase_schema.sql` → copy all and paste it → Run
    (this automatically seeds the four Ward Round departments, the six checklists — SSI, CAUTI, VAE ICU/NICU, CLABSI ICU/NICU —
-   and the separate Hand Hygiene department list + `hh_observations` table)
+   the separate Hand Hygiene department list + `hh_observations` table, and a public `hh-attachments`
+   storage bucket for photos/files attached to a Hand Hygiene observation)
 4. Project Settings → Data API → copy the API URL
 5. Project Settings → API Keys → copy the Publishable key
 
@@ -48,7 +49,7 @@ is attributed to the real person who did it — visible in Records and in the ex
 1. Daily Checklists and Records are for the Infection Control team (Infection Control + Owner roles) only. Ward Staff accounts only see their own Profile for now.
 2. **"Daily Checklists"** has two tabs, same page/link:
    - **Ward Round**: pick a department then a checklist type (only checklists linked to that department show up), fill in patient details and mark each bundle item MET / NOT MET / N/A. Saving jumps focus straight back to Patient Name so the next patient can be entered right away.
-   - **Hand Hygiene**: pick a date, department, and observer, then mark each of the 6 hand-hygiene moments (WHO 5 moments + wearing glove) Done / Missed / N/A, plus optional Missed-opportunity/Hand-wash/Hand-rub flags. Saving jumps focus back to Observer so the next observation can be logged right away. This is a separate module — its own department list and its own data — from Ward Round.
+   - **Hand Hygiene**: pick a date/time range, department, and observer, then mark each of the 6 hand-hygiene moments (WHO 5 moments + wearing glove) Done / Missed / N/A, plus optional Missed-opportunity/Hand-wash/Hand-rub flags and an optional photo/file attachment. Saving jumps focus back to Observer so the next observation can be logged right away. This is a separate module — its own department list and its own data — from Ward Round.
 3. The system computes MET / Applicable / NOT MET / Compliance% (Ward Round) or Total Opportunities / Compliant / Compliance% (Hand Hygiene) automatically on save
 4. **"Records"** has the same two tabs: past Ward Round audits (filterable by department/checklist/date, with the ability to resolve any "Action Needed" item) and past Hand Hygiene observations (filterable by department/date) — export either list to Excel or PDF
 5. **"Dashboard"** has the same two tabs: Ward Round's compliance summary by checklist and by department (calendar month or custom date range), and Hand Hygiene's monthly compliance by department plus monthly summary by moment category (against an 80% target, matching the hospital's Monthly Dashboard / HH Category Summary sheets) — export either view to Excel or PDF

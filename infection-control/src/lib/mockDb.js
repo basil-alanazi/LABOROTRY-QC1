@@ -103,5 +103,17 @@ export function createMockClient(seed) {
     from(table) {
       return new QueryBuilder(table, store);
     },
+    storage: {
+      from() {
+        return {
+          async upload(path) {
+            return { data: { path }, error: null };
+          },
+          getPublicUrl(path) {
+            return { data: { publicUrl: `#mock-file/${path}` } };
+          },
+        };
+      },
+    },
   };
 }

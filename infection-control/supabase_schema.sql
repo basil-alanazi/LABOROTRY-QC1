@@ -95,6 +95,8 @@ create table if not exists hh_observations (
   observer text not null default '',
   time_from time,                     -- visit start/end, expected 10-20 minutes
   time_to time,
+  attachment_path text,               -- path inside the "hh-attachments" storage bucket
+  attachment_name text,
   before_touching_patient smallint,   -- 1 = compliant, 0 = missed, null = not applicable
   before_clean_procedure smallint,
   after_body_fluid_risk smallint,
@@ -127,6 +129,18 @@ create policy "allow all checklist_types" on checklist_types for all using (true
 create policy "allow all ward_round_audits" on ward_round_audits for all using (true) with check (true);
 create policy "allow all audit_log" on audit_log for all using (true) with check (true);
 create policy "allow all hh_observations" on hh_observations for all using (true) with check (true);
+
+-- Public storage bucket for Hand Hygiene attachments (a photo or file
+-- attached to an observation). Open access, matching this app's policy
+-- convention everywhere else.
+insert into storage.buckets (id, name, public)
+values ('hh-attachments', 'hh-attachments', true)
+on conflict (id) do nothing;
+
+create policy "allow all read hh-attachments" on storage.objects for select using (bucket_id = 'hh-attachments');
+create policy "allow all insert hh-attachments" on storage.objects for insert with check (bucket_id = 'hh-attachments');
+create policy "allow all update hh-attachments" on storage.objects for update using (bucket_id = 'hh-attachments') with check (bucket_id = 'hh-attachments');
+create policy "allow all delete hh-attachments" on storage.objects for delete using (bucket_id = 'hh-attachments');
 
 -- Seed the six checklist types from the hospital's paper/Excel Daily Ward Round
 -- form. NOTE: a few bundle-component texts were cut off in the source file

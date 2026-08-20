@@ -12,6 +12,8 @@ export const HH_MOMENTS = [
 
 export const OBSERVER_ROLES = ["Doctor", "Nurse", "Housekeeping", "Lab", "Radiology", "Other"];
 
+export const HH_ATTACHMENTS_BUCKET = "hh-attachments";
+
 // The visit is expected to take 10-20 minutes; used to flag outliers in Records.
 export const EXPECTED_VISIT_MIN_MINUTES = 10;
 export const EXPECTED_VISIT_MAX_MINUTES = 20;

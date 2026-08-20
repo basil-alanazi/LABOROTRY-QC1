@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Trash2, FileSpreadsheet, FileText } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2, FileSpreadsheet, FileText, Paperclip } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import {
   HH_MOMENTS,
+  HH_ATTACHMENTS_BUCKET,
   visitDurationMinutes,
   EXPECTED_VISIT_MIN_MINUTES,
   EXPECTED_VISIT_MAX_MINUTES,
 } from "../../lib/handHygiene";
+
+function attachmentUrl(path) {
+  if (!path) return null;
+  return supabase.storage.from(HH_ATTACHMENTS_BUCKET).getPublicUrl(path).data.publicUrl;
+}
 
 const REPORT_HEADERS = [
   "Date",
@@ -26,6 +32,7 @@ const REPORT_HEADERS = [
   "Compliant",
   "Compliance %",
   "Recorded By",
+  "Attachment",
 ];
 
 function cell(v) {
@@ -48,6 +55,7 @@ function toReportRow(row) {
     row.compliant,
     row.compliance_pct != null ? `${row.compliance_pct}%` : "",
     row.done_by,
+    attachmentUrl(row.attachment_path) || "",
   ];
 }
 
@@ -154,6 +162,7 @@ export default function HandHygieneRecords() {
               <th className="px-4 py-2 font-medium">Observer</th>
               <th className="px-4 py-2 font-medium">Compliance</th>
               <th className="px-4 py-2"></th>
+              <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody>
@@ -184,6 +193,7 @@ function ObservationRow({ row, expanded, onToggle, isAdmin, onDelete }) {
         <td className="px-4 py-2">{row.department}</td>
         <td className="px-4 py-2">{row.observer}</td>
         <td className="px-4 py-2">{row.compliance_pct != null ? `${row.compliance_pct}%` : "—"}</td>
+        <td className="px-4 py-2">{row.attachment_path && <Paperclip className="h-3.5 w-3.5 text-slate-400" />}</td>
         <td className="flex items-center justify-end gap-1 px-4 py-2">
           {isAdmin && (
             <button onClick={onDelete} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
@@ -197,7 +207,7 @@ function ObservationRow({ row, expanded, onToggle, isAdmin, onDelete }) {
       </tr>
       {expanded && (
         <tr className="border-t border-slate-100 bg-slate-50/60">
-          <td colSpan={5} className="px-4 py-4">
+          <td colSpan={6} className="px-4 py-4">
             <div className="mb-3 grid grid-cols-2 gap-2 text-xs text-slate-500 sm:grid-cols-4">
               <div>
                 Time: {row.time_from && row.time_to ? `${row.time_from}–${row.time_to}` : "—"}
@@ -238,6 +248,17 @@ function ObservationRow({ row, expanded, onToggle, isAdmin, onDelete }) {
                 </span>
               </div>
             </div>
+            {row.attachment_path && (
+              <a
+                href={attachmentUrl(row.attachment_path)}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex items-center gap-1 rounded-lg bg-teal-50 px-3 py-1.5 text-xs font-medium text-teal-700 hover:bg-teal-100"
+              >
+                <Paperclip className="h-3.5 w-3.5" />
+                {row.attachment_name || "View attachment"}
+              </a>
+            )}
           </td>
         </tr>
       )}
