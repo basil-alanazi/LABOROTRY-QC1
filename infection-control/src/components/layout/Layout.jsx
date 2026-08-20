@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { ClipboardList, LayoutDashboard, ListChecks, Settings as SettingsIcon, LogOut, ShieldPlus } from "lucide-react";
+import { ClipboardList, LayoutDashboard, ListChecks, Settings as SettingsIcon, LogOut, ShieldPlus, UserCircle } from "lucide-react";
 import { useAuth } from "../../lib/auth.jsx";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -37,14 +37,18 @@ export default function Layout({ children }) {
           </div>
         </div>
         <nav className="mx-auto flex max-w-6xl gap-1 px-4 pb-3">
-          <NavLink to="/" end className={linkClass}>
-            <ClipboardList className="h-4 w-4" />
-            Daily Ward Round
-          </NavLink>
-          <NavLink to="/records" className={linkClass}>
-            <ListChecks className="h-4 w-4" />
-            Records
-          </NavLink>
+          {isAdmin && (
+            <NavLink to="/" end className={linkClass}>
+              <ClipboardList className="h-4 w-4" />
+              Daily Ward Round
+            </NavLink>
+          )}
+          {isAdmin && (
+            <NavLink to="/records" className={linkClass}>
+              <ListChecks className="h-4 w-4" />
+              Records
+            </NavLink>
+          )}
           {isAdmin && (
             <NavLink to="/dashboard" className={linkClass}>
               <LayoutDashboard className="h-4 w-4" />
@@ -57,6 +61,10 @@ export default function Layout({ children }) {
               Settings
             </NavLink>
           )}
+          <NavLink to="/profile" className={linkClass}>
+            <UserCircle className="h-4 w-4" />
+            Profile
+          </NavLink>
         </nav>
       </header>
       {supabase.isMock && (

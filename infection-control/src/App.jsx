@@ -7,6 +7,7 @@ import Today from "./pages/Today.jsx";
 import Records from "./pages/Records.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Settings from "./pages/Settings.jsx";
+import Profile from "./pages/Profile.jsx";
 
 export default function App() {
   return (
@@ -16,7 +17,7 @@ export default function App() {
         <Route
           path="/"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute adminOnly>
               <Layout>
                 <Today />
               </Layout>
@@ -26,7 +27,7 @@ export default function App() {
         <Route
           path="/records"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute adminOnly>
               <Layout>
                 <Records />
               </Layout>
@@ -49,6 +50,16 @@ export default function App() {
             <ProtectedRoute adminOnly>
               <Layout>
                 <Settings />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Profile />
               </Layout>
             </ProtectedRoute>
           }

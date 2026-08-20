@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Save, UserPlus } from "lucide-react";
+import { Plus, Trash2, Save, UserPlus, KeyRound } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
+import { sha256Hex } from "../lib/hash";
 
-const emptyNewUser = { username: "", password: "", display_name: "", role: "staff", department: "" };
+const DEFAULT_PASSWORD = "123456";
+const emptyNewUser = { username: "", display_name: "", role: "staff", department: "" };
 
 export default function Settings() {
   const { config, reloadConfig, isOwner, session } = useAuth();
@@ -81,15 +83,20 @@ export default function Settings() {
     updateChecklist(checklist.id, { departments: next });
   }
 
+  async function passwordField(plain) {
+    return supabase.isMock ? { password: plain } : { password_hash: await sha256Hex(plain) };
+  }
+
   async function addUser() {
     const username = newUser.username.trim();
-    if (!username || !newUser.password) {
-      flash("Username and password are required");
+    if (!username) {
+      flash("Username is required");
       return;
     }
     const { error } = await supabase.from("users").insert({
       username,
-      password: newUser.password,
+      ...(await passwordField(DEFAULT_PASSWORD)),
+      must_change_password: true,
       display_name: newUser.display_name.trim() || username,
       role: newUser.role,
       department: newUser.department || null,
@@ -101,7 +108,7 @@ export default function Settings() {
     }
     setNewUser(emptyNewUser);
     loadUsers();
-    flash("User created");
+    flash(`User created — starting password is ${DEFAULT_PASSWORD}`);
   }
 
   function updateUserField(id, patch) {
@@ -113,13 +120,22 @@ export default function Settings() {
       .from("users")
       .update({
         display_name: user.display_name,
-        password: user.password,
         role: user.role,
         department: user.department || null,
         active: user.active,
       })
       .eq("id", user.id);
     flash(`${user.display_name || user.username} saved`);
+  }
+
+  async function resetPassword(user) {
+    if (!confirm(`Reset ${user.username}'s password back to ${DEFAULT_PASSWORD}? They'll be asked to change it on next login.`))
+      return;
+    await supabase
+      .from("users")
+      .update({ ...(await passwordField(DEFAULT_PASSWORD)), must_change_password: true })
+      .eq("id", user.id);
+    flash(`Password reset to ${DEFAULT_PASSWORD}`);
   }
 
   async function removeUser(user) {
@@ -230,19 +246,13 @@ export default function Settings() {
 
           <div className="flex flex-col gap-3">
             {users.map((u) => (
-              <div key={u.id} className="grid grid-cols-1 gap-2 rounded-xl border border-slate-100 p-4 sm:grid-cols-6 sm:items-center">
+              <div key={u.id} className="grid grid-cols-1 gap-2 rounded-xl border border-slate-100 p-4 sm:grid-cols-5 sm:items-center">
                 <div className="text-sm font-medium text-slate-700 sm:col-span-1">{u.username}</div>
                 <input
                   className="input sm:col-span-1"
                   value={u.display_name}
                   onChange={(e) => updateUserField(u.id, { display_name: e.target.value })}
                   placeholder="Display name"
-                />
-                <input
-                  className="input sm:col-span-1"
-                  value={u.password}
-                  onChange={(e) => updateUserField(u.id, { password: e.target.value })}
-                  placeholder="Password"
                 />
                 <select
                   className="input sm:col-span-1"
@@ -270,6 +280,13 @@ export default function Settings() {
                     <input type="checkbox" checked={u.active} onChange={(e) => updateUserField(u.id, { active: e.target.checked })} />
                     Active
                   </label>
+                  <button
+                    onClick={() => resetPassword(u)}
+                    title={`Reset password to ${DEFAULT_PASSWORD}`}
+                    className="rounded-lg p-1.5 text-amber-600 hover:bg-amber-50"
+                  >
+                    <KeyRound className="h-4 w-4" />
+                  </button>
                   <button onClick={() => saveUser(u)} className="rounded-lg p-1.5 text-teal-600 hover:bg-teal-50">
                     <Save className="h-4 w-4" />
                   </button>
@@ -281,7 +298,7 @@ export default function Settings() {
             ))}
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 p-4 sm:grid-cols-6 sm:items-center">
+          <div className="mt-4 grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 p-4 sm:grid-cols-4 sm:items-center">
             <input
               className="input sm:col-span-1"
               value={newUser.username}
@@ -293,12 +310,6 @@ export default function Settings() {
               value={newUser.display_name}
               onChange={(e) => setNewUser({ ...newUser, display_name: e.target.value })}
               placeholder="Display name"
-            />
-            <input
-              className="input sm:col-span-1"
-              value={newUser.password}
-              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-              placeholder="Password"
             />
             <select
               className="input sm:col-span-1"
@@ -323,10 +334,10 @@ export default function Settings() {
             </select>
             <button
               onClick={addUser}
-              className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-1"
+              className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-4"
             >
               <UserPlus className="h-4 w-4" />
-              Add User
+              Add User (starting password: {DEFAULT_PASSWORD})
             </button>
           </div>
         </section>

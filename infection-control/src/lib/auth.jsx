@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
+import { sha256Hex } from "./hash";
 
 const AuthContext = createContext(null);
 const STORAGE_KEY = "ic_session";
@@ -8,6 +9,8 @@ const STORAGE_KEY = "ic_session";
 // "ic" (infection control team — full access), "owner" (ic-level access +
 // manage users/departments/checklists). Real per-user accounts, created by
 // the owner from Settings, so every action can be attributed to a person.
+// Passwords are stored as a SHA-256 hash (password_hash) — nobody, not even
+// the owner, can read a password back; the owner can only reset it.
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(() => {
     try {
@@ -30,26 +33,43 @@ export function AuthProvider({ children }) {
     loadConfig().finally(() => setLoading(false));
   }, []);
 
-  async function login(username, password) {
-    const { data: user } = await supabase
-      .from("users")
-      .select("*")
-      .eq("username", username)
-      .eq("password", password)
-      .eq("active", true)
-      .single();
-
-    if (!user) return { ok: false, error: "Incorrect username or password" };
-
-    const s = {
+  function toSession(user) {
+    return {
       id: user.id,
       username: user.username,
       displayName: user.display_name || user.username,
       role: user.role,
       department: user.department || "",
+      mustChangePassword: !!user.must_change_password,
     };
+  }
+
+  async function login(username, password) {
+    // Offline preview mode has no real security to protect — compare
+    // plaintext there so the seeded demo accounts keep working.
+    const query = supabase.from("users").select("*").eq("username", username).eq("active", true);
+    const { data: user } = supabase.isMock
+      ? await query.eq("password", password).single()
+      : await query.eq("password_hash", await sha256Hex(password)).single();
+
+    if (!user) return { ok: false, error: "Incorrect username or password" };
+
+    const s = toSession(user);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
     setSession(s);
+    return { ok: true };
+  }
+
+  async function changePassword(newPassword) {
+    if (!session) return { ok: false, error: "Not signed in" };
+    const patch = supabase.isMock
+      ? { password: newPassword, must_change_password: false }
+      : { password_hash: await sha256Hex(newPassword), must_change_password: false };
+    const { error } = await supabase.from("users").update(patch).eq("id", session.id);
+    if (error) return { ok: false, error: error.message };
+    const next = { ...session, mustChangePassword: false };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    setSession(next);
     return { ok: true };
   }
 
@@ -63,7 +83,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, config, loading, login, logout, isAdmin, isOwner, reloadConfig: loadConfig }}
+      value={{ session, config, loading, login, logout, changePassword, isAdmin, isOwner, reloadConfig: loadConfig }}
     >
       {children}
     </AuthContext.Provider>

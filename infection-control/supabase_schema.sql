@@ -12,19 +12,22 @@ insert into app_config (id) values (1) on conflict (id) do nothing;
 
 -- Real per-person accounts, created by the owner from Settings. Every audit
 -- action (created/resolved/deleted) is attributed to the account that did it.
+-- Passwords are stored as a SHA-256 hash — nobody, not even the owner, can
+-- read a password back; the owner can only reset it to the default (123456).
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
   username text not null unique,
-  password text not null,
+  password_hash text not null,
   display_name text not null default '',
   role text not null default 'staff', -- 'owner' | 'ic' | 'staff'
   department text,                    -- optional home department for staff users
   active boolean not null default true,
+  must_change_password boolean not null default true,
   created_by text,
   created_at timestamptz not null default now()
 );
-insert into users (username, password, display_name, role)
-values ('owner', 'owner123', 'Owner', 'owner')
+insert into users (username, password_hash, display_name, role, must_change_password)
+values ('owner', encode(digest('owner123', 'sha256'), 'hex'), 'Owner', 'owner', true)
 on conflict (username) do nothing;
 
 -- One checklist type = one bundle (SSI / CAUTI / VAE / CLABSI), with its list of
