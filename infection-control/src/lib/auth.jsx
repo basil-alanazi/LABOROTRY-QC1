@@ -40,6 +40,7 @@ export function AuthProvider({ children }) {
       displayName: user.display_name || user.username,
       role: user.role,
       department: user.department || "",
+      canManageStock: !!user.can_manage_stock,
       mustChangePassword: !!user.must_change_password,
     };
   }

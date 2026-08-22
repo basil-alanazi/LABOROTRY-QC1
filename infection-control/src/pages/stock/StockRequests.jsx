@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileSpreadsheet, FileText, Check } from "lucide-react";
+import { FileSpreadsheet, FileText, Check, Plus, Trash2 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
@@ -21,9 +21,11 @@ export default function StockRequests() {
   const [qtyInputs, setQtyInputs] = useState({});
   const [message, setMessage] = useState(null);
   const [filterDepts, setFilterDepts] = useState([]);
+  const [newItem, setNewItem] = useState({ name: "", min_qty: "", max_qty: "", current_qty: "" });
 
   const myDepartment = session?.department || "";
   const departments = config?.stock_departments ?? [];
+  const canManage = isAdmin || !!session?.canManageStock;
 
   function loadItems() {
     supabase
@@ -113,6 +115,43 @@ export default function StockRequests() {
     setQty(item.id, "");
     flash({ type: "success", text: `Used ${qty} ${item.unit} of ${item.name}` });
     loadRequests();
+  }
+
+  async function addNewItem() {
+    const name = newItem.name.trim();
+    if (!name) {
+      flash({ type: "error", text: "Enter an item name" });
+      return;
+    }
+    if (!activeDepartment) {
+      flash({ type: "error", text: "Select a department first" });
+      return;
+    }
+    const maxSort = items.filter((i) => i.department === activeDepartment).reduce((m, i) => Math.max(m, i.sort_order ?? 0), 0);
+    const { error } = await supabase.from("stock_items").insert({
+      department: activeDepartment,
+      name,
+      unit: "unit",
+      min_qty: Number(newItem.min_qty) || 0,
+      max_qty: Number(newItem.max_qty) || 0,
+      current_qty: Number(newItem.current_qty) || 0,
+      active: true,
+      sort_order: maxSort + 1,
+    });
+    if (error) {
+      flash({ type: "error", text: "Could not add item" });
+      return;
+    }
+    setNewItem({ name: "", min_qty: "", max_qty: "", current_qty: "" });
+    flash({ type: "success", text: `${name} added` });
+    loadItems();
+  }
+
+  async function removeItem(item) {
+    if (!confirm(`Remove "${item.name}" from ${item.department}'s stock catalog?`)) return;
+    await supabase.from("stock_items").delete().eq("id", item.id);
+    setItems((prev) => prev.filter((i) => i.id !== item.id));
+    flash({ type: "success", text: `${item.name} removed` });
   }
 
   async function voidRequest(req) {
@@ -234,6 +273,7 @@ export default function StockRequests() {
                   <th className="px-4 py-2 font-medium">Current Stock</th>
                   <th className="px-4 py-2 font-medium">Quantity to Use</th>
                   <th className="px-4 py-2"></th>
+                  {canManage && <th className="px-4 py-2"></th>}
                 </tr>
               </thead>
               <tbody>
@@ -271,10 +311,60 @@ export default function StockRequests() {
                         Use
                       </button>
                     </td>
+                    {canManage && (
+                      <td className="px-4 py-2">
+                        <button
+                          onClick={() => removeItem(i)}
+                          title="Remove this item"
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {canManage && activeDepartment && (
+          <div className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 p-4 sm:grid-cols-5 sm:items-center">
+            <input
+              className="input sm:col-span-2"
+              value={newItem.name}
+              onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+              placeholder="New item name"
+            />
+            <input
+              type="number"
+              className="input"
+              value={newItem.min_qty}
+              onChange={(e) => setNewItem({ ...newItem, min_qty: e.target.value })}
+              placeholder="Min qty"
+            />
+            <input
+              type="number"
+              className="input"
+              value={newItem.max_qty}
+              onChange={(e) => setNewItem({ ...newItem, max_qty: e.target.value })}
+              placeholder="Max qty"
+            />
+            <input
+              type="number"
+              className="input"
+              value={newItem.current_qty}
+              onChange={(e) => setNewItem({ ...newItem, current_qty: e.target.value })}
+              placeholder="Current qty"
+            />
+            <button
+              onClick={addNewItem}
+              className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-5"
+            >
+              <Plus className="h-4 w-4" />
+              Add New Item to {activeDepartment}
+            </button>
           </div>
         )}
       </div>
