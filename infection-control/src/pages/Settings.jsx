@@ -192,6 +192,16 @@ export default function Settings() {
     setNewStockDept("");
   }
 
+  async function quickAddDepartment() {
+    const name = window.prompt("New department name:");
+    if (!name || !name.trim()) return null;
+    const trimmed = name.trim();
+    if (!stockDepartments.includes(trimmed)) {
+      await saveStockDepartments([...stockDepartments, trimmed]);
+    }
+    return trimmed;
+  }
+
   function removeStockDept(name) {
     saveStockDepartments(stockDepartments.filter((d) => d !== name));
   }
@@ -1040,18 +1050,31 @@ export default function Settings() {
                   <option value="ic">Infection Control</option>
                   <option value="staff">Ward Staff</option>
                 </select>
-                <select
-                  className="input sm:col-span-1"
-                  value={u.department || ""}
-                  onChange={(e) => updateUserField(u.id, { department: e.target.value })}
-                >
-                  <option value="">No department</option>
-                  {stockDepartments.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-1 sm:col-span-1">
+                  <select
+                    className="input"
+                    value={u.department || ""}
+                    onChange={(e) => updateUserField(u.id, { department: e.target.value })}
+                  >
+                    <option value="">No department</option>
+                    {stockDepartments.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const d = await quickAddDepartment();
+                      if (d) updateUserField(u.id, { department: d });
+                    }}
+                    title="Add a new department"
+                    className="shrink-0 rounded-lg border border-slate-200 px-2 text-slate-500 hover:bg-slate-50"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
                 <div className="flex items-center justify-end gap-2 sm:col-span-1">
                   <label className="flex items-center gap-1 text-xs text-slate-500">
                     <input type="checkbox" checked={u.active} onChange={(e) => updateUserField(u.id, { active: e.target.checked })} />
@@ -1107,18 +1130,31 @@ export default function Settings() {
               <option value="ic">Infection Control</option>
               <option value="staff">Ward Staff</option>
             </select>
-            <select
-              className="input sm:col-span-1"
-              value={newUser.department}
-              onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
-            >
-              <option value="">No department</option>
-              {stockDepartments.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-1 sm:col-span-1">
+              <select
+                className="input"
+                value={newUser.department}
+                onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
+              >
+                <option value="">No department</option>
+                {stockDepartments.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={async () => {
+                  const d = await quickAddDepartment();
+                  if (d) setNewUser({ ...newUser, department: d });
+                }}
+                title="Add a new department"
+                className="shrink-0 rounded-lg border border-slate-200 px-2 text-slate-500 hover:bg-slate-50"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
             {newUser.role === "staff" && newUser.department && (
               <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-4">
                 <input
