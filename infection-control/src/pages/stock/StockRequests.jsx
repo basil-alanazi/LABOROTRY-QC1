@@ -1,32 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, FileSpreadsheet, FileText, Plus, X } from "lucide-react";
+import { AlertTriangle, FileSpreadsheet, FileText, Plus } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 
-const REPORT_HEADERS = ["Date", "Department", "Item", "Requested", "Issued", "Status", "Requested By", "Issued By", "Notes"];
+const REPORT_HEADERS = ["Date", "Department", "Item", "Quantity Used", "Used By", "Notes"];
 
 function toReportRow(r) {
-  return [
-    r.date,
-    r.department,
-    r.item_name,
-    r.quantity_requested,
-    r.quantity_issued ?? "",
-    r.status,
-    r.requested_by,
-    r.issued_by || "",
-    r.notes,
-  ];
+  return [r.date, r.department, r.item_name, r.quantity_issued ?? r.quantity_requested, r.issued_by || r.requested_by, r.notes];
 }
-
-const STATUS_STYLES = {
-  pending: "bg-amber-50 text-amber-700",
-  issued: "bg-emerald-50 text-emerald-700",
-  partial: "bg-blue-50 text-blue-700",
-  cancelled: "bg-slate-100 text-slate-500",
-};
 
 const emptyForm = { department: "", item_id: "", quantity_requested: "", notes: "" };
 
@@ -38,9 +21,6 @@ export default function StockRequests() {
   const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState(null);
   const [filterDept, setFilterDept] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
-  const [issuingId, setIssuingId] = useState(null);
-  const [issueQty, setIssueQty] = useState("");
 
   const myDepartment = session?.department || "";
   const departments = config?.stock_departments ?? [];
@@ -63,9 +43,8 @@ export default function StockRequests() {
     let query = supabase.from("stock_requests").select("*").order("created_at", { ascending: false }).limit(200);
     if (!isAdmin) {
       query = query.eq("department", myDepartment);
-    } else {
-      if (filterDept) query = query.eq("department", filterDept);
-      if (filterStatus) query = query.eq("status", filterStatus);
+    } else if (filterDept) {
+      query = query.eq("department", filterDept);
     }
     const { data } = await query;
     setRequests(data ?? []);
@@ -75,7 +54,7 @@ export default function StockRequests() {
   useEffect(() => {
     loadRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, myDepartment, filterDept, filterStatus]);
+  }, [isAdmin, myDepartment, filterDept]);
 
   const lowStock = useMemo(() => items.filter((i) => i.current_qty < i.min_qty), [items]);
 
@@ -108,45 +87,41 @@ export default function StockRequests() {
       item_name: item.name,
       unit: item.unit,
       quantity_requested: qty,
+      quantity_issued: qty,
+      status: "issued",
       notes: form.notes,
       requested_by: session?.username,
+      issued_by: session?.username,
+      issued_at: new Date().toISOString(),
     });
     if (error) {
-      flash({ type: "error", text: "Could not submit: " + error.message });
-    } else {
-      flash({ type: "success", text: "Request submitted" });
-      setForm(emptyForm);
-      loadRequests();
+      flash({ type: "error", text: "Could not save: " + error.message });
+      return;
     }
-  }
 
-  async function issueRequest(req) {
-    const qty = Number(issueQty || req.quantity_requested);
-    if (!qty || qty <= 0) return;
-    const status = qty >= req.quantity_requested ? "issued" : "partial";
     await supabase
-      .from("stock_requests")
-      .update({ quantity_issued: qty, status, issued_by: session?.username, issued_at: new Date().toISOString() })
-      .eq("id", req.id);
+      .from("stock_items")
+      .update({ current_qty: Math.max(0, item.current_qty - qty) })
+      .eq("id", item.id);
 
-    const item = items.find((i) => i.id === req.item_id);
-    if (item) {
-      await supabase
-        .from("stock_items")
-        .update({ current_qty: Math.max(0, item.current_qty - qty) })
-        .eq("id", item.id);
-    }
-
-    setIssuingId(null);
-    setIssueQty("");
+    flash({ type: "success", text: `Used ${qty} ${item.unit} of ${item.name}` });
+    setForm(emptyForm);
     loadRequests();
     loadItems();
   }
 
-  async function cancelRequest(req) {
-    if (!confirm("Cancel this request?")) return;
-    await supabase.from("stock_requests").update({ status: "cancelled" }).eq("id", req.id);
+  async function voidRequest(req) {
+    if (!confirm(`Void this entry and put ${req.quantity_issued ?? req.quantity_requested} ${req.unit} back in stock?`)) return;
+    const item = items.find((i) => i.id === req.item_id);
+    if (item) {
+      await supabase
+        .from("stock_items")
+        .update({ current_qty: item.current_qty + (req.quantity_issued ?? req.quantity_requested) })
+        .eq("id", item.id);
+    }
+    await supabase.from("stock_requests").delete().eq("id", req.id);
     loadRequests();
+    loadItems();
   }
 
   function exportExcel() {
@@ -170,8 +145,8 @@ export default function StockRequests() {
           <h1 className="text-xl font-bold text-slate-800">Stock Requests</h1>
           <p className="text-sm text-slate-500">
             {isAdmin
-              ? "Supply requests from all departments, fulfilled from Infection Control's own stock."
-              : `Request supplies for ${myDepartment || "your department"} from Infection Control.`}
+              ? "Supply usage from all departments, taken directly from Infection Control's own stock."
+              : `Take supplies for ${myDepartment || "your department"} from Infection Control's stock.`}
           </p>
         </div>
         {isAdmin && (
@@ -213,7 +188,7 @@ export default function StockRequests() {
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-700">New Request</h2>
+        <h2 className="text-sm font-semibold text-slate-700">Use Stock</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           {isAdmin ? (
             <Field label="Department">
@@ -267,28 +242,19 @@ export default function StockRequests() {
           className="flex items-center gap-1 self-start rounded-lg bg-teal-600 px-6 py-2 text-sm font-semibold text-white hover:bg-teal-700"
         >
           <Plus className="h-4 w-4" />
-          Submit Request
+          Use
         </button>
       </form>
 
       {isAdmin && (
-        <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
-          <select className="input" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
-            <option value="">All Departments</option>
-            {departments.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-          <select className="input" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="issued">Issued</option>
-            <option value="partial">Partial</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
+        <select className="input w-full sm:w-64" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
+          <option value="">All Departments</option>
+          {departments.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
       )}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -298,9 +264,8 @@ export default function StockRequests() {
               <th className="px-4 py-2 font-medium">Date</th>
               {isAdmin && <th className="px-4 py-2 font-medium">Department</th>}
               <th className="px-4 py-2 font-medium">Item</th>
-              <th className="px-4 py-2 font-medium">Requested</th>
-              <th className="px-4 py-2 font-medium">Issued</th>
-              <th className="px-4 py-2 font-medium">Status</th>
+              <th className="px-4 py-2 font-medium">Quantity Used</th>
+              <th className="px-4 py-2 font-medium">Used By</th>
               {isAdmin && <th className="px-4 py-2"></th>}
             </tr>
           </thead>
@@ -311,64 +276,21 @@ export default function StockRequests() {
                 {isAdmin && <td className="px-4 py-2">{r.department}</td>}
                 <td className="px-4 py-2">{r.item_name}</td>
                 <td className="px-4 py-2">
-                  {r.quantity_requested} {r.unit}
+                  {r.quantity_issued ?? r.quantity_requested} {r.unit}
                 </td>
-                <td className="px-4 py-2">{r.quantity_issued != null ? `${r.quantity_issued} ${r.unit}` : "—"}</td>
-                <td className="px-4 py-2">
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[r.status] || "bg-slate-100 text-slate-500"}`}>
-                    {r.status}
-                  </span>
-                </td>
+                <td className="px-4 py-2">{r.issued_by || r.requested_by}</td>
                 {isAdmin && (
-                  <td className="px-4 py-2">
-                    {r.status === "pending" &&
-                      (issuingId === r.id ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            min="1"
-                            className="input w-20 py-1"
-                            placeholder={String(r.quantity_requested)}
-                            value={issueQty}
-                            onChange={(e) => setIssueQty(e.target.value)}
-                            autoFocus
-                          />
-                          <button onClick={() => issueRequest(r)} className="rounded-lg p-1.5 text-teal-600 hover:bg-teal-50">
-                            <Check className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setIssuingId(null);
-                              setIssueQty("");
-                            }}
-                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => {
-                              setIssuingId(r.id);
-                              setIssueQty(String(r.quantity_requested));
-                            }}
-                            className="rounded-lg px-2 py-1 text-xs text-teal-600 hover:bg-teal-50"
-                          >
-                            Issue
-                          </button>
-                          <button onClick={() => cancelRequest(r)} className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-red-50 hover:text-red-600">
-                            Cancel
-                          </button>
-                        </div>
-                      ))}
+                  <td className="px-4 py-2 text-right">
+                    <button onClick={() => voidRequest(r)} className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-red-50 hover:text-red-600">
+                      Void
+                    </button>
                   </td>
                 )}
               </tr>
             ))}
           </tbody>
         </table>
-        {!loading && requests.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No requests yet</p>}
+        {!loading && requests.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No usage recorded yet</p>}
         {loading && <p className="p-6 text-center text-sm text-slate-400">Loading...</p>}
       </div>
     </div>
