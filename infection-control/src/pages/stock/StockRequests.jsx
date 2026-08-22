@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, FileSpreadsheet, FileText, Plus } from "lucide-react";
+import { AlertTriangle, FileSpreadsheet, FileText, Check } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
@@ -11,14 +11,14 @@ function toReportRow(r) {
   return [r.date, r.department, r.item_name, r.quantity_issued ?? r.quantity_requested, r.issued_by || r.requested_by, r.notes];
 }
 
-const emptyForm = { department: "", item_id: "", quantity_requested: "", notes: "" };
-
 export default function StockRequests() {
   const { session, config, isAdmin } = useAuth();
   const [items, setItems] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState(emptyForm);
+  const [selectedDept, setSelectedDept] = useState("");
+  const [itemSearch, setItemSearch] = useState("");
+  const [qtyInputs, setQtyInputs] = useState({});
   const [message, setMessage] = useState(null);
   const [filterDepts, setFilterDepts] = useState([]);
 
@@ -61,31 +61,26 @@ export default function StockRequests() {
   }
 
   const lowStock = useMemo(() => items.filter((i) => i.current_qty < i.min_qty), [items]);
-  const activeDepartment = isAdmin ? form.department : myDepartment;
+  const activeDepartment = isAdmin ? selectedDept : myDepartment;
   const departmentItems = useMemo(
-    () => items.filter((i) => i.department === activeDepartment),
-    [items, activeDepartment]
+    () =>
+      items
+        .filter((i) => i.department === activeDepartment)
+        .filter((i) => !itemSearch.trim() || i.name.toLowerCase().includes(itemSearch.trim().toLowerCase())),
+    [items, activeDepartment, itemSearch]
   );
-  const selectedItem = useMemo(() => items.find((i) => i.id === form.item_id) ?? null, [items, form.item_id]);
 
   function flash(msg) {
     setMessage(msg);
     setTimeout(() => setMessage(null), 3000);
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    const department = isAdmin ? form.department : myDepartment;
-    if (!department) {
-      flash({ type: "error", text: "Select a department" });
-      return;
-    }
-    const item = items.find((i) => i.id === form.item_id);
-    if (!item) {
-      flash({ type: "error", text: "Select an item" });
-      return;
-    }
-    const qty = Number(form.quantity_requested);
+  function setQty(itemId, value) {
+    setQtyInputs((prev) => ({ ...prev, [itemId]: value }));
+  }
+
+  async function useItem(item) {
+    const qty = Number(qtyInputs[item.id]);
     if (!qty || qty <= 0) {
       flash({ type: "error", text: "Enter a valid quantity" });
       return;
@@ -96,14 +91,14 @@ export default function StockRequests() {
     }
 
     const { error } = await supabase.from("stock_requests").insert({
-      department,
+      department: activeDepartment,
       item_id: item.id,
       item_name: item.name,
       unit: item.unit,
       quantity_requested: qty,
       quantity_issued: qty,
       status: "issued",
-      notes: form.notes,
+      notes: "",
       requested_by: session?.username,
       issued_by: session?.username,
       issued_at: new Date().toISOString(),
@@ -113,15 +108,12 @@ export default function StockRequests() {
       return;
     }
 
-    await supabase
-      .from("stock_items")
-      .update({ current_qty: Math.max(0, item.current_qty - qty) })
-      .eq("id", item.id);
-
+    const nextQty = Math.max(0, item.current_qty - qty);
+    await supabase.from("stock_items").update({ current_qty: nextQty }).eq("id", item.id);
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, current_qty: nextQty } : i)));
+    setQty(item.id, "");
     flash({ type: "success", text: `Used ${qty} ${item.unit} of ${item.name}` });
-    setForm(emptyForm);
     loadRequests();
-    loadItems();
   }
 
   async function voidRequest(req) {
@@ -204,16 +196,18 @@ export default function StockRequests() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">Use Stock</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {isAdmin ? (
             <Field label="Department">
               <select
-                value={form.department}
-                onChange={(e) => setForm({ ...form, department: e.target.value, item_id: "" })}
+                value={selectedDept}
+                onChange={(e) => {
+                  setSelectedDept(e.target.value);
+                  setItemSearch("");
+                }}
                 className="input"
-                required
               >
                 <option value="">Select department</option>
                 {departments.map((d) => (
@@ -228,53 +222,14 @@ export default function StockRequests() {
               <input className="input bg-slate-50" value={myDepartment} disabled readOnly />
             </Field>
           )}
-          <Field label="Item">
-            <select
-              value={form.item_id}
-              onChange={(e) => setForm({ ...form, item_id: e.target.value })}
-              className="input"
-              required
-              disabled={!activeDepartment}
-            >
-              <option value="">{activeDepartment ? "Select item" : "Select a department first"}</option>
-              {departmentItems.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.name} — {i.current_qty > 0 ? `${i.current_qty} ${i.unit} available` : "Out of stock"}
-                </option>
-              ))}
-            </select>
-            {activeDepartment && departmentItems.length === 0 && (
-              <span className="text-xs text-slate-400">No items set up yet for {activeDepartment}</span>
-            )}
-            {selectedItem && (
-              <span
-                className={`text-xs font-medium ${
-                  selectedItem.current_qty <= 0
-                    ? "text-red-600"
-                    : selectedItem.current_qty < selectedItem.min_qty
-                    ? "text-amber-600"
-                    : "text-emerald-600"
-                }`}
-              >
-                {selectedItem.current_qty <= 0
-                  ? "N/A — out of stock"
-                  : `Available: ${selectedItem.current_qty} ${selectedItem.unit}`}
-              </span>
-            )}
-          </Field>
-          <Field label="Quantity">
+          <Field label="Search items">
             <input
-              type="number"
-              min="1"
-              max={selectedItem ? selectedItem.current_qty : undefined}
               className="input"
-              value={form.quantity_requested}
-              onChange={(e) => setForm({ ...form, quantity_requested: e.target.value })}
-              required
+              value={itemSearch}
+              onChange={(e) => setItemSearch(e.target.value)}
+              placeholder="Type to filter..."
+              disabled={!activeDepartment}
             />
-          </Field>
-          <Field label="Notes (optional)">
-            <input className="input" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </Field>
         </div>
 
@@ -284,14 +239,65 @@ export default function StockRequests() {
           </p>
         )}
 
-        <button
-          type="submit"
-          className="flex items-center gap-1 self-start rounded-lg bg-teal-600 px-6 py-2 text-sm font-semibold text-white hover:bg-teal-700"
-        >
-          <Plus className="h-4 w-4" />
-          Use
-        </button>
-      </form>
+        {!activeDepartment && <p className="text-sm text-slate-400">Select a department to see its stock items.</p>}
+
+        {activeDepartment && departmentItems.length === 0 && (
+          <p className="text-sm text-slate-400">No items match — {items.filter((i) => i.department === activeDepartment).length} items total for {activeDepartment}.</p>
+        )}
+
+        {activeDepartment && departmentItems.length > 0 && (
+          <div className="overflow-hidden rounded-xl border border-slate-200">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-left text-xs text-slate-500">
+                <tr>
+                  <th className="px-4 py-2 font-medium">Item</th>
+                  <th className="px-4 py-2 font-medium">Current Stock</th>
+                  <th className="px-4 py-2 font-medium">Quantity to Use</th>
+                  <th className="px-4 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {departmentItems.map((i) => (
+                  <tr key={i.id} className="border-t border-slate-100">
+                    <td className="px-4 py-2">{i.name}</td>
+                    <td className="px-4 py-2">
+                      <span
+                        className={`font-medium ${
+                          i.current_qty <= 0 ? "text-red-600" : i.current_qty < i.min_qty ? "text-amber-600" : "text-emerald-600"
+                        }`}
+                      >
+                        {i.current_qty} {i.unit}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max={i.current_qty}
+                        className="input w-24"
+                        value={qtyInputs[i.id] ?? ""}
+                        onChange={(e) => setQty(i.id, e.target.value)}
+                        disabled={i.current_qty <= 0}
+                        placeholder="qty"
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      <button
+                        onClick={() => useItem(i)}
+                        disabled={i.current_qty <= 0 || !qtyInputs[i.id]}
+                        className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-40"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        Use
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {isAdmin && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4">
