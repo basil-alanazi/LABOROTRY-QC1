@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Save, UserPlus, KeyRound, ListPlus } from "lucide-react";
+import { Plus, Trash2, Save, UserPlus, KeyRound, ListPlus, PackagePlus } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
 import { sha256Hex } from "../lib/hash";
@@ -8,6 +8,7 @@ import { PATIENT_FIELDS, DEFAULT_PATIENT_FIELDS } from "../lib/patientFields";
 const DEFAULT_PASSWORD = "123456";
 const emptyNewUser = { username: "", display_name: "", role: "staff", department: "" };
 const emptyNewChecklist = { name: "", departments: [], items: "", baseline: "", fields: [...DEFAULT_PATIENT_FIELDS] };
+const emptyNewStockItem = { name: "", unit: "unit", min_qty: "", max_qty: "", current_qty: "" };
 
 function slugCode(name) {
   const base = name
@@ -27,6 +28,10 @@ export default function Settings() {
   const [hhObserverRoles, setHhObserverRoles] = useState([]);
   const [newHhObserverRole, setNewHhObserverRole] = useState("");
   const [hhDepartmentObservers, setHhDepartmentObservers] = useState({});
+  const [stockDepartments, setStockDepartments] = useState([]);
+  const [newStockDept, setNewStockDept] = useState("");
+  const [stockItems, setStockItems] = useState([]);
+  const [newStockItem, setNewStockItem] = useState(emptyNewStockItem);
   const [checklistTypes, setChecklistTypes] = useState([]);
   const [newChecklist, setNewChecklist] = useState(emptyNewChecklist);
   const [users, setUsers] = useState([]);
@@ -39,11 +44,13 @@ export default function Settings() {
       setHhDepartments(config.hh_departments ?? []);
       setHhObserverRoles(config.hh_observer_roles ?? []);
       setHhDepartmentObservers(config.hh_department_observers ?? {});
+      setStockDepartments(config.stock_departments ?? []);
     }
   }, [config]);
 
   useEffect(() => {
     loadChecklists();
+    loadStockItems();
     if (isOwner) loadUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOwner]);
@@ -51,6 +58,11 @@ export default function Settings() {
   async function loadChecklists() {
     const { data } = await supabase.from("checklist_types").select("*").order("sort_order");
     setChecklistTypes(data ?? []);
+  }
+
+  async function loadStockItems() {
+    const { data } = await supabase.from("stock_items").select("*").order("sort_order");
+    setStockItems(data ?? []);
   }
 
   async function loadUsers() {
@@ -129,6 +141,74 @@ export default function Settings() {
     const has = current.includes(role);
     const next = has ? current.filter((r) => r !== role) : [...current, role];
     saveHhDepartmentObservers({ ...hhDepartmentObservers, [dept]: next });
+  }
+
+  async function saveStockDepartments(next) {
+    setStockDepartments(next);
+    await supabase.from("app_config").update({ stock_departments: next }).eq("id", 1);
+    reloadConfig();
+    flash("Stock departments saved");
+  }
+
+  function addStockDept() {
+    const name = newStockDept.trim();
+    if (!name || stockDepartments.includes(name)) return;
+    saveStockDepartments([...stockDepartments, name]);
+    setNewStockDept("");
+  }
+
+  function removeStockDept(name) {
+    saveStockDepartments(stockDepartments.filter((d) => d !== name));
+  }
+
+  function updateStockItem(id, patch) {
+    setStockItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+  }
+
+  async function saveStockItem(item) {
+    await supabase
+      .from("stock_items")
+      .update({
+        name: item.name,
+        unit: item.unit,
+        min_qty: Number(item.min_qty) || 0,
+        max_qty: Number(item.max_qty) || 0,
+        current_qty: Number(item.current_qty) || 0,
+        active: item.active,
+      })
+      .eq("id", item.id);
+    flash(`${item.name} saved`);
+  }
+
+  async function removeStockItem(item) {
+    if (!confirm(`Delete "${item.name}" from the stock catalog?`)) return;
+    await supabase.from("stock_items").delete().eq("id", item.id);
+    loadStockItems();
+  }
+
+  async function addStockItem() {
+    const name = newStockItem.name.trim();
+    if (!name) {
+      flash("Item name is required");
+      return;
+    }
+    const maxSort = stockItems.reduce((m, i) => Math.max(m, i.sort_order ?? 0), 0);
+    const { error } = await supabase.from("stock_items").insert({
+      name,
+      unit: newStockItem.unit.trim() || "unit",
+      min_qty: Number(newStockItem.min_qty) || 0,
+      max_qty: Number(newStockItem.max_qty) || 0,
+      current_qty: Number(newStockItem.current_qty) || 0,
+      active: true,
+      sort_order: maxSort + 1,
+    });
+    if (error) {
+      flash("Could not add item");
+      return;
+    }
+    setNewStockItem(emptyNewStockItem);
+    loadStockItems();
+    flash("Item added");
   }
 
   async function updateChecklist(id, patch) {
@@ -391,6 +471,132 @@ export default function Settings() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">Stock Request Departments</h2>
+        <p className="mb-4 text-xs text-slate-500">Departments that can request supplies from Infection Control.</p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {stockDepartments.map((d) => (
+            <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
+              {d}
+              <button onClick={() => removeStockDept(d)} className="text-teal-400 hover:text-red-500">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            className="input"
+            value={newStockDept}
+            onChange={(e) => setNewStockDept(e.target.value)}
+            placeholder="New department name"
+          />
+          <button onClick={addStockDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+            <Plus className="h-4 w-4" />
+            Add
+          </button>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-slate-700">Stock Items</h2>
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-left text-xs text-slate-500">
+              <tr>
+                <th className="px-3 py-2 font-medium">Name</th>
+                <th className="px-3 py-2 font-medium">Unit</th>
+                <th className="px-3 py-2 font-medium">Min</th>
+                <th className="px-3 py-2 font-medium">Max</th>
+                <th className="px-3 py-2 font-medium">Current</th>
+                <th className="px-3 py-2 font-medium">Active</th>
+                <th className="px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {stockItems.map((i) => (
+                <tr key={i.id} className="border-t border-slate-100">
+                  <td className="px-3 py-2">
+                    <input className="input" value={i.name} onChange={(e) => updateStockItem(i.id, { name: e.target.value })} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input className="input w-24" value={i.unit} onChange={(e) => updateStockItem(i.id, { unit: e.target.value })} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input type="number" className="input w-20" value={i.min_qty} onChange={(e) => updateStockItem(i.id, { min_qty: e.target.value })} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input type="number" className="input w-20" value={i.max_qty} onChange={(e) => updateStockItem(i.id, { max_qty: e.target.value })} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="number"
+                      className="input w-20"
+                      value={i.current_qty}
+                      onChange={(e) => updateStockItem(i.id, { current_qty: e.target.value })}
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input type="checkbox" checked={i.active} onChange={(e) => updateStockItem(i.id, { active: e.target.checked })} />
+                  </td>
+                  <td className="flex items-center gap-1 px-3 py-2">
+                    <button onClick={() => saveStockItem(i)} className="rounded-lg p-1.5 text-teal-600 hover:bg-teal-50">
+                      <Save className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => removeStockItem(i)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-6 sm:items-center">
+          <input
+            className="input sm:col-span-2"
+            value={newStockItem.name}
+            onChange={(e) => setNewStockItem({ ...newStockItem, name: e.target.value })}
+            placeholder="Item name"
+          />
+          <input
+            className="input"
+            value={newStockItem.unit}
+            onChange={(e) => setNewStockItem({ ...newStockItem, unit: e.target.value })}
+            placeholder="Unit (box, piece...)"
+          />
+          <input
+            type="number"
+            className="input"
+            value={newStockItem.min_qty}
+            onChange={(e) => setNewStockItem({ ...newStockItem, min_qty: e.target.value })}
+            placeholder="Min"
+          />
+          <input
+            type="number"
+            className="input"
+            value={newStockItem.max_qty}
+            onChange={(e) => setNewStockItem({ ...newStockItem, max_qty: e.target.value })}
+            placeholder="Max"
+          />
+          <input
+            type="number"
+            className="input"
+            value={newStockItem.current_qty}
+            onChange={(e) => setNewStockItem({ ...newStockItem, current_qty: e.target.value })}
+            placeholder="Current stock"
+          />
+          <button
+            onClick={addStockItem}
+            className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-6"
+          >
+            <PackagePlus className="h-4 w-4" />
+            Add Item
+          </button>
         </div>
       </section>
 

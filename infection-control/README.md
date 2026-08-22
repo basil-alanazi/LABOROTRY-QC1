@@ -55,6 +55,7 @@ is attributed to the real person who did it — visible in Records and in the ex
 5. **"Dashboard"** has the same two tabs: Ward Round's compliance summary by checklist and by department (calendar month or custom date range), and Hand Hygiene's monthly compliance by department plus monthly summary by moment category (against an 80% target, matching the hospital's Monthly Dashboard / HH Category Summary sheets) — export either view to Excel or PDF
 6. **"Settings"**: add/remove departments (separate lists for Ward Round and Hand Hygiene), manage the Hand Hygiene observer role list and which roles show per department, edit each checklist's items/department links/baseline note, create new checklists, and manage user accounts (owner only)
 7. **"Profile"** (everyone): view your own account details and change your own password any time
+8. **"Stock Requests"** (everyone): Infection Control (Owner/IC) see and fulfill supply requests from every department, with a low-stock alert and Excel/PDF export; Ward Staff accounts only see and submit requests for their own assigned department — no access to any other page
 
 ## Important note on checklist items
 Some bundle-item texts in the original Excel file were cut off (the sheet truncates around

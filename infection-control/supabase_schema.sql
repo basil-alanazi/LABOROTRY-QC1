@@ -9,7 +9,8 @@ create table if not exists app_config (
   departments jsonb not null default '["ICU","NICU","Surgery","OB/GYN"]'::jsonb,
   hh_departments jsonb not null default '["ICU","Medical Ward","Surgical Ward","Emergency","Pediatric","NICU","OPD","OT","Labor & Delivery","Dialysis","Other"]'::jsonb,
   hh_observer_roles jsonb not null default '["Doctor","Nurse","Housekeeping","Lab Staff","Radiology"]'::jsonb,
-  hh_department_observers jsonb not null default '{}'::jsonb  -- { "Lab": ["Lab Staff"], ... } — which roles show for each HH department; unlisted departments show all roles
+  hh_department_observers jsonb not null default '{}'::jsonb, -- { "Lab": ["Lab Staff"], ... } — which roles show for each HH department; unlisted departments show all roles
+  stock_departments jsonb not null default '["Emergency","Surgery","OB/GYN","Pediatric","OPD","Radiology","Laboratory","Dialysis","Medical Ward","Other"]'::jsonb
 );
 insert into app_config (id) values (1) on conflict (id) do nothing;
 
@@ -242,3 +243,42 @@ insert into checklist_types (code, name_ar, name_en, items, departments, sort_or
   "16. Proper replacement of administration sets"
 ]'::jsonb, '["NICU"]'::jsonb, 6)
 on conflict (code) do nothing;
+
+-- Stock Requests — a separate module: other departments/clinics request
+-- supplies (PPE, disinfectants, etc.) from Infection Control's own stock.
+-- Ward Staff accounts are scoped to a single department here (their
+-- users.department), so they only ever see/submit requests for their own
+-- department; Owner/IC see and fulfill requests across all departments.
+create table if not exists stock_items (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  unit text not null default 'unit',
+  min_qty numeric not null default 0,
+  max_qty numeric not null default 0,
+  current_qty numeric not null default 0,
+  active boolean not null default true,
+  sort_order int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists stock_requests (
+  id uuid primary key default gen_random_uuid(),
+  date date not null default current_date,
+  department text not null,
+  item_id uuid references stock_items(id),
+  item_name text not null default '',
+  unit text not null default '',
+  quantity_requested numeric not null,
+  quantity_issued numeric,
+  status text not null default 'pending', -- pending | issued | partial | cancelled
+  notes text not null default '',
+  requested_by text not null default '',
+  issued_by text,
+  issued_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table stock_items enable row level security;
+alter table stock_requests enable row level security;
+create policy "allow all stock_items" on stock_items for all using (true) with check (true);
+create policy "allow all stock_requests" on stock_requests for all using (true) with check (true);
