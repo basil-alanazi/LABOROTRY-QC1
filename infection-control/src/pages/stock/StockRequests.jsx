@@ -61,6 +61,11 @@ export default function StockRequests() {
   }
 
   const lowStock = useMemo(() => items.filter((i) => i.current_qty < i.min_qty), [items]);
+  const activeDepartment = isAdmin ? form.department : myDepartment;
+  const departmentItems = useMemo(
+    () => items.filter((i) => i.department === activeDepartment),
+    [items, activeDepartment]
+  );
   const selectedItem = useMemo(() => items.find((i) => i.id === form.item_id) ?? null, [items, form.item_id]);
 
   function flash(msg) {
@@ -154,8 +159,8 @@ export default function StockRequests() {
           <h1 className="text-xl font-bold text-slate-800">Stock Requests</h1>
           <p className="text-sm text-slate-500">
             {isAdmin
-              ? "Supply usage from all departments, taken directly from Infection Control's own stock."
-              : `Take supplies for ${myDepartment || "your department"} from Infection Control's stock.`}
+              ? "Supply usage across every department's own stock catalog, tracked in real time."
+              : `Log supplies used from ${myDepartment || "your department"}'s own stock.`}
           </p>
         </div>
         {isAdmin && (
@@ -187,12 +192,15 @@ export default function StockRequests() {
             Low stock — below minimum
           </div>
           <div className="flex flex-wrap gap-2">
-            {lowStock.map((i) => (
+            {lowStock.slice(0, 30).map((i) => (
               <span key={i.id} className="rounded-full bg-white px-3 py-1 text-xs font-medium text-amber-700">
-                {i.name}: {i.current_qty} {i.unit} (min {i.min_qty})
+                {i.department} — {i.name}: {i.current_qty} {i.unit} (min {i.min_qty})
               </span>
             ))}
           </div>
+          {lowStock.length > 30 && (
+            <p className="text-xs text-amber-700">+{lowStock.length - 30} more low on stock — filter the department report above to see all.</p>
+          )}
         </div>
       )}
 
@@ -201,7 +209,12 @@ export default function StockRequests() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
           {isAdmin ? (
             <Field label="Department">
-              <select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} className="input" required>
+              <select
+                value={form.department}
+                onChange={(e) => setForm({ ...form, department: e.target.value, item_id: "" })}
+                className="input"
+                required
+              >
                 <option value="">Select department</option>
                 {departments.map((d) => (
                   <option key={d} value={d}>
@@ -216,14 +229,23 @@ export default function StockRequests() {
             </Field>
           )}
           <Field label="Item">
-            <select value={form.item_id} onChange={(e) => setForm({ ...form, item_id: e.target.value })} className="input" required>
-              <option value="">Select item</option>
-              {items.map((i) => (
+            <select
+              value={form.item_id}
+              onChange={(e) => setForm({ ...form, item_id: e.target.value })}
+              className="input"
+              required
+              disabled={!activeDepartment}
+            >
+              <option value="">{activeDepartment ? "Select item" : "Select a department first"}</option>
+              {departmentItems.map((i) => (
                 <option key={i.id} value={i.id}>
                   {i.name} — {i.current_qty > 0 ? `${i.current_qty} ${i.unit} available` : "Out of stock"}
                 </option>
               ))}
             </select>
+            {activeDepartment && departmentItems.length === 0 && (
+              <span className="text-xs text-slate-400">No items set up yet for {activeDepartment}</span>
+            )}
             {selectedItem && (
               <span
                 className={`text-xs font-medium ${

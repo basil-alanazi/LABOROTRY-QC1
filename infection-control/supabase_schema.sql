@@ -10,7 +10,7 @@ create table if not exists app_config (
   hh_departments jsonb not null default '["ICU","Medical Ward","Surgical Ward","Emergency","Pediatric","NICU","OPD","OT","Labor & Delivery","Dialysis","Other"]'::jsonb,
   hh_observer_roles jsonb not null default '["Doctor","Nurse","Housekeeping","Lab Staff","Radiology"]'::jsonb,
   hh_department_observers jsonb not null default '{}'::jsonb, -- { "Lab": ["Lab Staff"], ... } — which roles show for each HH department; unlisted departments show all roles
-  stock_departments jsonb not null default '["Emergency","Surgery","OB/GYN","Pediatric","OPD","Radiology","Laboratory","Dialysis","Medical Ward","Other"]'::jsonb,
+  stock_departments jsonb not null default '["Cath Lab","OR Anesthesia","OR Nursing","DR","ICU","NICU","FW","MW","Endoscopy","IM 1 & 2","Cardiology","Pulmo","ENT 1 & 2","Dental 1 & 2","Ophthalmology","Neurology","Pedia OPD","Derma","OB & GYN","Ortho","Urology & ESWL","Surgery","Emergency Room"]'::jsonb,
   employee_departments jsonb not null default '["Nursing","Physicians","Laboratory","Radiology","Housekeeping","Dietary","Pharmacy","Administration","Maintenance","Other"]'::jsonb
 );
 insert into app_config (id) values (1) on conflict (id) do nothing;
@@ -252,6 +252,7 @@ on conflict (code) do nothing;
 -- department; Owner/IC see and fulfill requests across all departments.
 create table if not exists stock_items (
   id uuid primary key default gen_random_uuid(),
+  department text not null default '',
   name text not null,
   unit text not null default 'unit',
   min_qty numeric not null default 0,

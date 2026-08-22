@@ -8,7 +8,7 @@ import { PATIENT_FIELDS, DEFAULT_PATIENT_FIELDS } from "../lib/patientFields";
 const DEFAULT_PASSWORD = "123456";
 const emptyNewUser = { username: "", display_name: "", role: "staff", department: "" };
 const emptyNewChecklist = { name: "", departments: [], items: "", baseline: "", fields: [...DEFAULT_PATIENT_FIELDS] };
-const emptyNewStockItem = { name: "", unit: "unit", min_qty: "", max_qty: "", current_qty: "" };
+const emptyNewStockItem = { department: "", name: "", unit: "unit", min_qty: "", max_qty: "", current_qty: "" };
 const emptyNewHealthItem = { name: "", category: "vaccine", recurrence_months: "" };
 
 function slugCode(name) {
@@ -33,6 +33,7 @@ export default function Settings() {
   const [newStockDept, setNewStockDept] = useState("");
   const [stockItems, setStockItems] = useState([]);
   const [newStockItem, setNewStockItem] = useState(emptyNewStockItem);
+  const [stockItemsFilterDept, setStockItemsFilterDept] = useState("");
   const [employeeDepartments, setEmployeeDepartments] = useState([]);
   const [newEmployeeDept, setNewEmployeeDept] = useState("");
   const [healthItemTypes, setHealthItemTypes] = useState([]);
@@ -203,6 +204,7 @@ export default function Settings() {
     await supabase
       .from("stock_items")
       .update({
+        department: item.department,
         name: item.name,
         unit: item.unit,
         min_qty: Number(item.min_qty) || 0,
@@ -226,8 +228,13 @@ export default function Settings() {
       flash("Item name is required");
       return;
     }
+    if (!newStockItem.department) {
+      flash("Select a department for this item");
+      return;
+    }
     const maxSort = stockItems.reduce((m, i) => Math.max(m, i.sort_order ?? 0), 0);
     const { error } = await supabase.from("stock_items").insert({
+      department: newStockItem.department,
       name,
       unit: newStockItem.unit.trim() || "unit",
       min_qty: Number(newStockItem.min_qty) || 0,
@@ -240,7 +247,7 @@ export default function Settings() {
       flash("Could not add item");
       return;
     }
-    setNewStockItem(emptyNewStockItem);
+    setNewStockItem({ ...emptyNewStockItem, department: newStockItem.department });
     loadStockItems();
     flash("Item added");
   }
@@ -574,7 +581,7 @@ export default function Settings() {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="mb-1 text-sm font-semibold text-slate-700">Stock Request Departments</h2>
-        <p className="mb-4 text-xs text-slate-500">Departments that can request supplies from Infection Control.</p>
+        <p className="mb-4 text-xs text-slate-500">Departments/units — each keeps its own stock item catalog and usage log.</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {stockDepartments.map((d) => (
             <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
@@ -600,102 +607,136 @@ export default function Settings() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-slate-700">Stock Items</h2>
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs text-slate-500">
-              <tr>
-                <th className="px-3 py-2 font-medium">Name</th>
-                <th className="px-3 py-2 font-medium">Unit</th>
-                <th className="px-3 py-2 font-medium">Min</th>
-                <th className="px-3 py-2 font-medium">Max</th>
-                <th className="px-3 py-2 font-medium">Current</th>
-                <th className="px-3 py-2 font-medium">Active</th>
-                <th className="px-3 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {stockItems.map((i) => (
-                <tr key={i.id} className="border-t border-slate-100">
-                  <td className="px-3 py-2">
-                    <input className="input" value={i.name} onChange={(e) => updateStockItem(i.id, { name: e.target.value })} />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input className="input w-24" value={i.unit} onChange={(e) => updateStockItem(i.id, { unit: e.target.value })} />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input type="number" className="input w-20" value={i.min_qty} onChange={(e) => updateStockItem(i.id, { min_qty: e.target.value })} />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input type="number" className="input w-20" value={i.max_qty} onChange={(e) => updateStockItem(i.id, { max_qty: e.target.value })} />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      className="input w-20"
-                      value={i.current_qty}
-                      onChange={(e) => updateStockItem(i.id, { current_qty: e.target.value })}
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input type="checkbox" checked={i.active} onChange={(e) => updateStockItem(i.id, { active: e.target.checked })} />
-                  </td>
-                  <td className="flex items-center gap-1 px-3 py-2">
-                    <button onClick={() => saveStockItem(i)} className="rounded-lg p-1.5 text-teal-600 hover:bg-teal-50">
-                      <Save className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => removeStockItem(i)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-sm font-semibold text-slate-700">Stock Items</h2>
+          <select className="input w-full sm:w-64" value={stockItemsFilterDept} onChange={(e) => setStockItemsFilterDept(e.target.value)}>
+            <option value="">Filter by department — select one</option>
+            {stockDepartments.map((d) => (
+              <option key={d} value={d}>
+                {d} ({stockItems.filter((i) => i.department === d).length})
+              </option>
+            ))}
+          </select>
         </div>
+        {stockItemsFilterDept ? (
+          <>
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-left text-xs text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">Name</th>
+                    <th className="px-3 py-2 font-medium">Unit</th>
+                    <th className="px-3 py-2 font-medium">Min</th>
+                    <th className="px-3 py-2 font-medium">Max</th>
+                    <th className="px-3 py-2 font-medium">Current</th>
+                    <th className="px-3 py-2 font-medium">Active</th>
+                    <th className="px-3 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stockItems
+                    .filter((i) => i.department === stockItemsFilterDept)
+                    .map((i) => (
+                      <tr key={i.id} className="border-t border-slate-100">
+                        <td className="px-3 py-2">
+                          <input className="input" value={i.name} onChange={(e) => updateStockItem(i.id, { name: e.target.value })} />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input className="input w-24" value={i.unit} onChange={(e) => updateStockItem(i.id, { unit: e.target.value })} />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input type="number" className="input w-20" value={i.min_qty} onChange={(e) => updateStockItem(i.id, { min_qty: e.target.value })} />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input type="number" className="input w-20" value={i.max_qty} onChange={(e) => updateStockItem(i.id, { max_qty: e.target.value })} />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="number"
+                            className="input w-20"
+                            value={i.current_qty}
+                            onChange={(e) => updateStockItem(i.id, { current_qty: e.target.value })}
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input type="checkbox" checked={i.active} onChange={(e) => updateStockItem(i.id, { active: e.target.checked })} />
+                        </td>
+                        <td className="flex items-center gap-1 px-3 py-2">
+                          <button onClick={() => saveStockItem(i)} className="rounded-lg p-1.5 text-teal-600 hover:bg-teal-50">
+                            <Save className="h-4 w-4" />
+                          </button>
+                          <button onClick={() => removeStockItem(i)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+              {stockItems.filter((i) => i.department === stockItemsFilterDept).length === 0 && (
+                <p className="p-6 text-center text-sm text-slate-400">No items yet for {stockItemsFilterDept}</p>
+              )}
+            </div>
 
-        <div className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-6 sm:items-center">
-          <input
-            className="input sm:col-span-2"
-            value={newStockItem.name}
-            onChange={(e) => setNewStockItem({ ...newStockItem, name: e.target.value })}
-            placeholder="Item name"
-          />
-          <input
-            className="input"
-            value={newStockItem.unit}
-            onChange={(e) => setNewStockItem({ ...newStockItem, unit: e.target.value })}
-            placeholder="Unit (box, piece...)"
-          />
-          <input
-            type="number"
-            className="input"
-            value={newStockItem.min_qty}
-            onChange={(e) => setNewStockItem({ ...newStockItem, min_qty: e.target.value })}
-            placeholder="Min"
-          />
-          <input
-            type="number"
-            className="input"
-            value={newStockItem.max_qty}
-            onChange={(e) => setNewStockItem({ ...newStockItem, max_qty: e.target.value })}
-            placeholder="Max"
-          />
-          <input
-            type="number"
-            className="input"
-            value={newStockItem.current_qty}
-            onChange={(e) => setNewStockItem({ ...newStockItem, current_qty: e.target.value })}
-            placeholder="Current stock"
-          />
-          <button
-            onClick={addStockItem}
-            className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-6"
-          >
-            <PackagePlus className="h-4 w-4" />
-            Add Item
-          </button>
-        </div>
+            <div className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-6 sm:items-center">
+              <select
+                className="input"
+                value={newStockItem.department || stockItemsFilterDept}
+                onChange={(e) => setNewStockItem({ ...newStockItem, department: e.target.value })}
+              >
+                {stockDepartments.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="input"
+                value={newStockItem.name}
+                onChange={(e) => setNewStockItem({ ...newStockItem, name: e.target.value })}
+                placeholder="Item name"
+              />
+              <input
+                className="input"
+                value={newStockItem.unit}
+                onChange={(e) => setNewStockItem({ ...newStockItem, unit: e.target.value })}
+                placeholder="Unit (box, piece...)"
+              />
+              <input
+                type="number"
+                className="input"
+                value={newStockItem.min_qty}
+                onChange={(e) => setNewStockItem({ ...newStockItem, min_qty: e.target.value })}
+                placeholder="Min"
+              />
+              <input
+                type="number"
+                className="input"
+                value={newStockItem.max_qty}
+                onChange={(e) => setNewStockItem({ ...newStockItem, max_qty: e.target.value })}
+                placeholder="Max"
+              />
+              <input
+                type="number"
+                className="input"
+                value={newStockItem.current_qty}
+                onChange={(e) => setNewStockItem({ ...newStockItem, current_qty: e.target.value })}
+                placeholder="Current stock"
+              />
+              <button
+                onClick={addStockItem}
+                className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-6"
+              >
+                <PackagePlus className="h-4 w-4" />
+                Add Item
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-400">
+            Pick a department above to view and edit its items — {stockItems.length} items total across all departments.
+          </p>
+        )}
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

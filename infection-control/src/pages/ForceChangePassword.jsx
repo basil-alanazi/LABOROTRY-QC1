@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { ShieldPlus } from "lucide-react";
 import { useAuth } from "../lib/auth.jsx";
+import rabiaLogo from "../assets/rabia-logo.jpg";
 
 export default function ForceChangePassword() {
   const { changePassword, logout } = useAuth();
@@ -30,7 +30,7 @@ export default function ForceChangePassword() {
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-teal-700">
-          <ShieldPlus className="h-10 w-10" />
+          <img src={rabiaLogo} alt="Rabia Hospital" className="h-16 w-16 rounded-lg object-contain" />
           <h1 className="text-xl font-bold text-slate-800">Set a New Password</h1>
           <p className="text-center text-sm text-slate-500">
             You're using a temporary password — choose a new one to continue.

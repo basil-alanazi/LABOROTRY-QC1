@@ -214,16 +214,29 @@ export const ward_round_audits = [
 ];
 
 const STOCK_DEPARTMENTS = [
-  "Emergency",
+  "Cath Lab",
+  "OR Anesthesia",
+  "OR Nursing",
+  "DR",
+  "ICU",
+  "NICU",
+  "FW",
+  "MW",
+  "Endoscopy",
+  "IM 1 & 2",
+  "Cardiology",
+  "Pulmo",
+  "ENT 1 & 2",
+  "Dental 1 & 2",
+  "Ophthalmology",
+  "Neurology",
+  "Pedia OPD",
+  "Derma",
+  "OB & GYN",
+  "Ortho",
+  "Urology & ESWL",
   "Surgery",
-  "OB/GYN",
-  "Pediatric",
-  "OPD",
-  "Radiology",
-  "Laboratory",
-  "Dialysis",
-  "Medical Ward",
-  "Other",
+  "Emergency Room",
 ];
 
 const EMPLOYEE_DEPARTMENTS = [
@@ -299,24 +312,26 @@ export const hh_observations = [
 ];
 
 export const stock_items = [
-  { id: "item-1", name: "N95 Masks", unit: "box", min_qty: 5, max_qty: 20, current_qty: 12, active: true, sort_order: 1 },
-  { id: "item-2", name: "Alcohol Hand Rub 500ml", unit: "bottle", min_qty: 10, max_qty: 40, current_qty: 8, active: true, sort_order: 2 },
-  { id: "item-3", name: "Surgical Gloves (M)", unit: "box", min_qty: 10, max_qty: 30, current_qty: 22, active: true, sort_order: 3 },
+  { id: "item-1", department: "ICU", name: "SHARP CONTAINER", unit: "unit", min_qty: 5, max_qty: 10, current_qty: 0, active: true, sort_order: 1 },
+  { id: "item-2", department: "Emergency Room", name: "NORMAL SALINE 500ML", unit: "unit", min_qty: 20, max_qty: 30, current_qty: 30, active: true, sort_order: 2 },
+  { id: "item-3", department: "OR Nursing", name: "SURGICAL GOWN", unit: "unit", min_qty: 100, max_qty: 200, current_qty: 172, active: true, sort_order: 3 },
 ];
 
 export const stock_requests = [
   {
     id: "req-1",
     date: today,
-    department: "Surgery",
-    item_id: "item-1",
-    item_name: "N95 Masks",
-    unit: "box",
+    department: "Emergency Room",
+    item_id: "item-2",
+    item_name: "NORMAL SALINE 500ML",
+    unit: "unit",
     quantity_requested: 3,
-    quantity_issued: null,
-    status: "pending",
+    quantity_issued: 3,
+    status: "issued",
     notes: "",
     requested_by: "ward",
+    issued_by: "ward",
+    issued_at: new Date().toISOString(),
     created_at: new Date().toISOString(),
   },
 ];
