@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { ClipboardList, LayoutDashboard, ListChecks, Package, Settings as SettingsIcon, LogOut, ShieldPlus, UserCircle } from "lucide-react";
+import { ClipboardList, HeartPulse, LayoutDashboard, ListChecks, Package, Settings as SettingsIcon, LogOut, ShieldPlus, UserCircle } from "lucide-react";
 import { useAuth } from "../../lib/auth.jsx";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -53,6 +53,12 @@ export default function Layout({ children }) {
             <NavLink to="/dashboard" className={linkClass}>
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
+            </NavLink>
+          )}
+          {isAdmin && (
+            <NavLink to="/employee-health" className={linkClass}>
+              <HeartPulse className="h-4 w-4" />
+              Employee Health
             </NavLink>
           )}
           {isAdmin && (

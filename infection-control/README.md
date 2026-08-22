@@ -56,6 +56,7 @@ is attributed to the real person who did it — visible in Records and in the ex
 6. **"Settings"**: add/remove departments (separate lists for Ward Round and Hand Hygiene), manage the Hand Hygiene observer role list and which roles show per department, edit each checklist's items/department links/baseline note, create new checklists, and manage user accounts (owner only)
 7. **"Profile"** (everyone): view your own account details and change your own password any time
 8. **"Stock Requests"** (everyone): Infection Control (Owner/IC) see and fulfill supply requests from every department, with a low-stock alert and Excel/PDF export; Ward Staff accounts only see and submit requests for their own assigned department — no access to any other page
+9. **"Employee Health"** (Owner/IC only): track staff vaccinations and periodic screenings (Hep B, MMR, annual flu, TB screening, etc.) — an "Overdue & Missing" view flags who needs a shot or test, log new records, keep an employee roster, and export the full log to Excel/PDF
 
 ## Important note on checklist items
 Some bundle-item texts in the original Excel file were cut off (the sheet truncates around
