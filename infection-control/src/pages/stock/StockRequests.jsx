@@ -20,7 +20,7 @@ export default function StockRequests() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [message, setMessage] = useState(null);
-  const [filterDept, setFilterDept] = useState("");
+  const [filterDepts, setFilterDepts] = useState([]);
 
   const myDepartment = session?.department || "";
   const departments = config?.stock_departments ?? [];
@@ -43,8 +43,8 @@ export default function StockRequests() {
     let query = supabase.from("stock_requests").select("*").order("created_at", { ascending: false }).limit(200);
     if (!isAdmin) {
       query = query.eq("department", myDepartment);
-    } else if (filterDept) {
-      query = query.eq("department", filterDept);
+    } else if (filterDepts.length > 0) {
+      query = query.in("department", filterDepts);
     }
     const { data } = await query;
     setRequests(data ?? []);
@@ -54,7 +54,11 @@ export default function StockRequests() {
   useEffect(() => {
     loadRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, myDepartment, filterDept]);
+  }, [isAdmin, myDepartment, filterDepts]);
+
+  function toggleFilterDept(dept) {
+    setFilterDepts((prev) => (prev.includes(dept) ? prev.filter((d) => d !== dept) : [...prev, dept]));
+  }
 
   const lowStock = useMemo(() => items.filter((i) => i.current_qty < i.min_qty), [items]);
   const selectedItem = useMemo(() => items.find((i) => i.id === form.item_id) ?? null, [items, form.item_id]);
@@ -268,14 +272,30 @@ export default function StockRequests() {
       </form>
 
       {isAdmin && (
-        <select className="input w-full sm:w-64" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
-          <option value="">All Departments</option>
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4">
+          <span className="text-xs font-medium text-slate-500">Departments in report:</span>
+          <button
+            type="button"
+            onClick={() => setFilterDepts([])}
+            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+              filterDepts.length === 0 ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 text-slate-500"
+            }`}
+          >
+            All
+          </button>
           {departments.map((d) => (
-            <option key={d} value={d}>
+            <button
+              type="button"
+              key={d}
+              onClick={() => toggleFilterDept(d)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                filterDepts.includes(d) ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 text-slate-500"
+              }`}
+            >
               {d}
-            </option>
+            </button>
           ))}
-        </select>
+        </div>
       )}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

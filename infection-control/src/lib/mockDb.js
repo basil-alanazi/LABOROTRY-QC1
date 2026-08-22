@@ -28,6 +28,10 @@ class QueryBuilder {
     this._filters.push((r) => r[col] === val);
     return this;
   }
+  in(col, vals) {
+    this._filters.push((r) => vals.includes(r[col]));
+    return this;
+  }
   gte(col, val) {
     this._filters.push((r) => r[col] >= val);
     return this;

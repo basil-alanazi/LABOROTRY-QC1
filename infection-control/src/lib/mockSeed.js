@@ -350,6 +350,36 @@ export const employee_health_records = [
   },
 ];
 
+export const disease_types = [
+  { id: "dt-1", name: "Tuberculosis (TB)", active: true, sort_order: 1 },
+  { id: "dt-2", name: "Measles", active: true, sort_order: 2 },
+  { id: "dt-3", name: "COVID-19", active: true, sort_order: 4 },
+  { id: "dt-99", name: "Other", active: true, sort_order: 99 },
+];
+
+export const communicable_cases = [
+  {
+    id: "case-1",
+    date: today,
+    patient_name: "Sample Patient",
+    rh_no: "RH-2001",
+    status: "suspected",
+    disease_type_id: "dt-1",
+    disease_name: "Tuberculosis (TB)",
+    disease_other: "",
+    reported_at: null,
+    attachment1_path: null,
+    attachment1_name: null,
+    attachment2_path: null,
+    attachment2_name: null,
+    attachment2_not_required: false,
+    ipc_note: "",
+    done_by: "ic",
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+];
+
 export const users = [
   {
     id: "user-owner",

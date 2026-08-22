@@ -10,6 +10,7 @@ import Settings from "./pages/Settings.jsx";
 import Profile from "./pages/Profile.jsx";
 import StockRequests from "./pages/stock/StockRequests.jsx";
 import EmployeeHealth from "./pages/health/EmployeeHealth.jsx";
+import CommunicableCases from "./pages/cases/CommunicableCases.jsx";
 
 export default function App() {
   return (
@@ -72,6 +73,16 @@ export default function App() {
             <ProtectedRoute adminOnly>
               <Layout>
                 <EmployeeHealth />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/cases"
+          element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <CommunicableCases />
               </Layout>
             </ProtectedRoute>
           }
