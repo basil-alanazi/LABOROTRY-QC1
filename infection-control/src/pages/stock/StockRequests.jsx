@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, FileSpreadsheet, FileText, Check } from "lucide-react";
+import { FileSpreadsheet, FileText, Check } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
@@ -60,7 +60,6 @@ export default function StockRequests() {
     setFilterDepts((prev) => (prev.includes(dept) ? prev.filter((d) => d !== dept) : [...prev, dept]));
   }
 
-  const lowStock = useMemo(() => items.filter((i) => i.current_qty < i.min_qty), [items]);
   const activeDepartment = isAdmin ? selectedDept : myDepartment;
   const departmentItems = useMemo(
     () =>
@@ -176,25 +175,6 @@ export default function StockRequests() {
           </div>
         )}
       </div>
-
-      {isAdmin && lowStock.length > 0 && (
-        <div className="flex flex-col gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
-            <AlertTriangle className="h-4 w-4" />
-            Low stock — below minimum
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {lowStock.slice(0, 30).map((i) => (
-              <span key={i.id} className="rounded-full bg-white px-3 py-1 text-xs font-medium text-amber-700">
-                {i.department} — {i.name}: {i.current_qty} {i.unit} (min {i.min_qty})
-              </span>
-            ))}
-          </div>
-          {lowStock.length > 30 && (
-            <p className="text-xs text-amber-700">+{lowStock.length - 30} more low on stock — filter the department report above to see all.</p>
-          )}
-        </div>
-      )}
 
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">Use Stock</h2>
