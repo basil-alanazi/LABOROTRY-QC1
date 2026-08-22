@@ -6,7 +6,7 @@ import { sha256Hex } from "../lib/hash";
 import { PATIENT_FIELDS, DEFAULT_PATIENT_FIELDS } from "../lib/patientFields";
 
 const DEFAULT_PASSWORD = "123456";
-const emptyNewUser = { username: "", display_name: "", role: "staff", department: "" };
+const emptyNewUser = { username: "", display_name: "", role: "staff", department: "", can_manage_stock: false };
 const emptyNewChecklist = { name: "", departments: [], items: "", baseline: "", fields: [...DEFAULT_PATIENT_FIELDS] };
 const emptyNewStockItem = { department: "", name: "", unit: "unit", min_qty: "", max_qty: "", current_qty: "" };
 const emptyNewHealthItem = { name: "", category: "vaccine", recurrence_months: "" };
@@ -414,6 +414,7 @@ export default function Settings() {
       display_name: newUser.display_name.trim() || username,
       role: newUser.role,
       department: newUser.department || null,
+      can_manage_stock: newUser.role === "staff" && newUser.can_manage_stock,
       created_by: session?.username,
     });
     if (error) {
@@ -436,6 +437,7 @@ export default function Settings() {
         display_name: user.display_name,
         role: user.role,
         department: user.department || null,
+        can_manage_stock: user.role === "staff" && !!user.can_manage_stock,
         active: user.active,
       })
       .eq("id", user.id);
@@ -1044,7 +1046,7 @@ export default function Settings() {
                   onChange={(e) => updateUserField(u.id, { department: e.target.value })}
                 >
                   <option value="">No department</option>
-                  {departments.map((d) => (
+                  {stockDepartments.map((d) => (
                     <option key={d} value={d}>
                       {d}
                     </option>
@@ -1069,6 +1071,16 @@ export default function Settings() {
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
+                {u.role === "staff" && u.department && (
+                  <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-5">
+                    <input
+                      type="checkbox"
+                      checked={!!u.can_manage_stock}
+                      onChange={(e) => updateUserField(u.id, { can_manage_stock: e.target.checked })}
+                    />
+                    Department stock in-charge — can also add/remove items in {u.department}'s stock catalog (not just use them)
+                  </label>
+                )}
               </div>
             ))}
           </div>
@@ -1101,12 +1113,22 @@ export default function Settings() {
               onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
             >
               <option value="">No department</option>
-              {departments.map((d) => (
+              {stockDepartments.map((d) => (
                 <option key={d} value={d}>
                   {d}
                 </option>
               ))}
             </select>
+            {newUser.role === "staff" && newUser.department && (
+              <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-4">
+                <input
+                  type="checkbox"
+                  checked={newUser.can_manage_stock}
+                  onChange={(e) => setNewUser({ ...newUser, can_manage_stock: e.target.checked })}
+                />
+                Department stock in-charge — can also add/remove items in this department's stock catalog (not just use them)
+              </label>
+            )}
             <button
               onClick={addUser}
               className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-4"

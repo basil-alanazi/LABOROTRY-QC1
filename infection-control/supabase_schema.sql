@@ -26,6 +26,7 @@ create table if not exists users (
   display_name text not null default '',
   role text not null default 'staff', -- 'owner' | 'ic' | 'staff'
   department text,                    -- optional home department for staff users
+  can_manage_stock boolean not null default false, -- staff dept "in-charge": can add/remove items in their own department's stock catalog
   active boolean not null default true,
   must_change_password boolean not null default true,
   created_by text,
