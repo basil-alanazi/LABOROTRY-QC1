@@ -10,7 +10,8 @@ create table if not exists app_config (
   hh_departments jsonb not null default '["ICU","Medical Ward","Surgical Ward","Emergency","Pediatric","NICU","OPD","OT","Labor & Delivery","Dialysis","Other"]'::jsonb,
   hh_observer_roles jsonb not null default '["Doctor","Nurse","Housekeeping","Lab Staff","Radiology"]'::jsonb,
   hh_department_observers jsonb not null default '{}'::jsonb, -- { "Lab": ["Lab Staff"], ... } — which roles show for each HH department; unlisted departments show all roles
-  stock_departments jsonb not null default '["Emergency","Surgery","OB/GYN","Pediatric","OPD","Radiology","Laboratory","Dialysis","Medical Ward","Other"]'::jsonb
+  stock_departments jsonb not null default '["Emergency","Surgery","OB/GYN","Pediatric","OPD","Radiology","Laboratory","Dialysis","Medical Ward","Other"]'::jsonb,
+  employee_departments jsonb not null default '["Nursing","Physicians","Laboratory","Radiology","Housekeeping","Dietary","Pharmacy","Administration","Maintenance","Other"]'::jsonb
 );
 insert into app_config (id) values (1) on conflict (id) do nothing;
 
@@ -282,3 +283,55 @@ alter table stock_items enable row level security;
 alter table stock_requests enable row level security;
 create policy "allow all stock_items" on stock_items for all using (true) with check (true);
 create policy "allow all stock_requests" on stock_requests for all using (true) with check (true);
+
+-- Employee Health — tracks hospital staff vaccinations and periodic
+-- screenings (Hep B, MMR, annual flu, TB screening, etc.) and who's
+-- overdue. Owner/IC only; not tied to login accounts since most staff
+-- being tracked won't have one.
+create table if not exists employees (
+  id uuid primary key default gen_random_uuid(),
+  employee_no text not null default '',
+  name text not null,
+  department text not null,
+  job_title text not null default '',
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists health_item_types (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  category text not null default 'vaccine', -- vaccine | screening
+  recurrence_months int, -- null = one-time, otherwise repeats every N months
+  active boolean not null default true,
+  sort_order int not null default 0
+);
+
+create table if not exists employee_health_records (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid references employees(id) on delete cascade,
+  item_type_id uuid references health_item_types(id),
+  item_name text not null default '',
+  date_given date not null default current_date,
+  result text not null default '',
+  next_due_date date,
+  notes text not null default '',
+  recorded_by text not null default '',
+  created_at timestamptz not null default now()
+);
+
+alter table employees enable row level security;
+alter table health_item_types enable row level security;
+alter table employee_health_records enable row level security;
+create policy "allow all employees" on employees for all using (true) with check (true);
+create policy "allow all health_item_types" on health_item_types for all using (true) with check (true);
+create policy "allow all employee_health_records" on employee_health_records for all using (true) with check (true);
+
+insert into health_item_types (name, category, recurrence_months, sort_order) values
+('Hepatitis B (series)', 'vaccine', null, 1),
+('MMR (Measles, Mumps, Rubella)', 'vaccine', null, 2),
+('Varicella (Chickenpox)', 'vaccine', null, 3),
+('Influenza (Annual)', 'vaccine', 12, 4),
+('COVID-19', 'vaccine', 12, 5),
+('TB Screening (PPD/IGRA)', 'screening', 12, 6)
+on conflict do nothing;

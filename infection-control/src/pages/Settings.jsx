@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Save, UserPlus, KeyRound, ListPlus, PackagePlus } from "lucide-react";
+import { Plus, Trash2, Save, UserPlus, KeyRound, ListPlus, PackagePlus, HeartPulse } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
 import { sha256Hex } from "../lib/hash";
@@ -9,6 +9,7 @@ const DEFAULT_PASSWORD = "123456";
 const emptyNewUser = { username: "", display_name: "", role: "staff", department: "" };
 const emptyNewChecklist = { name: "", departments: [], items: "", baseline: "", fields: [...DEFAULT_PATIENT_FIELDS] };
 const emptyNewStockItem = { name: "", unit: "unit", min_qty: "", max_qty: "", current_qty: "" };
+const emptyNewHealthItem = { name: "", category: "vaccine", recurrence_months: "" };
 
 function slugCode(name) {
   const base = name
@@ -32,6 +33,10 @@ export default function Settings() {
   const [newStockDept, setNewStockDept] = useState("");
   const [stockItems, setStockItems] = useState([]);
   const [newStockItem, setNewStockItem] = useState(emptyNewStockItem);
+  const [employeeDepartments, setEmployeeDepartments] = useState([]);
+  const [newEmployeeDept, setNewEmployeeDept] = useState("");
+  const [healthItemTypes, setHealthItemTypes] = useState([]);
+  const [newHealthItem, setNewHealthItem] = useState(emptyNewHealthItem);
   const [checklistTypes, setChecklistTypes] = useState([]);
   const [newChecklist, setNewChecklist] = useState(emptyNewChecklist);
   const [users, setUsers] = useState([]);
@@ -45,12 +50,14 @@ export default function Settings() {
       setHhObserverRoles(config.hh_observer_roles ?? []);
       setHhDepartmentObservers(config.hh_department_observers ?? {});
       setStockDepartments(config.stock_departments ?? []);
+      setEmployeeDepartments(config.employee_departments ?? []);
     }
   }, [config]);
 
   useEffect(() => {
     loadChecklists();
     loadStockItems();
+    loadHealthItemTypes();
     if (isOwner) loadUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOwner]);
@@ -63,6 +70,11 @@ export default function Settings() {
   async function loadStockItems() {
     const { data } = await supabase.from("stock_items").select("*").order("sort_order");
     setStockItems(data ?? []);
+  }
+
+  async function loadHealthItemTypes() {
+    const { data } = await supabase.from("health_item_types").select("*").order("sort_order");
+    setHealthItemTypes(data ?? []);
   }
 
   async function loadUsers() {
@@ -208,6 +220,70 @@ export default function Settings() {
     }
     setNewStockItem(emptyNewStockItem);
     loadStockItems();
+    flash("Item added");
+  }
+
+  async function saveEmployeeDepartments(next) {
+    setEmployeeDepartments(next);
+    await supabase.from("app_config").update({ employee_departments: next }).eq("id", 1);
+    reloadConfig();
+    flash("Employee departments saved");
+  }
+
+  function addEmployeeDept() {
+    const name = newEmployeeDept.trim();
+    if (!name || employeeDepartments.includes(name)) return;
+    saveEmployeeDepartments([...employeeDepartments, name]);
+    setNewEmployeeDept("");
+  }
+
+  function removeEmployeeDept(name) {
+    saveEmployeeDepartments(employeeDepartments.filter((d) => d !== name));
+  }
+
+  function updateHealthItemType(id, patch) {
+    setHealthItemTypes((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  }
+
+  async function saveHealthItemType(item) {
+    await supabase
+      .from("health_item_types")
+      .update({
+        name: item.name,
+        category: item.category,
+        recurrence_months: item.recurrence_months === "" || item.recurrence_months == null ? null : Number(item.recurrence_months),
+        active: item.active,
+      })
+      .eq("id", item.id);
+    flash(`${item.name} saved`);
+  }
+
+  async function removeHealthItemType(item) {
+    if (!confirm(`Delete "${item.name}" from the catalog?`)) return;
+    await supabase.from("health_item_types").delete().eq("id", item.id);
+    loadHealthItemTypes();
+  }
+
+  async function addHealthItemType() {
+    const name = newHealthItem.name.trim();
+    if (!name) {
+      flash("Item name is required");
+      return;
+    }
+    const maxSort = healthItemTypes.reduce((m, t) => Math.max(m, t.sort_order ?? 0), 0);
+    const { error } = await supabase.from("health_item_types").insert({
+      name,
+      category: newHealthItem.category,
+      recurrence_months: newHealthItem.recurrence_months === "" ? null : Number(newHealthItem.recurrence_months),
+      active: true,
+      sort_order: maxSort + 1,
+    });
+    if (error) {
+      flash("Could not add item");
+      return;
+    }
+    setNewHealthItem(emptyNewHealthItem);
+    loadHealthItemTypes();
     flash("Item added");
   }
 
@@ -595,6 +671,112 @@ export default function Settings() {
             className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-6"
           >
             <PackagePlus className="h-4 w-4" />
+            Add Item
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">Employee Health Departments</h2>
+        <p className="mb-4 text-xs text-slate-500">Departments used when adding employees for health tracking.</p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {employeeDepartments.map((d) => (
+            <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
+              {d}
+              <button onClick={() => removeEmployeeDept(d)} className="text-teal-400 hover:text-red-500">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input
+            className="input"
+            value={newEmployeeDept}
+            onChange={(e) => setNewEmployeeDept(e.target.value)}
+            placeholder="New department name"
+          />
+          <button onClick={addEmployeeDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+            <Plus className="h-4 w-4" />
+            Add
+          </button>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-slate-700">Employee Health Items (Vaccines &amp; Screenings)</h2>
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-left text-xs text-slate-500">
+              <tr>
+                <th className="px-3 py-2 font-medium">Name</th>
+                <th className="px-3 py-2 font-medium">Category</th>
+                <th className="px-3 py-2 font-medium">Repeats Every (months)</th>
+                <th className="px-3 py-2 font-medium">Active</th>
+                <th className="px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {healthItemTypes.map((t) => (
+                <tr key={t.id} className="border-t border-slate-100">
+                  <td className="px-3 py-2">
+                    <input className="input" value={t.name} onChange={(e) => updateHealthItemType(t.id, { name: e.target.value })} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <select className="input" value={t.category} onChange={(e) => updateHealthItemType(t.id, { category: e.target.value })}>
+                      <option value="vaccine">Vaccine</option>
+                      <option value="screening">Screening</option>
+                    </select>
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="number"
+                      className="input w-28"
+                      value={t.recurrence_months ?? ""}
+                      onChange={(e) => updateHealthItemType(t.id, { recurrence_months: e.target.value })}
+                      placeholder="One-time"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input type="checkbox" checked={t.active} onChange={(e) => updateHealthItemType(t.id, { active: e.target.checked })} />
+                  </td>
+                  <td className="flex items-center gap-1 px-3 py-2">
+                    <button onClick={() => saveHealthItemType(t)} className="rounded-lg p-1.5 text-teal-600 hover:bg-teal-50">
+                      <Save className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => removeHealthItemType(t)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-4 sm:items-center">
+          <input
+            className="input sm:col-span-2"
+            value={newHealthItem.name}
+            onChange={(e) => setNewHealthItem({ ...newHealthItem, name: e.target.value })}
+            placeholder="Vaccine or screening name"
+          />
+          <select className="input" value={newHealthItem.category} onChange={(e) => setNewHealthItem({ ...newHealthItem, category: e.target.value })}>
+            <option value="vaccine">Vaccine</option>
+            <option value="screening">Screening</option>
+          </select>
+          <input
+            type="number"
+            className="input"
+            value={newHealthItem.recurrence_months}
+            onChange={(e) => setNewHealthItem({ ...newHealthItem, recurrence_months: e.target.value })}
+            placeholder="Repeats every N months (blank = one-time)"
+          />
+          <button
+            onClick={addHealthItemType}
+            className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-4"
+          >
+            <HeartPulse className="h-4 w-4" />
             Add Item
           </button>
         </div>

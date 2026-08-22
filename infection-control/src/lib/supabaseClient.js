@@ -22,5 +22,8 @@ export const supabase =
         hh_observations: seed.hh_observations,
         stock_items: seed.stock_items,
         stock_requests: seed.stock_requests,
+        health_item_types: seed.health_item_types,
+        employees: seed.employees,
+        employee_health_records: seed.employee_health_records,
         users: seed.users,
       });
