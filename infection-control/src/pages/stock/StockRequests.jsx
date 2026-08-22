@@ -57,6 +57,7 @@ export default function StockRequests() {
   }, [isAdmin, myDepartment, filterDept]);
 
   const lowStock = useMemo(() => items.filter((i) => i.current_qty < i.min_qty), [items]);
+  const selectedItem = useMemo(() => items.find((i) => i.id === form.item_id) ?? null, [items, form.item_id]);
 
   function flash(msg) {
     setMessage(msg);
@@ -78,6 +79,10 @@ export default function StockRequests() {
     const qty = Number(form.quantity_requested);
     if (!qty || qty <= 0) {
       flash({ type: "error", text: "Enter a valid quantity" });
+      return;
+    }
+    if (qty > item.current_qty) {
+      flash({ type: "error", text: `Only ${item.current_qty} ${item.unit} available` });
       return;
     }
 
@@ -211,15 +216,31 @@ export default function StockRequests() {
               <option value="">Select item</option>
               {items.map((i) => (
                 <option key={i.id} value={i.id}>
-                  {i.name}
+                  {i.name} — {i.current_qty > 0 ? `${i.current_qty} ${i.unit} available` : "Out of stock"}
                 </option>
               ))}
             </select>
+            {selectedItem && (
+              <span
+                className={`text-xs font-medium ${
+                  selectedItem.current_qty <= 0
+                    ? "text-red-600"
+                    : selectedItem.current_qty < selectedItem.min_qty
+                    ? "text-amber-600"
+                    : "text-emerald-600"
+                }`}
+              >
+                {selectedItem.current_qty <= 0
+                  ? "N/A — out of stock"
+                  : `Available: ${selectedItem.current_qty} ${selectedItem.unit}`}
+              </span>
+            )}
           </Field>
           <Field label="Quantity">
             <input
               type="number"
               min="1"
+              max={selectedItem ? selectedItem.current_qty : undefined}
               className="input"
               value={form.quantity_requested}
               onChange={(e) => setForm({ ...form, quantity_requested: e.target.value })}
