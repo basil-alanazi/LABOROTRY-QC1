@@ -57,6 +57,7 @@ is attributed to the real person who did it — visible in Records and in the ex
 7. **"Profile"** (everyone): view your own account details and change your own password any time
 8. **"Stock Requests"** (everyone): self-service — pick an item and quantity and it's taken from Infection Control's stock immediately, no approval step; Owner/IC see usage from every department (with a low-stock alert, Excel/PDF export, and a "Void" action to undo a mistaken entry), while Ward Staff accounts only see and log usage for their own assigned department — no access to any other page
 9. **"Employee Health"** (Owner/IC only): track staff vaccinations and periodic screenings (Hep B, MMR, annual flu, TB screening, etc.) — an "Overdue & Missing" view flags who needs a shot or test, log new records, keep an employee roster, and export the full log to Excel/PDF
+10. **"Suspected/Confirmed Cases"** (Owner/IC only): log patients suspected or confirmed to have a communicable disease (disease picked from a configurable list, or "Other"), the date it was reported to the health authority, and up to two supporting attachments — a case is flagged "Attachment Missing" until both are on file, unless the second is marked not required for that case; export to Excel/PDF
 
 ## Important note on checklist items
 Some bundle-item texts in the original Excel file were cut off (the sheet truncates around

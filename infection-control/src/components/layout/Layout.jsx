@@ -8,6 +8,7 @@ import {
   Menu,
   Package,
   Settings as SettingsIcon,
+  ShieldAlert,
   LogOut,
   ShieldPlus,
   UserCircle,
@@ -55,6 +56,12 @@ export default function Layout({ children }) {
         <NavLink to="/employee-health" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <HeartPulse className="h-4 w-4" />
           Employee Health
+        </NavLink>
+      )}
+      {isAdmin && (
+        <NavLink to="/cases" className={linkClass} onClick={() => setSidebarOpen(false)}>
+          <ShieldAlert className="h-4 w-4" />
+          Suspected/Confirmed Cases
         </NavLink>
       )}
       <NavLink to="/stock" className={linkClass} onClick={() => setSidebarOpen(false)}>

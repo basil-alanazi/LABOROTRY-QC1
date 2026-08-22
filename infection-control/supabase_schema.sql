@@ -335,3 +335,69 @@ insert into health_item_types (name, category, recurrence_months, sort_order) va
 ('COVID-19', 'vaccine', 12, 5),
 ('TB Screening (PPD/IGRA)', 'screening', 12, 6)
 on conflict do nothing;
+
+-- Communicable / Suspected-Confirmed Cases — Owner/IC track patients
+-- suspected or confirmed to have a reportable communicable disease,
+-- with supporting attachments (a case normally needs 2; a case can be
+-- flagged so the 2nd isn't required, and it still shows complete) and
+-- the date it was reported to the health authority.
+create table if not exists disease_types (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  active boolean not null default true,
+  sort_order int not null default 0
+);
+
+create table if not exists communicable_cases (
+  id uuid primary key default gen_random_uuid(),
+  date date not null default current_date,
+  patient_name text not null,
+  rh_no text not null default '',
+  status text not null default 'suspected', -- suspected | confirmed
+  disease_type_id uuid references disease_types(id),
+  disease_name text not null default '',
+  disease_other text not null default '',
+  reported_at date,
+  attachment1_path text,
+  attachment1_name text,
+  attachment2_path text,
+  attachment2_name text,
+  attachment2_not_required boolean not null default false,
+  ipc_note text not null default '',
+  done_by text not null default '',
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  edited_by text,
+  edited_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table disease_types enable row level security;
+alter table communicable_cases enable row level security;
+create policy "allow all disease_types" on disease_types for all using (true) with check (true);
+create policy "allow all communicable_cases" on communicable_cases for all using (true) with check (true);
+
+insert into disease_types (name, sort_order) values
+('Tuberculosis (TB)', 1),
+('Measles', 2),
+('Meningitis', 3),
+('COVID-19', 4),
+('Influenza', 5),
+('Chickenpox (Varicella)', 6),
+('Mumps', 7),
+('Pertussis (Whooping Cough)', 8),
+('Hepatitis A', 9),
+('Hepatitis B', 10),
+('Other', 99)
+on conflict do nothing;
+
+-- Public storage bucket for case attachments.
+insert into storage.buckets (id, name, public)
+values ('case-attachments', 'case-attachments', true)
+on conflict (id) do nothing;
+
+create policy "allow all read case-attachments" on storage.objects for select using (bucket_id = 'case-attachments');
+create policy "allow all insert case-attachments" on storage.objects for insert with check (bucket_id = 'case-attachments');
+create policy "allow all update case-attachments" on storage.objects for update using (bucket_id = 'case-attachments') with check (bucket_id = 'case-attachments');
+create policy "allow all delete case-attachments" on storage.objects for delete using (bucket_id = 'case-attachments');
