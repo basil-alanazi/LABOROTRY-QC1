@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { ClipboardList, LayoutDashboard, ListChecks, Settings as SettingsIcon, LogOut, ShieldPlus, UserCircle } from "lucide-react";
+import { ClipboardList, LayoutDashboard, ListChecks, Package, Settings as SettingsIcon, LogOut, ShieldPlus, UserCircle } from "lucide-react";
 import { useAuth } from "../../lib/auth.jsx";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -61,6 +61,10 @@ export default function Layout({ children }) {
               Settings
             </NavLink>
           )}
+          <NavLink to="/stock" className={linkClass}>
+            <Package className="h-4 w-4" />
+            Stock Requests
+          </NavLink>
           <NavLink to="/profile" className={linkClass}>
             <UserCircle className="h-4 w-4" />
             Profile

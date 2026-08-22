@@ -213,12 +213,26 @@ export const ward_round_audits = [
   }),
 ];
 
+const STOCK_DEPARTMENTS = [
+  "Emergency",
+  "Surgery",
+  "OB/GYN",
+  "Pediatric",
+  "OPD",
+  "Radiology",
+  "Laboratory",
+  "Dialysis",
+  "Medical Ward",
+  "Other",
+];
+
 export const app_config = {
   id: 1,
   departments: DEPARTMENTS,
   hh_departments: HH_DEPARTMENTS,
   hh_observer_roles: ["Doctor", "Nurse", "Housekeeping", "Lab Staff", "Radiology"],
   hh_department_observers: {},
+  stock_departments: STOCK_DEPARTMENTS,
 };
 
 export const hh_observations = [
@@ -266,6 +280,29 @@ export const hh_observations = [
     compliance_pct: 100,
     done_by: "ic",
     deleted: false,
+    created_at: new Date().toISOString(),
+  },
+];
+
+export const stock_items = [
+  { id: "item-1", name: "N95 Masks", unit: "box", min_qty: 5, max_qty: 20, current_qty: 12, active: true, sort_order: 1 },
+  { id: "item-2", name: "Alcohol Hand Rub 500ml", unit: "bottle", min_qty: 10, max_qty: 40, current_qty: 8, active: true, sort_order: 2 },
+  { id: "item-3", name: "Surgical Gloves (M)", unit: "box", min_qty: 10, max_qty: 30, current_qty: 22, active: true, sort_order: 3 },
+];
+
+export const stock_requests = [
+  {
+    id: "req-1",
+    date: today,
+    department: "Surgery",
+    item_id: "item-1",
+    item_name: "N95 Masks",
+    unit: "box",
+    quantity_requested: 3,
+    quantity_issued: null,
+    status: "pending",
+    notes: "",
+    requested_by: "ward",
     created_at: new Date().toISOString(),
   },
 ];
