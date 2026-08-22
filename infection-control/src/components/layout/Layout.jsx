@@ -10,12 +10,12 @@ import {
   Settings as SettingsIcon,
   ShieldAlert,
   LogOut,
-  ShieldPlus,
   UserCircle,
   X,
 } from "lucide-react";
 import { useAuth } from "../../lib/auth.jsx";
 import { supabase } from "../../lib/supabaseClient";
+import rabiaLogo from "../../assets/rabia-logo.jpg";
 
 const linkClass = ({ isActive }) =>
   `flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -94,7 +94,7 @@ export default function Layout({ children }) {
       >
         <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-4">
           <div className="flex items-center gap-2 text-teal-700">
-            <ShieldPlus className="h-6 w-6" />
+            <img src={rabiaLogo} alt="Rabia Hospital" className="h-9 w-9 rounded-md object-contain" />
             <span className="text-lg font-bold">Infection Control</span>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="text-slate-400 hover:text-slate-600 md:hidden">

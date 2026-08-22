@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ShieldPlus } from "lucide-react";
 import { useAuth } from "../lib/auth.jsx";
 import { supabase } from "../lib/supabaseClient";
+import rabiaLogo from "../assets/rabia-logo.jpg";
 
 export default function Login() {
   const { login } = useAuth();
@@ -26,7 +26,7 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-teal-700">
-          <ShieldPlus className="h-10 w-10" />
+          <img src={rabiaLogo} alt="Rabia Hospital" className="h-16 w-16 rounded-lg object-contain" />
           <h1 className="text-xl font-bold text-slate-800">Infection Control</h1>
           <p className="text-sm text-slate-500">Daily ward round for departments</p>
         </div>
