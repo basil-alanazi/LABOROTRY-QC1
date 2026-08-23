@@ -19,6 +19,7 @@ export default function StockRequests() {
   const [selectedDept, setSelectedDept] = useState("");
   const [itemSearch, setItemSearch] = useState("");
   const [qtyInputs, setQtyInputs] = useState({});
+  const [addQtyInputs, setAddQtyInputs] = useState({});
   const [message, setMessage] = useState(null);
   const [filterDepts, setFilterDepts] = useState([]);
   const [newItem, setNewItem] = useState({ name: "", min_qty: "", max_qty: "", current_qty: "" });
@@ -78,6 +79,23 @@ export default function StockRequests() {
 
   function setQty(itemId, value) {
     setQtyInputs((prev) => ({ ...prev, [itemId]: value }));
+  }
+
+  function setAddQty(itemId, value) {
+    setAddQtyInputs((prev) => ({ ...prev, [itemId]: value }));
+  }
+
+  async function addQtyToItem(item) {
+    const qty = Number(addQtyInputs[item.id]);
+    if (!qty || qty <= 0) {
+      flash({ type: "error", text: "Enter a valid quantity" });
+      return;
+    }
+    const nextQty = item.current_qty + qty;
+    await supabase.from("stock_items").update({ current_qty: nextQty }).eq("id", item.id);
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, current_qty: nextQty } : i)));
+    setAddQty(item.id, "");
+    flash({ type: "success", text: `Added ${qty} ${item.unit} to ${item.name}` });
   }
 
   async function useItem(item) {
@@ -270,6 +288,12 @@ export default function StockRequests() {
               <thead className="bg-slate-50 text-left text-xs text-slate-500">
                 <tr>
                   <th className="px-4 py-2 font-medium">Item</th>
+                  {canManage && (
+                    <>
+                      <th className="px-4 py-2 font-medium">Quantity to be Added</th>
+                      <th className="px-4 py-2"></th>
+                    </>
+                  )}
                   <th className="px-4 py-2 font-medium">Current Stock</th>
                   <th className="px-4 py-2 font-medium">Quantity to Use</th>
                   <th className="px-4 py-2"></th>
@@ -280,6 +304,30 @@ export default function StockRequests() {
                 {departmentItems.map((i) => (
                   <tr key={i.id} className="border-t border-slate-100">
                     <td className="px-4 py-2">{i.name}</td>
+                    {canManage && (
+                      <>
+                        <td className="px-4 py-2">
+                          <input
+                            type="number"
+                            min="1"
+                            className="input w-24"
+                            value={addQtyInputs[i.id] ?? ""}
+                            onChange={(e) => setAddQty(i.id, e.target.value)}
+                            placeholder="qty"
+                          />
+                        </td>
+                        <td className="px-4 py-2">
+                          <button
+                            onClick={() => addQtyToItem(i)}
+                            disabled={!addQtyInputs[i.id]}
+                            className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Add
+                          </button>
+                        </td>
+                      </>
+                    )}
                     <td className="px-4 py-2">
                       <span
                         className={`font-medium ${
