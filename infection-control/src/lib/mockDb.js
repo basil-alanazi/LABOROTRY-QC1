@@ -48,6 +48,10 @@ class QueryBuilder {
     this._limit = n;
     return this;
   }
+  range(from, to) {
+    this._range = [from, to];
+    return this;
+  }
   single() {
     this._single = true;
     return this;
@@ -87,7 +91,8 @@ class QueryBuilder {
         return ascending ? gt : -gt;
       });
     });
-    if (this._limit) filtered = filtered.slice(0, this._limit);
+    if (this._range) filtered = filtered.slice(this._range[0], this._range[1] + 1);
+    else if (this._limit) filtered = filtered.slice(0, this._limit);
 
     if (this._single) {
       return filtered[0] ? { data: filtered[0], error: null } : { data: null, error: { message: "not found" } };

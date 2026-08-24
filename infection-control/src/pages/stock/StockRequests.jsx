@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
+import { fetchAllRows } from "../../lib/fetchAll";
 
 const REPORT_HEADERS = ["Date", "Department", "Item", "Quantity Used", "Used By", "Notes"];
 
@@ -23,18 +24,17 @@ export default function StockRequests() {
   const [message, setMessage] = useState(null);
   const [filterDepts, setFilterDepts] = useState([]);
   const [newItem, setNewItem] = useState({ name: "", min_qty: "", max_qty: "", current_qty: "" });
+  const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
 
   const myDepartment = session?.department || "";
   const departments = config?.stock_departments ?? [];
   const canManage = isAdmin || !!session?.canManageStock;
 
-  function loadItems() {
-    supabase
-      .from("stock_items")
-      .select("*")
-      .eq("active", true)
-      .order("sort_order")
-      .then(({ data }) => setItems(data ?? []));
+  async function loadItems() {
+    const { data } = await fetchAllRows((from, to) =>
+      supabase.from("stock_items").select("*").eq("active", true).order("sort_order").range(from, to)
+    );
+    setItems(data ?? []);
   }
 
   useEffect(() => {
@@ -43,13 +43,20 @@ export default function StockRequests() {
 
   async function loadRequests() {
     setLoading(true);
-    let query = supabase.from("stock_requests").select("*").order("created_at", { ascending: false }).limit(200);
-    if (!isAdmin) {
-      query = query.eq("department", myDepartment);
-    } else if (filterDepts.length > 0) {
-      query = query.in("department", filterDepts);
-    }
-    const { data } = await query;
+    const { data } = await fetchAllRows((from, to) => {
+      let query = supabase.from("stock_requests").select("*").order("created_at", { ascending: false }).range(from, to);
+      if (!isAdmin) {
+        query = query.eq("department", myDepartment);
+      } else if (filterDepts.length > 0) {
+        query = query.in("department", filterDepts);
+      }
+      if (isAdmin && reportMonth) {
+        const monthStart = `${reportMonth}-01`;
+        const monthEnd = new Date(new Date(monthStart).getFullYear(), new Date(monthStart).getMonth() + 1, 0).toISOString().slice(0, 10);
+        query = query.gte("date", monthStart).lte("date", monthEnd);
+      }
+      return query;
+    });
     setRequests(data ?? []);
     setLoading(false);
   }
@@ -57,7 +64,7 @@ export default function StockRequests() {
   useEffect(() => {
     loadRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, myDepartment, filterDepts]);
+  }, [isAdmin, myDepartment, filterDepts, reportMonth]);
 
   function toggleFilterDept(dept) {
     setFilterDepts((prev) => (prev.includes(dept) ? prev.filter((d) => d !== dept) : [...prev, dept]));
@@ -198,16 +205,18 @@ export default function StockRequests() {
     loadItems();
   }
 
+  const reportLabel = reportMonth || "all-time";
+
   function exportExcel() {
-    downloadExcel(`infection-control-stock-requests-${new Date().toISOString().slice(0, 10)}`, [
+    downloadExcel(`infection-control-stock-requests-${reportLabel}`, [
       { name: "Stock Requests", headers: REPORT_HEADERS, rows: requests.map(toReportRow) },
     ]);
   }
 
   function exportPdf() {
     downloadPdf(
-      `infection-control-stock-requests-${new Date().toISOString().slice(0, 10)}`,
-      "Infection Control — Stock Requests",
+      `infection-control-stock-requests-${reportLabel}`,
+      `Infection Control — Stock Requests${reportMonth ? ` (${reportMonth})` : ""}`,
       [{ headers: REPORT_HEADERS, rows: requests.map(toReportRow) }]
     );
   }
@@ -224,7 +233,23 @@ export default function StockRequests() {
           </p>
         </div>
         {isAdmin && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="month"
+              className="input w-auto"
+              value={reportMonth}
+              onChange={(e) => setReportMonth(e.target.value)}
+              title="Report month"
+            />
+            <button
+              type="button"
+              onClick={() => setReportMonth("")}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                !reportMonth ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 text-slate-500"
+              }`}
+            >
+              All time
+            </button>
             <button
               onClick={exportExcel}
               disabled={requests.length === 0}
