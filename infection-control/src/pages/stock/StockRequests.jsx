@@ -85,6 +85,18 @@ export default function StockRequests() {
     setAddQtyInputs((prev) => ({ ...prev, [itemId]: value }));
   }
 
+  function updateItemField(itemId, patch) {
+    setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, ...patch } : i)));
+  }
+
+  async function saveMinMax(item) {
+    await supabase
+      .from("stock_items")
+      .update({ min_qty: Number(item.min_qty) || 0, max_qty: Number(item.max_qty) || 0 })
+      .eq("id", item.id);
+    flash({ type: "success", text: `${item.name} updated` });
+  }
+
   async function addQtyToItem(item) {
     const qty = Number(addQtyInputs[item.id]);
     if (!qty || qty <= 0) {
@@ -295,6 +307,12 @@ export default function StockRequests() {
                     </>
                   )}
                   <th className="px-4 py-2 font-medium">Current Stock</th>
+                  {canManage && (
+                    <>
+                      <th className="px-4 py-2 font-medium">Min</th>
+                      <th className="px-4 py-2 font-medium">Max</th>
+                    </>
+                  )}
                   <th className="px-4 py-2 font-medium">Quantity to Use</th>
                   <th className="px-4 py-2"></th>
                   {canManage && <th className="px-4 py-2"></th>}
@@ -337,6 +355,28 @@ export default function StockRequests() {
                         {i.current_qty} {i.unit}
                       </span>
                     </td>
+                    {canManage && (
+                      <>
+                        <td className="px-4 py-2">
+                          <input
+                            type="number"
+                            className="input w-16"
+                            value={i.min_qty}
+                            onChange={(e) => updateItemField(i.id, { min_qty: e.target.value })}
+                            onBlur={() => saveMinMax(i)}
+                          />
+                        </td>
+                        <td className="px-4 py-2">
+                          <input
+                            type="number"
+                            className="input w-16"
+                            value={i.max_qty}
+                            onChange={(e) => updateItemField(i.id, { max_qty: e.target.value })}
+                            onBlur={() => saveMinMax(i)}
+                          />
+                        </td>
+                      </>
+                    )}
                     <td className="px-4 py-2">
                       <input
                         type="number"
