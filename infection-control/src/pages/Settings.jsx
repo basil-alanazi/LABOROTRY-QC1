@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
 import { sha256Hex } from "../lib/hash";
 import { PATIENT_FIELDS, DEFAULT_PATIENT_FIELDS } from "../lib/patientFields";
+import { fetchAllRows } from "../lib/fetchAll";
 
 const DEFAULT_PASSWORD = "123456";
 const emptyNewUser = { username: "", display_name: "", role: "staff", department: "", can_manage_stock: false };
@@ -72,7 +73,7 @@ export default function Settings() {
   }
 
   async function loadStockItems() {
-    const { data } = await supabase.from("stock_items").select("*").order("sort_order");
+    const { data } = await fetchAllRows((from, to) => supabase.from("stock_items").select("*").order("sort_order").range(from, to));
     setStockItems(data ?? []);
   }
 

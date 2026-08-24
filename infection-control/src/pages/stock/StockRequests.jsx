@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
+import { fetchAllRows } from "../../lib/fetchAll";
 
 const REPORT_HEADERS = ["Date", "Department", "Item", "Quantity Used", "Used By", "Notes"];
 
@@ -28,13 +29,11 @@ export default function StockRequests() {
   const departments = config?.stock_departments ?? [];
   const canManage = isAdmin || !!session?.canManageStock;
 
-  function loadItems() {
-    supabase
-      .from("stock_items")
-      .select("*")
-      .eq("active", true)
-      .order("sort_order")
-      .then(({ data }) => setItems(data ?? []));
+  async function loadItems() {
+    const { data } = await fetchAllRows((from, to) =>
+      supabase.from("stock_items").select("*").eq("active", true).order("sort_order").range(from, to)
+    );
+    setItems(data ?? []);
   }
 
   useEffect(() => {
