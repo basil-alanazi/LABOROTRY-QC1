@@ -45,6 +45,7 @@ const emptyEmployeeForm = {
 const emptyStatus = {
   investigation_status: "review_due",
   ppd_status: "",
+  ppd_result: "",
   ppd_test_date: "",
   ppd_next_due_date: "",
   stool_urine_status: "",
@@ -243,6 +244,7 @@ export default function EmployeeHealth() {
         employee_id: emp.id,
         investigation_status: merged.investigation_status || "review_due",
         ppd_status: merged.ppd_status || null,
+        ppd_result: merged.ppd_result || "",
         ppd_test_date: merged.ppd_test_date || null,
         ppd_next_due_date: merged.ppd_next_due_date || null,
         stool_urine_status: merged.stool_urine_status || null,
@@ -314,7 +316,7 @@ export default function EmployeeHealth() {
     return vaccines.map((item) => ({ item, doses: Array.from({ length: item.dose_schedule?.length || 1 }, (_, i) => i + 1) }));
   }
   const CLINIC_BASE_HEADERS = ["#", "Name", "Emp ID", "File No", "Iqama No", "DOB", "Phone", "Department"];
-  const CLINIC_INVEST_HEADERS = ["Investigation Status", "PPD Status", "PPD Test Date", "PPD Next Due"];
+  const CLINIC_INVEST_HEADERS = ["Investigation Status", "PPD Status", "PPD Result", "PPD Test Date", "PPD Next Due"];
   const CLINIC_STOOL_HEADERS = ["Stool/Urine Status", "Stool/Urine Test Date", "Stool/Urine Next Due"];
 
   function buildGridHeaders(vaccines, kitchenMode) {
@@ -334,6 +336,7 @@ export default function EmployeeHealth() {
     const invest = [
       INVESTIGATION_STATUSES.find((o) => o.value === s?.investigation_status)?.label || "",
       s?.ppd_status || "",
+      s?.ppd_result || "",
       s?.ppd_test_date || "",
       s?.ppd_next_due_date || "",
     ];
@@ -467,6 +470,15 @@ export default function EmployeeHealth() {
                       <option value="done">Done</option>
                       <option value="refused">Refused</option>
                     </select>
+                  </td>
+                  <td className="border-r border-slate-100 px-2 py-1">
+                    <input
+                      className="input-cell w-24"
+                      placeholder="e.g. Negative"
+                      value={s.ppd_result || ""}
+                      onChange={(e) => setStatusField(emp.id, { ppd_result: e.target.value })}
+                      onBlur={() => saveStatusRow(emp)}
+                    />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
                     <input

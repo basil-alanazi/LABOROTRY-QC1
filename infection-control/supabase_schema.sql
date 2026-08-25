@@ -11,7 +11,7 @@ create table if not exists app_config (
   hh_observer_roles jsonb not null default '["Doctor","Nurse","Housekeeping","Lab Staff","Radiology"]'::jsonb,
   hh_department_observers jsonb not null default '{}'::jsonb, -- { "Lab": ["Lab Staff"], ... } — which roles show for each HH department; unlisted departments show all roles
   stock_departments jsonb not null default '["Cath Lab","OR Anesthesia","OR Nursing","DR","ICU","NICU","FW","MW","Endoscopy","IM 1 & 2","Cardiology","Pulmo","ENT 1 & 2","Dental 1 & 2","Ophthalmology","Neurology","Pedia OPD","Derma","OB & GYN","Ortho","Urology & ESWL","Surgery","Emergency Room"]'::jsonb,
-  employee_departments jsonb not null default '["Nursing","Physicians","Laboratory","Radiology","Housekeeping","Dietary","Pharmacy","Administration","Maintenance","Other"]'::jsonb
+  employee_departments jsonb not null default '["Nurse","Doctor","house keeping","Reception","INSURANCE","others","Security and Safety","Lab","pharmacy","radiology","Maintenance and laborers","HUMAN RESORCE","Medical maintenance","MEDICAL REPORTS","CSSD","IT","physiotherapy","store","Quality Head","Quality CO-ORDINATOR","Infection Control Head","infection control practitioner","HOSPITAL DIRECTOR","Medical Director","ROOM 44","ROOM 45","Social Specialist","Patient relation","PURCHASE Manager","store MANAGER","MARKETING MANAGER","CSSD HEAD","Dietary"]'::jsonb
 );
 insert into app_config (id) values (1) on conflict (id) do nothing;
 
@@ -352,6 +352,7 @@ create table if not exists employee_clinic_status (
   employee_id uuid not null unique references employees(id) on delete cascade,
   investigation_status text not null default 'review_due', -- review_due | sample_not_given | review_done
   ppd_status text, -- done | refused
+  ppd_result text not null default '', -- e.g. Negative / Positive, only meaningful when ppd_status = 'done'
   ppd_test_date date,
   ppd_next_due_date date,
   stool_urine_status text, -- done | refused
