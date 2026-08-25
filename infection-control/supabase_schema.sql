@@ -286,16 +286,23 @@ alter table stock_requests enable row level security;
 create policy "allow all stock_items" on stock_items for all using (true) with check (true);
 create policy "allow all stock_requests" on stock_requests for all using (true) with check (true);
 
--- Employee Health — tracks hospital staff vaccinations and periodic
--- screenings (Hep B, MMR, annual flu, TB screening, etc.) and who's
--- overdue. Owner/IC only; not tied to login accounts since most staff
--- being tracked won't have one.
+-- Employee Health / Clinic — mirrors the hospital's real Employee Clinic
+-- tracking sheet: staff roster (incl. Kitchen Staff, who need extra
+-- investigations/vaccines), an investigation + PPD (+ stool/urine for
+-- kitchen staff) workflow status per employee, doctor-requested vaccines,
+-- and per-dose vaccination logging with batch numbers. Owner/IC only; not
+-- tied to login accounts since most staff being tracked won't have one.
 create table if not exists employees (
   id uuid primary key default gen_random_uuid(),
   employee_no text not null default '',
   name text not null,
   department text not null,
   job_title text not null default '',
+  file_no text not null default '',
+  iqama_no text not null default '',
+  date_of_birth date,
+  phone text not null default '',
+  is_kitchen_staff boolean not null default false,
   active boolean not null default true,
   created_at timestamptz not null default now()
 );
@@ -305,6 +312,8 @@ create table if not exists health_item_types (
   name text not null,
   category text not null default 'vaccine', -- vaccine | screening
   recurrence_months int, -- null = one-time, otherwise repeats every N months
+  dose_schedule jsonb not null default '[0]'::jsonb, -- month offsets from the 1st dose date, one per dose (e.g. [0,1,6])
+  kitchen_only boolean not null default false, -- only offered/shown for employees marked Kitchen Staff
   active boolean not null default true,
   sort_order int not null default 0
 );
@@ -314,6 +323,8 @@ create table if not exists employee_health_records (
   employee_id uuid references employees(id) on delete cascade,
   item_type_id uuid references health_item_types(id),
   item_name text not null default '',
+  dose_number int not null default 1,
+  batch_no text not null default '',
   date_given date not null default current_date,
   result text not null default '',
   next_due_date date,
@@ -322,20 +333,54 @@ create table if not exists employee_health_records (
   created_at timestamptz not null default now()
 );
 
+-- Doctor's request that an employee receive a given vaccine (a checkbox
+-- in the source sheet) — separate from actually logging doses given.
+create table if not exists employee_vaccine_requests (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid not null references employees(id) on delete cascade,
+  item_type_id uuid not null references health_item_types(id) on delete cascade,
+  requested_at timestamptz not null default now(),
+  requested_by text not null default '',
+  unique(employee_id, item_type_id)
+);
+
+-- One row per employee: investigation workflow status, PPD, and (kitchen
+-- only) stool/urine test tracking.
+create table if not exists employee_clinic_status (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid not null unique references employees(id) on delete cascade,
+  investigation_status text not null default 'review_due', -- review_due | sample_not_given | review_done
+  ppd_status text, -- done | refused
+  ppd_test_date date,
+  ppd_next_due_date date,
+  stool_urine_status text, -- done | refused
+  stool_urine_test_date date,
+  stool_urine_next_due_date date,
+  icn_remarks text not null default '',
+  updated_by text not null default '',
+  updated_at timestamptz not null default now()
+);
+
 alter table employees enable row level security;
 alter table health_item_types enable row level security;
 alter table employee_health_records enable row level security;
+alter table employee_vaccine_requests enable row level security;
+alter table employee_clinic_status enable row level security;
 create policy "allow all employees" on employees for all using (true) with check (true);
 create policy "allow all health_item_types" on health_item_types for all using (true) with check (true);
 create policy "allow all employee_health_records" on employee_health_records for all using (true) with check (true);
+create policy "allow all employee_vaccine_requests" on employee_vaccine_requests for all using (true) with check (true);
+create policy "allow all employee_clinic_status" on employee_clinic_status for all using (true) with check (true);
 
-insert into health_item_types (name, category, recurrence_months, sort_order) values
-('Hepatitis B (series)', 'vaccine', null, 1),
-('MMR (Measles, Mumps, Rubella)', 'vaccine', null, 2),
-('Varicella (Chickenpox)', 'vaccine', null, 3),
-('Influenza (Annual)', 'vaccine', 12, 4),
-('COVID-19', 'vaccine', 12, 5),
-('TB Screening (PPD/IGRA)', 'screening', 12, 6)
+insert into health_item_types (name, category, recurrence_months, dose_schedule, kitchen_only, sort_order) values
+('Hepatitis B (series)', 'vaccine', null, '[0,1,6]', false, 1),
+('MMR (Measles, Mumps, Rubella)', 'vaccine', null, '[0,1]', false, 2),
+('Varicella (Chickenpox)', 'vaccine', null, '[0,1]', false, 3),
+('Influenza (Annual)', 'vaccine', 12, '[0]', false, 4),
+('Tetanus toxoid', 'vaccine', null, '[0]', false, 5),
+('Meningococcal (Kitchen Staff)', 'vaccine', null, '[0]', true, 6),
+('Typhoid (Kitchen Staff)', 'vaccine', null, '[0]', true, 7),
+('Hepatitis A (Kitchen Staff)', 'vaccine', null, '[0,1,6]', true, 8)
 on conflict do nothing;
 
 -- Communicable / Suspected-Confirmed Cases — Owner/IC track patients
