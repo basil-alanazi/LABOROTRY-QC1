@@ -32,6 +32,11 @@ class QueryBuilder {
     this._filters.push((r) => vals.includes(r[col]));
     return this;
   }
+  ilike(col, pattern) {
+    // Only used for plain case-insensitive equality lookups (no % / _ wildcards) in this app.
+    this._filters.push((r) => typeof r[col] === "string" && r[col].toLowerCase() === pattern.toLowerCase());
+    return this;
+  }
   gte(col, val) {
     this._filters.push((r) => r[col] >= val);
     return this;

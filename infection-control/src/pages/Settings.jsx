@@ -418,6 +418,12 @@ export default function Settings() {
       flash("Username is required");
       return;
     }
+    // Login matches usernames case-insensitively, so block a case-only
+    // duplicate here too (the DB's unique constraint alone wouldn't).
+    if (users.some((u) => u.username.toLowerCase() === username.toLowerCase())) {
+      flash("That username is already taken");
+      return;
+    }
     const { error } = await supabase.from("users").insert({
       username,
       ...(await passwordField(DEFAULT_PASSWORD)),

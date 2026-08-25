@@ -46,9 +46,11 @@ export function AuthProvider({ children }) {
   }
 
   async function login(username, password) {
+    // Username match is case-insensitive (staff on shared tablets often
+    // don't match the exact case it was created with) — password is not.
+    const query = supabase.from("users").select("*").ilike("username", username).eq("active", true);
     // Offline preview mode has no real security to protect — compare
     // plaintext there so the seeded demo accounts keep working.
-    const query = supabase.from("users").select("*").eq("username", username).eq("active", true);
     const { data: user } = supabase.isMock
       ? await query.eq("password", password).single()
       : await query.eq("password_hash", await sha256Hex(password)).single();
