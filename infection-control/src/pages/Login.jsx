@@ -23,12 +23,12 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+    <div className="flex min-h-screen items-center justify-center overflow-y-auto bg-slate-50 px-4 py-8">
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-teal-700">
           <img src={rabiaLogo} alt="Rabia Hospital" className="h-16 w-16 rounded-lg object-contain" />
           <h1 className="text-xl font-bold text-slate-800">Infection Control</h1>
-          <p className="text-sm text-slate-500">Daily ward round for departments</p>
+          <p className="text-sm text-slate-500">Infection Control System</p>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
