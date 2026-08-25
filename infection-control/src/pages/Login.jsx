@@ -28,7 +28,7 @@ export default function Login() {
         <div className="mb-6 flex flex-col items-center gap-2 text-teal-700">
           <img src={rabiaLogo} alt="Rabia Hospital" className="h-16 w-16 rounded-lg object-contain" />
           <h1 className="text-xl font-bold text-slate-800">Infection Control</h1>
-          <p className="text-sm text-slate-500">Daily ward round for departments</p>
+          <p className="text-sm text-slate-500">Infection Control System</p>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
