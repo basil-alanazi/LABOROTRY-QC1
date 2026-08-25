@@ -11,7 +11,7 @@ create table if not exists app_config (
   hh_observer_roles jsonb not null default '["Doctor","Nurse","Housekeeping","Lab Staff","Radiology"]'::jsonb,
   hh_department_observers jsonb not null default '{}'::jsonb, -- { "Lab": ["Lab Staff"], ... } — which roles show for each HH department; unlisted departments show all roles
   stock_departments jsonb not null default '["Cath Lab","OR Anesthesia","OR Nursing","DR","ICU","NICU","FW","MW","Endoscopy","IM 1 & 2","Cardiology","Pulmo","ENT 1 & 2","Dental 1 & 2","Ophthalmology","Neurology","Pedia OPD","Derma","OB & GYN","Ortho","Urology & ESWL","Surgery","Emergency Room"]'::jsonb,
-  employee_departments jsonb not null default '["Nurse","Doctor","house keeping","Reception","INSURANCE","others","Security and Safety","Lab","pharmacy","radiology","Maintenance and laborers","HUMAN RESORCE","Medical maintenance","MEDICAL REPORTS","CSSD","IT","physiotherapy","store","Quality Head","Quality CO-ORDINATOR","Infection Control Head","infection control practitioner","HOSPITAL DIRECTOR","Medical Director","ROOM 44","ROOM 45","Social Specialist","Patient relation","PURCHASE Manager","store MANAGER","MARKETING MANAGER","CSSD HEAD","Dietary"]'::jsonb
+  employee_departments jsonb not null default '["Nurse","Doctor","house keeping","Reception","INSURANCE","others","Security and Safety","Lab","pharmacy","radiology","Maintenance and laborers","HUMAN RESORCE","Medical maintenance","MEDICAL REPORTS","CSSD","IT","physiotherapy","store","Quality Head","Quality CO-ORDINATOR","Infection Control Head","infection control practitioner","HOSPITAL DIRECTOR","Medical Director","ROOM 44","ROOM 45","Social Specialist","Patient relation","PURCHASE Manager","store MANAGER","MARKETING MANAGER","CSSD HEAD","Dietary","Administration","Finance"]'::jsonb
 );
 insert into app_config (id) values (1) on conflict (id) do nothing;
 
@@ -27,6 +27,7 @@ create table if not exists users (
   role text not null default 'staff', -- 'owner' | 'ic' | 'staff'
   department text,                    -- optional home department for staff users
   can_manage_stock boolean not null default false, -- staff dept "in-charge": can add/remove items in their own department's stock catalog
+  employee_health_only boolean not null default false, -- ic-role account restricted to only the Employee Health page (e.g. a doctor account)
   active boolean not null default true,
   must_change_password boolean not null default true,
   created_by text,
