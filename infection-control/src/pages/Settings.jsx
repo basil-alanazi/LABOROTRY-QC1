@@ -10,7 +10,15 @@ const DEFAULT_PASSWORD = "123456";
 const emptyNewUser = { username: "", display_name: "", role: "staff", department: "", can_manage_stock: false, can_view_employee_health: false };
 const emptyNewChecklist = { name: "", departments: [], items: "", baseline: "", fields: [...DEFAULT_PATIENT_FIELDS] };
 const emptyNewStockItem = { department: "", name: "", unit: "unit", min_qty: "", max_qty: "", current_qty: "" };
-const emptyNewHealthItem = { name: "", category: "vaccine", recurrence_months: "" };
+const emptyNewHealthItem = { name: "", category: "vaccine", recurrence_months: "", dose_schedule: "0", kitchen_only: false };
+
+function parseDoseSchedule(text) {
+  const nums = (text || "0")
+    .split(",")
+    .map((s) => Number(s.trim()))
+    .filter((n) => Number.isFinite(n));
+  return nums.length ? nums : [0];
+}
 
 function slugCode(name) {
   const base = name
@@ -79,7 +87,7 @@ export default function Settings() {
 
   async function loadHealthItemTypes() {
     const { data } = await supabase.from("health_item_types").select("*").order("sort_order");
-    setHealthItemTypes(data ?? []);
+    setHealthItemTypes((data ?? []).map((t) => ({ ...t, dose_schedule: (t.dose_schedule?.length ? t.dose_schedule : [0]).join(",") })));
   }
 
   async function loadDiseaseTypes() {
@@ -292,6 +300,8 @@ export default function Settings() {
         name: item.name,
         category: item.category,
         recurrence_months: item.recurrence_months === "" || item.recurrence_months == null ? null : Number(item.recurrence_months),
+        dose_schedule: parseDoseSchedule(item.dose_schedule),
+        kitchen_only: !!item.kitchen_only,
         active: item.active,
       })
       .eq("id", item.id);
@@ -315,6 +325,8 @@ export default function Settings() {
       name,
       category: newHealthItem.category,
       recurrence_months: newHealthItem.recurrence_months === "" ? null : Number(newHealthItem.recurrence_months),
+      dose_schedule: parseDoseSchedule(newHealthItem.dose_schedule),
+      kitchen_only: newHealthItem.kitchen_only,
       active: true,
       sort_order: maxSort + 1,
     });
@@ -788,14 +800,22 @@ export default function Settings() {
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-slate-700">Employee Health Items (Vaccines &amp; Screenings)</h2>
+        <div>
+          <h2 className="text-sm font-semibold text-slate-700">Employee Health Items (Vaccines &amp; Screenings)</h2>
+          <p className="text-xs text-slate-500">
+            Dose Schedule = month offsets from the 1st dose date, one per dose. E.g. Hepatitis B "0,1,6" means the 1st dose,
+            2nd dose 1 month later, 3rd dose 6 months later (Jan / Feb / Jul). A single dose is just "0".
+          </p>
+        </div>
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs text-slate-500">
               <tr>
                 <th className="px-3 py-2 font-medium">Name</th>
                 <th className="px-3 py-2 font-medium">Category</th>
+                <th className="px-3 py-2 font-medium">Dose Schedule (months after 1st dose)</th>
                 <th className="px-3 py-2 font-medium">Repeats Every (months)</th>
+                <th className="px-3 py-2 font-medium">Kitchen Staff Only</th>
                 <th className="px-3 py-2 font-medium">Active</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -814,12 +834,23 @@ export default function Settings() {
                   </td>
                   <td className="px-3 py-2">
                     <input
+                      className="input w-32"
+                      value={t.dose_schedule ?? "0"}
+                      onChange={(e) => updateHealthItemType(t.id, { dose_schedule: e.target.value })}
+                      placeholder="e.g. 0,1,6"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
                       type="number"
                       className="input w-28"
                       value={t.recurrence_months ?? ""}
                       onChange={(e) => updateHealthItemType(t.id, { recurrence_months: e.target.value })}
                       placeholder="One-time"
                     />
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <input type="checkbox" checked={!!t.kitchen_only} onChange={(e) => updateHealthItemType(t.id, { kitchen_only: e.target.checked })} />
                   </td>
                   <td className="px-3 py-2">
                     <input type="checkbox" checked={t.active} onChange={(e) => updateHealthItemType(t.id, { active: e.target.checked })} />
@@ -850,12 +881,26 @@ export default function Settings() {
             <option value="screening">Screening</option>
           </select>
           <input
+            className="input"
+            value={newHealthItem.dose_schedule}
+            onChange={(e) => setNewHealthItem({ ...newHealthItem, dose_schedule: e.target.value })}
+            placeholder="Dose schedule, e.g. 0,1,6"
+          />
+          <input
             type="number"
             className="input"
             value={newHealthItem.recurrence_months}
             onChange={(e) => setNewHealthItem({ ...newHealthItem, recurrence_months: e.target.value })}
             placeholder="Repeats every N months (blank = one-time)"
           />
+          <label className="flex items-center gap-1 text-xs text-slate-500">
+            <input
+              type="checkbox"
+              checked={newHealthItem.kitchen_only}
+              onChange={(e) => setNewHealthItem({ ...newHealthItem, kitchen_only: e.target.checked })}
+            />
+            Kitchen Staff only
+          </label>
           <button
             onClick={addHealthItemType}
             className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-4"
