@@ -58,6 +58,8 @@ export default function EmployeeHealth() {
   const { session, config } = useAuth();
   const [tab, setTab] = useState("compliance");
   const [clinicGroup, setClinicGroup] = useState("regular"); // regular | kitchen
+  const [clinicDeptFilter, setClinicDeptFilter] = useState("");
+  const [clinicSearch, setClinicSearch] = useState("");
   const [employees, setEmployees] = useState([]);
   const [itemTypes, setItemTypes] = useState([]);
   const [records, setRecords] = useState([]);
@@ -114,6 +116,21 @@ export default function EmployeeHealth() {
   const activeItemTypes = useMemo(() => itemTypes.filter((t) => t.active), [itemTypes]);
   const regularEmployees = useMemo(() => activeEmployees.filter((e) => !e.is_kitchen_staff), [activeEmployees]);
   const kitchenEmployees = useMemo(() => activeEmployees.filter((e) => e.is_kitchen_staff), [activeEmployees]);
+  const clinicDepartments = useMemo(
+    () => Array.from(new Set((clinicGroup === "kitchen" ? kitchenEmployees : regularEmployees).map((e) => e.department))).sort(),
+    [clinicGroup, regularEmployees, kitchenEmployees]
+  );
+  function applyClinicFilters(list) {
+    const q = clinicSearch.trim().toLowerCase();
+    return list.filter((e) => {
+      if (clinicDeptFilter && e.department !== clinicDeptFilter) return false;
+      if (q && !(e.file_no || "").toLowerCase().includes(q) && !(e.name || "").toLowerCase().includes(q) && !(e.employee_no || "").toLowerCase().includes(q))
+        return false;
+      return true;
+    });
+  }
+  const visibleRegularEmployees = useMemo(() => applyClinicFilters(regularEmployees), [regularEmployees, clinicDeptFilter, clinicSearch]);
+  const visibleKitchenEmployees = useMemo(() => applyClinicFilters(kitchenEmployees), [kitchenEmployees, clinicDeptFilter, clinicSearch]);
   const regularVaccines = useMemo(() => activeItemTypes.filter((t) => !t.kitchen_only), [activeItemTypes]);
   const kitchenVaccines = activeItemTypes; // kitchen staff get every normal vaccine plus the kitchen-only ones
 
@@ -383,7 +400,13 @@ export default function EmployeeHealth() {
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr>
               {CLINIC_BASE_HEADERS.map((h) => (
-                <th key={h} rowSpan={2} className="border-b border-r border-slate-200 px-2 py-1.5 align-bottom font-medium whitespace-nowrap">
+                <th
+                  key={h}
+                  rowSpan={2}
+                  className={`border-b border-r border-slate-200 px-2 py-1.5 align-bottom font-medium whitespace-nowrap ${
+                    h === "#" ? "sticky left-0 z-20 w-10 bg-slate-50" : h === "Name" ? "sticky left-10 z-20 bg-slate-50" : ""
+                  }`}
+                >
                   {h}
                 </th>
               ))}
@@ -426,8 +449,8 @@ export default function EmployeeHealth() {
               const s = statusFor(emp.id);
               return (
                 <tr key={emp.id} className="border-t border-slate-100 align-top">
-                  <td className="border-r border-slate-100 px-2 py-1">{idx + 1}</td>
-                  <td className="border-r border-slate-100 px-2 py-1">
+                  <td className="sticky left-0 z-10 w-10 border-r border-slate-100 bg-white px-2 py-1">{idx + 1}</td>
+                  <td className="sticky left-10 z-10 border-r border-slate-100 bg-white px-2 py-1">
                     <input className="input-cell" value={emp.name} onChange={(e) => updateEmployeeField(emp.id, { name: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
@@ -637,14 +660,40 @@ export default function EmployeeHealth() {
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
-              <button onClick={() => setClinicGroup("regular")} className={`rounded-md px-3 py-1 font-medium ${clinicGroup === "regular" ? "bg-teal-600 text-white" : "text-slate-500"}`}>
+              <button
+                onClick={() => {
+                  setClinicGroup("regular");
+                  setClinicDeptFilter("");
+                }}
+                className={`rounded-md px-3 py-1 font-medium ${clinicGroup === "regular" ? "bg-teal-600 text-white" : "text-slate-500"}`}
+              >
                 Regular Staff ({regularEmployees.length})
               </button>
-              <button onClick={() => setClinicGroup("kitchen")} className={`rounded-md px-3 py-1 font-medium ${clinicGroup === "kitchen" ? "bg-teal-600 text-white" : "text-slate-500"}`}>
+              <button
+                onClick={() => {
+                  setClinicGroup("kitchen");
+                  setClinicDeptFilter("");
+                }}
+                className={`rounded-md px-3 py-1 font-medium ${clinicGroup === "kitchen" ? "bg-teal-600 text-white" : "text-slate-500"}`}
+              >
                 Kitchen Staff ({kitchenEmployees.length})
               </button>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <select className="input w-44" value={clinicDeptFilter} onChange={(e) => setClinicDeptFilter(e.target.value)}>
+                <option value="">All Departments</option>
+                {clinicDepartments.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="input w-48"
+                value={clinicSearch}
+                onChange={(e) => setClinicSearch(e.target.value)}
+                placeholder="Search name / file no / emp #"
+              />
               <button onClick={exportExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
                 <FileSpreadsheet className="h-3.5 w-3.5" />
                 Export Excel
@@ -656,7 +705,7 @@ export default function EmployeeHealth() {
             </div>
           </div>
           <p className="text-xs text-slate-500">{INVESTIGATION_TESTS}</p>
-          {clinicGroup === "regular" ? renderClinicGrid(regularEmployees, regularVaccines, false) : renderClinicGrid(kitchenEmployees, kitchenVaccines, true)}
+          {clinicGroup === "regular" ? renderClinicGrid(visibleRegularEmployees, regularVaccines, false) : renderClinicGrid(visibleKitchenEmployees, kitchenVaccines, true)}
         </div>
       )}
 

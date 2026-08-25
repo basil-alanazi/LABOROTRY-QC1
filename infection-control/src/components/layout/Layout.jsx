@@ -23,7 +23,7 @@ const linkClass = ({ isActive }) =>
   }`;
 
 export default function Layout({ children }) {
-  const { session, logout, isAdmin, isFullAdmin } = useAuth();
+  const { session, logout, isAdmin, canViewEmployeeHealth } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -34,43 +34,43 @@ export default function Layout({ children }) {
 
   const navLinks = (
     <>
-      {isFullAdmin && (
+      {isAdmin && (
         <NavLink to="/" end className={linkClass} onClick={() => setSidebarOpen(false)}>
           <ClipboardList className="h-4 w-4" />
           Daily Checklists
         </NavLink>
       )}
-      {isFullAdmin && (
+      {isAdmin && (
         <NavLink to="/records" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <ListChecks className="h-4 w-4" />
           Records
         </NavLink>
       )}
-      {isFullAdmin && (
+      {isAdmin && (
         <NavLink to="/dashboard" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <LayoutDashboard className="h-4 w-4" />
           Dashboard
         </NavLink>
       )}
-      {isAdmin && (
+      {canViewEmployeeHealth && (
         <NavLink to="/employee-health" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <HeartPulse className="h-4 w-4" />
           Employee Health
         </NavLink>
       )}
-      {isFullAdmin && (
+      {isAdmin && (
         <NavLink to="/cases" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <ShieldAlert className="h-4 w-4" />
           Suspected/Confirmed Cases
         </NavLink>
       )}
-      {!session?.employeeHealthOnly && (
+      {(isAdmin || !session?.canViewEmployeeHealth) && (
         <NavLink to="/stock" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <Package className="h-4 w-4" />
           Stock Requests
         </NavLink>
       )}
-      {isFullAdmin && (
+      {isAdmin && (
         <NavLink to="/settings" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <SettingsIcon className="h-4 w-4" />
           Settings

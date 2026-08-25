@@ -27,7 +27,7 @@ create table if not exists users (
   role text not null default 'staff', -- 'owner' | 'ic' | 'staff'
   department text,                    -- optional home department for staff users
   can_manage_stock boolean not null default false, -- staff dept "in-charge": can add/remove items in their own department's stock catalog
-  employee_health_only boolean not null default false, -- ic-role account restricted to only the Employee Health page (e.g. a doctor account)
+  can_view_employee_health boolean not null default false, -- staff account granted access to only the Employee Health page (e.g. a doctor account), instead of the usual stock-only staff view
   active boolean not null default true,
   must_change_password boolean not null default true,
   created_by text,
