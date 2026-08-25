@@ -25,6 +25,8 @@ export const supabase =
         health_item_types: seed.health_item_types,
         employees: seed.employees,
         employee_health_records: seed.employee_health_records,
+        employee_vaccine_requests: seed.employee_vaccine_requests,
+        employee_clinic_status: seed.employee_clinic_status,
         disease_types: seed.disease_types,
         communicable_cases: seed.communicable_cases,
         users: seed.users,

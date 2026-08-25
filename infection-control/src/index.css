@@ -8,4 +8,7 @@ body {
   .input {
     @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500;
   }
+  .input-cell {
+    @apply w-full rounded border border-slate-200 bg-white px-1.5 py-1 text-xs focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500;
+  }
 }
