@@ -7,7 +7,7 @@ import { PATIENT_FIELDS, DEFAULT_PATIENT_FIELDS } from "../lib/patientFields";
 import { fetchAllRows } from "../lib/fetchAll";
 
 const DEFAULT_PASSWORD = "123456";
-const emptyNewUser = { username: "", display_name: "", role: "staff", department: "", can_manage_stock: false, employee_health_only: false };
+const emptyNewUser = { username: "", display_name: "", role: "staff", department: "", can_manage_stock: false, can_view_employee_health: false };
 const emptyNewChecklist = { name: "", departments: [], items: "", baseline: "", fields: [...DEFAULT_PATIENT_FIELDS] };
 const emptyNewStockItem = { department: "", name: "", unit: "unit", min_qty: "", max_qty: "", current_qty: "" };
 const emptyNewHealthItem = { name: "", category: "vaccine", recurrence_months: "" };
@@ -432,7 +432,7 @@ export default function Settings() {
       role: newUser.role,
       department: newUser.department || null,
       can_manage_stock: newUser.role === "staff" && newUser.can_manage_stock,
-      employee_health_only: newUser.role === "ic" && newUser.employee_health_only,
+      can_view_employee_health: newUser.role === "staff" && newUser.can_view_employee_health,
       created_by: session?.username,
     });
     if (error) {
@@ -456,7 +456,7 @@ export default function Settings() {
         role: user.role,
         department: user.department || null,
         can_manage_stock: user.role === "staff" && !!user.can_manage_stock,
-        employee_health_only: user.role === "ic" && !!user.employee_health_only,
+        can_view_employee_health: user.role === "staff" && !!user.can_view_employee_health,
         active: user.active,
       })
       .eq("id", user.id);
@@ -1113,14 +1113,14 @@ export default function Settings() {
                     Department stock in-charge — can also add/remove items in {u.department}'s stock catalog (not just use them)
                   </label>
                 )}
-                {u.role === "ic" && (
+                {u.role === "staff" && (
                   <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-5">
                     <input
                       type="checkbox"
-                      checked={!!u.employee_health_only}
-                      onChange={(e) => updateUserField(u.id, { employee_health_only: e.target.checked })}
+                      checked={!!u.can_view_employee_health}
+                      onChange={(e) => updateUserField(u.id, { can_view_employee_health: e.target.checked })}
                     />
-                    Restrict to Employee Health only — e.g. a doctor's account; hides Daily Checklists, Records, Dashboard, Cases, Settings, and Stock Requests
+                    Employee Health access only — e.g. a doctor's account; sees the Employee Health page instead of Stock Requests
                   </label>
                 )}
               </div>
@@ -1184,14 +1184,14 @@ export default function Settings() {
                 Department stock in-charge — can also add/remove items in this department's stock catalog (not just use them)
               </label>
             )}
-            {newUser.role === "ic" && (
+            {newUser.role === "staff" && (
               <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-4">
                 <input
                   type="checkbox"
-                  checked={newUser.employee_health_only}
-                  onChange={(e) => setNewUser({ ...newUser, employee_health_only: e.target.checked })}
+                  checked={newUser.can_view_employee_health}
+                  onChange={(e) => setNewUser({ ...newUser, can_view_employee_health: e.target.checked })}
                 />
-                Restrict to Employee Health only — e.g. a doctor's account; hides Daily Checklists, Records, Dashboard, Cases, Settings, and Stock Requests
+                Employee Health access only — e.g. a doctor's account; sees the Employee Health page instead of Stock Requests
               </label>
             )}
             <button
