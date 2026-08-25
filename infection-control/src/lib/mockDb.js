@@ -66,6 +66,12 @@ class QueryBuilder {
     this._payload = payload;
     return this;
   }
+  upsert(payload, { onConflict } = {}) {
+    this._op = "upsert";
+    this._payload = payload;
+    this._onConflict = (onConflict || "id").split(",");
+    return this;
+  }
 
   async _exec() {
     const rows = this.store.get(this.table) || [];
@@ -75,6 +81,24 @@ class QueryBuilder {
       const inserted = items.map((it) => ({ id: uid(), created_at: new Date().toISOString(), ...it }));
       this.store.set(this.table, [...rows, ...inserted]);
       return { data: inserted, error: null };
+    }
+
+    if (this._op === "upsert") {
+      const items = Array.isArray(this._payload) ? this._payload : [this._payload];
+      const upserted = [];
+      for (const it of items) {
+        const existing = rows.find((r) => this._onConflict.every((col) => r[col] === it[col]));
+        if (existing) Object.assign(existing, it);
+        else {
+          const created = { id: uid(), created_at: new Date().toISOString(), ...it };
+          rows.push(created);
+          upserted.push(created);
+          continue;
+        }
+        upserted.push(existing);
+      }
+      this.store.set(this.table, rows);
+      return { data: upserted, error: null };
     }
 
     let filtered = rows.filter((r) => this._filters.every((f) => f(r)));

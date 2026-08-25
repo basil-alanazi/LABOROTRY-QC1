@@ -337,17 +337,45 @@ export const stock_requests = [
 ];
 
 export const health_item_types = [
-  { id: "hit-1", name: "Hepatitis B (series)", category: "vaccine", recurrence_months: null, active: true, sort_order: 1 },
-  { id: "hit-2", name: "MMR (Measles, Mumps, Rubella)", category: "vaccine", recurrence_months: null, active: true, sort_order: 2 },
-  { id: "hit-3", name: "Varicella (Chickenpox)", category: "vaccine", recurrence_months: null, active: true, sort_order: 3 },
-  { id: "hit-4", name: "Influenza (Annual)", category: "vaccine", recurrence_months: 12, active: true, sort_order: 4 },
-  { id: "hit-5", name: "COVID-19", category: "vaccine", recurrence_months: 12, active: true, sort_order: 5 },
-  { id: "hit-6", name: "TB Screening (PPD/IGRA)", category: "screening", recurrence_months: 12, active: true, sort_order: 6 },
+  { id: "hit-1", name: "Hepatitis B (series)", category: "vaccine", recurrence_months: null, dose_schedule: [0, 1, 6], kitchen_only: false, active: true, sort_order: 1 },
+  { id: "hit-2", name: "MMR (Measles, Mumps, Rubella)", category: "vaccine", recurrence_months: null, dose_schedule: [0, 1], kitchen_only: false, active: true, sort_order: 2 },
+  { id: "hit-3", name: "Varicella (Chickenpox)", category: "vaccine", recurrence_months: null, dose_schedule: [0, 1], kitchen_only: false, active: true, sort_order: 3 },
+  { id: "hit-4", name: "Influenza (Annual)", category: "vaccine", recurrence_months: 12, dose_schedule: [0], kitchen_only: false, active: true, sort_order: 4 },
+  { id: "hit-5", name: "Tetanus toxoid", category: "vaccine", recurrence_months: null, dose_schedule: [0], kitchen_only: false, active: true, sort_order: 5 },
+  { id: "hit-6", name: "Meningococcal (Kitchen Staff)", category: "vaccine", recurrence_months: null, dose_schedule: [0], kitchen_only: true, active: true, sort_order: 6 },
+  { id: "hit-7", name: "Typhoid (Kitchen Staff)", category: "vaccine", recurrence_months: null, dose_schedule: [0], kitchen_only: true, active: true, sort_order: 7 },
+  { id: "hit-8", name: "Hepatitis A (Kitchen Staff)", category: "vaccine", recurrence_months: null, dose_schedule: [0, 1, 6], kitchen_only: true, active: true, sort_order: 8 },
 ];
 
 export const employees = [
-  { id: "emp-1", employee_no: "E-1001", name: "Amal Al-Harbi", department: "Nursing", job_title: "Staff Nurse", active: true, created_at: new Date().toISOString() },
-  { id: "emp-2", employee_no: "E-1002", name: "Yousef Al-Qahtani", department: "Physicians", job_title: "Resident", active: true, created_at: new Date().toISOString() },
+  {
+    id: "emp-1",
+    employee_no: "E-1001",
+    name: "Amal Al-Harbi",
+    department: "Nursing",
+    job_title: "Staff Nurse",
+    file_no: "F-201",
+    iqama_no: "2xxxxxxxx1",
+    date_of_birth: "1990-04-12",
+    phone: "05xxxxxxx1",
+    is_kitchen_staff: false,
+    active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "emp-2",
+    employee_no: "E-1002",
+    name: "Yousef Al-Qahtani",
+    department: "Dietary",
+    job_title: "Cook",
+    file_no: "F-202",
+    iqama_no: "2xxxxxxxx2",
+    date_of_birth: "1988-09-03",
+    phone: "05xxxxxxx2",
+    is_kitchen_staff: true,
+    active: true,
+    created_at: new Date().toISOString(),
+  },
 ];
 
 export const employee_health_records = [
@@ -356,12 +384,35 @@ export const employee_health_records = [
     employee_id: "emp-1",
     item_type_id: "hit-4",
     item_name: "Influenza (Annual)",
+    dose_number: 1,
+    batch_no: "INF-0026",
     date_given: today,
     result: "",
     next_due_date: null,
     notes: "",
     recorded_by: "ic",
     created_at: new Date().toISOString(),
+  },
+];
+
+export const employee_vaccine_requests = [
+  { id: "evr-1", employee_id: "emp-1", item_type_id: "hit-4", requested_at: new Date().toISOString(), requested_by: "ic" },
+];
+
+export const employee_clinic_status = [
+  {
+    id: "ecs-1",
+    employee_id: "emp-1",
+    investigation_status: "review_done",
+    ppd_status: "done",
+    ppd_test_date: today,
+    ppd_next_due_date: null,
+    stool_urine_status: null,
+    stool_urine_test_date: null,
+    stool_urine_next_due_date: null,
+    icn_remarks: "",
+    updated_by: "ic",
+    updated_at: new Date().toISOString(),
   },
 ];
 

@@ -330,7 +330,8 @@ create table if not exists employee_health_records (
   next_due_date date,
   notes text not null default '',
   recorded_by text not null default '',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  unique (employee_id, item_type_id, dose_number) -- one editable cell per employee+vaccine+dose, mirroring the source sheet
 );
 
 -- Doctor's request that an employee receive a given vaccine (a checkbox
