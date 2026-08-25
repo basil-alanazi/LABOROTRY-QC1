@@ -41,6 +41,7 @@ export function AuthProvider({ children }) {
       role: user.role,
       department: user.department || "",
       canManageStock: !!user.can_manage_stock,
+      employeeHealthOnly: !!user.employee_health_only,
       mustChangePassword: !!user.must_change_password,
     };
   }
@@ -83,10 +84,12 @@ export function AuthProvider({ children }) {
 
   const isAdmin = session?.role === "owner" || session?.role === "ic";
   const isOwner = session?.role === "owner";
+  // A doctor-style account: ic role, but scoped to Employee Health only.
+  const isFullAdmin = isAdmin && !session?.employeeHealthOnly;
 
   return (
     <AuthContext.Provider
-      value={{ session, config, loading, login, logout, changePassword, isAdmin, isOwner, reloadConfig: loadConfig }}
+      value={{ session, config, loading, login, logout, changePassword, isAdmin, isOwner, isFullAdmin, reloadConfig: loadConfig }}
     >
       {children}
     </AuthContext.Provider>

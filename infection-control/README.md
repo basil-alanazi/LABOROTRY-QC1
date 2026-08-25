@@ -39,7 +39,7 @@ Passwords are stored hashed — nobody, including the owner, can see anyone's pa
 can only **reset** an account back to 123456 (e.g. if someone forgets theirs), which forces a
 change again on their next login. Roles:
 - **Owner** — everything, including creating/editing/deleting user accounts
-- **Infection Control** — full access: Daily Ward Round, Records, Dashboard, Settings (checklists/departments), but not user accounts
+- **Infection Control** — full access: Daily Ward Round, Records, Dashboard, Settings (checklists/departments), but not user accounts. Can be marked **"Restrict to Employee Health only"** (Settings → User Accounts) for an account that should only ever see the Employee Health page — e.g. a doctor's account — which then hides Daily Checklists, Records, Dashboard, Cases, Settings, and Stock Requests entirely
 - **Ward Staff** — reserved for a future module (department-specific Hand Hygiene audits); for now these accounts only see their Profile page
 
 Because each person logs in with their own account, every entry, resolved action, and deletion

@@ -20,7 +20,7 @@ export default function App() {
         <Route
           path="/"
           element={
-            <ProtectedRoute adminOnly>
+            <ProtectedRoute fullAdminOnly>
               <Layout>
                 <DailyEntry />
               </Layout>
@@ -30,7 +30,7 @@ export default function App() {
         <Route
           path="/records"
           element={
-            <ProtectedRoute adminOnly>
+            <ProtectedRoute fullAdminOnly>
               <Layout>
                 <Records />
               </Layout>
@@ -40,7 +40,7 @@ export default function App() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute adminOnly>
+            <ProtectedRoute fullAdminOnly>
               <Layout>
                 <Dashboard />
               </Layout>
@@ -50,7 +50,7 @@ export default function App() {
         <Route
           path="/settings"
           element={
-            <ProtectedRoute adminOnly>
+            <ProtectedRoute fullAdminOnly>
               <Layout>
                 <Settings />
               </Layout>
@@ -60,7 +60,7 @@ export default function App() {
         <Route
           path="/stock"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute hideForEmployeeHealthOnly>
               <Layout>
                 <StockRequests />
               </Layout>
@@ -80,7 +80,7 @@ export default function App() {
         <Route
           path="/cases"
           element={
-            <ProtectedRoute adminOnly>
+            <ProtectedRoute fullAdminOnly>
               <Layout>
                 <CommunicableCases />
               </Layout>

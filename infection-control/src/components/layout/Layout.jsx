@@ -23,7 +23,7 @@ const linkClass = ({ isActive }) =>
   }`;
 
 export default function Layout({ children }) {
-  const { session, logout, isAdmin } = useAuth();
+  const { session, logout, isAdmin, isFullAdmin } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -34,19 +34,19 @@ export default function Layout({ children }) {
 
   const navLinks = (
     <>
-      {isAdmin && (
+      {isFullAdmin && (
         <NavLink to="/" end className={linkClass} onClick={() => setSidebarOpen(false)}>
           <ClipboardList className="h-4 w-4" />
           Daily Checklists
         </NavLink>
       )}
-      {isAdmin && (
+      {isFullAdmin && (
         <NavLink to="/records" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <ListChecks className="h-4 w-4" />
           Records
         </NavLink>
       )}
-      {isAdmin && (
+      {isFullAdmin && (
         <NavLink to="/dashboard" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <LayoutDashboard className="h-4 w-4" />
           Dashboard
@@ -58,17 +58,19 @@ export default function Layout({ children }) {
           Employee Health
         </NavLink>
       )}
-      {isAdmin && (
+      {isFullAdmin && (
         <NavLink to="/cases" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <ShieldAlert className="h-4 w-4" />
           Suspected/Confirmed Cases
         </NavLink>
       )}
-      <NavLink to="/stock" className={linkClass} onClick={() => setSidebarOpen(false)}>
-        <Package className="h-4 w-4" />
-        Stock Requests
-      </NavLink>
-      {isAdmin && (
+      {!session?.employeeHealthOnly && (
+        <NavLink to="/stock" className={linkClass} onClick={() => setSidebarOpen(false)}>
+          <Package className="h-4 w-4" />
+          Stock Requests
+        </NavLink>
+      )}
+      {isFullAdmin && (
         <NavLink to="/settings" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <SettingsIcon className="h-4 w-4" />
           Settings
