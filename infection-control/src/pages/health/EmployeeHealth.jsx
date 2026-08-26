@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, FileSpreadsheet, FileText, Save, Trash2, UserPlus } from "lucide-react";
+import { AlertTriangle, FileSpreadsheet, FileText, Pencil, Save, Trash2, UserPlus } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
@@ -71,6 +71,7 @@ export default function EmployeeHealth() {
   const [message, setMessage] = useState(null);
   const [filterDept, setFilterDept] = useState("");
   const [statusPopupEmployee, setStatusPopupEmployee] = useState(null);
+  const [editingEmployee, setEditingEmployee] = useState(null);
   const [statusDrafts, setStatusDrafts] = useState({}); // employee_id -> status fields
   const [doseDrafts, setDoseDrafts] = useState({}); // "empId|itemId|doseNum" -> { date, batch }
 
@@ -278,6 +279,14 @@ export default function EmployeeHealth() {
       })
       .eq("id", emp.id);
     flash({ type: "success", text: `${emp.name} saved` });
+  }
+
+  async function handleEditSave(e) {
+    e.preventDefault();
+    if (!editingEmployee) return;
+    updateEmployeeField(editingEmployee.id, editingEmployee);
+    await saveEmployee(editingEmployee);
+    setEditingEmployee(null);
   }
 
   async function removeEmployee(emp) {
@@ -510,6 +519,14 @@ export default function EmployeeHealth() {
                         }`}
                       />
                       <input className="input-cell" value={emp.name} onChange={(e) => updateEmployeeField(emp.id, { name: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                      <button
+                        type="button"
+                        title="Edit employee"
+                        onClick={() => setEditingEmployee({ ...emp })}
+                        className="shrink-0 rounded p-0.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
@@ -953,6 +970,89 @@ export default function EmployeeHealth() {
               );
             })()}
           </div>
+        </div>
+      )}
+
+      {editingEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setEditingEmployee(null)}>
+          <form onSubmit={handleEditSave} onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-base font-semibold text-slate-800">Edit Employee</h3>
+              <button type="button" onClick={() => setEditingEmployee(null)} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-50">
+                ✕
+              </button>
+            </div>
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <input
+                className="input"
+                value={editingEmployee.name}
+                onChange={(e) => setEditingEmployee({ ...editingEmployee, name: e.target.value })}
+                placeholder="Name"
+                required
+              />
+              <input
+                className="input"
+                value={editingEmployee.employee_no || ""}
+                onChange={(e) => setEditingEmployee({ ...editingEmployee, employee_no: e.target.value })}
+                placeholder="Employee #"
+              />
+              <input
+                className="input"
+                value={editingEmployee.file_no || ""}
+                onChange={(e) => setEditingEmployee({ ...editingEmployee, file_no: e.target.value })}
+                placeholder="File #"
+              />
+              <input
+                className="input"
+                value={editingEmployee.iqama_no || ""}
+                onChange={(e) => setEditingEmployee({ ...editingEmployee, iqama_no: e.target.value })}
+                placeholder="Iqama #"
+              />
+              <input
+                type="date"
+                className="input"
+                value={editingEmployee.date_of_birth || ""}
+                onChange={(e) => setEditingEmployee({ ...editingEmployee, date_of_birth: e.target.value })}
+              />
+              <input
+                className="input"
+                value={editingEmployee.phone || ""}
+                onChange={(e) => setEditingEmployee({ ...editingEmployee, phone: e.target.value })}
+                placeholder="Phone"
+              />
+              <select
+                className="input"
+                value={editingEmployee.department || ""}
+                onChange={(e) => setEditingEmployee({ ...editingEmployee, department: e.target.value })}
+                required
+              >
+                <option value="">Department</option>
+                {departments.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="input"
+                value={editingEmployee.job_title || ""}
+                onChange={(e) => setEditingEmployee({ ...editingEmployee, job_title: e.target.value })}
+                placeholder="Job title"
+              />
+            </div>
+            <label className="mt-2 flex items-center gap-1 text-xs text-slate-500">
+              <input
+                type="checkbox"
+                checked={editingEmployee.is_kitchen_staff}
+                onChange={(e) => setEditingEmployee({ ...editingEmployee, is_kitchen_staff: e.target.checked })}
+              />
+              Kitchen Staff (extra investigations &amp; vaccines)
+            </label>
+            <button type="submit" className="mt-4 flex w-full items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+              <Save className="h-4 w-4" />
+              Save Changes
+            </button>
+          </form>
         </div>
       )}
     </div>
