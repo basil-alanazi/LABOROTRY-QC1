@@ -70,6 +70,7 @@ export default function EmployeeHealth() {
   const [employeeForm, setEmployeeForm] = useState(emptyEmployeeForm);
   const [message, setMessage] = useState(null);
   const [filterDept, setFilterDept] = useState("");
+  const [statusPopupEmployee, setStatusPopupEmployee] = useState(null);
   const [statusDrafts, setStatusDrafts] = useState({}); // employee_id -> status fields
   const [doseDrafts, setDoseDrafts] = useState({}); // "empId|itemId|doseNum" -> { date, batch }
 
@@ -157,6 +158,47 @@ export default function EmployeeHealth() {
       }
     }
     return { recs, complete, nextDueDate, renewalDue, nextDoseNumber: complete && !renewalDue ? null : (highestGiven || 0) + 1 };
+  }
+
+  // Quick per-employee status: red = something overdue or never started,
+  // yellow = pending but not yet due, green = fully up to date.
+  function employeeStatus(emp) {
+    const today = todayStr();
+    const st = statuses.find((x) => x.employee_id === emp.id);
+    const issues = [];
+
+    if (!st || st.investigation_status !== "review_done") {
+      issues.push({ label: "Investigation", severity: "yellow", detail: INVESTIGATION_STATUSES.find((o) => o.value === st?.investigation_status)?.label || "Doctor review due" });
+    }
+    if (!st?.ppd_status) {
+      issues.push({ label: "PPD", severity: "red", detail: "Not done" });
+    } else if (st.ppd_status === "done" && st.ppd_next_due_date && st.ppd_next_due_date < today) {
+      issues.push({ label: "PPD", severity: "red", detail: `Overdue since ${st.ppd_next_due_date}` });
+    }
+    if (emp.is_kitchen_staff) {
+      if (!st?.stool_urine_status) {
+        issues.push({ label: "Stool & Urine Test", severity: "red", detail: "Not done" });
+      } else if (st.stool_urine_next_due_date && st.stool_urine_next_due_date < today) {
+        issues.push({ label: "Stool & Urine Test", severity: "red", detail: `Overdue since ${st.stool_urine_next_due_date}` });
+      }
+    }
+    const empRequests = requests.filter((r) => r.employee_id === emp.id);
+    const visibleVaccines = activeItemTypes.filter((t) => !t.kitchen_only || emp.is_kitchen_staff);
+    for (const item of visibleVaccines) {
+      if (!empRequests.some((r) => r.item_type_id === item.id)) continue;
+      const state = doseState(emp.id, item);
+      if (state.complete && !state.renewalDue) continue;
+      if (!state.nextDueDate) {
+        issues.push({ label: item.name, severity: "red", detail: `Dose ${state.nextDoseNumber} not given` });
+      } else if (state.nextDueDate < today) {
+        issues.push({ label: item.name, severity: "red", detail: `Dose ${state.nextDoseNumber} overdue (was due ${state.nextDueDate})` });
+      } else {
+        issues.push({ label: item.name, severity: "yellow", detail: `Dose ${state.nextDoseNumber} due ${state.nextDueDate}` });
+      }
+    }
+
+    const severity = issues.some((i) => i.severity === "red") ? "red" : issues.length ? "yellow" : "green";
+    return { severity, issues };
   }
 
   const complianceRows = useMemo(() => {
@@ -458,7 +500,17 @@ export default function EmployeeHealth() {
                   </td>
                   <td className="sticky left-10 z-10 w-10 border-r border-slate-100 bg-white px-2 py-1">{idx + 1}</td>
                   <td className="sticky left-20 z-10 border-r border-slate-100 bg-white px-2 py-1">
-                    <input className="input-cell" value={emp.name} onChange={(e) => updateEmployeeField(emp.id, { name: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        title="View status summary"
+                        onClick={() => setStatusPopupEmployee(emp)}
+                        className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                          employeeStatus(emp).severity === "red" ? "bg-red-500" : employeeStatus(emp).severity === "yellow" ? "bg-amber-400" : "bg-emerald-500"
+                        }`}
+                      />
+                      <input className="input-cell" value={emp.name} onChange={(e) => updateEmployeeField(emp.id, { name: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                    </div>
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
                     <input className="input-cell w-16" value={emp.employee_no} onChange={(e) => updateEmployeeField(emp.id, { employee_no: e.target.value })} onBlur={() => saveEmployee(emp)} />
@@ -856,6 +908,51 @@ export default function EmployeeHealth() {
               Add Employee
             </button>
           </form>
+        </div>
+      )}
+
+      {statusPopupEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setStatusPopupEmployee(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            {(() => {
+              const { severity, issues } = employeeStatus(statusPopupEmployee);
+              const badge =
+                severity === "red" ? { dot: "bg-red-500", text: "text-red-700", bg: "bg-red-50", label: "Overdue / Missing" }
+                : severity === "yellow" ? { dot: "bg-amber-400", text: "text-amber-700", bg: "bg-amber-50", label: "Pending" }
+                : { dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50", label: "Up to date" };
+              return (
+                <>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-800">{statusPopupEmployee.name}</h3>
+                      <p className="text-xs text-slate-500">{statusPopupEmployee.department}</p>
+                    </div>
+                    <button onClick={() => setStatusPopupEmployee(null)} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-50">
+                      ✕
+                    </button>
+                  </div>
+                  <span className={`mt-3 flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${badge.bg} ${badge.text}`}>
+                    <span className={`h-2 w-2 rounded-full ${badge.dot}`} />
+                    {badge.label}
+                  </span>
+                  <div className="mt-3 flex flex-col gap-2">
+                    {issues.length === 0 ? (
+                      <p className="text-sm text-emerald-700">All good — no pending or missing items ✓</p>
+                    ) : (
+                      issues.map((issue, i) => (
+                        <div key={i} className={`flex items-start gap-2 rounded-lg px-3 py-2 text-sm ${issue.severity === "red" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>
+                          <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${issue.severity === "red" ? "bg-red-500" : "bg-amber-400"}`} />
+                          <span>
+                            <span className="font-medium">{issue.label}:</span> {issue.detail}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
         </div>
       )}
     </div>
