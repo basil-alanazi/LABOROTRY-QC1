@@ -422,6 +422,54 @@ export default function EmployeeHealth() {
     return [...base, ...invest, ...stool, s?.icn_remarks || "", ...vals];
   }
 
+  // PDF pages can't fit dozens of columns on one landscape sheet the way
+  // Excel/the on-screen grid can — cramming them in makes autoTable shrink
+  // columns until words break letter by letter. So the PDF export splits
+  // the same data into several normal-width tables instead: one core table
+  // (identity + investigations + PPD + stool/urine + remarks) plus one
+  // small table per vaccine (# + Name + Requested + its dose columns).
+  function buildCoreHeaders(kitchenMode) {
+    // Shortened versions of CLINIC_INVEST_HEADERS/CLINIC_STOOL_HEADERS so a
+    // single long word (e.g. "Investigation") never has to be force-split
+    // mid-word just to fit a narrow PDF column.
+    const investHeadersPdf = ["Invest.", "PPD Status", "PPD Result", "PPD Test Date", "PPD Next Due"];
+    const stoolHeadersPdf = ["Stool Urine Status", "Stool Urine Test", "Stool Urine Due"];
+    return [...CLINIC_BASE_HEADERS, ...investHeadersPdf, ...(kitchenMode ? stoolHeadersPdf : []), "Remarks"];
+  }
+  function buildCoreRow(emp, idx, kitchenMode) {
+    const s = statuses.find((x) => x.employee_id === emp.id);
+    const base = [idx, emp.name, emp.employee_no, emp.file_no, emp.iqama_no, emp.date_of_birth || "", emp.phone, emp.department];
+    const invest = [
+      INVESTIGATION_STATUSES.find((o) => o.value === s?.investigation_status)?.label || "",
+      s?.ppd_status || "",
+      s?.ppd_result || "",
+      s?.ppd_test_date || "",
+      s?.ppd_next_due_date || "",
+    ];
+    const stool = kitchenMode ? [s?.stool_urine_status || "", s?.stool_urine_test_date || "", s?.stool_urine_next_due_date || ""] : [];
+    return [...base, ...invest, ...stool, s?.icn_remarks || ""];
+  }
+  function buildVaccineHeaders(item) {
+    const headers = ["#", "Name", "Requested"];
+    for (const d of vaccineSlots([item])[0].doses) headers.push(`Dose ${d} Date`, `Dose ${d} Batch`);
+    return headers;
+  }
+  function buildVaccineRow(emp, idx, item) {
+    const row = [idx, emp.name, requests.some((r) => r.employee_id === emp.id && r.item_type_id === item.id) ? "Yes" : ""];
+    for (const d of vaccineSlots([item])[0].doses) {
+      const rec = records.find((r) => r.employee_id === emp.id && r.item_type_id === item.id && r.dose_number === d);
+      row.push(rec?.date_given || "", rec?.batch_no || "");
+    }
+    return row;
+  }
+  function pdfTablesForGroup(groupLabel, groupEmployees, vaccines, kitchenMode) {
+    const tables = [{ title: groupLabel, headers: buildCoreHeaders(kitchenMode), rows: groupEmployees.map((e, i) => buildCoreRow(e, i + 1, kitchenMode)) }];
+    for (const item of vaccines) {
+      tables.push({ title: `${groupLabel} — ${item.name}`, headers: buildVaccineHeaders(item), rows: groupEmployees.map((e, i) => buildVaccineRow(e, i + 1, item)) });
+    }
+    return tables;
+  }
+
   const REPORT_HEADERS = ["Date", "Employee", "Employee No", "Department", "Vaccine", "Dose #", "Batch No", "Next Due", "Recorded By"];
   function toReportRow(r) {
     const emp = employees.find((e) => e.id === r.employee_id);
@@ -438,8 +486,8 @@ export default function EmployeeHealth() {
 
   function exportPdf() {
     downloadPdf(`infection-control-employee-clinic-${todayStr()}`, "Infection Control — Employee Clinic", [
-      { title: "Regular Staff", headers: buildGridHeaders(regularVaccines, false), rows: regularEmployees.map((e, i) => buildGridRow(e, i + 1, regularVaccines, false)) },
-      { title: "Kitchen Staff", headers: buildGridHeaders(kitchenVaccines, true), rows: kitchenEmployees.map((e, i) => buildGridRow(e, i + 1, kitchenVaccines, true)) },
+      ...pdfTablesForGroup("Regular Staff", regularEmployees, regularVaccines, false),
+      ...pdfTablesForGroup("Kitchen Staff", kitchenEmployees, kitchenVaccines, true),
       { title: "Vaccination Log", headers: REPORT_HEADERS, rows: records.map(toReportRow) },
     ]);
   }
