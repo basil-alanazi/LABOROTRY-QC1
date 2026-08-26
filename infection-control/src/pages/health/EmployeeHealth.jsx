@@ -60,6 +60,7 @@ export default function EmployeeHealth() {
   const [clinicGroup, setClinicGroup] = useState("regular"); // regular | kitchen
   const [clinicDeptFilter, setClinicDeptFilter] = useState("");
   const [clinicSearch, setClinicSearch] = useState("");
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [itemTypes, setItemTypes] = useState([]);
   const [records, setRecords] = useState([]);
@@ -399,12 +400,13 @@ export default function EmployeeHealth() {
         <table className="w-full min-w-max text-xs">
           <thead className="bg-slate-50 text-left text-slate-500">
             <tr>
+              <th rowSpan={2} className="sticky left-0 z-20 w-10 border-b border-r border-slate-200 bg-slate-50 px-2 py-1.5 align-bottom font-medium whitespace-nowrap"></th>
               {CLINIC_BASE_HEADERS.map((h) => (
                 <th
                   key={h}
                   rowSpan={2}
                   className={`border-b border-r border-slate-200 px-2 py-1.5 align-bottom font-medium whitespace-nowrap ${
-                    h === "#" ? "sticky left-0 z-20 w-10 bg-slate-50" : h === "Name" ? "sticky left-10 z-20 bg-slate-50" : ""
+                    h === "#" ? "sticky left-10 z-20 w-10 bg-slate-50" : h === "Name" ? "sticky left-20 z-20 bg-slate-50" : ""
                   }`}
                 >
                   {h}
@@ -449,8 +451,13 @@ export default function EmployeeHealth() {
               const s = statusFor(emp.id);
               return (
                 <tr key={emp.id} className="border-t border-slate-100 align-top">
-                  <td className="sticky left-0 z-10 w-10 border-r border-slate-100 bg-white px-2 py-1">{idx + 1}</td>
-                  <td className="sticky left-10 z-10 border-r border-slate-100 bg-white px-2 py-1">
+                  <td className="sticky left-0 z-10 w-10 border-r border-slate-100 bg-white px-1 py-1 text-center">
+                    <button onClick={() => removeEmployee(emp)} title="Remove employee" className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                  <td className="sticky left-10 z-10 w-10 border-r border-slate-100 bg-white px-2 py-1">{idx + 1}</td>
+                  <td className="sticky left-20 z-10 border-r border-slate-100 bg-white px-2 py-1">
                     <input className="input-cell" value={emp.name} onChange={(e) => updateEmployeeField(emp.id, { name: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
@@ -694,6 +701,16 @@ export default function EmployeeHealth() {
                 onChange={(e) => setClinicSearch(e.target.value)}
                 placeholder="Search name / file no / emp #"
               />
+              <button
+                onClick={() => {
+                  setEmployeeForm({ ...emptyEmployeeForm, is_kitchen_staff: clinicGroup === "kitchen" });
+                  setShowQuickAdd((v) => !v);
+                }}
+                className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                Add Employee
+              </button>
               <button onClick={exportExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
                 <FileSpreadsheet className="h-3.5 w-3.5" />
                 Export Excel
@@ -704,6 +721,36 @@ export default function EmployeeHealth() {
               </button>
             </div>
           </div>
+          {showQuickAdd && (
+            <form
+              onSubmit={(e) => {
+                handleAddEmployee(e);
+                setShowQuickAdd(false);
+              }}
+              className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-5 sm:items-center"
+            >
+              <input className="input" value={employeeForm.name} onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })} placeholder="Name" required />
+              <input
+                className="input"
+                value={employeeForm.employee_no}
+                onChange={(e) => setEmployeeForm({ ...employeeForm, employee_no: e.target.value })}
+                placeholder="Employee #"
+              />
+              <input className="input" value={employeeForm.file_no} onChange={(e) => setEmployeeForm({ ...employeeForm, file_no: e.target.value })} placeholder="File #" />
+              <select className="input" value={employeeForm.department} onChange={(e) => setEmployeeForm({ ...employeeForm, department: e.target.value })} required>
+                <option value="">Department</option>
+                {departments.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+              <button type="submit" className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+                <UserPlus className="h-4 w-4" />
+                Save
+              </button>
+            </form>
+          )}
           <p className="text-xs text-slate-500">{INVESTIGATION_TESTS}</p>
           {clinicGroup === "regular" ? renderClinicGrid(visibleRegularEmployees, regularVaccines, false) : renderClinicGrid(visibleKitchenEmployees, kitchenVaccines, true)}
         </div>
