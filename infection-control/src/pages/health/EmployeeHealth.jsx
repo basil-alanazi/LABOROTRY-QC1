@@ -179,7 +179,7 @@ export default function EmployeeHealth() {
     if (emp.is_kitchen_staff) {
       if (!st?.stool_urine_status) {
         issues.push({ label: "Stool & Urine Test", severity: "red", detail: "Not done" });
-      } else if (st.stool_urine_next_due_date && st.stool_urine_next_due_date < today) {
+      } else if (st.stool_urine_status !== "not_applicable" && st.stool_urine_next_due_date && st.stool_urine_next_due_date < today) {
         issues.push({ label: "Stool & Urine Test", severity: "red", detail: `Overdue since ${st.stool_urine_next_due_date}` });
       }
     }
@@ -223,7 +223,7 @@ export default function EmployeeHealth() {
       else if (s.ppd_next_due_date && s.ppd_next_due_date < today) rows.push({ employee: emp, label: "PPD", dueDate: s.ppd_next_due_date, status: "overdue" });
       if (emp.is_kitchen_staff) {
         if (!s?.stool_urine_status) rows.push({ employee: emp, label: "Stool & Urine Test", dueDate: null, status: "missing" });
-        else if (s.stool_urine_next_due_date && s.stool_urine_next_due_date < today)
+        else if (s.stool_urine_status !== "not_applicable" && s.stool_urine_next_due_date && s.stool_urine_next_due_date < today)
           rows.push({ employee: emp, label: "Stool & Urine Test", dueDate: s.stool_urine_next_due_date, status: "overdue" });
       }
     }
@@ -651,6 +651,7 @@ export default function EmployeeHealth() {
                           <option value="">—</option>
                           <option value="done">Done</option>
                           <option value="refused">Refused</option>
+                          <option value="not_applicable">Not Applicable</option>
                         </select>
                       </td>
                       <td className="border-r border-amber-100 bg-amber-50/30 px-2 py-1">
