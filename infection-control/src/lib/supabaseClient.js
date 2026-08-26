@@ -30,4 +30,5 @@ export const supabase =
         disease_types: seed.disease_types,
         communicable_cases: seed.communicable_cases,
         users: seed.users,
+        messages: seed.messages,
       });

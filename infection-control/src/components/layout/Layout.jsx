@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   ClipboardList,
@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Menu,
+  MessageSquare,
   Package,
   Settings as SettingsIcon,
   ShieldAlert,
@@ -26,11 +27,34 @@ export default function Layout({ children }) {
   const { session, logout, isAdmin, canViewEmployeeHealth } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   function handleLogout() {
     logout();
     navigate("/login");
   }
+
+  // Powers the "Messages" badge — polled as a fallback, plus a realtime
+  // subscription so it updates instantly on a real Supabase backend.
+  useEffect(() => {
+    if (!session?.username) return;
+    let cancelled = false;
+    async function loadUnread() {
+      const { data } = await supabase.from("messages").select("id").eq("recipient_username", session.username).is("read_at", null);
+      if (!cancelled) setUnreadCount((data ?? []).length);
+    }
+    loadUnread();
+    const interval = setInterval(loadUnread, 15000);
+    let channel;
+    if (!supabase.isMock) {
+      channel = supabase.channel("layout-messages").on("postgres_changes", { event: "*", schema: "public", table: "messages" }, loadUnread).subscribe();
+    }
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [session?.username]);
 
   const navLinks = (
     <>
@@ -76,6 +100,15 @@ export default function Layout({ children }) {
           Settings
         </NavLink>
       )}
+      <NavLink to="/messages" className={linkClass} onClick={() => setSidebarOpen(false)}>
+        <MessageSquare className="h-4 w-4" />
+        Messages
+        {unreadCount > 0 && (
+          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </NavLink>
       <NavLink to="/profile" className={linkClass} onClick={() => setSidebarOpen(false)}>
         <UserCircle className="h-4 w-4" />
         Profile

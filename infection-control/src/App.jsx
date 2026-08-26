@@ -8,6 +8,7 @@ import Records from "./pages/Records.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Settings from "./pages/Settings.jsx";
 import Profile from "./pages/Profile.jsx";
+import Messages from "./pages/Messages.jsx";
 import StockRequests from "./pages/stock/StockRequests.jsx";
 import EmployeeHealth from "./pages/health/EmployeeHealth.jsx";
 import CommunicableCases from "./pages/cases/CommunicableCases.jsx";
@@ -83,6 +84,16 @@ export default function App() {
             <ProtectedRoute adminOnly>
               <Layout>
                 <CommunicableCases />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/messages"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Messages />
               </Layout>
             </ProtectedRoute>
           }
