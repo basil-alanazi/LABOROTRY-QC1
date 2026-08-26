@@ -481,3 +481,22 @@ export const users = [
     created_at: new Date().toISOString(),
   },
 ];
+
+export const messages = [
+  {
+    id: "msg-1",
+    sender_username: "ic",
+    recipient_username: "ward",
+    body: "Please double check the hand hygiene log for ICU today.",
+    read_at: null,
+    created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+  },
+  {
+    id: "msg-2",
+    sender_username: "ward",
+    recipient_username: "ic",
+    body: "Done, uploaded just now.",
+    read_at: new Date().toISOString(),
+    created_at: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
+  },
+];

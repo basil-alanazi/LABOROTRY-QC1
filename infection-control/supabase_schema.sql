@@ -451,3 +451,23 @@ create policy "allow all read case-attachments" on storage.objects for select us
 create policy "allow all insert case-attachments" on storage.objects for insert with check (bucket_id = 'case-attachments');
 create policy "allow all update case-attachments" on storage.objects for update using (bucket_id = 'case-attachments') with check (bucket_id = 'case-attachments');
 create policy "allow all delete case-attachments" on storage.objects for delete using (bucket_id = 'case-attachments');
+
+-- Internal messaging: any account can message any other account (a simple
+-- one-on-one chat, not tied to departments/roles like the rest of the app).
+create table if not exists messages (
+  id uuid primary key default gen_random_uuid(),
+  sender_username text not null,
+  recipient_username text not null,
+  body text not null,
+  read_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists messages_recipient_idx on messages (recipient_username, read_at);
+create index if not exists messages_sender_idx on messages (sender_username);
+
+alter table messages enable row level security;
+create policy "allow all messages" on messages for all using (true) with check (true);
+
+-- Powers live delivery on the Messages page (new messages/read receipts
+-- appear without a manual refresh).
+alter publication supabase_realtime add table messages;

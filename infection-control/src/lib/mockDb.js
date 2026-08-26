@@ -37,6 +37,10 @@ class QueryBuilder {
     this._filters.push((r) => typeof r[col] === "string" && r[col].toLowerCase() === pattern.toLowerCase());
     return this;
   }
+  is(col, val) {
+    this._filters.push((r) => r[col] === val);
+    return this;
+  }
   gte(col, val) {
     this._filters.push((r) => r[col] >= val);
     return this;
