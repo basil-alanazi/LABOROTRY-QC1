@@ -55,7 +55,10 @@ const emptyStatus = {
 };
 
 export default function EmployeeHealth() {
-  const { session, config } = useAuth();
+  const { session, config, isAdmin } = useAuth();
+  // Doctor accounts (staff granted "Employee Health access only") can view
+  // everything here but never edit — editing stays exclusive to IC/Owner.
+  const canEdit = isAdmin;
   const [tab, setTab] = useState("compliance");
   const [clinicGroup, setClinicGroup] = useState("regular"); // regular | kitchen
   const [clinicDeptFilter, setClinicDeptFilter] = useState("");
@@ -551,9 +554,11 @@ export default function EmployeeHealth() {
               return (
                 <tr key={emp.id} className="border-t border-slate-100 align-top">
                   <td className="sticky left-0 z-10 w-10 border-r border-slate-100 bg-white px-1 py-1 text-center">
-                    <button onClick={() => removeEmployee(emp)} title="Remove employee" className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {canEdit && (
+                      <button onClick={() => removeEmployee(emp)} title="Remove employee" className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </td>
                   <td className="sticky left-10 z-10 w-10 border-r border-slate-100 bg-white px-2 py-1">{idx + 1}</td>
                   <td className="sticky left-20 z-10 border-r border-slate-100 bg-white px-2 py-1">
@@ -566,31 +571,33 @@ export default function EmployeeHealth() {
                           employeeStatus(emp).severity === "red" ? "bg-red-500" : employeeStatus(emp).severity === "yellow" ? "bg-amber-400" : "bg-emerald-500"
                         }`}
                       />
-                      <input className="input-cell" value={emp.name} onChange={(e) => updateEmployeeField(emp.id, { name: e.target.value })} onBlur={() => saveEmployee(emp)} />
-                      <button
-                        type="button"
-                        title="Edit employee"
-                        onClick={() => setEditingEmployee({ ...emp })}
-                        className="shrink-0 rounded p-0.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
+                      <input className="input-cell" value={emp.name} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { name: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                      {canEdit && (
+                        <button
+                          type="button"
+                          title="Edit employee"
+                          onClick={() => setEditingEmployee({ ...emp })}
+                          className="shrink-0 rounded p-0.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input className="input-cell w-16" value={emp.employee_no} onChange={(e) => updateEmployeeField(emp.id, { employee_no: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                    <input className="input-cell w-16" value={emp.employee_no} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { employee_no: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input className="input-cell w-16" value={emp.file_no} onChange={(e) => updateEmployeeField(emp.id, { file_no: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                    <input className="input-cell w-16" value={emp.file_no} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { file_no: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input className="input-cell w-20" value={emp.iqama_no} onChange={(e) => updateEmployeeField(emp.id, { iqama_no: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                    <input className="input-cell w-20" value={emp.iqama_no} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { iqama_no: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input type="date" className="input-cell w-28" value={emp.date_of_birth || ""} onChange={(e) => updateEmployeeField(emp.id, { date_of_birth: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                    <input type="date" className="input-cell w-28" value={emp.date_of_birth || ""} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { date_of_birth: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input className="input-cell w-20" value={emp.phone} onChange={(e) => updateEmployeeField(emp.id, { phone: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                    <input className="input-cell w-20" value={emp.phone} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { phone: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1 whitespace-nowrap">{emp.department}</td>
 
@@ -598,6 +605,7 @@ export default function EmployeeHealth() {
                     <select
                       className="input-cell w-32"
                       value={s.investigation_status || "review_due"}
+                      disabled={!canEdit}
                       onChange={(e) => saveStatus(emp, { investigation_status: e.target.value })}
                     >
                       {INVESTIGATION_STATUSES.map((o) => (
@@ -611,6 +619,7 @@ export default function EmployeeHealth() {
                     <select
                       className="input-cell w-20"
                       value={s.ppd_status || ""}
+                      disabled={!canEdit}
                       onChange={(e) => saveStatus(emp, { ppd_status: e.target.value })}
                     >
                       <option value="">—</option>
@@ -623,6 +632,7 @@ export default function EmployeeHealth() {
                       className="input-cell w-24"
                       placeholder="e.g. Negative"
                       value={s.ppd_result || ""}
+                      disabled={!canEdit}
                       onChange={(e) => setStatusField(emp.id, { ppd_result: e.target.value })}
                       onBlur={() => saveStatusRow(emp)}
                     />
@@ -632,12 +642,13 @@ export default function EmployeeHealth() {
                       type="date"
                       className="input-cell w-28"
                       value={s.ppd_test_date || ""}
+                      disabled={!canEdit}
                       onChange={(e) => setStatusField(emp.id, { ppd_test_date: e.target.value, ppd_next_due_date: e.target.value ? addMonths(e.target.value, 12) : "" })}
                       onBlur={() => saveStatusRow(emp)}
                     />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input type="date" className="input-cell w-28" value={s.ppd_next_due_date || ""} onChange={(e) => setStatusField(emp.id, { ppd_next_due_date: e.target.value })} onBlur={() => saveStatusRow(emp)} />
+                    <input type="date" className="input-cell w-28" value={s.ppd_next_due_date || ""} disabled={!canEdit} onChange={(e) => setStatusField(emp.id, { ppd_next_due_date: e.target.value })} onBlur={() => saveStatusRow(emp)} />
                   </td>
 
                   {kitchenMode && (
@@ -646,6 +657,7 @@ export default function EmployeeHealth() {
                         <select
                           className="input-cell w-20"
                           value={s.stool_urine_status || ""}
+                          disabled={!canEdit}
                           onChange={(e) => saveStatus(emp, { stool_urine_status: e.target.value })}
                         >
                           <option value="">—</option>
@@ -659,18 +671,19 @@ export default function EmployeeHealth() {
                           type="date"
                           className="input-cell w-28"
                           value={s.stool_urine_test_date || ""}
+                          disabled={!canEdit}
                           onChange={(e) => setStatusField(emp.id, { stool_urine_test_date: e.target.value, stool_urine_next_due_date: e.target.value ? addMonths(e.target.value, 6) : "" })}
                           onBlur={() => saveStatusRow(emp)}
                         />
                       </td>
                       <td className="border-r border-amber-100 bg-amber-50/30 px-2 py-1">
-                        <input type="date" className="input-cell w-28" value={s.stool_urine_next_due_date || ""} onChange={(e) => setStatusField(emp.id, { stool_urine_next_due_date: e.target.value })} onBlur={() => saveStatusRow(emp)} />
+                        <input type="date" className="input-cell w-28" value={s.stool_urine_next_due_date || ""} disabled={!canEdit} onChange={(e) => setStatusField(emp.id, { stool_urine_next_due_date: e.target.value })} onBlur={() => saveStatusRow(emp)} />
                       </td>
                     </>
                   )}
 
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input className="input-cell w-32" value={s.icn_remarks || ""} onChange={(e) => setStatusField(emp.id, { icn_remarks: e.target.value })} onBlur={() => saveStatusRow(emp)} />
+                    <input className="input-cell w-32" value={s.icn_remarks || ""} disabled={!canEdit} onChange={(e) => setStatusField(emp.id, { icn_remarks: e.target.value })} onBlur={() => saveStatusRow(emp)} />
                   </td>
 
                   {slots.map(({ item, doses }) => {
@@ -678,7 +691,7 @@ export default function EmployeeHealth() {
                     return (
                       <Fragment key={item.id}>
                         <td className="border-r border-slate-100 px-2 py-1 text-center">
-                          <input type="checkbox" checked={requested} onChange={(e) => toggleVaccineRequest(emp, item, e.target.checked)} />
+                          <input type="checkbox" checked={requested} disabled={!canEdit} onChange={(e) => toggleVaccineRequest(emp, item, e.target.checked)} />
                         </td>
                         {doses.map((d) => (
                           <Fragment key={d}>
@@ -688,6 +701,7 @@ export default function EmployeeHealth() {
                                   type="date"
                                   className="input-cell w-28"
                                   value={getDoseField(emp.id, item.id, d, "date")}
+                                  disabled={!canEdit}
                                   onChange={(e) => setDoseField(emp.id, item.id, d, "date", e.target.value)}
                                   onBlur={() => saveDoseCell(emp, item, d)}
                                 />
@@ -698,6 +712,7 @@ export default function EmployeeHealth() {
                                 <input
                                   className="input-cell w-20"
                                   value={getDoseField(emp.id, item.id, d, "batch")}
+                                  disabled={!canEdit}
                                   onChange={(e) => setDoseField(emp.id, item.id, d, "batch", e.target.value)}
                                   onBlur={() => saveDoseCell(emp, item, d)}
                                 />
@@ -726,7 +741,7 @@ export default function EmployeeHealth() {
       </div>
 
       <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
-        {TABS.map((t) => (
+        {TABS.filter((t) => canEdit || t.key !== "employees").map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)} className={`rounded-md px-3 py-1 font-medium ${tab === t.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
             {t.label}
           </button>
@@ -819,16 +834,18 @@ export default function EmployeeHealth() {
                 onChange={(e) => setClinicSearch(e.target.value)}
                 placeholder="Search name / file no / emp #"
               />
-              <button
-                onClick={() => {
-                  setEmployeeForm({ ...emptyEmployeeForm, is_kitchen_staff: clinicGroup === "kitchen" });
-                  setShowQuickAdd((v) => !v);
-                }}
-                className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700"
-              >
-                <UserPlus className="h-3.5 w-3.5" />
-                Add Employee
-              </button>
+              {canEdit && (
+                <button
+                  onClick={() => {
+                    setEmployeeForm({ ...emptyEmployeeForm, is_kitchen_staff: clinicGroup === "kitchen" });
+                    setShowQuickAdd((v) => !v);
+                  }}
+                  className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  Add Employee
+                </button>
+              )}
               <button onClick={exportExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
                 <FileSpreadsheet className="h-3.5 w-3.5" />
                 Export Excel
@@ -839,7 +856,7 @@ export default function EmployeeHealth() {
               </button>
             </div>
           </div>
-          {showQuickAdd && (
+          {showQuickAdd && canEdit && (
             <form
               onSubmit={(e) => {
                 handleAddEmployee(e);
@@ -911,7 +928,7 @@ export default function EmployeeHealth() {
         </div>
       )}
 
-      {tab === "employees" && (
+      {tab === "employees" && canEdit && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3">
             {employees.map((emp) => (
