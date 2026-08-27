@@ -480,6 +480,18 @@ export const users = [
     must_change_password: false,
     created_at: new Date().toISOString(),
   },
+  {
+    id: "user-doctor",
+    username: "doctor",
+    password: "doctor123",
+    display_name: "Dr. Sample",
+    role: "staff",
+    department: null,
+    can_view_employee_health: true,
+    active: true,
+    must_change_password: false,
+    created_at: new Date().toISOString(),
+  },
 ];
 
 export const messages = [
