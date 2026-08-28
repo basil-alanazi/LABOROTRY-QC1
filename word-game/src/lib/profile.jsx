@@ -43,14 +43,27 @@ export function ProfileProvider({ children }) {
   async function createProfile({ displayName }) {
     const id = getOrCreateGuestId()
     const username = 'guest_' + id.replace(/-/g, '').slice(0, 10)
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert({ id, username, display_name: displayName.trim() })
-      .select()
-      .single()
-    if (error) throw error
-    setProfile(data)
-    return data
+    const display_name = displayName.trim()
+
+    const { error: insertError } = await supabase.from('profiles').insert({ id, username, display_name })
+    // 23505 = unique_violation: this guest id already has a row (e.g. retry after a slow/blocked response)
+    if (insertError && insertError.code !== '23505') throw insertError
+
+    const { data } = await supabase.from('profiles').select('*').eq('id', id).maybeSingle()
+    const row =
+      data || {
+        id,
+        username,
+        display_name,
+        avatar_url: null,
+        total_points: 0,
+        games_played: 0,
+        wins: 0,
+        best_score: 0,
+        level: 1,
+      }
+    setProfile(row)
+    return row
   }
 
   async function updateProfile(fields) {

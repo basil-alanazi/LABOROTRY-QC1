@@ -19,7 +19,12 @@ export default function Onboarding() {
     try {
       await createProfile({ displayName: name })
     } catch (err) {
-      setError(err.message || 'صار خطأ، حاول مرة ثانية')
+      const msg = err?.message || ''
+      if (/load failed|fetch|network|failed to fetch/i.test(msg)) {
+        setError('تعذر الاتصال بالخادم. تأكد من اتصال الإنترنت وحاول مرة ثانية')
+      } else {
+        setError(msg || 'صار خطأ، حاول مرة ثانية')
+      }
     } finally {
       setLoading(false)
     }
