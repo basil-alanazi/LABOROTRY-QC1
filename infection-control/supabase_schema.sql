@@ -471,3 +471,41 @@ create policy "allow all messages" on messages for all using (true) with check (
 -- Powers live delivery on the Messages page (new messages/read receipts
 -- appear without a manual refresh).
 alter publication supabase_realtime add table messages;
+
+-- Daily IC Rounds: a simple daily MET/NOT MET check per department/unit
+-- (separate from — and simpler than — the detailed per-patient Ward Round
+-- bundles). A NOT MET round carries its own finding/corrective-action
+-- tracking fields, mirroring the clinic's paper "Daily Infection Control
+-- Rounds" sheet (round block + finding/attachment/corrective action/date
+-- of discussion/open-close status).
+alter table app_config add column if not exists ic_round_departments jsonb not null default '["Male Ward","Female Ward","ICU","NICU","Surgery","OB/GYN","Emergency","OPD"]'::jsonb;
+
+create table if not exists ic_rounds (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  department text not null,
+  result text not null default 'met', -- 'met' | 'not_met'
+  finding text not null default '',
+  attachment_path text,
+  attachment_name text,
+  corrective_action text not null default '',
+  date_of_discussion date,
+  status text not null default 'open', -- 'open' | 'closed' — only meaningful when result = 'not_met'
+  done_by text not null default '',
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table ic_rounds enable row level security;
+create policy "allow all ic_rounds" on ic_rounds for all using (true) with check (true);
+
+insert into storage.buckets (id, name, public)
+values ('ic-round-attachments', 'ic-round-attachments', true)
+on conflict (id) do nothing;
+
+create policy "allow all read ic-round-attachments" on storage.objects for select using (bucket_id = 'ic-round-attachments');
+create policy "allow all insert ic-round-attachments" on storage.objects for insert with check (bucket_id = 'ic-round-attachments');
+create policy "allow all update ic-round-attachments" on storage.objects for update using (bucket_id = 'ic-round-attachments') with check (bucket_id = 'ic-round-attachments');
+create policy "allow all delete ic-round-attachments" on storage.objects for delete using (bucket_id = 'ic-round-attachments');
