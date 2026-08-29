@@ -17,8 +17,6 @@ export const supabase =
     ? createClient(url, key)
     : createMockClient({
         app_config: [seed.app_config],
-        checklist_types: seed.checklist_types,
-        ward_round_audits: seed.ward_round_audits,
         hh_observations: seed.hh_observations,
         stock_items: seed.stock_items,
         stock_requests: seed.stock_requests,
