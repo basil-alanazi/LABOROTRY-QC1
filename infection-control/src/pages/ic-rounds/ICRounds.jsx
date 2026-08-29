@@ -126,6 +126,17 @@ export default function ICRounds() {
     }
   }
 
+  function updateRoundField(id, patch) {
+    setRounds((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }
+
+  async function saveRoundFields(r) {
+    await supabase
+      .from("ic_rounds")
+      .update({ finding: r.finding, corrective_action: r.corrective_action, date_of_discussion: r.date_of_discussion || null })
+      .eq("id", r.id);
+  }
+
   async function toggleStatus(r) {
     await supabase.from("ic_rounds").update({ status: r.status === "closed" ? "open" : "closed" }).eq("id", r.id);
     loadAll();
@@ -298,6 +309,8 @@ export default function ICRounds() {
                 onDelete={() => removeRound(r)}
                 onToggleStatus={() => toggleStatus(r)}
                 onUpload={(f) => uploadMissing(r, f)}
+                onFieldChange={(patch) => updateRoundField(r.id, patch)}
+                onFieldSave={() => saveRoundFields(rounds.find((x) => x.id === r.id))}
               />
             ))}
           </tbody>
@@ -309,7 +322,7 @@ export default function ICRounds() {
   );
 }
 
-function RoundRow({ r, expanded, onToggle, onDelete, onToggleStatus, onUpload }) {
+function RoundRow({ r, expanded, onToggle, onDelete, onToggleStatus, onUpload, onFieldChange, onFieldSave }) {
   const notMet = r.result === "not_met";
   return (
     <>
@@ -346,15 +359,34 @@ function RoundRow({ r, expanded, onToggle, onDelete, onToggleStatus, onUpload })
             <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-lg bg-white px-3 py-2 text-xs">
                 <p className="mb-1 font-medium text-slate-500">Finding / Observation</p>
-                <p className="text-slate-700">{r.finding || "—"}</p>
+                <textarea
+                  className="input min-h-[60px] text-xs"
+                  value={r.finding || ""}
+                  onChange={(e) => onFieldChange({ finding: e.target.value })}
+                  onBlur={onFieldSave}
+                />
               </div>
               <div className="rounded-lg bg-white px-3 py-2 text-xs">
                 <p className="mb-1 font-medium text-slate-500">Corrective Action</p>
-                <p className="text-slate-700">{r.corrective_action || "—"}</p>
+                <textarea
+                  className="input min-h-[60px] text-xs"
+                  value={r.corrective_action || ""}
+                  onChange={(e) => onFieldChange({ corrective_action: e.target.value })}
+                  onBlur={onFieldSave}
+                />
               </div>
             </div>
             <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-              <span>Date of discussion: {r.date_of_discussion || "—"}</span>
+              <label className="flex items-center gap-1.5">
+                Date of discussion:
+                <input
+                  type="date"
+                  className="input-cell w-32"
+                  value={r.date_of_discussion || ""}
+                  onChange={(e) => onFieldChange({ date_of_discussion: e.target.value })}
+                  onBlur={onFieldSave}
+                />
+              </label>
               <span>Recorded by: {r.done_by || "—"}</span>
               <AttachmentSlot path={r.attachment_path} name={r.attachment_name} onUpload={onUpload} />
               <button
