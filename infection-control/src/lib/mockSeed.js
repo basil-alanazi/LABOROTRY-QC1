@@ -253,6 +253,8 @@ const EMPLOYEE_DEPARTMENTS = [
 ];
 
 const IC_ROUND_DEPARTMENTS = ["Male Ward", "Female Ward", "ICU", "NICU", "Surgery", "OB/GYN", "Emergency", "OPD"];
+const CULTURE_TRACKER_ITEMS = ["Dental 1", "Dental 2", "Hospital 6 Month CS", "Hospital 12 Month CS"];
+const AGREEMENT_TRACKER_ENTITIES = ["SEPCO", "Pest Control", "Intra Department"];
 
 export const app_config = {
   id: 1,
@@ -263,6 +265,8 @@ export const app_config = {
   stock_departments: STOCK_DEPARTMENTS,
   employee_departments: EMPLOYEE_DEPARTMENTS,
   ic_round_departments: IC_ROUND_DEPARTMENTS,
+  culture_tracker_items: CULTURE_TRACKER_ITEMS,
+  agreement_tracker_entities: AGREEMENT_TRACKER_ENTITIES,
 };
 
 export const ic_rounds = [
@@ -293,6 +297,64 @@ export const ic_rounds = [
     date_of_discussion: today,
     status: "open",
     done_by: "ic",
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+];
+
+export const baladiya_licenses = [
+  {
+    id: "lic-1",
+    employee_no: "E-1001",
+    name: "Amal Al-Harbi",
+    file_no: "F-201",
+    department: "Nursing",
+    issue_date: "2024-01-15",
+    expiry_date: "2026-01-15",
+    attachment_path: null,
+    attachment_name: null,
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+];
+
+export const policy_tracker = [
+  {
+    id: "pol-1",
+    policy_name: "Hand Hygiene Policy",
+    policy_no: "POL-014",
+    issue_date: "2023-06-01",
+    revision_date: "2023-06-01",
+    expiry_date: "2026-06-01",
+    attachment_path: null,
+    attachment_name: null,
+    renewed: false,
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+];
+
+export const culture_tracker = [
+  {
+    id: "cul-1",
+    item: "Dental 1",
+    sent_on: today,
+    next_due: null,
+    attachment_path: null,
+    attachment_name: null,
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+];
+
+export const agreement_tracker = [
+  {
+    id: "agr-1",
+    entity: "SEPCO",
+    renewed_on: today,
+    next_due: null,
+    attachment_path: null,
+    attachment_name: null,
     deleted: false,
     created_at: new Date().toISOString(),
   },

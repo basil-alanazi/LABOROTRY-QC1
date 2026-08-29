@@ -32,4 +32,8 @@ export const supabase =
         users: seed.users,
         messages: seed.messages,
         ic_rounds: seed.ic_rounds,
+        baladiya_licenses: seed.baladiya_licenses,
+        policy_tracker: seed.policy_tracker,
+        culture_tracker: seed.culture_tracker,
+        agreement_tracker: seed.agreement_tracker,
       });
