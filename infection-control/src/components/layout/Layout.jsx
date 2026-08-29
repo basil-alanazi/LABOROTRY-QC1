@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
+  ClipboardCheck,
   ClipboardList,
   HeartPulse,
   LayoutDashboard,
@@ -86,6 +87,12 @@ export default function Layout({ children }) {
         <NavLink to="/cases" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <ShieldAlert className="h-4 w-4" />
           Suspected/Confirmed Cases
+        </NavLink>
+      )}
+      {isAdmin && (
+        <NavLink to="/ic-rounds" className={linkClass} onClick={() => setSidebarOpen(false)}>
+          <ClipboardCheck className="h-4 w-4" />
+          Daily IC Rounds
         </NavLink>
       )}
       {(isAdmin || !session?.canViewEmployeeHealth) && (

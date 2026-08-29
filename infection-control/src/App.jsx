@@ -12,6 +12,7 @@ import Messages from "./pages/Messages.jsx";
 import StockRequests from "./pages/stock/StockRequests.jsx";
 import EmployeeHealth from "./pages/health/EmployeeHealth.jsx";
 import CommunicableCases from "./pages/cases/CommunicableCases.jsx";
+import ICRounds from "./pages/ic-rounds/ICRounds.jsx";
 
 export default function App() {
   return (
@@ -84,6 +85,16 @@ export default function App() {
             <ProtectedRoute adminOnly>
               <Layout>
                 <CommunicableCases />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ic-rounds"
+          element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <ICRounds />
               </Layout>
             </ProtectedRoute>
           }

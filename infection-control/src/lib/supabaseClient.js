@@ -31,4 +31,5 @@ export const supabase =
         communicable_cases: seed.communicable_cases,
         users: seed.users,
         messages: seed.messages,
+        ic_rounds: seed.ic_rounds,
       });

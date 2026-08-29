@@ -45,6 +45,8 @@ export default function Settings() {
   const [stockItemsFilterDept, setStockItemsFilterDept] = useState("");
   const [employeeDepartments, setEmployeeDepartments] = useState([]);
   const [newEmployeeDept, setNewEmployeeDept] = useState("");
+  const [icRoundDepartments, setIcRoundDepartments] = useState([]);
+  const [newIcRoundDept, setNewIcRoundDept] = useState("");
   const [healthItemTypes, setHealthItemTypes] = useState([]);
   const [newHealthItem, setNewHealthItem] = useState(emptyNewHealthItem);
   const [diseaseTypes, setDiseaseTypes] = useState([]);
@@ -63,6 +65,7 @@ export default function Settings() {
       setHhDepartmentObservers(config.hh_department_observers ?? {});
       setStockDepartments(config.stock_departments ?? []);
       setEmployeeDepartments(config.employee_departments ?? []);
+      setIcRoundDepartments(config.ic_round_departments ?? []);
     }
   }, [config]);
 
@@ -287,6 +290,24 @@ export default function Settings() {
 
   function removeEmployeeDept(name) {
     saveEmployeeDepartments(employeeDepartments.filter((d) => d !== name));
+  }
+
+  async function saveIcRoundDepartments(next) {
+    setIcRoundDepartments(next);
+    await supabase.from("app_config").update({ ic_round_departments: next }).eq("id", 1);
+    reloadConfig();
+    flash("IC round departments saved");
+  }
+
+  function addIcRoundDept() {
+    const name = newIcRoundDept.trim();
+    if (!name || icRoundDepartments.includes(name)) return;
+    saveIcRoundDepartments([...icRoundDepartments, name]);
+    setNewIcRoundDept("");
+  }
+
+  function removeIcRoundDept(name) {
+    saveIcRoundDepartments(icRoundDepartments.filter((d) => d !== name));
   }
 
   function updateHealthItemType(id, patch) {
@@ -521,6 +542,28 @@ export default function Settings() {
         <div className="flex gap-2">
           <input className="input" value={newDept} onChange={(e) => setNewDept(e.target.value)} placeholder="New department name" />
           <button onClick={addDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+            <Plus className="h-4 w-4" />
+            Add
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">Daily IC Round Departments</h2>
+        <p className="mb-4 text-xs text-slate-500">Separate department list used only by the Daily IC Rounds module.</p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {icRoundDepartments.map((d) => (
+            <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
+              {d}
+              <button onClick={() => removeIcRoundDept(d)} className="text-teal-400 hover:text-red-500">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input className="input" value={newIcRoundDept} onChange={(e) => setNewIcRoundDept(e.target.value)} placeholder="New department name" />
+          <button onClick={addIcRoundDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
             Add
           </button>

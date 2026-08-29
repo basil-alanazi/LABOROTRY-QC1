@@ -87,7 +87,11 @@ class QueryBuilder {
 
     if (this._op === "insert") {
       const items = Array.isArray(this._payload) ? this._payload : [this._payload];
-      const inserted = items.map((it) => ({ id: uid(), created_at: new Date().toISOString(), ...it }));
+      // Real Postgres fills a "not null default false" column when an insert
+      // omits it (every table's soft-delete "deleted" flag relies on this) —
+      // mimic that here so an app insert that never sets `deleted` doesn't
+      // silently vanish from any `.eq("deleted", false)` list in preview mode.
+      const inserted = items.map((it) => ({ id: uid(), created_at: new Date().toISOString(), deleted: false, ...it }));
       this.store.set(this.table, [...rows, ...inserted]);
       return { data: inserted, error: null };
     }

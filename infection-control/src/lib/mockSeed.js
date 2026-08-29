@@ -252,6 +252,8 @@ const EMPLOYEE_DEPARTMENTS = [
   "Other",
 ];
 
+const IC_ROUND_DEPARTMENTS = ["Male Ward", "Female Ward", "ICU", "NICU", "Surgery", "OB/GYN", "Emergency", "OPD"];
+
 export const app_config = {
   id: 1,
   departments: DEPARTMENTS,
@@ -260,7 +262,41 @@ export const app_config = {
   hh_department_observers: {},
   stock_departments: STOCK_DEPARTMENTS,
   employee_departments: EMPLOYEE_DEPARTMENTS,
+  ic_round_departments: IC_ROUND_DEPARTMENTS,
 };
+
+export const ic_rounds = [
+  {
+    id: "icr-1",
+    date: today,
+    department: "Male Ward",
+    result: "met",
+    finding: "",
+    attachment_path: null,
+    attachment_name: null,
+    corrective_action: "",
+    date_of_discussion: null,
+    status: "open",
+    done_by: "ic",
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "icr-2",
+    date: today,
+    department: "Female Ward",
+    result: "not_met",
+    finding: "Staff failed to discard waste after procedure",
+    attachment_path: null,
+    attachment_name: null,
+    corrective_action: "Discussed on area manager meeting, needed training and close observation; comments closed after 1 week.",
+    date_of_discussion: today,
+    status: "open",
+    done_by: "ic",
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+];
 
 export const hh_observations = [
   {
