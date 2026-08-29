@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, FileSpreadsheet, FileText, Paperclip, Plus, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileSpreadsheet, FileText, Paperclip, Plus, Trash2, Upload } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
@@ -47,8 +47,8 @@ export default function ICRounds() {
   const [form, setForm] = useState(emptyForm);
   const [newAttachments, setNewAttachments] = useState([]);
   const [message, setMessage] = useState(null);
-  const [expanded, setExpanded] = useState(null);
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterDept, setFilterDept] = useState("");
 
   const departments = config?.ic_round_departments ?? [];
 
@@ -72,10 +72,12 @@ export default function ICRounds() {
 
   const openCount = useMemo(() => rounds.filter((r) => r.result === "not_met" && r.status !== "closed").length, [rounds]);
   const visibleRounds = useMemo(() => {
-    if (!filterStatus) return rounds;
-    if (filterStatus === "not_met") return rounds.filter((r) => r.result === "not_met");
-    return rounds.filter((r) => r.result === "not_met" && r.status === filterStatus);
-  }, [rounds, filterStatus]);
+    let list = rounds;
+    if (filterDept) list = list.filter((r) => r.department === filterDept);
+    if (filterStatus === "not_met") list = list.filter((r) => r.result === "not_met");
+    else if (filterStatus) list = list.filter((r) => r.result === "not_met" && r.status === filterStatus);
+    return list;
+  }, [rounds, filterStatus, filterDept]);
 
   async function uploadFile(file, department) {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -166,11 +168,11 @@ export default function ICRounds() {
   }
 
   function exportExcel() {
-    downloadExcel(`infection-control-ic-rounds-${todayStr()}`, [{ name: "IC Rounds", headers: REPORT_HEADERS, rows: rounds.map(toReportRow) }]);
+    downloadExcel(`infection-control-ic-rounds-${todayStr()}`, [{ name: "IC Rounds", headers: REPORT_HEADERS, rows: visibleRounds.map(toReportRow) }]);
   }
 
   function exportPdf() {
-    downloadPdf(`infection-control-ic-rounds-${todayStr()}`, "Infection Control — Daily IC Rounds", [{ headers: REPORT_HEADERS, rows: rounds.map(toReportRow) }]);
+    downloadPdf(`infection-control-ic-rounds-${todayStr()}`, "Infection Control — Daily IC Rounds", [{ headers: REPORT_HEADERS, rows: visibleRounds.map(toReportRow) }]);
   }
 
   return (
@@ -183,7 +185,7 @@ export default function ICRounds() {
         <div className="flex gap-2">
           <button
             onClick={exportExcel}
-            disabled={rounds.length === 0}
+            disabled={visibleRounds.length === 0}
             className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
           >
             <FileSpreadsheet className="h-3.5 w-3.5" />
@@ -191,7 +193,7 @@ export default function ICRounds() {
           </button>
           <button
             onClick={exportPdf}
-            disabled={rounds.length === 0}
+            disabled={visibleRounds.length === 0}
             className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
           >
             <FileText className="h-3.5 w-3.5" />
@@ -279,22 +281,33 @@ export default function ICRounds() {
         </button>
       </form>
 
-      <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
-        {[
-          { key: "", label: "All" },
-          { key: "not_met", label: "NOT MET" },
-          { key: "open", label: "Open" },
-          { key: "closed", label: "Closed" },
-        ].map((o) => (
-          <button
-            key={o.key}
-            onClick={() => setFilterStatus(o.key)}
-            className={`rounded-md px-3 py-1 font-medium ${filterStatus === o.key ? "bg-teal-600 text-white" : "text-slate-500"}`}
-          >
-            {o.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+          {[
+            { key: "", label: "All" },
+            { key: "not_met", label: "NOT MET" },
+            { key: "open", label: "Open" },
+            { key: "closed", label: "Closed" },
+          ].map((o) => (
+            <button
+              key={o.key}
+              onClick={() => setFilterStatus(o.key)}
+              className={`rounded-md px-3 py-1 font-medium ${filterStatus === o.key ? "bg-teal-600 text-white" : "text-slate-500"}`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <select className="input w-44" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
+          <option value="">All Departments</option>
+          {departments.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
       </div>
+      <p className="text-xs text-slate-500">Export Excel/PDF exports exactly what's shown below — filter by department and/or status first.</p>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
@@ -312,8 +325,6 @@ export default function ICRounds() {
               <RoundRow
                 key={r.id}
                 r={r}
-                expanded={expanded === r.id}
-                onToggle={() => setExpanded(expanded === r.id ? null : r.id)}
                 onDelete={() => removeRound(r)}
                 onToggleStatus={() => toggleStatus(r)}
                 onAddAttachment={(files) => addAttachment(r, files)}
@@ -331,7 +342,7 @@ export default function ICRounds() {
   );
 }
 
-function RoundRow({ r, expanded, onToggle, onDelete, onToggleStatus, onAddAttachment, onRemoveAttachment, onFieldChange, onFieldSave }) {
+function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttachment, onFieldChange, onFieldSave }) {
   const notMet = r.result === "not_met";
   return (
     <>
@@ -355,14 +366,9 @@ function RoundRow({ r, expanded, onToggle, onDelete, onToggleStatus, onAddAttach
           <button onClick={onDelete} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
             <Trash2 className="h-4 w-4" />
           </button>
-          {notMet && (
-            <button onClick={onToggle} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
-              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-          )}
         </td>
       </tr>
-      {expanded && notMet && (
+      {notMet && (
         <tr className="border-t border-slate-100 bg-slate-50/60">
           <td colSpan={5} className="px-4 py-4">
             <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
