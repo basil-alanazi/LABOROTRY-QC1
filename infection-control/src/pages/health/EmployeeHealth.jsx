@@ -63,6 +63,7 @@ export default function EmployeeHealth() {
   const [clinicGroup, setClinicGroup] = useState("regular"); // regular | kitchen
   const [clinicDeptFilter, setClinicDeptFilter] = useState("");
   const [clinicSearch, setClinicSearch] = useState("");
+  const [pendingOnlyExport, setPendingOnlyExport] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [itemTypes, setItemTypes] = useState([]);
@@ -479,19 +480,33 @@ export default function EmployeeHealth() {
     return [r.date_given, emp?.name || "", emp?.employee_no || "", emp?.department || "", r.item_name, r.dose_number, r.batch_no, r.next_due_date || "", r.recorded_by];
   }
 
+  // Exports mirror whatever the on-screen grid is currently showing
+  // (department + search filters), optionally narrowed further to only
+  // employees with an open issue (PPD/investigation/stool-urine/vaccine
+  // pending or overdue) when "Pending only" is checked.
+  function exportSet(list) {
+    return pendingOnlyExport ? list.filter((e) => employeeStatus(e).severity !== "green") : list;
+  }
+
   function exportExcel() {
+    const regExport = exportSet(visibleRegularEmployees);
+    const kitExport = exportSet(visibleKitchenEmployees);
+    const exportedIds = new Set([...regExport, ...kitExport].map((e) => e.id));
     downloadExcel(`infection-control-employee-clinic-${todayStr()}`, [
-      { name: "Regular Staff", headers: buildGridHeaders(regularVaccines, false), rows: regularEmployees.map((e, i) => buildGridRow(e, i + 1, regularVaccines, false)) },
-      { name: "Kitchen Staff", headers: buildGridHeaders(kitchenVaccines, true), rows: kitchenEmployees.map((e, i) => buildGridRow(e, i + 1, kitchenVaccines, true)) },
-      { name: "Vaccination Log", headers: REPORT_HEADERS, rows: records.map(toReportRow) },
+      { name: "Regular Staff", headers: buildGridHeaders(regularVaccines, false), rows: regExport.map((e, i) => buildGridRow(e, i + 1, regularVaccines, false)) },
+      { name: "Kitchen Staff", headers: buildGridHeaders(kitchenVaccines, true), rows: kitExport.map((e, i) => buildGridRow(e, i + 1, kitchenVaccines, true)) },
+      { name: "Vaccination Log", headers: REPORT_HEADERS, rows: records.filter((r) => exportedIds.has(r.employee_id)).map(toReportRow) },
     ]);
   }
 
   function exportPdf() {
+    const regExport = exportSet(visibleRegularEmployees);
+    const kitExport = exportSet(visibleKitchenEmployees);
+    const exportedIds = new Set([...regExport, ...kitExport].map((e) => e.id));
     downloadPdf(`infection-control-employee-clinic-${todayStr()}`, "Infection Control — Employee Clinic", [
-      ...pdfTablesForGroup("Regular Staff", regularEmployees, regularVaccines, false),
-      ...pdfTablesForGroup("Kitchen Staff", kitchenEmployees, kitchenVaccines, true),
-      { title: "Vaccination Log", headers: REPORT_HEADERS, rows: records.map(toReportRow) },
+      ...pdfTablesForGroup("Regular Staff", regExport, regularVaccines, false),
+      ...pdfTablesForGroup("Kitchen Staff", kitExport, kitchenVaccines, true),
+      { title: "Vaccination Log", headers: REPORT_HEADERS, rows: records.filter((r) => exportedIds.has(r.employee_id)).map(toReportRow) },
     ]);
   }
 
@@ -846,6 +861,10 @@ export default function EmployeeHealth() {
                   Add Employee
                 </button>
               )}
+              <label className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600">
+                <input type="checkbox" checked={pendingOnlyExport} onChange={(e) => setPendingOnlyExport(e.target.checked)} />
+                Pending only
+              </label>
               <button onClick={exportExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
                 <FileSpreadsheet className="h-3.5 w-3.5" />
                 Export Excel
