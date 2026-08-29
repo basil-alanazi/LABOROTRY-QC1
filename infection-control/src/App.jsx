@@ -13,6 +13,7 @@ import StockRequests from "./pages/stock/StockRequests.jsx";
 import EmployeeHealth from "./pages/health/EmployeeHealth.jsx";
 import CommunicableCases from "./pages/cases/CommunicableCases.jsx";
 import ICRounds from "./pages/ic-rounds/ICRounds.jsx";
+import Trackers from "./pages/trackers/Trackers.jsx";
 
 export default function App() {
   return (
@@ -95,6 +96,16 @@ export default function App() {
             <ProtectedRoute adminOnly>
               <Layout>
                 <ICRounds />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trackers"
+          element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <Trackers />
               </Layout>
             </ProtectedRoute>
           }

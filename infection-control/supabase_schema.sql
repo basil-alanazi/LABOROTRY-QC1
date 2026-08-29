@@ -509,3 +509,91 @@ create policy "allow all read ic-round-attachments" on storage.objects for selec
 create policy "allow all insert ic-round-attachments" on storage.objects for insert with check (bucket_id = 'ic-round-attachments');
 create policy "allow all update ic-round-attachments" on storage.objects for update using (bucket_id = 'ic-round-attachments') with check (bucket_id = 'ic-round-attachments');
 create policy "allow all delete ic-round-attachments" on storage.objects for delete using (bucket_id = 'ic-round-attachments');
+
+-- Trackers: 4 independent renewal/expiry logs (municipality "Baladiya" work
+-- license per employee, hospital policy 3-year renewal, culture/swab
+-- submissions per area, and vendor/service agreement renewals). Every date
+-- field is always freely editable by hand — any auto-filled default (e.g.
+-- policy expiry = issue date + 3 years) is just a starting point, not a lock.
+create table if not exists baladiya_licenses (
+  id uuid primary key default gen_random_uuid(),
+  employee_no text not null default '',
+  name text not null,
+  file_no text not null default '',
+  department text not null default '',
+  issue_date date,
+  expiry_date date,
+  attachment_path text,
+  attachment_name text,
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists policy_tracker (
+  id uuid primary key default gen_random_uuid(),
+  policy_name text not null,
+  policy_no text not null default '',
+  issue_date date,
+  revision_date date,
+  expiry_date date,
+  attachment_path text,
+  attachment_name text,
+  renewed boolean not null default false,
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists culture_tracker (
+  id uuid primary key default gen_random_uuid(),
+  item text not null,
+  sent_on date,
+  next_due date,
+  attachment_path text,
+  attachment_name text,
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists agreement_tracker (
+  id uuid primary key default gen_random_uuid(),
+  entity text not null,
+  renewed_on date,
+  next_due date,
+  attachment_path text,
+  attachment_name text,
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table baladiya_licenses enable row level security;
+alter table policy_tracker enable row level security;
+alter table culture_tracker enable row level security;
+alter table agreement_tracker enable row level security;
+create policy "allow all baladiya_licenses" on baladiya_licenses for all using (true) with check (true);
+create policy "allow all policy_tracker" on policy_tracker for all using (true) with check (true);
+create policy "allow all culture_tracker" on culture_tracker for all using (true) with check (true);
+create policy "allow all agreement_tracker" on agreement_tracker for all using (true) with check (true);
+
+-- Culture/Agreement trackers pick from their own editable list (Settings),
+-- same convention as every other module's department list. The license
+-- tracker reuses the existing employee_departments list since its
+-- "department" is a real employee attribute, not a tracker-specific one.
+alter table app_config add column if not exists culture_tracker_items jsonb not null default '["Dental 1","Dental 2","Hospital 6 Month CS","Hospital 12 Month CS"]'::jsonb;
+alter table app_config add column if not exists agreement_tracker_entities jsonb not null default '["SEPCO","Pest Control","Intra Department"]'::jsonb;
+
+insert into storage.buckets (id, name, public)
+values ('tracker-attachments', 'tracker-attachments', true)
+on conflict (id) do nothing;
+
+create policy "allow all read tracker-attachments" on storage.objects for select using (bucket_id = 'tracker-attachments');
+create policy "allow all insert tracker-attachments" on storage.objects for insert with check (bucket_id = 'tracker-attachments');
+create policy "allow all update tracker-attachments" on storage.objects for update using (bucket_id = 'tracker-attachments') with check (bucket_id = 'tracker-attachments');
+create policy "allow all delete tracker-attachments" on storage.objects for delete using (bucket_id = 'tracker-attachments');
