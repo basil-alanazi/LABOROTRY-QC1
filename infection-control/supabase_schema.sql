@@ -486,8 +486,7 @@ create table if not exists ic_rounds (
   department text not null,
   result text not null default 'met', -- 'met' | 'not_met'
   finding text not null default '',
-  attachment_path text,
-  attachment_name text,
+  attachments jsonb not null default '[]'::jsonb, -- [{ path, name }, ...] — a NOT MET round can carry more than one
   corrective_action text not null default '',
   date_of_discussion date,
   status text not null default 'open', -- 'open' | 'closed' — only meaningful when result = 'not_met'

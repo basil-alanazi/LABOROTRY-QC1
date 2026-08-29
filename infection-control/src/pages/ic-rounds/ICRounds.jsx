@@ -24,7 +24,7 @@ const emptyForm = {
   date_of_discussion: "",
 };
 
-const REPORT_HEADERS = ["Date", "Department", "Result", "Finding / Observation", "Corrective Action", "Date of Discussion", "Status", "Recorded By"];
+const REPORT_HEADERS = ["Date", "Department", "Result", "Finding / Observation", "Corrective Action", "Date of Discussion", "Status", "Attachments", "Recorded By"];
 
 function toReportRow(r) {
   return [
@@ -35,6 +35,7 @@ function toReportRow(r) {
     r.corrective_action,
     r.date_of_discussion || "",
     r.result === "not_met" ? (r.status === "closed" ? "Closed" : "Open") : "",
+    (r.attachments ?? []).map((a) => a.name).join(", "),
     r.done_by,
   ];
 }
@@ -44,7 +45,7 @@ export default function ICRounds() {
   const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
-  const [attachment, setAttachment] = useState(null);
+  const [newAttachments, setNewAttachments] = useState([]);
   const [message, setMessage] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [filterStatus, setFilterStatus] = useState("");
@@ -95,9 +96,9 @@ export default function ICRounds() {
       return;
     }
 
-    let a = { path: null, name: null };
+    let uploaded = [];
     try {
-      if (attachment) a = await uploadFile(attachment, form.department);
+      uploaded = await Promise.all(newAttachments.map((f) => uploadFile(f, form.department)));
     } catch (err) {
       flash({ type: "error", text: "Could not upload attachment: " + err.message });
       return;
@@ -108,8 +109,7 @@ export default function ICRounds() {
       department: form.department,
       result: form.result,
       finding: form.result === "not_met" ? form.finding.trim() : "",
-      attachment_path: a.path,
-      attachment_name: a.name,
+      attachments: uploaded,
       corrective_action: form.result === "not_met" ? form.corrective_action.trim() : "",
       date_of_discussion: form.result === "not_met" ? form.date_of_discussion || null : null,
       status: "open",
@@ -121,7 +121,7 @@ export default function ICRounds() {
     } else {
       flash({ type: "success", text: "Round saved" });
       setForm({ ...emptyForm, date: form.date });
-      setAttachment(null);
+      setNewAttachments([]);
       loadAll();
     }
   }
@@ -142,14 +142,21 @@ export default function ICRounds() {
     loadAll();
   }
 
-  async function uploadMissing(r, file) {
+  async function addAttachment(r, files) {
     try {
-      const { path, name } = await uploadFile(file, r.department);
-      await supabase.from("ic_rounds").update({ attachment_path: path, attachment_name: name }).eq("id", r.id);
-      loadAll();
+      const uploaded = await Promise.all(Array.from(files).map((f) => uploadFile(f, r.department)));
+      const next = [...(r.attachments ?? []), ...uploaded];
+      updateRoundField(r.id, { attachments: next });
+      await supabase.from("ic_rounds").update({ attachments: next }).eq("id", r.id);
     } catch (err) {
       flash({ type: "error", text: "Could not upload: " + err.message });
     }
+  }
+
+  async function removeAttachment(r, index) {
+    const next = (r.attachments ?? []).filter((_, i) => i !== index);
+    updateRoundField(r.id, { attachments: next });
+    await supabase.from("ic_rounds").update({ attachments: next }).eq("id", r.id);
   }
 
   async function removeRound(r) {
@@ -246,8 +253,9 @@ export default function ICRounds() {
               <textarea className="input min-h-[70px]" value={form.finding} onChange={(e) => setForm({ ...form, finding: e.target.value })} required />
             </Field>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Attachment">
-                <input type="file" className="input" onChange={(e) => setAttachment(e.target.files?.[0] ?? null)} />
+              <Field label="Attachment(s)">
+                <input type="file" multiple className="input" onChange={(e) => setNewAttachments(Array.from(e.target.files ?? []))} />
+                {newAttachments.length > 1 && <p className="mt-1 text-xs text-slate-500">{newAttachments.length} files selected</p>}
               </Field>
               <Field label="Date of Discussion">
                 <input type="date" className="input" value={form.date_of_discussion} onChange={(e) => setForm({ ...form, date_of_discussion: e.target.value })} />
@@ -308,7 +316,8 @@ export default function ICRounds() {
                 onToggle={() => setExpanded(expanded === r.id ? null : r.id)}
                 onDelete={() => removeRound(r)}
                 onToggleStatus={() => toggleStatus(r)}
-                onUpload={(f) => uploadMissing(r, f)}
+                onAddAttachment={(files) => addAttachment(r, files)}
+                onRemoveAttachment={(index) => removeAttachment(r, index)}
                 onFieldChange={(patch) => updateRoundField(r.id, patch)}
                 onFieldSave={() => saveRoundFields(rounds.find((x) => x.id === r.id))}
               />
@@ -322,7 +331,7 @@ export default function ICRounds() {
   );
 }
 
-function RoundRow({ r, expanded, onToggle, onDelete, onToggleStatus, onUpload, onFieldChange, onFieldSave }) {
+function RoundRow({ r, expanded, onToggle, onDelete, onToggleStatus, onAddAttachment, onRemoveAttachment, onFieldChange, onFieldSave }) {
   const notMet = r.result === "not_met";
   return (
     <>
@@ -388,7 +397,6 @@ function RoundRow({ r, expanded, onToggle, onDelete, onToggleStatus, onUpload, o
                 />
               </label>
               <span>Recorded by: {r.done_by || "—"}</span>
-              <AttachmentSlot path={r.attachment_path} name={r.attachment_name} onUpload={onUpload} />
               <button
                 onClick={onToggleStatus}
                 className={`ml-auto rounded-lg px-3 py-1.5 text-xs font-semibold ${
@@ -398,6 +406,7 @@ function RoundRow({ r, expanded, onToggle, onDelete, onToggleStatus, onUpload, o
                 {r.status === "closed" ? "Reopen" : "Mark Closed"}
               </button>
             </div>
+            <AttachmentList attachments={r.attachments} onAdd={onAddAttachment} onRemove={onRemoveAttachment} />
           </td>
         </tr>
       )}
@@ -405,18 +414,31 @@ function RoundRow({ r, expanded, onToggle, onDelete, onToggleStatus, onUpload, o
   );
 }
 
-function AttachmentSlot({ path, name, onUpload }) {
-  return path ? (
-    <a href={attachmentUrl(path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
-      <Paperclip className="h-3.5 w-3.5" />
-      {name || "View attachment"}
-    </a>
-  ) : (
-    <label className="flex cursor-pointer items-center gap-1 font-medium text-red-600 hover:underline">
-      <Upload className="h-3.5 w-3.5" />
-      Upload attachment
-      <input type="file" className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
-    </label>
+function AttachmentList({ attachments, onAdd, onRemove }) {
+  const list = attachments ?? [];
+  return (
+    <div className="flex flex-col gap-2 text-xs">
+      {list.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {list.map((a, i) => (
+            <span key={i} className="flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-slate-600">
+              <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                <Paperclip className="h-3.5 w-3.5" />
+                {a.name || "View attachment"}
+              </a>
+              <button onClick={() => onRemove(i)} className="text-slate-400 hover:text-red-500">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <label className="flex w-fit cursor-pointer items-center gap-1 font-medium text-red-600 hover:underline">
+        <Upload className="h-3.5 w-3.5" />
+        {list.length > 0 ? "Add more attachments" : "Upload attachment(s)"}
+        <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && onAdd(e.target.files)} />
+      </label>
+    </div>
   );
 }
 
