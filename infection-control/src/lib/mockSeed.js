@@ -1,18 +1,4 @@
 // Same default rows as supabase_schema.sql, used to power preview mode.
-const HH_DEPARTMENTS = [
-  "ICU",
-  "Medical Ward",
-  "Surgical Ward",
-  "Emergency",
-  "Pediatric",
-  "NICU",
-  "OPD",
-  "OT",
-  "Labor & Delivery",
-  "Dialysis",
-  "Other",
-];
-
 const today = new Date().toISOString().slice(0, 10);
 
 const STOCK_DEPARTMENTS = [
@@ -60,9 +46,6 @@ const AGREEMENT_TRACKER_ENTITIES = ["SEPCO", "Pest Control", "Intra Department"]
 
 export const app_config = {
   id: 1,
-  hh_departments: HH_DEPARTMENTS,
-  hh_observer_roles: ["Doctor", "Nurse", "Housekeeping", "Lab Staff", "Radiology"],
-  hh_department_observers: {},
   stock_departments: STOCK_DEPARTMENTS,
   employee_departments: EMPLOYEE_DEPARTMENTS,
   ic_round_departments: IC_ROUND_DEPARTMENTS,
@@ -156,55 +139,6 @@ export const agreement_tracker = [
     next_due: null,
     attachment_path: null,
     attachment_name: null,
-    deleted: false,
-    created_at: new Date().toISOString(),
-  },
-];
-
-export const hh_observations = [
-  {
-    id: "hh-1",
-    date: today,
-    department: "ICU",
-    observer: "Nurse",
-    time_from: "09:00",
-    time_to: "09:15",
-    before_touching_patient: 1,
-    before_clean_procedure: 1,
-    after_body_fluid_risk: 1,
-    after_touching_patient: 0,
-    after_touching_surroundings: 1,
-    wearing_glove: 1,
-    missed: null,
-    hand_wash: 1,
-    hand_rub: 0,
-    total_opportunities: 6,
-    compliant: 5,
-    compliance_pct: 83.3,
-    done_by: "ic",
-    deleted: false,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: "hh-2",
-    date: today,
-    department: "NICU",
-    observer: "Doctor",
-    time_from: "10:30",
-    time_to: "10:42",
-    before_touching_patient: 1,
-    before_clean_procedure: 1,
-    after_body_fluid_risk: null,
-    after_touching_patient: 1,
-    after_touching_surroundings: 1,
-    wearing_glove: 1,
-    missed: null,
-    hand_wash: 0,
-    hand_rub: 1,
-    total_opportunities: 5,
-    compliant: 5,
-    compliance_pct: 100,
-    done_by: "ic",
     deleted: false,
     created_at: new Date().toISOString(),
   },

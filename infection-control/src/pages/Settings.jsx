@@ -20,11 +20,6 @@ function parseDoseSchedule(text) {
 
 export default function Settings() {
   const { config, reloadConfig, isOwner, session } = useAuth();
-  const [hhDepartments, setHhDepartments] = useState([]);
-  const [newHhDept, setNewHhDept] = useState("");
-  const [hhObserverRoles, setHhObserverRoles] = useState([]);
-  const [newHhObserverRole, setNewHhObserverRole] = useState("");
-  const [hhDepartmentObservers, setHhDepartmentObservers] = useState({});
   const [stockDepartments, setStockDepartments] = useState([]);
   const [newStockDept, setNewStockDept] = useState("");
   const [stockItems, setStockItems] = useState([]);
@@ -48,9 +43,6 @@ export default function Settings() {
 
   useEffect(() => {
     if (config) {
-      setHhDepartments(config.hh_departments ?? []);
-      setHhObserverRoles(config.hh_observer_roles ?? []);
-      setHhDepartmentObservers(config.hh_department_observers ?? {});
       setStockDepartments(config.stock_departments ?? []);
       setEmployeeDepartments(config.employee_departments ?? []);
       setIcRoundDepartments(config.ic_round_departments ?? []);
@@ -104,56 +96,6 @@ export default function Settings() {
   function flash(text) {
     setMessage(text);
     setTimeout(() => setMessage(null), 2500);
-  }
-
-  async function saveHhDepartments(next) {
-    setHhDepartments(next);
-    await supabase.from("app_config").update({ hh_departments: next }).eq("id", 1);
-    reloadConfig();
-    flash("Hand Hygiene departments saved");
-  }
-
-  function addHhDept() {
-    const name = newHhDept.trim();
-    if (!name || hhDepartments.includes(name)) return;
-    saveHhDepartments([...hhDepartments, name]);
-    setNewHhDept("");
-  }
-
-  function removeHhDept(name) {
-    saveHhDepartments(hhDepartments.filter((d) => d !== name));
-  }
-
-  async function saveHhObserverRoles(next) {
-    setHhObserverRoles(next);
-    await supabase.from("app_config").update({ hh_observer_roles: next }).eq("id", 1);
-    reloadConfig();
-    flash("Hand Hygiene observer roles saved");
-  }
-
-  function addHhObserverRole() {
-    const name = newHhObserverRole.trim();
-    if (!name || hhObserverRoles.includes(name)) return;
-    saveHhObserverRoles([...hhObserverRoles, name]);
-    setNewHhObserverRole("");
-  }
-
-  function removeHhObserverRole(name) {
-    saveHhObserverRoles(hhObserverRoles.filter((r) => r !== name));
-  }
-
-  async function saveHhDepartmentObservers(next) {
-    setHhDepartmentObservers(next);
-    await supabase.from("app_config").update({ hh_department_observers: next }).eq("id", 1);
-    reloadConfig();
-    flash("Hand Hygiene department roles saved");
-  }
-
-  function toggleDeptObserver(dept, role) {
-    const current = hhDepartmentObservers[dept] ?? [...hhObserverRoles];
-    const has = current.includes(role);
-    const next = has ? current.filter((r) => r !== role) : [...current, role];
-    saveHhDepartmentObservers({ ...hhDepartmentObservers, [dept]: next });
   }
 
   async function saveStockDepartments(next) {
@@ -511,91 +453,6 @@ export default function Settings() {
             <Plus className="h-4 w-4" />
             Add
           </button>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">Hand Hygiene Departments</h2>
-        <p className="mb-4 text-xs text-slate-500">Separate department list used only by the Hand Hygiene module.</p>
-        <div className="mb-4 flex flex-wrap gap-2">
-          {hhDepartments.map((d) => (
-            <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
-              {d}
-              <button onClick={() => removeHhDept(d)} className="text-teal-400 hover:text-red-500">
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </span>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <input
-            className="input"
-            value={newHhDept}
-            onChange={(e) => setNewHhDept(e.target.value)}
-            placeholder="New department name"
-          />
-          <button onClick={addHhDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
-            <Plus className="h-4 w-4" />
-            Add
-          </button>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">Hand Hygiene Observer Roles</h2>
-        <p className="mb-4 text-xs text-slate-500">The full list of roles that can be observed (e.g. Doctor, Nurse, Lab Staff).</p>
-        <div className="mb-4 flex flex-wrap gap-2">
-          {hhObserverRoles.map((r) => (
-            <span key={r} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
-              {r}
-              <button onClick={() => removeHhObserverRole(r)} className="text-teal-400 hover:text-red-500">
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </span>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <input
-            className="input"
-            value={newHhObserverRole}
-            onChange={(e) => setNewHhObserverRole(e.target.value)}
-            placeholder="New observer role name"
-          />
-          <button onClick={addHhObserverRole} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
-            <Plus className="h-4 w-4" />
-            Add
-          </button>
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">Which Roles Show Per Department</h2>
-        <p className="mb-4 text-xs text-slate-500">
-          Choose which observer roles appear on the Hand Hygiene entry form for each department — e.g. only "Lab Staff"
-          for Lab. A department with none selected shows every role.
-        </p>
-        <div className="flex flex-col gap-3">
-          {hhDepartments.map((d) => (
-            <div key={d} className="rounded-xl border border-slate-100 p-3">
-              <div className="mb-2 text-xs font-semibold text-slate-600">{d}</div>
-              <div className="flex flex-wrap gap-2">
-                {hhObserverRoles.map((r) => {
-                  const active = (hhDepartmentObservers[d] ?? hhObserverRoles).includes(r);
-                  return (
-                    <label
-                      key={r}
-                      className={`cursor-pointer rounded-full border px-3 py-1 text-xs ${
-                        active ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 text-slate-500"
-                      }`}
-                    >
-                      <input type="checkbox" className="hidden" checked={active} onChange={() => toggleDeptObserver(d, r)} />
-                      {r}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
         </div>
       </section>
 
