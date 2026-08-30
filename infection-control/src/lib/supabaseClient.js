@@ -17,7 +17,6 @@ export const supabase =
     ? createClient(url, key)
     : createMockClient({
         app_config: [seed.app_config],
-        hh_observations: seed.hh_observations,
         stock_items: seed.stock_items,
         stock_requests: seed.stock_requests,
         health_item_types: seed.health_item_types,

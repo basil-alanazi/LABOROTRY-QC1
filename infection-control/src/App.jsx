@@ -1,11 +1,8 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./lib/auth.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import Layout from "./components/layout/Layout.jsx";
 import Login from "./pages/Login.jsx";
-import DailyEntry from "./pages/DailyEntry.jsx";
-import Records from "./pages/Records.jsx";
-import Dashboard from "./pages/Dashboard.jsx";
 import Settings from "./pages/Settings.jsx";
 import Profile from "./pages/Profile.jsx";
 import Messages from "./pages/Messages.jsx";
@@ -24,29 +21,7 @@ export default function App() {
           path="/"
           element={
             <ProtectedRoute adminOnly>
-              <Layout>
-                <DailyEntry />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/records"
-          element={
-            <ProtectedRoute adminOnly>
-              <Layout>
-                <Records />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute adminOnly>
-              <Layout>
-                <Dashboard />
-              </Layout>
+              <Navigate to="/ic-rounds" replace />
             </ProtectedRoute>
           }
         />
@@ -130,6 +105,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
   );
