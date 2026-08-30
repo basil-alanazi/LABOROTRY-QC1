@@ -2,11 +2,8 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   ClipboardCheck,
-  ClipboardList,
   FolderClock,
   HeartPulse,
-  LayoutDashboard,
-  ListChecks,
   Menu,
   MessageSquare,
   Package,
@@ -60,24 +57,6 @@ export default function Layout({ children }) {
 
   const navLinks = (
     <>
-      {isAdmin && (
-        <NavLink to="/" end className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <ClipboardList className="h-4 w-4" />
-          Hand Hygiene
-        </NavLink>
-      )}
-      {isAdmin && (
-        <NavLink to="/records" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <ListChecks className="h-4 w-4" />
-          Records
-        </NavLink>
-      )}
-      {isAdmin && (
-        <NavLink to="/dashboard" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <LayoutDashboard className="h-4 w-4" />
-          Dashboard
-        </NavLink>
-      )}
       {canViewEmployeeHealth && (
         <NavLink to="/employee-health" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <HeartPulse className="h-4 w-4" />
