@@ -33,6 +33,17 @@ function dueBadge(dateStr) {
   return null;
 }
 
+// Baladiya License's status column shows the day count directly (not just
+// a threshold badge) — the days-remaining figure matters daily there.
+function licenseDaysStatus(dateStr) {
+  if (!dateStr) return null;
+  const today = todayStr();
+  const days = Math.round((new Date(dateStr) - new Date(today)) / 86400000);
+  if (days < 0) return { label: `Expired ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} ago`, cls: "bg-red-50 text-red-700" };
+  if (days <= 30) return { label: `${days} day${days === 1 ? "" : "s"} left`, cls: "bg-amber-50 text-amber-700" };
+  return { label: `${days} days left`, cls: "bg-slate-100 text-slate-500" };
+}
+
 const TABS = [
   { key: "license", label: "Baladiya License" },
   { key: "policy", label: "Policy" },
@@ -389,7 +400,7 @@ export default function Trackers() {
               </thead>
               <tbody>
                 {licenses.map((r) => {
-                  const badge = dueBadge(r.expiry_date);
+                  const badge = licenseDaysStatus(r.expiry_date);
                   return (
                     <tr key={r.id} className="border-t border-slate-100">
                       <td className="px-3 py-1.5">
