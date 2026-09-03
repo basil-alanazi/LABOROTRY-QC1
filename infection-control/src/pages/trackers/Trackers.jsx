@@ -34,14 +34,16 @@ function dueBadge(dateStr) {
 }
 
 // Baladiya License's status column shows the day count directly (not just
-// a threshold badge) — the days-remaining figure matters daily there.
+// a threshold badge) — but only once it's within the 40-day window; further
+// out than that, nothing shows.
+const LICENSE_DUE_SOON_DAYS = 40;
 function licenseDaysStatus(dateStr) {
   if (!dateStr) return null;
   const today = todayStr();
   const days = Math.round((new Date(dateStr) - new Date(today)) / 86400000);
   if (days < 0) return { label: `Expired ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} ago`, cls: "bg-red-50 text-red-700" };
-  if (days <= 30) return { label: `${days} day${days === 1 ? "" : "s"} left`, cls: "bg-amber-50 text-amber-700" };
-  return { label: `${days} days left`, cls: "bg-slate-100 text-slate-500" };
+  if (days <= LICENSE_DUE_SOON_DAYS) return { label: `${days} day${days === 1 ? "" : "s"} left`, cls: "bg-amber-50 text-amber-700" };
+  return null;
 }
 
 const TABS = [
@@ -69,6 +71,7 @@ export default function Trackers() {
 
   const [showLicenseForm, setShowLicenseForm] = useState(false);
   const [licenseForm, setLicenseForm] = useState(emptyLicenseForm);
+  const [licenseDueSoonOnly, setLicenseDueSoonOnly] = useState(false);
   const [showPolicyForm, setShowPolicyForm] = useState(false);
   const [policyForm, setPolicyForm] = useState(emptyPolicyForm);
   const [showCultureForm, setShowCultureForm] = useState(false);
@@ -284,6 +287,11 @@ export default function Trackers() {
     return badges.filter((b) => b?.label === "Expired").length;
   }, [licenses, policies, cultures, agreements]);
 
+  const visibleLicenses = useMemo(
+    () => (licenseDueSoonOnly ? licenses.filter((r) => licenseDaysStatus(r.expiry_date)) : licenses),
+    [licenses, licenseDueSoonOnly]
+  );
+
   function exportExcel() {
     downloadExcel(`infection-control-trackers-${todayStr()}`, [
       {
@@ -355,13 +363,21 @@ export default function Trackers() {
 
       {tab === "license" && (
         <div className="flex flex-col gap-4">
-          <div>
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowLicenseForm((v) => !v)}
               className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700"
             >
               <UserPlus className="h-3.5 w-3.5" />
               Add Employee
+            </button>
+            <button
+              onClick={() => setLicenseDueSoonOnly((v) => !v)}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                licenseDueSoonOnly ? "border-amber-500 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {licenseDueSoonOnly ? `Showing ≤${LICENSE_DUE_SOON_DAYS} days only` : `Due within ${LICENSE_DUE_SOON_DAYS} days`}
             </button>
           </div>
           {showLicenseForm && (
@@ -399,7 +415,7 @@ export default function Trackers() {
                 </tr>
               </thead>
               <tbody>
-                {licenses.map((r) => {
+                {visibleLicenses.map((r) => {
                   const badge = licenseDaysStatus(r.expiry_date);
                   return (
                     <tr key={r.id} className="border-t border-slate-100">
@@ -443,6 +459,9 @@ export default function Trackers() {
               </tbody>
             </table>
             {!loading && licenses.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No employees in the license tracker yet.</p>}
+            {!loading && licenses.length > 0 && visibleLicenses.length === 0 && (
+              <p className="p-6 text-center text-sm text-slate-400">No licenses due within {LICENSE_DUE_SOON_DAYS} days.</p>
+            )}
           </div>
         </div>
       )}
