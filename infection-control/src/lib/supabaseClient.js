@@ -19,6 +19,7 @@ export const supabase =
         app_config: [seed.app_config],
         stock_items: seed.stock_items,
         stock_requests: seed.stock_requests,
+        stock_daily_checks: seed.stock_daily_checks,
         health_item_types: seed.health_item_types,
         employees: seed.employees,
         employee_health_records: seed.employee_health_records,
