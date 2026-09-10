@@ -51,6 +51,9 @@ export default function StockRequests() {
   const myDepartment = session?.department || "";
   const departments = config?.stock_departments ?? [];
   const canManage = isAdmin || !!session?.canManageStock;
+  // Everyone gets the Daily Check tab, but non-admins only ever see (and can
+  // only ever mark) their own assigned department, same scoping as "Use Stock".
+  const dailyCheckDepartments = isAdmin ? departments : myDepartment ? [myDepartment] : [];
 
   async function loadItems() {
     const { data } = await fetchAllRows((from, to) =>
@@ -96,7 +99,7 @@ export default function StockRequests() {
     setLoadingChecks(true);
     const { data } = await supabase.from("stock_daily_checks").select("*").eq("date", checkDate);
     const map = {};
-    for (const d of departments) {
+    for (const d of dailyCheckDepartments) {
       map[d] = (data ?? []).find((r) => r.department === d) || emptyDailyCheck(d);
     }
     setChecksByDept(map);
@@ -104,9 +107,9 @@ export default function StockRequests() {
   }
 
   useEffect(() => {
-    if (tab === "daily-check" && isAdmin) loadDailyChecks();
+    if (tab === "daily-check") loadDailyChecks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, checkDate, departments.length, isAdmin]);
+  }, [tab, checkDate, dailyCheckDepartments.length, isAdmin]);
 
   function updateCheckField(dept, patch) {
     setChecksByDept((prev) => ({ ...prev, [dept]: { ...(prev[dept] || emptyDailyCheck(dept)), ...patch } }));
@@ -132,10 +135,10 @@ export default function StockRequests() {
 
   async function markAllForShift(shift) {
     const name = (masterName[shift] || "").trim();
-    if (!name || departments.length === 0) return;
+    if (!name || dailyCheckDepartments.length === 0) return;
     const checkedKey = `${shift}_checked`;
     const byKey = `${shift}_by`;
-    const rows = departments.map((d) => {
+    const rows = dailyCheckDepartments.map((d) => {
       const merged = { ...(checksByDept[d] || emptyDailyCheck(d)), [checkedKey]: true, [byKey]: name };
       return {
         date: checkDate,
@@ -150,7 +153,7 @@ export default function StockRequests() {
     });
     setChecksByDept((prev) => {
       const next = { ...prev };
-      for (const d of departments) next[d] = { ...(next[d] || emptyDailyCheck(d)), [checkedKey]: true, [byKey]: name };
+      for (const d of dailyCheckDepartments) next[d] = { ...(next[d] || emptyDailyCheck(d)), [checkedKey]: true, [byKey]: name };
       return next;
     });
     await supabase.from("stock_daily_checks").upsert(rows, { onConflict: "date,department" });
@@ -357,19 +360,17 @@ export default function StockRequests() {
         )}
       </div>
 
-      {isAdmin && (
-        <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
-          <button onClick={() => setTab("use")} className={`rounded-md px-3 py-1 font-medium ${tab === "use" ? "bg-teal-600 text-white" : "text-slate-500"}`}>
-            Use Stock
-          </button>
-          <button
-            onClick={() => setTab("daily-check")}
-            className={`rounded-md px-3 py-1 font-medium ${tab === "daily-check" ? "bg-teal-600 text-white" : "text-slate-500"}`}
-          >
-            Daily Check
-          </button>
-        </div>
-      )}
+      <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+        <button onClick={() => setTab("use")} className={`rounded-md px-3 py-1 font-medium ${tab === "use" ? "bg-teal-600 text-white" : "text-slate-500"}`}>
+          Use Stock
+        </button>
+        <button
+          onClick={() => setTab("daily-check")}
+          className={`rounded-md px-3 py-1 font-medium ${tab === "daily-check" ? "bg-teal-600 text-white" : "text-slate-500"}`}
+        >
+          Daily Check
+        </button>
+      </div>
 
       {tab === "use" && (
       <>
@@ -651,7 +652,7 @@ export default function StockRequests() {
       </>
       )}
 
-      {tab === "daily-check" && isAdmin && (
+      {tab === "daily-check" && (
         <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-slate-700">Daily Stock Check</h2>
@@ -701,7 +702,7 @@ export default function StockRequests() {
                 </tr>
               </thead>
               <tbody>
-                {departments.map((d) => {
+                {dailyCheckDepartments.map((d) => {
                   const row = checksByDept[d] || emptyDailyCheck(d);
                   return (
                     <tr key={d} className="border-t border-slate-100">
@@ -731,8 +732,10 @@ export default function StockRequests() {
                 })}
               </tbody>
             </table>
-            {!loadingChecks && departments.length === 0 && (
-              <p className="p-6 text-center text-sm text-slate-400">No departments configured yet — add some in Settings.</p>
+            {!loadingChecks && dailyCheckDepartments.length === 0 && (
+              <p className="p-6 text-center text-sm text-slate-400">
+                {isAdmin ? "No departments configured yet — add some in Settings." : "No department assigned to your account yet."}
+              </p>
             )}
             {loadingChecks && <p className="p-6 text-center text-sm text-slate-400">Loading...</p>}
           </div>
