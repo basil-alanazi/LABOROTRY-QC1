@@ -287,6 +287,26 @@ alter table stock_requests enable row level security;
 create policy "allow all stock_items" on stock_items for all using (true) with check (true);
 create policy "allow all stock_requests" on stock_requests for all using (true) with check (true);
 
+-- Daily Stock Check: one row per date+department, with a checked flag +
+-- checker name per shift (Morning/Evening/Night) — IC/Owner tick each
+-- department off as its stock is checked, or type a name once and mark
+-- every department checked for that shift in one go.
+create table if not exists stock_daily_checks (
+  id uuid primary key default gen_random_uuid(),
+  date date not null default current_date,
+  department text not null,
+  morning_checked boolean not null default false,
+  morning_by text not null default '',
+  evening_checked boolean not null default false,
+  evening_by text not null default '',
+  night_checked boolean not null default false,
+  night_by text not null default '',
+  created_at timestamptz not null default now(),
+  unique (date, department)
+);
+alter table stock_daily_checks enable row level security;
+create policy "allow all stock_daily_checks" on stock_daily_checks for all using (true) with check (true);
+
 -- Employee Health / Clinic — mirrors the hospital's real Employee Clinic
 -- tracking sheet: staff roster (incl. Kitchen Staff, who need extra
 -- investigations/vaccines), an investigation + PPD (+ stool/urine for

@@ -169,6 +169,8 @@ export const stock_requests = [
   },
 ];
 
+export const stock_daily_checks = [];
+
 export const health_item_types = [
   { id: "hit-1", name: "Hepatitis B (series)", category: "vaccine", recurrence_months: null, dose_schedule: [0, 1, 6], kitchen_only: false, active: true, sort_order: 1 },
   { id: "hit-2", name: "MMR (Measles, Mumps, Rubella)", category: "vaccine", recurrence_months: null, dose_schedule: [0, 1], kitchen_only: false, active: true, sort_order: 2 },
