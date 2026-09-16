@@ -291,6 +291,8 @@ create policy "allow all stock_requests" on stock_requests for all using (true) 
 -- name per shift (Morning/Evening/Night) — everyone (not just Owner/IC)
 -- checks off each item in their own department's catalog, or types a name
 -- once and marks every item in that department checked for a shift at once.
+-- Each shift also carries an "issue" flag + short note, for an item that
+-- couldn't be checked or was found empty/out of stock that shift.
 create table if not exists stock_daily_checks (
   id uuid primary key default gen_random_uuid(),
   date date not null default current_date,
@@ -299,10 +301,16 @@ create table if not exists stock_daily_checks (
   item_name text not null default '',
   morning_checked boolean not null default false,
   morning_by text not null default '',
+  morning_issue boolean not null default false,
+  morning_issue_note text not null default '',
   evening_checked boolean not null default false,
   evening_by text not null default '',
+  evening_issue boolean not null default false,
+  evening_issue_note text not null default '',
   night_checked boolean not null default false,
   night_by text not null default '',
+  night_issue boolean not null default false,
+  night_issue_note text not null default '',
   created_at timestamptz not null default now(),
   unique (date, item_id)
 );
