@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, Fragment } from "react";
-import { FileSpreadsheet, FileText, Check, CheckCheck, Plus, Trash2 } from "lucide-react";
+import { FileSpreadsheet, FileText, Check, CheckCheck, AlertTriangle, Plus, Trash2 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
@@ -14,15 +14,28 @@ const SHIFTS = [
   { key: "evening", label: "Evening" },
   { key: "night", label: "Night" },
 ];
-const emptyDailyCheck = (department) => ({
-  department,
-  morning_checked: false,
-  morning_by: "",
-  evening_checked: false,
-  evening_by: "",
-  night_checked: false,
-  night_by: "",
-});
+const emptyDailyCheck = (itemId) => {
+  const row = { item_id: itemId };
+  for (const s of SHIFTS) {
+    row[`${s.key}_checked`] = false;
+    row[`${s.key}_by`] = "";
+    row[`${s.key}_issue`] = false;
+    row[`${s.key}_issue_note`] = "";
+  }
+  return row;
+};
+// Builds the full upsert payload for one item's daily-check row from a
+// merged in-memory row — keeps every shift's fields in sync in one place.
+function buildDailyCheckPayload(checkDate, item, merged) {
+  const payload = { date: checkDate, item_id: item.id, department: item.department, item_name: item.name };
+  for (const s of SHIFTS) {
+    payload[`${s.key}_checked`] = merged[`${s.key}_checked`];
+    payload[`${s.key}_by`] = merged[`${s.key}_by`];
+    payload[`${s.key}_issue`] = merged[`${s.key}_issue`];
+    payload[`${s.key}_issue_note`] = merged[`${s.key}_issue_note`];
+  }
+  return payload;
+}
 
 function toReportRow(r) {
   return [r.date, r.department, r.item_name, r.quantity_issued ?? r.quantity_requested, r.issued_by || r.requested_by, r.notes];
@@ -44,7 +57,7 @@ export default function StockRequests() {
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
 
   const [checkDate, setCheckDate] = useState(todayStr());
-  const [checksByDept, setChecksByDept] = useState({});
+  const [checksByItem, setChecksByItem] = useState({});
   const [loadingChecks, setLoadingChecks] = useState(false);
   const [masterName, setMasterName] = useState({ morning: "", evening: "", night: "" });
 
@@ -53,7 +66,7 @@ export default function StockRequests() {
   const canManage = isAdmin || !!session?.canManageStock;
   // Everyone gets the Daily Check tab, but non-admins only ever see (and can
   // only ever mark) their own assigned department, same scoping as "Use Stock".
-  const dailyCheckDepartments = isAdmin ? departments : myDepartment ? [myDepartment] : [];
+  const activeDepartment = isAdmin ? selectedDept : myDepartment;
 
   async function loadItems() {
     const { data } = await fetchAllRows((from, to) =>
@@ -95,72 +108,6 @@ export default function StockRequests() {
     setFilterDepts((prev) => (prev.includes(dept) ? prev.filter((d) => d !== dept) : [...prev, dept]));
   }
 
-  async function loadDailyChecks() {
-    setLoadingChecks(true);
-    const { data } = await supabase.from("stock_daily_checks").select("*").eq("date", checkDate);
-    const map = {};
-    for (const d of dailyCheckDepartments) {
-      map[d] = (data ?? []).find((r) => r.department === d) || emptyDailyCheck(d);
-    }
-    setChecksByDept(map);
-    setLoadingChecks(false);
-  }
-
-  useEffect(() => {
-    if (tab === "daily-check") loadDailyChecks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, checkDate, dailyCheckDepartments.length, isAdmin]);
-
-  function updateCheckField(dept, patch) {
-    setChecksByDept((prev) => ({ ...prev, [dept]: { ...(prev[dept] || emptyDailyCheck(dept)), ...patch } }));
-  }
-
-  async function saveCheck(dept, patch) {
-    const merged = { ...(checksByDept[dept] || emptyDailyCheck(dept)), ...patch };
-    updateCheckField(dept, patch);
-    await supabase.from("stock_daily_checks").upsert(
-      {
-        date: checkDate,
-        department: dept,
-        morning_checked: merged.morning_checked,
-        morning_by: merged.morning_by,
-        evening_checked: merged.evening_checked,
-        evening_by: merged.evening_by,
-        night_checked: merged.night_checked,
-        night_by: merged.night_by,
-      },
-      { onConflict: "date,department" }
-    );
-  }
-
-  async function markAllForShift(shift) {
-    const name = (masterName[shift] || "").trim();
-    if (!name || dailyCheckDepartments.length === 0) return;
-    const checkedKey = `${shift}_checked`;
-    const byKey = `${shift}_by`;
-    const rows = dailyCheckDepartments.map((d) => {
-      const merged = { ...(checksByDept[d] || emptyDailyCheck(d)), [checkedKey]: true, [byKey]: name };
-      return {
-        date: checkDate,
-        department: d,
-        morning_checked: merged.morning_checked,
-        morning_by: merged.morning_by,
-        evening_checked: merged.evening_checked,
-        evening_by: merged.evening_by,
-        night_checked: merged.night_checked,
-        night_by: merged.night_by,
-      };
-    });
-    setChecksByDept((prev) => {
-      const next = { ...prev };
-      for (const d of dailyCheckDepartments) next[d] = { ...(next[d] || emptyDailyCheck(d)), [checkedKey]: true, [byKey]: name };
-      return next;
-    });
-    await supabase.from("stock_daily_checks").upsert(rows, { onConflict: "date,department" });
-    setMasterName((prev) => ({ ...prev, [shift]: "" }));
-  }
-
-  const activeDepartment = isAdmin ? selectedDept : myDepartment;
   const departmentItems = useMemo(
     () =>
       items
@@ -168,6 +115,77 @@ export default function StockRequests() {
         .filter((i) => !itemSearch.trim() || i.name.toLowerCase().includes(itemSearch.trim().toLowerCase())),
     [items, activeDepartment, itemSearch]
   );
+
+  // Daily Check works off every item in the active department's catalog
+  // (not narrowed by the "Use Stock" search box) — the whole point is to
+  // give a full item-by-item checklist for that department's stock.
+  const dailyCheckItems = useMemo(() => items.filter((i) => i.department === activeDepartment), [items, activeDepartment]);
+  const dailyCheckIssueCount = useMemo(
+    () => dailyCheckItems.filter((item) => SHIFTS.some((s) => checksByItem[item.id]?.[`${s.key}_issue`])).length,
+    [dailyCheckItems, checksByItem]
+  );
+
+  async function loadDailyChecks() {
+    if (dailyCheckItems.length === 0) {
+      setChecksByItem({});
+      return;
+    }
+    setLoadingChecks(true);
+    const { data } = await supabase
+      .from("stock_daily_checks")
+      .select("*")
+      .eq("date", checkDate)
+      .in(
+        "item_id",
+        dailyCheckItems.map((i) => i.id)
+      );
+    const map = {};
+    for (const item of dailyCheckItems) {
+      map[item.id] = (data ?? []).find((r) => r.item_id === item.id) || emptyDailyCheck(item.id);
+    }
+    setChecksByItem(map);
+    setLoadingChecks(false);
+  }
+
+  useEffect(() => {
+    if (tab === "daily-check") loadDailyChecks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, checkDate, activeDepartment, items.length]);
+
+  function updateCheckField(itemId, patch) {
+    setChecksByItem((prev) => ({ ...prev, [itemId]: { ...(prev[itemId] || emptyDailyCheck(itemId)), ...patch } }));
+  }
+
+  async function saveCheck(item, patch) {
+    const merged = { ...(checksByItem[item.id] || emptyDailyCheck(item.id)), ...patch };
+    updateCheckField(item.id, patch);
+    await supabase.from("stock_daily_checks").upsert(buildDailyCheckPayload(checkDate, item, merged), { onConflict: "date,item_id" });
+  }
+
+  function toggleIssue(item, shift) {
+    const current = checksByItem[item.id] || emptyDailyCheck(item.id);
+    saveCheck(item, { [`${shift}_issue`]: !current[`${shift}_issue`] });
+  }
+
+  async function markAllForShift(shift) {
+    const name = (masterName[shift] || "").trim();
+    if (!name || dailyCheckItems.length === 0) return;
+    const checkedKey = `${shift}_checked`;
+    const byKey = `${shift}_by`;
+    const merges = {};
+    const rows = dailyCheckItems.map((item) => {
+      const merged = { ...(checksByItem[item.id] || emptyDailyCheck(item.id)), [checkedKey]: true, [byKey]: name };
+      merges[item.id] = merged;
+      return buildDailyCheckPayload(checkDate, item, merged);
+    });
+    setChecksByItem((prev) => {
+      const next = { ...prev };
+      for (const item of dailyCheckItems) next[item.id] = merges[item.id];
+      return next;
+    });
+    await supabase.from("stock_daily_checks").upsert(rows, { onConflict: "date,item_id" });
+    setMasterName((prev) => ({ ...prev, [shift]: "" }));
+  }
 
   function flash(msg) {
     setMessage(msg);
@@ -658,87 +676,140 @@ export default function StockRequests() {
             <h2 className="text-sm font-semibold text-slate-700">Daily Stock Check</h2>
             <input type="date" className="input w-auto" value={checkDate} onChange={(e) => setCheckDate(e.target.value)} />
           </div>
-          <p className="text-xs text-slate-500">
-            Tick a department once its stock has been checked for that shift. Or type a name at the top of a shift and click{" "}
-            <CheckCheck className="inline h-3.5 w-3.5 align-text-bottom" /> to mark every department checked for that shift at once.
-          </p>
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs text-slate-500">
-                <tr>
-                  <th className="px-3 py-2 font-medium" rowSpan={2}>
-                    Department
-                  </th>
-                  {SHIFTS.map((s) => (
-                    <th key={s.key} className="px-3 py-2 text-center font-medium" colSpan={2}>
-                      {s.label}
-                    </th>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {isAdmin ? (
+              <Field label="Department">
+                <select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)} className="input">
+                  <option value="">Select department</option>
+                  {departments.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
                   ))}
-                </tr>
-                <tr>
-                  {SHIFTS.map((s) => (
-                    <Fragment key={s.key}>
-                      <th className="px-2 py-1.5 text-center font-normal">
-                        <button
-                          type="button"
-                          onClick={() => markAllForShift(s.key)}
-                          disabled={!masterName[s.key]?.trim()}
-                          title="Mark every department checked for this shift"
-                          className="rounded p-1 text-teal-600 hover:bg-teal-50 disabled:opacity-30 disabled:hover:bg-transparent"
-                        >
-                          <CheckCheck className="h-4 w-4" />
-                        </button>
-                      </th>
-                      <th className="px-2 py-1.5 font-normal">
-                        <input
-                          className="input-cell w-24"
-                          placeholder="Name for all"
-                          value={masterName[s.key]}
-                          onChange={(e) => setMasterName((prev) => ({ ...prev, [s.key]: e.target.value }))}
-                        />
-                      </th>
-                    </Fragment>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {dailyCheckDepartments.map((d) => {
-                  const row = checksByDept[d] || emptyDailyCheck(d);
-                  return (
-                    <tr key={d} className="border-t border-slate-100">
-                      <td className="px-3 py-1.5 font-medium text-slate-700">{d}</td>
-                      {SHIFTS.map((s) => (
-                        <Fragment key={s.key}>
-                          <td className="px-2 py-1.5 text-center">
-                            <input
-                              type="checkbox"
-                              checked={!!row[`${s.key}_checked`]}
-                              onChange={(e) => saveCheck(d, { [`${s.key}_checked`]: e.target.checked })}
-                            />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <input
-                              className="input-cell w-24"
-                              value={row[`${s.key}_by`] || ""}
-                              onChange={(e) => updateCheckField(d, { [`${s.key}_by`]: e.target.value })}
-                              onBlur={() => saveCheck(d, { [`${s.key}_by`]: row[`${s.key}_by`] })}
-                              placeholder="Name"
-                            />
-                          </td>
-                        </Fragment>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {!loadingChecks && dailyCheckDepartments.length === 0 && (
-              <p className="p-6 text-center text-sm text-slate-400">
-                {isAdmin ? "No departments configured yet — add some in Settings." : "No department assigned to your account yet."}
-              </p>
+                </select>
+              </Field>
+            ) : (
+              <Field label="Department">
+                <input className="input bg-slate-50" value={myDepartment} disabled readOnly />
+              </Field>
             )}
-            {loadingChecks && <p className="p-6 text-center text-sm text-slate-400">Loading...</p>}
           </div>
+          <p className="text-xs text-slate-500">
+            Tick an item once it's been checked for that shift. Or type a name at the top of a shift and click{" "}
+            <CheckCheck className="inline h-3.5 w-3.5 align-text-bottom" /> to mark every item in this department checked for that shift at once.
+            Flag <AlertTriangle className="inline h-3.5 w-3.5 align-text-bottom text-red-500" /> on an item/shift you couldn't check or found empty.
+          </p>
+
+          {dailyCheckIssueCount > 0 && (
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+              {dailyCheckIssueCount} item{dailyCheckIssueCount === 1 ? "" : "s"} flagged with a problem for {checkDate}
+            </p>
+          )}
+
+          {!activeDepartment && <p className="text-sm text-slate-400">Select a department to see its stock items.</p>}
+
+          {activeDepartment && (
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-left text-xs text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2 font-medium" rowSpan={2}>
+                      Item
+                    </th>
+                    {SHIFTS.map((s) => (
+                      <th key={s.key} className="px-3 py-2 text-center font-medium" colSpan={3}>
+                        {s.label}
+                      </th>
+                    ))}
+                  </tr>
+                  <tr>
+                    {SHIFTS.map((s) => (
+                      <Fragment key={s.key}>
+                        <th className="px-2 py-1.5 text-center font-normal">
+                          <button
+                            type="button"
+                            onClick={() => markAllForShift(s.key)}
+                            disabled={!masterName[s.key]?.trim()}
+                            title="Mark every item checked for this shift"
+                            className="rounded p-1 text-teal-600 hover:bg-teal-50 disabled:opacity-30 disabled:hover:bg-transparent"
+                          >
+                            <CheckCheck className="h-4 w-4" />
+                          </button>
+                        </th>
+                        <th className="px-2 py-1.5 font-normal">
+                          <input
+                            className="input-cell w-24"
+                            placeholder="Name for all"
+                            value={masterName[s.key]}
+                            onChange={(e) => setMasterName((prev) => ({ ...prev, [s.key]: e.target.value }))}
+                          />
+                        </th>
+                        <th className="px-2 py-1.5 text-center font-normal text-slate-400">Issue</th>
+                      </Fragment>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dailyCheckItems.map((item) => {
+                    const row = checksByItem[item.id] || emptyDailyCheck(item.id);
+                    const hasIssue = SHIFTS.some((s) => row[`${s.key}_issue`]);
+                    return (
+                      <tr key={item.id} className={`border-t border-slate-100 ${hasIssue ? "bg-red-50/50" : ""}`}>
+                        <td className="px-3 py-1.5 font-medium text-slate-700">{item.name}</td>
+                        {SHIFTS.map((s) => (
+                          <Fragment key={s.key}>
+                            <td className="px-2 py-1.5 text-center">
+                              <input
+                                type="checkbox"
+                                checked={!!row[`${s.key}_checked`]}
+                                onChange={(e) => saveCheck(item, { [`${s.key}_checked`]: e.target.checked })}
+                              />
+                            </td>
+                            <td className="px-2 py-1.5">
+                              <input
+                                className="input-cell w-24"
+                                value={row[`${s.key}_by`] || ""}
+                                onChange={(e) => updateCheckField(item.id, { [`${s.key}_by`]: e.target.value })}
+                                onBlur={() => saveCheck(item, { [`${s.key}_by`]: row[`${s.key}_by`] })}
+                                placeholder="Name"
+                              />
+                            </td>
+                            <td className="px-2 py-1.5">
+                              <div className="flex flex-col items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleIssue(item, s.key)}
+                                  title="Flag a problem with this item for this shift (couldn't check it, empty/out of stock, etc.)"
+                                  className={`rounded p-1 ${
+                                    row[`${s.key}_issue`] ? "bg-red-100 text-red-600" : "text-slate-300 hover:bg-red-50 hover:text-red-500"
+                                  }`}
+                                >
+                                  <AlertTriangle className="h-4 w-4" />
+                                </button>
+                                {row[`${s.key}_issue`] && (
+                                  <input
+                                    className="input-cell w-24 text-xs"
+                                    value={row[`${s.key}_issue_note`] || ""}
+                                    onChange={(e) => updateCheckField(item.id, { [`${s.key}_issue_note`]: e.target.value })}
+                                    onBlur={() => saveCheck(item, { [`${s.key}_issue_note`]: row[`${s.key}_issue_note`] })}
+                                    placeholder="Reason"
+                                  />
+                                )}
+                              </div>
+                            </td>
+                          </Fragment>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {!loadingChecks && dailyCheckItems.length === 0 && (
+                <p className="p-6 text-center text-sm text-slate-400">No items in {activeDepartment}'s stock catalog yet.</p>
+              )}
+              {loadingChecks && <p className="p-6 text-center text-sm text-slate-400">Loading...</p>}
+            </div>
+          )}
         </div>
       )}
     </div>
