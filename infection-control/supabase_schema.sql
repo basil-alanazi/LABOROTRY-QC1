@@ -28,6 +28,8 @@ create table if not exists users (
   department text,                    -- optional home department for staff users
   can_manage_stock boolean not null default false, -- staff dept "in-charge": can add/remove items in their own department's stock catalog
   can_view_employee_health boolean not null default false, -- staff account granted access to only the Employee Health page (e.g. a doctor account), instead of the usual stock-only staff view
+  can_view_nursing_rounds boolean not null default false, -- staff account granted access to only the Nursing Daily Rounds page
+  can_view_quality_rounds boolean not null default false, -- staff account granted access to only the Quality Daily Rounds page
   active boolean not null default true,
   must_change_password boolean not null default true,
   created_by text,
@@ -538,6 +540,69 @@ create policy "allow all read ic-round-attachments" on storage.objects for selec
 create policy "allow all insert ic-round-attachments" on storage.objects for insert with check (bucket_id = 'ic-round-attachments');
 create policy "allow all update ic-round-attachments" on storage.objects for update using (bucket_id = 'ic-round-attachments') with check (bucket_id = 'ic-round-attachments');
 create policy "allow all delete ic-round-attachments" on storage.objects for delete using (bucket_id = 'ic-round-attachments');
+
+-- Nursing Daily Rounds and Quality Daily Rounds: same MET/NOT MET format
+-- as Daily IC Rounds above, but each its own independent log, department
+-- list, and storage bucket — restricted to whichever staff accounts are
+-- granted access from Settings (can_view_nursing_rounds/can_view_quality_rounds).
+alter table app_config add column if not exists nursing_round_departments jsonb not null default '[]'::jsonb;
+alter table app_config add column if not exists quality_round_departments jsonb not null default '[]'::jsonb;
+
+create table if not exists nursing_rounds (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  department text not null,
+  result text not null default 'met', -- 'met' | 'not_met'
+  finding text not null default '',
+  attachments jsonb not null default '[]'::jsonb,
+  corrective_action text not null default '',
+  date_of_discussion date,
+  status text not null default 'open', -- 'open' | 'closed'
+  done_by text not null default '',
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+alter table nursing_rounds enable row level security;
+create policy "allow all nursing_rounds" on nursing_rounds for all using (true) with check (true);
+
+insert into storage.buckets (id, name, public)
+values ('nursing-round-attachments', 'nursing-round-attachments', true)
+on conflict (id) do nothing;
+
+create policy "allow all read nursing-round-attachments" on storage.objects for select using (bucket_id = 'nursing-round-attachments');
+create policy "allow all insert nursing-round-attachments" on storage.objects for insert with check (bucket_id = 'nursing-round-attachments');
+create policy "allow all update nursing-round-attachments" on storage.objects for update using (bucket_id = 'nursing-round-attachments') with check (bucket_id = 'nursing-round-attachments');
+create policy "allow all delete nursing-round-attachments" on storage.objects for delete using (bucket_id = 'nursing-round-attachments');
+
+create table if not exists quality_rounds (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  department text not null,
+  result text not null default 'met', -- 'met' | 'not_met'
+  finding text not null default '',
+  attachments jsonb not null default '[]'::jsonb,
+  corrective_action text not null default '',
+  date_of_discussion date,
+  status text not null default 'open', -- 'open' | 'closed'
+  done_by text not null default '',
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+alter table quality_rounds enable row level security;
+create policy "allow all quality_rounds" on quality_rounds for all using (true) with check (true);
+
+insert into storage.buckets (id, name, public)
+values ('quality-round-attachments', 'quality-round-attachments', true)
+on conflict (id) do nothing;
+
+create policy "allow all read quality-round-attachments" on storage.objects for select using (bucket_id = 'quality-round-attachments');
+create policy "allow all insert quality-round-attachments" on storage.objects for insert with check (bucket_id = 'quality-round-attachments');
+create policy "allow all update quality-round-attachments" on storage.objects for update using (bucket_id = 'quality-round-attachments') with check (bucket_id = 'quality-round-attachments');
+create policy "allow all delete quality-round-attachments" on storage.objects for delete using (bucket_id = 'quality-round-attachments');
 
 -- Trackers: 4 independent renewal/expiry logs (municipality "Baladiya" work
 -- license per employee, hospital policy 3-year renewal, culture/swab

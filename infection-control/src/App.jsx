@@ -10,6 +10,8 @@ import StockRequests from "./pages/stock/StockRequests.jsx";
 import EmployeeHealth from "./pages/health/EmployeeHealth.jsx";
 import CommunicableCases from "./pages/cases/CommunicableCases.jsx";
 import ICRounds from "./pages/ic-rounds/ICRounds.jsx";
+import NursingRounds from "./pages/nursing-rounds/NursingRounds.jsx";
+import QualityRounds from "./pages/quality-rounds/QualityRounds.jsx";
 import Trackers from "./pages/trackers/Trackers.jsx";
 
 export default function App() {
@@ -38,7 +40,7 @@ export default function App() {
         <Route
           path="/stock"
           element={
-            <ProtectedRoute hideForEmployeeHealthOnly>
+            <ProtectedRoute hideForRestrictedAccounts>
               <Layout>
                 <StockRequests />
               </Layout>
@@ -71,6 +73,26 @@ export default function App() {
             <ProtectedRoute adminOnly>
               <Layout>
                 <ICRounds />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/nursing-rounds"
+          element={
+            <ProtectedRoute nursingRoundsOnly>
+              <Layout>
+                <NursingRounds />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/quality-rounds"
+          element={
+            <ProtectedRoute qualityRoundsOnly>
+              <Layout>
+                <QualityRounds />
               </Layout>
             </ProtectedRoute>
           }
