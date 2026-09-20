@@ -6,7 +6,16 @@ import { sha256Hex } from "../lib/hash";
 import { fetchAllRows } from "../lib/fetchAll";
 
 const DEFAULT_PASSWORD = "123456";
-const emptyNewUser = { username: "", display_name: "", role: "staff", department: "", can_manage_stock: false, can_view_employee_health: false };
+const emptyNewUser = {
+  username: "",
+  display_name: "",
+  role: "staff",
+  department: "",
+  can_manage_stock: false,
+  can_view_employee_health: false,
+  can_view_nursing_rounds: false,
+  can_view_quality_rounds: false,
+};
 const emptyNewStockItem = { department: "", name: "", unit: "unit", min_qty: "", max_qty: "", current_qty: "" };
 const emptyNewHealthItem = { name: "", category: "vaccine", recurrence_months: "", dose_schedule: "0", kitchen_only: false };
 
@@ -29,6 +38,10 @@ export default function Settings() {
   const [newEmployeeDept, setNewEmployeeDept] = useState("");
   const [icRoundDepartments, setIcRoundDepartments] = useState([]);
   const [newIcRoundDept, setNewIcRoundDept] = useState("");
+  const [nursingRoundDepartments, setNursingRoundDepartments] = useState([]);
+  const [newNursingRoundDept, setNewNursingRoundDept] = useState("");
+  const [qualityRoundDepartments, setQualityRoundDepartments] = useState([]);
+  const [newQualityRoundDept, setNewQualityRoundDept] = useState("");
   const [cultureTrackerItems, setCultureTrackerItems] = useState([]);
   const [newCultureTrackerItem, setNewCultureTrackerItem] = useState("");
   const [agreementTrackerEntities, setAgreementTrackerEntities] = useState([]);
@@ -46,6 +59,8 @@ export default function Settings() {
       setStockDepartments(config.stock_departments ?? []);
       setEmployeeDepartments(config.employee_departments ?? []);
       setIcRoundDepartments(config.ic_round_departments ?? []);
+      setNursingRoundDepartments(config.nursing_round_departments ?? []);
+      setQualityRoundDepartments(config.quality_round_departments ?? []);
       setCultureTrackerItems(config.culture_tracker_items ?? []);
       setAgreementTrackerEntities(config.agreement_tracker_entities ?? []);
     }
@@ -218,6 +233,42 @@ export default function Settings() {
     saveIcRoundDepartments(icRoundDepartments.filter((d) => d !== name));
   }
 
+  async function saveNursingRoundDepartments(next) {
+    setNursingRoundDepartments(next);
+    await supabase.from("app_config").update({ nursing_round_departments: next }).eq("id", 1);
+    reloadConfig();
+    flash("Nursing round departments saved");
+  }
+
+  function addNursingRoundDept() {
+    const name = newNursingRoundDept.trim();
+    if (!name || nursingRoundDepartments.includes(name)) return;
+    saveNursingRoundDepartments([...nursingRoundDepartments, name]);
+    setNewNursingRoundDept("");
+  }
+
+  function removeNursingRoundDept(name) {
+    saveNursingRoundDepartments(nursingRoundDepartments.filter((d) => d !== name));
+  }
+
+  async function saveQualityRoundDepartments(next) {
+    setQualityRoundDepartments(next);
+    await supabase.from("app_config").update({ quality_round_departments: next }).eq("id", 1);
+    reloadConfig();
+    flash("Quality round departments saved");
+  }
+
+  function addQualityRoundDept() {
+    const name = newQualityRoundDept.trim();
+    if (!name || qualityRoundDepartments.includes(name)) return;
+    saveQualityRoundDepartments([...qualityRoundDepartments, name]);
+    setNewQualityRoundDept("");
+  }
+
+  function removeQualityRoundDept(name) {
+    saveQualityRoundDepartments(qualityRoundDepartments.filter((d) => d !== name));
+  }
+
   async function saveCultureTrackerItems(next) {
     setCultureTrackerItems(next);
     await supabase.from("app_config").update({ culture_tracker_items: next }).eq("id", 1);
@@ -329,6 +380,8 @@ export default function Settings() {
       department: newUser.department || null,
       can_manage_stock: newUser.role === "staff" && newUser.can_manage_stock,
       can_view_employee_health: newUser.role === "staff" && newUser.can_view_employee_health,
+      can_view_nursing_rounds: newUser.role === "staff" && newUser.can_view_nursing_rounds,
+      can_view_quality_rounds: newUser.role === "staff" && newUser.can_view_quality_rounds,
       created_by: session?.username,
     });
     if (error) {
@@ -353,6 +406,8 @@ export default function Settings() {
         department: user.department || null,
         can_manage_stock: user.role === "staff" && !!user.can_manage_stock,
         can_view_employee_health: user.role === "staff" && !!user.can_view_employee_health,
+        can_view_nursing_rounds: user.role === "staff" && !!user.can_view_nursing_rounds,
+        can_view_quality_rounds: user.role === "staff" && !!user.can_view_quality_rounds,
         active: user.active,
       })
       .eq("id", user.id);
@@ -406,6 +461,50 @@ export default function Settings() {
         <div className="flex gap-2">
           <input className="input" value={newIcRoundDept} onChange={(e) => setNewIcRoundDept(e.target.value)} placeholder="New department name" />
           <button onClick={addIcRoundDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+            <Plus className="h-4 w-4" />
+            Add
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">Nursing Daily Round Departments</h2>
+        <p className="mb-4 text-xs text-slate-500">Separate department list used only by the Nursing Daily Rounds module.</p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {nursingRoundDepartments.map((d) => (
+            <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
+              {d}
+              <button onClick={() => removeNursingRoundDept(d)} className="text-teal-400 hover:text-red-500">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input className="input" value={newNursingRoundDept} onChange={(e) => setNewNursingRoundDept(e.target.value)} placeholder="New department name" />
+          <button onClick={addNursingRoundDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+            <Plus className="h-4 w-4" />
+            Add
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">Quality Daily Round Departments</h2>
+        <p className="mb-4 text-xs text-slate-500">Separate department list used only by the Quality Daily Rounds module.</p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {qualityRoundDepartments.map((d) => (
+            <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
+              {d}
+              <button onClick={() => removeQualityRoundDept(d)} className="text-teal-400 hover:text-red-500">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input className="input" value={newQualityRoundDept} onChange={(e) => setNewQualityRoundDept(e.target.value)} placeholder="New department name" />
+          <button onClick={addQualityRoundDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
             Add
           </button>
@@ -868,6 +967,26 @@ export default function Settings() {
                     Employee Health access only — e.g. a doctor's account; sees the Employee Health page instead of Stock Requests
                   </label>
                 )}
+                {u.role === "staff" && (
+                  <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-5">
+                    <input
+                      type="checkbox"
+                      checked={!!u.can_view_nursing_rounds}
+                      onChange={(e) => updateUserField(u.id, { can_view_nursing_rounds: e.target.checked })}
+                    />
+                    Nursing Daily Rounds access only — sees only the Nursing Daily Rounds page instead of Stock Requests
+                  </label>
+                )}
+                {u.role === "staff" && (
+                  <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-5">
+                    <input
+                      type="checkbox"
+                      checked={!!u.can_view_quality_rounds}
+                      onChange={(e) => updateUserField(u.id, { can_view_quality_rounds: e.target.checked })}
+                    />
+                    Quality Daily Rounds access only — sees only the Quality Daily Rounds page instead of Stock Requests
+                  </label>
+                )}
               </div>
             ))}
           </div>
@@ -937,6 +1056,26 @@ export default function Settings() {
                   onChange={(e) => setNewUser({ ...newUser, can_view_employee_health: e.target.checked })}
                 />
                 Employee Health access only — e.g. a doctor's account; sees the Employee Health page instead of Stock Requests
+              </label>
+            )}
+            {newUser.role === "staff" && (
+              <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-4">
+                <input
+                  type="checkbox"
+                  checked={newUser.can_view_nursing_rounds}
+                  onChange={(e) => setNewUser({ ...newUser, can_view_nursing_rounds: e.target.checked })}
+                />
+                Nursing Daily Rounds access only — sees only the Nursing Daily Rounds page instead of Stock Requests
+              </label>
+            )}
+            {newUser.role === "staff" && (
+              <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-4">
+                <input
+                  type="checkbox"
+                  checked={newUser.can_view_quality_rounds}
+                  onChange={(e) => setNewUser({ ...newUser, can_view_quality_rounds: e.target.checked })}
+                />
+                Quality Daily Rounds access only — sees only the Quality Daily Rounds page instead of Stock Requests
               </label>
             )}
             <button

@@ -42,6 +42,8 @@ export function AuthProvider({ children }) {
       department: user.department || "",
       canManageStock: !!user.can_manage_stock,
       canViewEmployeeHealth: !!user.can_view_employee_health,
+      canViewNursingRounds: !!user.can_view_nursing_rounds,
+      canViewQualityRounds: !!user.can_view_quality_rounds,
       mustChangePassword: !!user.must_change_password,
     };
   }
@@ -86,10 +88,25 @@ export function AuthProvider({ children }) {
   const isOwner = session?.role === "owner";
   // Owner/IC always have it; a Ward Staff account can be granted just this one page (e.g. a doctor account).
   const canViewEmployeeHealth = isAdmin || !!session?.canViewEmployeeHealth;
+  const canViewNursingRounds = isAdmin || !!session?.canViewNursingRounds;
+  const canViewQualityRounds = isAdmin || !!session?.canViewQualityRounds;
 
   return (
     <AuthContext.Provider
-      value={{ session, config, loading, login, logout, changePassword, isAdmin, isOwner, canViewEmployeeHealth, reloadConfig: loadConfig }}
+      value={{
+        session,
+        config,
+        loading,
+        login,
+        logout,
+        changePassword,
+        isAdmin,
+        isOwner,
+        canViewEmployeeHealth,
+        canViewNursingRounds,
+        canViewQualityRounds,
+        reloadConfig: loadConfig,
+      }}
     >
       {children}
     </AuthContext.Provider>

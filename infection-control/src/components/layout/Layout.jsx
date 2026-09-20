@@ -9,6 +9,8 @@ import {
   Package,
   Settings as SettingsIcon,
   ShieldAlert,
+  ShieldCheck,
+  Sparkles,
   LogOut,
   UserCircle,
   X,
@@ -23,7 +25,7 @@ const linkClass = ({ isActive }) =>
   }`;
 
 export default function Layout({ children }) {
-  const { session, logout, isAdmin, canViewEmployeeHealth } = useAuth();
+  const { session, logout, isAdmin, canViewEmployeeHealth, canViewNursingRounds, canViewQualityRounds } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -75,13 +77,25 @@ export default function Layout({ children }) {
           Daily IC Rounds
         </NavLink>
       )}
+      {canViewNursingRounds && (
+        <NavLink to="/nursing-rounds" className={linkClass} onClick={() => setSidebarOpen(false)}>
+          <ShieldCheck className="h-4 w-4" />
+          Nursing Daily Rounds
+        </NavLink>
+      )}
+      {canViewQualityRounds && (
+        <NavLink to="/quality-rounds" className={linkClass} onClick={() => setSidebarOpen(false)}>
+          <Sparkles className="h-4 w-4" />
+          Quality Daily Rounds
+        </NavLink>
+      )}
       {isAdmin && (
         <NavLink to="/trackers" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <FolderClock className="h-4 w-4" />
           Trackers
         </NavLink>
       )}
-      {(isAdmin || !session?.canViewEmployeeHealth) && (
+      {(isAdmin || !(session?.canViewEmployeeHealth || session?.canViewNursingRounds || session?.canViewQualityRounds)) && (
         <NavLink to="/stock" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <Package className="h-4 w-4" />
           Stock Requests

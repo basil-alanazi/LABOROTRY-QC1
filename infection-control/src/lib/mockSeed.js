@@ -41,6 +41,8 @@ const EMPLOYEE_DEPARTMENTS = [
 ];
 
 const IC_ROUND_DEPARTMENTS = ["Male Ward", "Female Ward", "ICU", "NICU", "Surgery", "OB/GYN", "Emergency", "OPD"];
+const NURSING_ROUND_DEPARTMENTS = ["Male Ward", "Female Ward", "ICU", "NICU", "Surgery", "OB/GYN", "Emergency", "OPD"];
+const QUALITY_ROUND_DEPARTMENTS = ["Male Ward", "Female Ward", "ICU", "NICU", "Surgery", "OB/GYN", "Emergency", "OPD"];
 const CULTURE_TRACKER_ITEMS = ["Dental 1", "Dental 2", "Hospital 6 Month CS", "Hospital 12 Month CS"];
 const AGREEMENT_TRACKER_ENTITIES = ["SEPCO", "Pest Control", "Intra Department"];
 
@@ -49,9 +51,14 @@ export const app_config = {
   stock_departments: STOCK_DEPARTMENTS,
   employee_departments: EMPLOYEE_DEPARTMENTS,
   ic_round_departments: IC_ROUND_DEPARTMENTS,
+  nursing_round_departments: NURSING_ROUND_DEPARTMENTS,
+  quality_round_departments: QUALITY_ROUND_DEPARTMENTS,
   culture_tracker_items: CULTURE_TRACKER_ITEMS,
   agreement_tracker_entities: AGREEMENT_TRACKER_ENTITIES,
 };
+
+export const nursing_rounds = [];
+export const quality_rounds = [];
 
 export const ic_rounds = [
   {
@@ -323,6 +330,30 @@ export const users = [
     role: "staff",
     department: null,
     can_view_employee_health: true,
+    active: true,
+    must_change_password: false,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "user-nursing1",
+    username: "nursing1",
+    password: "nursing123",
+    display_name: "Nursing Rounds — Staff 1",
+    role: "staff",
+    department: null,
+    can_view_nursing_rounds: true,
+    active: true,
+    must_change_password: false,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "user-quality1",
+    username: "quality1",
+    password: "quality123",
+    display_name: "Quality Rounds — Staff",
+    role: "staff",
+    department: null,
+    can_view_quality_rounds: true,
     active: true,
     must_change_password: false,
     created_at: new Date().toISOString(),
