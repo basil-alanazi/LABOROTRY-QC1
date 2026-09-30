@@ -27,6 +27,7 @@ create table if not exists users (
   role text not null default 'staff', -- 'owner' | 'ic' | 'staff'
   department text,                    -- optional home department for staff users
   can_manage_stock boolean not null default false, -- staff dept "in-charge": can add/remove items in their own department's stock catalog
+  can_admin_stock boolean not null default false, -- staff account granted the full Owner/IC view of Stock Requests (every department), without broader admin access
   can_view_employee_health boolean not null default false, -- staff account granted access to only the Employee Health page (e.g. a doctor account), instead of the usual stock-only staff view
   can_view_nursing_rounds boolean not null default false, -- staff account granted access to only the Nursing Daily Rounds page
   can_view_quality_rounds boolean not null default false, -- staff account granted access to only the Quality Daily Rounds page

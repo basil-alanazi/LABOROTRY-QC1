@@ -42,7 +42,11 @@ function toReportRow(r) {
 }
 
 export default function StockRequests() {
-  const { session, config, isAdmin } = useAuth();
+  const { session, config, isAdmin, canAdminStock } = useAuth();
+  // Owner/IC always see the full admin view; a Ward Staff account can be
+  // granted "Stock Requests Admin" (Settings → User Accounts) to see and
+  // manage every department here too, without broader admin access.
+  const isStockAdmin = isAdmin || canAdminStock;
   const [tab, setTab] = useState("use");
   const [items, setItems] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -63,10 +67,10 @@ export default function StockRequests() {
 
   const myDepartment = session?.department || "";
   const departments = config?.stock_departments ?? [];
-  const canManage = isAdmin || !!session?.canManageStock;
+  const canManage = isStockAdmin || !!session?.canManageStock;
   // Everyone gets the Daily Check tab, but non-admins only ever see (and can
   // only ever mark) their own assigned department, same scoping as "Use Stock".
-  const activeDepartment = isAdmin ? selectedDept : myDepartment;
+  const activeDepartment = isStockAdmin ? selectedDept : myDepartment;
 
   async function loadItems() {
     const { data } = await fetchAllRows((from, to) =>
@@ -83,12 +87,12 @@ export default function StockRequests() {
     setLoading(true);
     const { data } = await fetchAllRows((from, to) => {
       let query = supabase.from("stock_requests").select("*").order("created_at", { ascending: false }).range(from, to);
-      if (!isAdmin) {
+      if (!isStockAdmin) {
         query = query.eq("department", myDepartment);
       } else if (filterDepts.length > 0) {
         query = query.in("department", filterDepts);
       }
-      if (isAdmin && reportMonth) {
+      if (isStockAdmin && reportMonth) {
         const monthStart = `${reportMonth}-01`;
         const monthEnd = new Date(new Date(monthStart).getFullYear(), new Date(monthStart).getMonth() + 1, 0).toISOString().slice(0, 10);
         query = query.gte("date", monthStart).lte("date", monthEnd);
@@ -102,7 +106,7 @@ export default function StockRequests() {
   useEffect(() => {
     loadRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, myDepartment, filterDepts, reportMonth]);
+  }, [isStockAdmin, myDepartment, filterDepts, reportMonth]);
 
   function toggleFilterDept(dept) {
     setFilterDepts((prev) => (prev.includes(dept) ? prev.filter((d) => d !== dept) : [...prev, dept]));
@@ -335,12 +339,12 @@ export default function StockRequests() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">Stock Requests</h1>
           <p className="text-sm text-slate-500">
-            {isAdmin
+            {isStockAdmin
               ? "Supply usage across every department's own stock catalog, tracked in real time."
               : `Log supplies used from ${myDepartment || "your department"}'s own stock.`}
           </p>
         </div>
-        {isAdmin && tab === "use" && (
+        {isStockAdmin && tab === "use" && (
           <div className="flex flex-wrap items-center gap-2">
             <input
               type="month"
@@ -395,7 +399,7 @@ export default function StockRequests() {
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">Use Stock</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {isAdmin ? (
+          {isStockAdmin ? (
             <Field label="Department">
               <select
                 value={selectedDept}
@@ -604,7 +608,7 @@ export default function StockRequests() {
         )}
       </div>
 
-      {isAdmin && (
+      {isStockAdmin && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4">
           <span className="text-xs font-medium text-slate-500">Departments in report:</span>
           <button
@@ -636,24 +640,24 @@ export default function StockRequests() {
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
               <th className="px-4 py-2 font-medium">Date</th>
-              {isAdmin && <th className="px-4 py-2 font-medium">Department</th>}
+              {isStockAdmin && <th className="px-4 py-2 font-medium">Department</th>}
               <th className="px-4 py-2 font-medium">Item</th>
               <th className="px-4 py-2 font-medium">Quantity Used</th>
               <th className="px-4 py-2 font-medium">Used By</th>
-              {isAdmin && <th className="px-4 py-2"></th>}
+              {isStockAdmin && <th className="px-4 py-2"></th>}
             </tr>
           </thead>
           <tbody>
             {requests.map((r) => (
               <tr key={r.id} className="border-t border-slate-100">
                 <td className="px-4 py-2">{r.date}</td>
-                {isAdmin && <td className="px-4 py-2">{r.department}</td>}
+                {isStockAdmin && <td className="px-4 py-2">{r.department}</td>}
                 <td className="px-4 py-2">{r.item_name}</td>
                 <td className="px-4 py-2">
                   {r.quantity_issued ?? r.quantity_requested} {r.unit}
                 </td>
                 <td className="px-4 py-2">{r.issued_by || r.requested_by}</td>
-                {isAdmin && (
+                {isStockAdmin && (
                   <td className="px-4 py-2 text-right">
                     <button onClick={() => voidRequest(r)} className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-red-50 hover:text-red-600">
                       Void
@@ -677,7 +681,7 @@ export default function StockRequests() {
             <input type="date" className="input w-auto" value={checkDate} onChange={(e) => setCheckDate(e.target.value)} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {isAdmin ? (
+            {isStockAdmin ? (
               <Field label="Department">
                 <select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)} className="input">
                   <option value="">Select department</option>

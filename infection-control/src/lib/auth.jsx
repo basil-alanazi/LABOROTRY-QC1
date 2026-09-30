@@ -41,6 +41,7 @@ export function AuthProvider({ children }) {
       role: user.role,
       department: user.department || "",
       canManageStock: !!user.can_manage_stock,
+      canAdminStock: !!user.can_admin_stock,
       canViewEmployeeHealth: !!user.can_view_employee_health,
       canViewNursingRounds: !!user.can_view_nursing_rounds,
       canViewQualityRounds: !!user.can_view_quality_rounds,
@@ -90,6 +91,10 @@ export function AuthProvider({ children }) {
   const canViewEmployeeHealth = isAdmin || !!session?.canViewEmployeeHealth;
   const canViewNursingRounds = isAdmin || !!session?.canViewNursingRounds;
   const canViewQualityRounds = isAdmin || !!session?.canViewQualityRounds;
+  // Owner/IC always have it; a Ward Staff account can be granted this to see
+  // and manage every department's stock (not just their own) without full
+  // Owner/IC access elsewhere.
+  const canAdminStock = isAdmin || !!session?.canAdminStock;
 
   return (
     <AuthContext.Provider
@@ -105,6 +110,7 @@ export function AuthProvider({ children }) {
         canViewEmployeeHealth,
         canViewNursingRounds,
         canViewQualityRounds,
+        canAdminStock,
         reloadConfig: loadConfig,
       }}
     >
