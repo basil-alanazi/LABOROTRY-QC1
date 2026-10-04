@@ -41,14 +41,32 @@ function toReportRow(r) {
   return [r.date, r.department, r.item_name, r.quantity_issued ?? r.quantity_requested, r.issued_by || r.requested_by, r.notes];
 }
 
+function isLowStock(item) {
+  return item.current_qty <= 0 || item.current_qty < item.min_qty;
+}
+function isOverstock(item) {
+  return item.max_qty > 0 && item.current_qty > item.max_qty;
+}
+function stockColorClass(item) {
+  if (item.current_qty <= 0) return "text-red-600";
+  if (item.current_qty < item.min_qty) return "text-amber-600";
+  if (isOverstock(item)) return "text-orange-600";
+  return "text-emerald-600";
+}
+
 export default function StockRequests() {
-  const { session, config, isAdmin } = useAuth();
+  const { session, config, isAdmin, canAdminStock } = useAuth();
+  // Owner/IC always see the full admin view; a Ward Staff account can be
+  // granted "Stock Requests Admin" (Settings → User Accounts) to see and
+  // manage every department here too, without broader admin access.
+  const isStockAdmin = isAdmin || canAdminStock;
   const [tab, setTab] = useState("use");
   const [items, setItems] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDept, setSelectedDept] = useState("");
   const [itemSearch, setItemSearch] = useState("");
+  const [lowStockOnly, setLowStockOnly] = useState(false);
   const [qtyInputs, setQtyInputs] = useState({});
   const [addQtyInputs, setAddQtyInputs] = useState({});
   const [message, setMessage] = useState(null);
@@ -63,10 +81,10 @@ export default function StockRequests() {
 
   const myDepartment = session?.department || "";
   const departments = config?.stock_departments ?? [];
-  const canManage = isAdmin || !!session?.canManageStock;
+  const canManage = isStockAdmin || !!session?.canManageStock;
   // Everyone gets the Daily Check tab, but non-admins only ever see (and can
   // only ever mark) their own assigned department, same scoping as "Use Stock".
-  const activeDepartment = isAdmin ? selectedDept : myDepartment;
+  const activeDepartment = isStockAdmin ? selectedDept : myDepartment;
 
   async function loadItems() {
     const { data } = await fetchAllRows((from, to) =>
@@ -83,12 +101,12 @@ export default function StockRequests() {
     setLoading(true);
     const { data } = await fetchAllRows((from, to) => {
       let query = supabase.from("stock_requests").select("*").order("created_at", { ascending: false }).range(from, to);
-      if (!isAdmin) {
+      if (!isStockAdmin) {
         query = query.eq("department", myDepartment);
       } else if (filterDepts.length > 0) {
         query = query.in("department", filterDepts);
       }
-      if (isAdmin && reportMonth) {
+      if (isStockAdmin && reportMonth) {
         const monthStart = `${reportMonth}-01`;
         const monthEnd = new Date(new Date(monthStart).getFullYear(), new Date(monthStart).getMonth() + 1, 0).toISOString().slice(0, 10);
         query = query.gte("date", monthStart).lte("date", monthEnd);
@@ -102,7 +120,7 @@ export default function StockRequests() {
   useEffect(() => {
     loadRequests();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, myDepartment, filterDepts, reportMonth]);
+  }, [isStockAdmin, myDepartment, filterDepts, reportMonth]);
 
   function toggleFilterDept(dept) {
     setFilterDepts((prev) => (prev.includes(dept) ? prev.filter((d) => d !== dept) : [...prev, dept]));
@@ -112,8 +130,9 @@ export default function StockRequests() {
     () =>
       items
         .filter((i) => i.department === activeDepartment)
-        .filter((i) => !itemSearch.trim() || i.name.toLowerCase().includes(itemSearch.trim().toLowerCase())),
-    [items, activeDepartment, itemSearch]
+        .filter((i) => !itemSearch.trim() || i.name.toLowerCase().includes(itemSearch.trim().toLowerCase()))
+        .filter((i) => !lowStockOnly || isLowStock(i)),
+    [items, activeDepartment, itemSearch, lowStockOnly]
   );
 
   // Daily Check works off every item in the active department's catalog
@@ -124,6 +143,7 @@ export default function StockRequests() {
     () => dailyCheckItems.filter((item) => SHIFTS.some((s) => checksByItem[item.id]?.[`${s.key}_issue`])).length,
     [dailyCheckItems, checksByItem]
   );
+  const dailyCheckLowStockCount = useMemo(() => dailyCheckItems.filter(isLowStock).length, [dailyCheckItems]);
 
   async function loadDailyChecks() {
     if (dailyCheckItems.length === 0) {
@@ -335,12 +355,12 @@ export default function StockRequests() {
         <div>
           <h1 className="text-xl font-bold text-slate-800">Stock Requests</h1>
           <p className="text-sm text-slate-500">
-            {isAdmin
+            {isStockAdmin
               ? "Supply usage across every department's own stock catalog, tracked in real time."
               : `Log supplies used from ${myDepartment || "your department"}'s own stock.`}
           </p>
         </div>
-        {isAdmin && tab === "use" && (
+        {isStockAdmin && tab === "use" && (
           <div className="flex flex-wrap items-center gap-2">
             <input
               type="month"
@@ -395,7 +415,7 @@ export default function StockRequests() {
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">Use Stock</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {isAdmin ? (
+          {isStockAdmin ? (
             <Field label="Department">
               <select
                 value={selectedDept}
@@ -429,6 +449,17 @@ export default function StockRequests() {
           </Field>
         </div>
 
+        <button
+          type="button"
+          onClick={() => setLowStockOnly((v) => !v)}
+          disabled={!activeDepartment}
+          className={`w-fit rounded-full border px-3 py-1.5 text-xs font-medium disabled:opacity-40 ${
+            lowStockOnly ? "border-amber-500 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-500 hover:bg-slate-50"
+          }`}
+        >
+          {lowStockOnly ? "Showing low stock only" : "Low stock only"}
+        </button>
+
         {message && (
           <p className={`rounded-lg px-3 py-2 text-sm ${message.type === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
             {message.text}
@@ -438,7 +469,9 @@ export default function StockRequests() {
         {!activeDepartment && <p className="text-sm text-slate-400">Select a department to see its stock items.</p>}
 
         {activeDepartment && departmentItems.length === 0 && (
-          <p className="text-sm text-slate-400">No items match — {items.filter((i) => i.department === activeDepartment).length} items total for {activeDepartment}.</p>
+          <p className="text-sm text-slate-400">
+            {lowStockOnly ? "No low-stock items right now" : "No items match"} — {items.filter((i) => i.department === activeDepartment).length} items total for {activeDepartment}.
+          </p>
         )}
 
         {activeDepartment && departmentItems.length > 0 && (
@@ -494,12 +527,9 @@ export default function StockRequests() {
                       </>
                     )}
                     <td className="px-4 py-2">
-                      <span
-                        className={`font-medium ${
-                          i.current_qty <= 0 ? "text-red-600" : i.current_qty < i.min_qty ? "text-amber-600" : "text-emerald-600"
-                        }`}
-                      >
+                      <span className={`font-medium ${stockColorClass(i)}`}>
                         {i.current_qty} {i.unit}
+                        {isOverstock(i) && <span className="ml-1 text-[10px] font-semibold uppercase text-orange-600">over max</span>}
                       </span>
                     </td>
                     {canManage && (
@@ -604,7 +634,7 @@ export default function StockRequests() {
         )}
       </div>
 
-      {isAdmin && (
+      {isStockAdmin && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4">
           <span className="text-xs font-medium text-slate-500">Departments in report:</span>
           <button
@@ -636,24 +666,24 @@ export default function StockRequests() {
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
               <th className="px-4 py-2 font-medium">Date</th>
-              {isAdmin && <th className="px-4 py-2 font-medium">Department</th>}
+              {isStockAdmin && <th className="px-4 py-2 font-medium">Department</th>}
               <th className="px-4 py-2 font-medium">Item</th>
               <th className="px-4 py-2 font-medium">Quantity Used</th>
               <th className="px-4 py-2 font-medium">Used By</th>
-              {isAdmin && <th className="px-4 py-2"></th>}
+              {isStockAdmin && <th className="px-4 py-2"></th>}
             </tr>
           </thead>
           <tbody>
             {requests.map((r) => (
               <tr key={r.id} className="border-t border-slate-100">
                 <td className="px-4 py-2">{r.date}</td>
-                {isAdmin && <td className="px-4 py-2">{r.department}</td>}
+                {isStockAdmin && <td className="px-4 py-2">{r.department}</td>}
                 <td className="px-4 py-2">{r.item_name}</td>
                 <td className="px-4 py-2">
                   {r.quantity_issued ?? r.quantity_requested} {r.unit}
                 </td>
                 <td className="px-4 py-2">{r.issued_by || r.requested_by}</td>
-                {isAdmin && (
+                {isStockAdmin && (
                   <td className="px-4 py-2 text-right">
                     <button onClick={() => voidRequest(r)} className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-red-50 hover:text-red-600">
                       Void
@@ -677,7 +707,7 @@ export default function StockRequests() {
             <input type="date" className="input w-auto" value={checkDate} onChange={(e) => setCheckDate(e.target.value)} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {isAdmin ? (
+            {isStockAdmin ? (
               <Field label="Department">
                 <select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)} className="input">
                   <option value="">Select department</option>
@@ -703,6 +733,11 @@ export default function StockRequests() {
           {dailyCheckIssueCount > 0 && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
               {dailyCheckIssueCount} item{dailyCheckIssueCount === 1 ? "" : "s"} flagged with a problem for {checkDate}
+            </p>
+          )}
+          {dailyCheckLowStockCount > 0 && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
+              {dailyCheckLowStockCount} item{dailyCheckLowStockCount === 1 ? " is" : "s are"} currently low on stock — restock before checking it off
             </p>
           )}
 
@@ -753,9 +788,22 @@ export default function StockRequests() {
                   {dailyCheckItems.map((item) => {
                     const row = checksByItem[item.id] || emptyDailyCheck(item.id);
                     const hasIssue = SHIFTS.some((s) => row[`${s.key}_issue`]);
+                    const lowStock = isLowStock(item);
                     return (
-                      <tr key={item.id} className={`border-t border-slate-100 ${hasIssue ? "bg-red-50/50" : ""}`}>
-                        <td className="px-3 py-1.5 font-medium text-slate-700">{item.name}</td>
+                      <tr key={item.id} className={`border-t border-slate-100 ${hasIssue ? "bg-red-50/50" : lowStock ? "bg-amber-50/50" : ""}`}>
+                        <td className="px-3 py-1.5 font-medium text-slate-700">
+                          {item.name}
+                          {lowStock && (
+                            <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700">
+                              Low stock
+                            </span>
+                          )}
+                          {isOverstock(item) && (
+                            <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-orange-700">
+                              Over max
+                            </span>
+                          )}
+                        </td>
                         {SHIFTS.map((s) => (
                           <Fragment key={s.key}>
                             <td className="px-2 py-1.5 text-center">

@@ -12,6 +12,7 @@ const emptyNewUser = {
   role: "staff",
   department: "",
   can_manage_stock: false,
+  can_admin_stock: false,
   can_view_employee_health: false,
   can_view_nursing_rounds: false,
   can_view_quality_rounds: false,
@@ -379,6 +380,7 @@ export default function Settings() {
       role: newUser.role,
       department: newUser.department || null,
       can_manage_stock: newUser.role === "staff" && newUser.can_manage_stock,
+      can_admin_stock: newUser.role === "staff" && newUser.can_admin_stock,
       can_view_employee_health: newUser.role === "staff" && newUser.can_view_employee_health,
       can_view_nursing_rounds: newUser.role === "staff" && newUser.can_view_nursing_rounds,
       can_view_quality_rounds: newUser.role === "staff" && newUser.can_view_quality_rounds,
@@ -405,6 +407,7 @@ export default function Settings() {
         role: user.role,
         department: user.department || null,
         can_manage_stock: user.role === "staff" && !!user.can_manage_stock,
+        can_admin_stock: user.role === "staff" && !!user.can_admin_stock,
         can_view_employee_health: user.role === "staff" && !!user.can_view_employee_health,
         can_view_nursing_rounds: user.role === "staff" && !!user.can_view_nursing_rounds,
         can_view_quality_rounds: user.role === "staff" && !!user.can_view_quality_rounds,
@@ -961,6 +964,16 @@ export default function Settings() {
                   <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-5">
                     <input
                       type="checkbox"
+                      checked={!!u.can_admin_stock}
+                      onChange={(e) => updateUserField(u.id, { can_admin_stock: e.target.checked })}
+                    />
+                    Stock Requests admin — sees and manages every department's stock (not just their own), same as Owner/IC
+                  </label>
+                )}
+                {u.role === "staff" && (
+                  <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-5">
+                    <input
+                      type="checkbox"
                       checked={!!u.can_view_employee_health}
                       onChange={(e) => updateUserField(u.id, { can_view_employee_health: e.target.checked })}
                     />
@@ -1046,6 +1059,16 @@ export default function Settings() {
                   onChange={(e) => setNewUser({ ...newUser, can_manage_stock: e.target.checked })}
                 />
                 Department stock in-charge — can also add/remove items in this department's stock catalog (not just use them)
+              </label>
+            )}
+            {newUser.role === "staff" && (
+              <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-4">
+                <input
+                  type="checkbox"
+                  checked={newUser.can_admin_stock}
+                  onChange={(e) => setNewUser({ ...newUser, can_admin_stock: e.target.checked })}
+                />
+                Stock Requests admin — sees and manages every department's stock (not just their own), same as Owner/IC
               </label>
             )}
             {newUser.role === "staff" && (

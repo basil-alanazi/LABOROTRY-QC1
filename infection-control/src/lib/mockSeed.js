@@ -358,6 +358,18 @@ export const users = [
     must_change_password: false,
     created_at: new Date().toISOString(),
   },
+  {
+    id: "user-stockadmin",
+    username: "stockadmin",
+    password: "stockadmin123",
+    display_name: "Stock Admin — Staff",
+    role: "staff",
+    department: "ICU",
+    can_admin_stock: true,
+    active: true,
+    must_change_password: false,
+    created_at: new Date().toISOString(),
+  },
 ];
 
 export const messages = [
