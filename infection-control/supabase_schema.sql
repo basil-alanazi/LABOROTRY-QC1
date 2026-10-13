@@ -620,6 +620,7 @@ create table if not exists baladiya_licenses (
   expiry_date date,
   attachment_path text,
   attachment_name text,
+  attachments jsonb not null default '[]'::jsonb,
   deleted boolean not null default false,
   deleted_by text,
   deleted_at timestamptz,
@@ -683,6 +684,11 @@ create policy "allow all agreement_tracker" on agreement_tracker for all using (
 -- "department" is a real employee attribute, not a tracker-specific one.
 alter table app_config add column if not exists culture_tracker_items jsonb not null default '["Dental 1","Dental 2","Hospital 6 Month CS","Hospital 12 Month CS"]'::jsonb;
 alter table app_config add column if not exists agreement_tracker_entities jsonb not null default '["SEPCO","Pest Control","Intra Department"]'::jsonb;
+
+-- Baladiya License supports multiple attachments per employee (the old
+-- single attachment_path/attachment_name columns stay for any already-set
+-- values, but new uploads go into this array instead).
+alter table baladiya_licenses add column if not exists attachments jsonb not null default '[]'::jsonb;
 
 insert into storage.buckets (id, name, public)
 values ('tracker-attachments', 'tracker-attachments', true)
