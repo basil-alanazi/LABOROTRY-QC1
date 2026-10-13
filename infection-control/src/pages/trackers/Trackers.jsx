@@ -155,14 +155,20 @@ export default function Trackers() {
     await supabase.from("baladiya_licenses").update({ deleted: true, deleted_by: session?.username, deleted_at: new Date().toISOString() }).eq("id", r.id);
     loadAll();
   }
-  async function uploadLicenseAttachment(r, file) {
+  async function addLicenseAttachments(r, files) {
     try {
-      const { path, name } = await uploadFile(r.name, file);
-      await supabase.from("baladiya_licenses").update({ attachment_path: path, attachment_name: name }).eq("id", r.id);
-      loadAll();
+      const uploaded = await Promise.all(Array.from(files).map((f) => uploadFile(r.name, f)));
+      const next = [...(r.attachments ?? []), ...uploaded];
+      updateLicenseField(r.id, { attachments: next });
+      await supabase.from("baladiya_licenses").update({ attachments: next }).eq("id", r.id);
     } catch (err) {
       flash({ type: "error", text: "Could not upload: " + err.message });
     }
+  }
+  async function removeLicenseAttachment(r, index) {
+    const next = (r.attachments ?? []).filter((_, i) => i !== index);
+    updateLicenseField(r.id, { attachments: next });
+    await supabase.from("baladiya_licenses").update({ attachments: next }).eq("id", r.id);
   }
 
   // --- Policy Tracker ---
@@ -446,7 +452,7 @@ export default function Trackers() {
                       </td>
                       <td className="px-3 py-1.5">{badge && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.cls}`}>{badge.label}</span>}</td>
                       <td className="px-3 py-1.5">
-                        <AttachmentSlot path={r.attachment_path} name={r.attachment_name} onUpload={(f) => uploadLicenseAttachment(r, f)} />
+                        <AttachmentList attachments={r.attachments} onAdd={(files) => addLicenseAttachments(r, files)} onRemove={(index) => removeLicenseAttachment(r, index)} />
                       </td>
                       <td className="px-3 py-1.5">
                         <button onClick={() => removeLicense(r)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
@@ -704,6 +710,34 @@ export default function Trackers() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function AttachmentList({ attachments, onAdd, onRemove }) {
+  const list = attachments ?? [];
+  return (
+    <div className="flex flex-col gap-1 text-xs">
+      {list.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {list.map((a, i) => (
+            <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-slate-600">
+              <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                <Paperclip className="h-3.5 w-3.5" />
+                {a.name || "View"}
+              </a>
+              <button onClick={() => onRemove(i)} className="text-slate-400 hover:text-red-500">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <label className="flex w-fit cursor-pointer items-center gap-1 font-medium text-red-600 hover:underline">
+        <Upload className="h-3.5 w-3.5" />
+        {list.length > 0 ? "Add more" : "Upload"}
+        <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && onAdd(e.target.files)} />
+      </label>
     </div>
   );
 }
