@@ -6,19 +6,17 @@
 
 ## الإعداد (مرة وحدة)
 
-### 1) Supabase
-1. supabase.com/dashboard/new → مشروع جديد باسم `dad-health`
-2. انتظر لين يصير Healthy
-3. SQL Editor → New query → انسخ كل محتوى `supabase_schema.sql` والصقه → Run
-4. Project Settings → Data API → انسخ API URL
-5. Project Settings → API Keys → انسخ Publishable key
+الموقع كله على Cloudflare: الصفحات على **Pages**، والبيانات في **D1**، في قاعدة بيانات خاصة اسمها `dad-health-db`، منفصلة عن أي موقع ثاني.
 
-### 2) Vercel
-1. vercel.com → Add New → Project → استورد مستودع `dad-health`
-2. Environment Variables:
-   - `VITE_SUPABASE_URL` = الـURL
-   - `VITE_SUPABASE_ANON_KEY` = الـPublishable key
-3. Deploy
+### 1) قاعدة البيانات
+جاهزة ومسوية: `dad-health-db`، وفيها الجداول من `schema.sql`. والربط مكتوب في `wrangler.toml` باسم `DB`.
+
+### 2) Cloudflare Pages
+1. dash.cloudflare.com → Workers & Pages → Create → Pages → **Connect to Git**
+2. اختر مستودع `wad`
+3. Build command: `npm run build` — Build output directory: `dist`
+4. Save and Deploy
+5. إذا الصفحة طلعت "قاعدة البيانات مو مربوطة": Settings → Bindings → Add → D1 database → الاسم `DB` → اختر `dad-health-db` → وبعدها أعد النشر.
 
 ### 3) قبل الاستخدام
 الخطة الحالية محفوظة جاهزة: Humalog 20 / 20 / 12 قبل الوجبات، وTresiba 40 قبل النوم. إذا غيّرها الدكتور عدّلها من **الإعدادات**.
