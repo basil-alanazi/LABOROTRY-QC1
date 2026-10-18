@@ -7,6 +7,8 @@ import Vitals from "./Vitals";
 import Meds from "./Meds";
 import Appointments from "./Appointments";
 import Notes from "./Notes";
+import Diet from "./Diet";
+import Labs from "./Labs";
 import Readings from "./Readings";
 import Settings from "./Settings";
 
@@ -16,12 +18,14 @@ export const PAGES = {
   meds: "الأدوية",
   appointments: "المواعيد الطبية",
   notes: "الملاحظات اليومية",
+  diet: "الخطة الغذائية",
+  labs: "نتائج التحاليل",
   record: "السجل الصحي",
   settings: "الإعدادات",
 };
 
 const REFRESH_MS = 20000;
-const EMPTY = { settings: null, readings: [], doses: [], changes: [], bp: [], medications: [], medDoses: [], appointments: [], notes: [] };
+const EMPTY = { settings: null, readings: [], doses: [], changes: [], bp: [], medications: [], medDoses: [], appointments: [], notes: [], labs: [], meals: [] };
 
 export default function App() {
   const [page, setPage] = useState("home");
@@ -88,6 +92,8 @@ export default function App() {
         {page === "meds" && <Meds {...props} />}
         {page === "appointments" && <Appointments {...props} />}
         {page === "notes" && <Notes {...props} />}
+        {page === "diet" && <Diet {...props} />}
+        {page === "labs" && <Labs {...props} />}
         {page === "record" && <Readings {...props} />}
         {page === "settings" && <Settings settings={data.settings} onSaved={reload} />}
       </main>

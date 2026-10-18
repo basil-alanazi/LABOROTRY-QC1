@@ -198,3 +198,43 @@ textarea { width: 100%; font: inherit; padding: 12px; border: 1px solid var(--li
   .tile.green  { --tile-bg: #142a20; --tile-fg: #86efac; }
   .appt-when { background: #2e2312; color: #fcd34d; }
 }
+.tile.orange { --tile-bg: #fdf1ea; --tile-fg: #b4532a; }
+.tile.indigo { --tile-bg: #eef0fb; --tile-fg: #4a52a8; }
+.tile-sub { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.meal { border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+.meal.taken { background: #ecfdf5; border-color: #a7f3d0; }
+.meal p { margin: 6px 0 10px; font-size: 16px; }
+.meal-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.meal-head span { font-size: 13px; }
+.meal-actions, .other { display: flex; gap: 8px; align-items: center; }
+.meal-actions .secondary { margin-top: 0; }
+.other input { flex: 1; }
+.warn-card { background: #fffbeb; color: #92400e; }
+.warn-card p { margin: 0; }
+.plate-row { display: flex; flex-direction: column; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.plate-row:last-child { border-bottom: 0; }
+.sheet.week { min-width: 620px; }
+.sheet.week td { text-align: start; font-size: 13px; line-height: 1.5; }
+.today-row td { background: #e6f4f1; }
+
+.a1c { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; }
+.a1c p { margin: 4px 0 0; }
+.a1c-value { font-size: 56px; line-height: 1.1; }
+.a1c-value.ok { color: var(--ok); }
+.a1c-value.high { color: var(--warn); }
+.a1c-value.veryhigh { color: var(--danger); }
+.next-due { background: var(--bg); padding: 8px 12px; border-radius: 12px; }
+.a1c-bars { display: flex; gap: 12px; align-items: flex-end; height: 180px; overflow-x: auto; padding-top: 8px; }
+.a1c-bar { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%; min-width: 64px; background: none; color: var(--text); }
+.a1c-bar .bar { width: 28px; border-radius: 8px 8px 0 0; background: var(--ok); }
+.a1c-bar .bar.high { background: var(--warn); }
+.a1c-bar .bar.veryhigh { background: var(--danger); }
+.a1c-bar small { font-size: 11px; color: var(--muted); }
+@media (prefers-color-scheme: dark) {
+  .tile.orange { --tile-bg: #33200f; --tile-fg: #fdba74; }
+  .tile.indigo { --tile-bg: #1d1f3d; --tile-fg: #a5b4fc; }
+  .meal.taken { background: #0f2e24; border-color: #1f5a45; }
+  .warn-card { background: #33270f; color: #fbbf24; }
+  .today-row td { background: #12302c; }
+}

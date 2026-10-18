@@ -17,8 +17,11 @@ const SETTING_FIELDS = [
 // الجداول اللي يقدر المستخدم يحذف منها صف
 const DELETABLE = {
   readings: "readings", doses: "doses", bp: "bp_readings", "med-doses": "med_doses",
-  appointments: "appointments", notes: "notes",
+  appointments: "appointments", notes: "notes", labs: "labs", meals: "meals",
 };
+const MEAL_SLOTS = ["breakfast", "lunch", "dinner", "snack"];
+const LAB_TESTS = ["hba1c", "other"];
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 const text = (v, max) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
@@ -44,7 +47,7 @@ export async function onRequest({ request, env, params }) {
   try {
     if (resource === "all" && method === "GET") {
       const q = (sql) => db.prepare(sql);
-      const [settings, readings, doses, changes, bp, medications, medDoses, appointments, notes] = await db.batch([
+      const [settings, readings, doses, changes, bp, medications, medDoses, appointments, notes, labs, meals] = await db.batch([
         q("SELECT * FROM settings WHERE id = 1"),
         q("SELECT * FROM readings ORDER BY created_at DESC LIMIT 1000"),
         q("SELECT * FROM doses ORDER BY created_at DESC LIMIT 1000"),
@@ -54,6 +57,8 @@ export async function onRequest({ request, env, params }) {
         q("SELECT * FROM med_doses ORDER BY created_at DESC LIMIT 1000"),
         q("SELECT * FROM appointments ORDER BY at DESC LIMIT 200"),
         q("SELECT * FROM notes ORDER BY created_at DESC LIMIT 500"),
+        q("SELECT * FROM labs ORDER BY taken_on DESC LIMIT 200"),
+        q("SELECT * FROM meals ORDER BY created_at DESC LIMIT 500"),
       ]);
       return json({
         settings: settings.results[0],
@@ -65,6 +70,8 @@ export async function onRequest({ request, env, params }) {
         medDoses: medDoses.results,
         appointments: appointments.results,
         notes: notes.results,
+        labs: labs.results,
+        meals: meals.results,
       });
     }
 
@@ -130,6 +137,30 @@ export async function onRequest({ request, env, params }) {
     if (resource === "notes" && method === "POST") {
       const t = text(body.text, 1000) || bad("اكتب الملاحظة");
       return json(await insert("INSERT INTO notes (text) VALUES (?)", t));
+    }
+
+    if (resource === "labs" && (method === "POST" || (method === "PUT" && id))) {
+      const takenOn = DATE_RE.test(body.taken_on) ? body.taken_on : bad("اختر تاريخ التحليل");
+      const test = LAB_TESTS.includes(body.test) ? body.test : "hba1c";
+      const value = Number(body.value);
+      if (!(value > 0 && value < 10000)) bad("النتيجة غير صحيحة");
+      if (test === "hba1c" && !(value >= 3 && value <= 20)) bad("السكر التراكمي لازم يكون بين 3 و20");
+      const unit = test === "hba1c" ? "%" : text(body.unit, 20);
+      const notes = test === "other" ? (text(body.notes, 300) || bad("اكتب اسم التحليل")) : text(body.notes, 300);
+      if (method === "POST") {
+        return json(await insert("INSERT INTO labs (taken_on, test, value, unit, notes) VALUES (?, ?, ?, ?, ?)", takenOn, test, value, unit, notes));
+      }
+      await db.prepare("UPDATE labs SET taken_on = ?, test = ?, value = ?, unit = ?, notes = ? WHERE id = ?")
+        .bind(takenOn, test, value, unit, notes, Number(id)).run();
+      return json({ ok: true });
+    }
+
+    if (resource === "meals" && method === "POST") {
+      const slot = MEAL_SLOTS.includes(body.slot) ? body.slot : bad("الوجبة غير معروفة");
+      const followed = body.followed === false ? 0 : 1;
+      const t = text(body.text, 300);
+      if (!followed && !t) bad("اكتب وش أكل");
+      return json(await insert("INSERT INTO meals (slot, followed, text) VALUES (?, ?, ?)", slot, followed, t));
     }
 
     if (DELETABLE[resource] && method === "DELETE" && id) {

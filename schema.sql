@@ -99,3 +99,25 @@ CREATE TABLE IF NOT EXISTS notes (
   text TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS notes_created_at_idx ON notes (created_at DESC);
+
+-- نتائج التحاليل (مثل السكر التراكمي). taken_on = تاريخ التحليل 2026-10-08
+CREATE TABLE IF NOT EXISTS labs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  taken_on TEXT NOT NULL,
+  test TEXT NOT NULL DEFAULT 'hba1c',
+  value REAL NOT NULL,
+  unit TEXT,
+  notes TEXT
+);
+CREATE INDEX IF NOT EXISTS labs_taken_on_idx ON labs (taken_on DESC);
+
+-- الوجبات: followed = 1 أكل حسب الخطة، 0 أكل شي ثاني (مكتوب في text)
+CREATE TABLE IF NOT EXISTS meals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  slot TEXT NOT NULL,   -- breakfast / lunch / dinner / snack
+  followed INTEGER NOT NULL DEFAULT 1,
+  text TEXT
+);
+CREATE INDEX IF NOT EXISTS meals_created_at_idx ON meals (created_at DESC);

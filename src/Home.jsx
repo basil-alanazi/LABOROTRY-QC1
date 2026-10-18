@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { Droplet, Activity, Pill, CalendarDays, NotebookPen, History } from "lucide-react";
+import { Droplet, Activity, Pill, CalendarDays, NotebookPen, History, Salad, FlaskConical } from "lucide-react";
+import { todayPlan } from "./mealPlan";
+import { avgGlucose } from "./Labs";
 import { CONTEXTS, apptDate, dayKey, fmtDate, fmtSlot, fmtTime, recentLow, relativeDays } from "./dose";
 
 function lastText(list, render, empty) {
@@ -17,7 +19,7 @@ function dueMeds(medications, medDoses) {
     .flatMap((m) => m.times.filter((t) => t <= now && !taken.has(`${m.id}@${t}`)).map((t) => ({ m, t })));
 }
 
-export default function Home({ settings, readings, bp, medications, medDoses, appointments, notes, go }) {
+export default function Home({ settings, readings, bp, medications, medDoses, appointments, notes, labs, go }) {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 15000);
@@ -30,6 +32,7 @@ export default function Home({ settings, readings, bp, medications, medDoses, ap
     .filter((a) => apptDate(a.at) >= new Date(dayKey(now)))
     .sort((a, b) => (a.at < b.at ? -1 : 1));
   const next = upcoming[0];
+  const lastA1c = [...labs].filter((l) => l.test === "hba1c").sort((a, b) => (a.taken_on < b.taken_on ? 1 : -1))[0];
   const activeMeds = medications.filter((m) => m.active).length;
 
   const tiles = [
@@ -45,6 +48,14 @@ export default function Home({ settings, readings, bp, medications, medDoses, ap
       key: "meds", color: "purple", Icon: Pill, title: "الأدوية",
       sub: due.length ? `${due.length} باقية من اليوم` : activeMeds ? `${activeMeds} أدوية` : "الجرعات ومواعيدها",
       badge: due.length || null,
+    },
+    {
+      key: "diet", color: "orange", Icon: Salad, title: "الخطة الغذائية",
+      sub: `غداء اليوم: ${todayPlan(now).lunch}`,
+    },
+    {
+      key: "labs", color: "indigo", Icon: FlaskConical, title: "نتائج التحاليل",
+      sub: lastA1c ? `التراكمي ${lastA1c.value}% (متوسط ${avgGlucose(lastA1c.value)})` : "السكر التراكمي والتحاليل",
     },
     {
       key: "appointments", color: "amber", Icon: CalendarDays, title: "المواعيد الطبية",

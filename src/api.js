@@ -30,5 +30,10 @@ export const api = {
   deleteAppointment: remove("appointments"),
   addNote: post("notes"),
   deleteNote: remove("notes"),
+  addLab: post("labs"),
+  updateLab: (id, l) => call(`labs/${id}`, "PUT", l),
+  deleteLab: remove("labs"),
+  addMeal: post("meals"),
+  deleteMeal: remove("meals"),
   saveSettings: (s) => call("settings", "PUT", s),
 };
