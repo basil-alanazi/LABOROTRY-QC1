@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "./supabaseClient";
+import { api } from "./api";
 
 const GROUPS = [
   {
@@ -24,6 +24,13 @@ const GROUPS = [
       ["low_threshold", "حد الهبوط (أقل منه = لا إنسولين)"],
     ],
   },
+  {
+    title: "الضغط (من كذا وفوق = مرتفع)",
+    fields: [
+      ["bp_sys_high", "العالي (الانقباضي)"],
+      ["bp_dia_high", "الواطي (الانبساطي)"],
+    ],
+  },
 ];
 
 export default function Settings({ settings, onSaved }) {
@@ -36,23 +43,19 @@ export default function Settings({ settings, onSaved }) {
   const set = (k, v) => setForm({ ...form, [k]: v });
 
   async function save() {
-    const payload = { patient_name: form.patient_name, updated_at: new Date().toISOString() };
+    const payload = { patient_name: form.patient_name };
     for (const g of GROUPS) for (const [k] of g.fields) {
       const n = Number(form[k]);
       if (!(n > 0)) return setMessage("فيه رقم ناقص أو غلط");
       payload[k] = n;
     }
-    if (payload.tresiba_dose !== Number(settings.tresiba_dose)) {
-      // أي تغيير يدوي في Tresiba ينحفظ في السجل، ويبدأ عدّ الأربعة أيام من جديد
-      const { error } = await supabase.from("tresiba_changes").insert({
-        old_dose: settings.tresiba_dose, new_dose: payload.tresiba_dose, reason: "تعديل يدوي من الإعدادات",
-      });
-      if (error) return setMessage("ما انحفظت: " + error.message);
+    try {
+      await api.saveSettings(payload);
+      onSaved();
+      setMessage("انحفظت الإعدادات ✓");
+    } catch (e) {
+      setMessage("ما انحفظت: " + e.message);
     }
-    const { data, error } = await supabase.from("settings").update(payload).eq("id", 1).select().single();
-    if (error) return setMessage("ما انحفظت: " + error.message);
-    onSaved(data);
-    setMessage("انحفظت الإعدادات ✓");
   }
 
   return (

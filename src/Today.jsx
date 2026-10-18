@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "./supabaseClient";
+import { api } from "./api";
+import BpForm from "./BpForm";
 import {
   CONTEXTS, SLOTS, TITRATION_DAYS, dayKey, fmtDate, fmtShortDate, fmtTime,
   glucoseLevel, recentLow, riyadhHour, tresibaSuggestion,
@@ -14,7 +15,7 @@ function guessContext() {
   return "random";
 }
 
-export default function Today({ settings, readings, doses, changes, onReading, onDose, onTresibaChanged }) {
+export default function Today({ settings, readings, doses, changes, onChanged }) {
   const [now, setNow] = useState(new Date());
   const [glucose, setGlucose] = useState("");
   const [context, setContext] = useState(guessContext());
@@ -34,49 +35,46 @@ export default function Today({ settings, readings, doses, changes, onReading, o
   const low = recentLow(readings, settings);
   const tresiba = tresibaSuggestion(readings, settings, changes[0]);
 
+  async function run(action, ok) {
+    setBusy(true);
+    try {
+      await action();
+      if (ok) setMessage(ok);
+      onChanged();
+      return true;
+    } catch (e) {
+      setMessage("ما انحفظت: " + e.message);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveReading() {
     const g = Number(glucose);
     if (!g || g < 10 || g > 700) return setMessage("اكتب قراءة سكر صحيحة");
-    setBusy(true);
-    const { error } = await supabase.from("readings").insert({ glucose: g, context, note: note.trim() || null });
-    setBusy(false);
-    if (error) return setMessage("ما انحفظت: " + error.message);
-    setMessage(`انحفظت القراءة ✓ — ${fmtTime(new Date())}`);
-    setGlucose("");
-    setNote("");
-    onReading();
+    const saved = await run(() => api.addReading({ glucose: g, context, note: note.trim() || null }), `انحفظت القراءة ✓ — ${fmtTime(new Date())}`);
+    if (saved) {
+      setGlucose("");
+      setNote("");
+    }
   }
 
   async function takeDose(slot) {
     const s = SLOTS[slot];
-    const units = Number(settings[s.key]);
     if (low) return setMessage(`آخر قراءة ${low.glucose} (هبوط) — لا تاخذ إنسولين قبل ما يرتفع السكر.`);
-    if (!confirm(`تأكيد: أخذ ${units} وحدة ${s.insulin} ${s.label}؟`)) return;
-    setBusy(true);
-    const { error } = await supabase.from("doses").insert({ insulin: s.insulin, slot, units });
-    setBusy(false);
-    if (error) return setMessage("ما انحفظت: " + error.message);
-    setMessage(`انسجلت الجرعة ✓ — ${fmtTime(new Date())}`);
-    onDose();
+    if (!confirm(`تأكيد: أخذ ${settings[s.key]} وحدة ${s.insulin} ${s.label}؟`)) return;
+    await run(() => api.addDose(slot), `انسجلت الجرعة ✓ — ${fmtTime(new Date())}`);
   }
 
   async function undoDose(d) {
     if (!confirm(`تلغي تسجيل جرعة ${d.units} وحدة (${fmtTime(d.created_at)})؟`)) return;
-    await supabase.from("doses").delete().eq("id", d.id);
-    onDose();
+    await run(() => api.deleteDose(d.id));
   }
 
   async function applyTresiba() {
     if (!confirm(`تعتمد جرعة Tresiba الجديدة ${tresiba.next} وحدة بدل ${tresiba.current}؟`)) return;
-    setBusy(true);
-    const { error } = await supabase.from("tresiba_changes").insert({
-      old_dose: tresiba.current, new_dose: tresiba.next, reason: tresiba.message,
-    });
-    if (!error) await supabase.from("settings").update({ tresiba_dose: tresiba.next, updated_at: new Date().toISOString() }).eq("id", 1);
-    setBusy(false);
-    if (error) return setMessage("ما انحفظت: " + error.message);
-    setMessage(`صارت جرعة Tresiba ${tresiba.next} وحدة ✓`);
-    onTresibaChanged();
+    await run(() => api.saveSettings({ tresiba_dose: tresiba.next, reason: tresiba.message }), `صارت جرعة Tresiba ${tresiba.next} وحدة ✓`);
   }
 
   const level = glucose ? glucoseLevel(Number(glucose), context, settings) : null;
@@ -127,6 +125,8 @@ export default function Today({ settings, readings, doses, changes, onReading, o
       </div>
 
       {message && <div className="alert info">{message}</div>}
+
+      <BpForm settings={settings} onChanged={onChanged} />
 
       {/* جرعات اليوم */}
       {settings && (

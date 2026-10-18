@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "./supabaseClient";
+import { api } from "./api";
 import Today from "./Today";
 import Readings from "./Readings";
 import Settings from "./Settings";
@@ -10,65 +10,44 @@ const TABS = [
   { key: "settings", label: "الإعدادات" },
 ];
 
+const REFRESH_MS = 20000;
+
 export default function App() {
   const [tab, setTab] = useState("today");
-  const [settings, setSettings] = useState(null);
-  const [readings, setReadings] = useState([]);
-  const [doses, setDoses] = useState([]);
-  const [changes, setChanges] = useState([]);
+  const [data, setData] = useState({ settings: null, readings: [], doses: [], changes: [], bp: [] });
   const [error, setError] = useState("");
 
-  async function load(table, setter, limit = 1000) {
-    const { data, error } = await supabase.from(table).select("*").order("created_at", { ascending: false }).limit(limit);
-    if (error) setError("ما قدرنا نوصل لقاعدة البيانات: " + error.message);
-    else setter(data);
+  async function reload() {
+    try {
+      setData(await api.all());
+      setError("");
+    } catch (e) {
+      setError("ما قدرنا نوصل لقاعدة البيانات: " + e.message);
+    }
   }
-
-  async function loadSettings() {
-    const { data, error } = await supabase.from("settings").select("*").eq("id", 1).single();
-    if (error) setError("ما قدرنا نوصل لقاعدة البيانات: " + error.message);
-    else setSettings(data);
-  }
-
-  const loadReadings = () => load("readings", setReadings);
-  const loadDoses = () => load("doses", setDoses);
-  const loadChanges = () => load("tresiba_changes", setChanges, 100);
 
   useEffect(() => {
-    loadSettings();
-    loadReadings();
-    loadDoses();
-    loadChanges();
-    // أي شي يسجله أحد من العائلة يظهر عند الكل مباشرة
-    const channel = supabase
-      .channel("live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "readings" }, loadReadings)
-      .on("postgres_changes", { event: "*", schema: "public", table: "doses" }, loadDoses)
-      .subscribe();
-    return () => supabase.removeChannel(channel);
+    reload();
+    // أي شي يسجله أحد من العائلة يظهر عند الباقين خلال ثواني
+    const t = setInterval(reload, REFRESH_MS);
+    const onVisible = () => document.visibilityState === "visible" && reload();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", onVisible); };
   }, []);
-
-  const data = { settings, readings, doses, changes };
 
   return (
     <div className="app">
       <header className="top">
-        <h1>صحة {settings?.patient_name || "الوالد"}</h1>
+        <h1>ود</h1>
+        <span className="subtitle">متابعة صحة {data.settings?.patient_name || "الوالد"}</span>
       </header>
 
       {error && <div className="alert danger">{error}</div>}
 
       <main>
-        {tab === "today" && (
-          <Today
-            {...data}
-            onReading={loadReadings}
-            onDose={loadDoses}
-            onTresibaChanged={() => { loadSettings(); loadChanges(); }}
-          />
-        )}
-        {tab === "readings" && <Readings {...data} onChanged={() => { loadReadings(); loadDoses(); }} />}
-        {tab === "settings" && <Settings settings={settings} onSaved={setSettings} />}
+        {tab === "today" && <Today {...data} onChanged={reload} />}
+        {tab === "readings" && <Readings {...data} onChanged={reload} />}
+        {tab === "settings" && <Settings settings={data.settings} onSaved={reload} />}
       </main>
 
       <nav className="tabs">

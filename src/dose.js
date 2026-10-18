@@ -82,3 +82,12 @@ export const fmtTime = (d) =>
 export const dayKey = (d) => new Date(d).toLocaleDateString("en-CA", { timeZone: tz });
 export const riyadhHour = (d = new Date()) =>
   Number(d.toLocaleString("en-US", { timeZone: tz, hour: "numeric", hour12: false })) % 24;
+
+// تصنيف الضغط: الحدود من الإعدادات (الافتراضي 140/90)
+export function bpLevel(r, s) {
+  if (!s) return "ok";
+  if (r.systolic >= 180 || r.diastolic >= 120) return "veryhigh";
+  if (r.systolic >= s.bp_sys_high || r.diastolic >= s.bp_dia_high) return "high";
+  if (r.systolic < 90 || r.diastolic < 60) return "low";
+  return "ok";
+}

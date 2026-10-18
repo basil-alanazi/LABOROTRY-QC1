@@ -104,3 +104,12 @@ ul { margin: 6px 0 0; padding-inline-start: 20px; line-height: 1.8; }
   .print-only { display: block; font-size: 18px; }
   .sheet-wrap { overflow: visible; }
 }
+.bp-inputs { display: grid; grid-template-columns: 1fr auto 1fr 1fr; gap: 8px; align-items: end; }
+.bp-inputs label { margin-top: 0; }
+.slash { font-size: 28px; color: var(--muted); padding-bottom: 8px; }
+input.mid { font-size: 24px; font-weight: 700; text-align: center; padding: 10px 4px; }
+.top { display: flex; align-items: baseline; gap: 10px; }
+.top h1 { font-size: 30px; }
+.subtitle { color: var(--muted); font-size: 15px; }
+input::placeholder { font-size: 15px; font-weight: 400; }
+input.big::placeholder { font-size: 28px; }

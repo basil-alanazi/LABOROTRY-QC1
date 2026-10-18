@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ResponsiveContainer, CartesianGrid } from "recharts";
-import { supabase } from "./supabaseClient";
-import { CONTEXTS, SLOTS, dayKey, fmtDate, fmtShortDate, fmtTime, glucoseLevel } from "./dose";
+import { api } from "./api";
+import { CONTEXTS, SLOTS, bpLevel, dayKey, fmtDate, fmtShortDate, fmtTime, glucoseLevel } from "./dose";
 
 const RANGES = [
   { days: 7, label: "أسبوع" },
@@ -9,7 +9,7 @@ const RANGES = [
   { days: 30, label: "شهر" },
 ];
 
-export default function Readings({ settings, readings, doses, changes, onChanged }) {
+export default function Readings({ settings, readings, doses, changes, bp, onChanged }) {
   const [days, setDays] = useState(14);
   const since = Date.now() - days * 864e5;
 
@@ -40,9 +40,17 @@ export default function Readings({ settings, readings, doses, changes, onChanged
 
   const chartData = shown.filter((r) => r.context === "fasting").reverse().map((r) => ({ t: new Date(r.created_at).getTime(), glucose: r.glucose }));
 
+  const bpShown = bp.filter((r) => new Date(r.created_at).getTime() >= since);
+
+  async function removeBp(r) {
+    if (!confirm(`تحذف قراءة الضغط ${r.systolic}/${r.diastolic} (${fmtTime(r.created_at)})؟`)) return;
+    await api.deleteBp(r.id).catch((e) => alert("ما انحذفت: " + e.message));
+    onChanged();
+  }
+
   async function removeReading(r) {
     if (!confirm(`تحذف قراءة ${r.glucose} (${fmtTime(r.created_at)})؟`)) return;
-    await supabase.from("readings").delete().eq("id", r.id);
+    await api.deleteReading(r.id).catch((e) => alert("ما انحذفت: " + e.message));
     onChanged();
   }
 
@@ -84,7 +92,7 @@ export default function Readings({ settings, readings, doses, changes, onChanged
       )}
 
       {rows.length === 0 ? (
-        <p className="empty">ما فيه قراءات في هالفترة.</p>
+        <p className="empty">ما فيه قراءات سكر في هالفترة.</p>
       ) : (
         <div className="card sheet-wrap">
           <table className="sheet">
@@ -123,10 +131,31 @@ export default function Readings({ settings, readings, doses, changes, onChanged
         </div>
       )}
 
+      {bpShown.length > 0 && (
+        <div className="card">
+          <h3>قراءات الضغط</h3>
+          <table>
+            <thead><tr><th>التاريخ</th><th>الساعة</th><th>الضغط</th><th>النبض</th><th className="no-print"></th></tr></thead>
+            <tbody>
+              {bpShown.map((r) => (
+                <tr key={r.id}>
+                  <td>{fmtShortDate(r.created_at)}</td>
+                  <td>{fmtTime(r.created_at)}</td>
+                  <td><span className={`badge ${bpLevel(r, settings)}`}>{r.systolic}/{r.diastolic}</span></td>
+                  <td>{r.pulse ?? "—"}</td>
+                  <td className="no-print"><button className="x" onClick={() => removeBp(r)} aria-label="حذف">×</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {settings && (
         <div className="card targets">
           <p>معدل السكر قبل الفطور: من <b>{settings.fasting_low}</b> إلى <b>{settings.fasting_high}</b></p>
           <p>معدل السكر بعد الوجبات بساعتين: من <b>{settings.post_low}</b> إلى <b>{settings.post_high}</b></p>
+          <p>الضغط: أقل من <b>{settings.bp_sys_high}/{settings.bp_dia_high}</b></p>
           <p className="hint">
             الخطة: Humalog {Object.entries(SLOTS).filter(([, s]) => s.insulin === "Humalog").map(([, s]) => settings[s.key]).join(" / ")} — Tresiba {settings.tresiba_dose} قبل النوم
           </p>
