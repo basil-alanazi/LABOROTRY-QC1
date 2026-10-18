@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
-import BpForm from "./BpForm";
 import {
   CONTEXTS, SLOTS, TITRATION_DAYS, dayKey, fmtDate, fmtShortDate, fmtTime,
   glucoseLevel, recentLow, riyadhHour, tresibaSuggestion,
@@ -125,8 +124,6 @@ export default function Today({ settings, readings, doses, changes, onChanged })
       </div>
 
       {message && <div className="alert info">{message}</div>}
-
-      <BpForm settings={settings} onChanged={onChanged} />
 
       {/* جرعات اليوم */}
       {settings && (

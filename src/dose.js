@@ -91,3 +91,27 @@ export function bpLevel(r, s) {
   if (r.systolic < 90 || r.diastolic < 60) return "low";
   return "ok";
 }
+
+export function spo2Level(v) {
+  if (v == null) return "ok";
+  if (v < 90) return "veryhigh";
+  if (v < 94) return "high";
+  return "ok";
+}
+
+// المواعيد تنحفظ بتوقيت الرياض بدون منطقة زمنية (مثل 2026-11-02T09:30)
+export const apptDate = (at) => new Date(`${at}:00+03:00`);
+
+export function relativeDays(date) {
+  const days = Math.round((new Date(dayKey(date)) - new Date(dayKey(new Date()))) / 864e5);
+  if (days === 0) return "اليوم";
+  if (days === 1) return "بكرة";
+  if (days === -1) return "أمس";
+  if (days > 1) return days <= 10 ? `بعد ${days} أيام` : `بعد ${days} يوم`;
+  return `قبل ${-days} ${-days <= 10 ? "أيام" : "يوم"}`;
+}
+
+export const fmtSlot = (hhmm) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "ص" : "م"}`;
+};

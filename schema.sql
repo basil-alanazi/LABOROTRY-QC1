@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS bp_readings (
   systolic INTEGER NOT NULL CHECK (systolic BETWEEN 50 AND 260),
   diastolic INTEGER NOT NULL CHECK (diastolic BETWEEN 30 AND 160),
   pulse INTEGER CHECK (pulse IS NULL OR pulse BETWEEN 30 AND 220),
+  spo2 INTEGER CHECK (spo2 IS NULL OR spo2 BETWEEN 50 AND 100),   -- الأكسجين %
   note TEXT
 );
 CREATE INDEX IF NOT EXISTS bp_created_at_idx ON bp_readings (created_at DESC);
@@ -59,3 +60,42 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 INSERT OR IGNORE INTO settings (id) VALUES (1);
+
+-- الأدوية (غير الإنسولين). times = JSON مثل ["08:00","20:00"]
+CREATE TABLE IF NOT EXISTS medications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  name TEXT NOT NULL,
+  dose TEXT,
+  times TEXT NOT NULL DEFAULT '[]',
+  notes TEXT,
+  active INTEGER NOT NULL DEFAULT 1
+);
+
+-- كل مرة ياخذ فيها دواء
+CREATE TABLE IF NOT EXISTS med_doses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  medication_id INTEGER NOT NULL,
+  time_slot TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS med_doses_created_at_idx ON med_doses (created_at DESC);
+
+-- المواعيد الطبية. at = وقت الموعد بتوقيت الرياض مثل 2026-11-02T09:30
+CREATE TABLE IF NOT EXISTS appointments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  at TEXT NOT NULL,
+  title TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'visit',   -- visit / lab / other
+  place TEXT,
+  notes TEXT
+);
+
+-- الملاحظات اليومية
+CREATE TABLE IF NOT EXISTS notes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  text TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS notes_created_at_idx ON notes (created_at DESC);

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ResponsiveContainer, CartesianGrid } from "recharts";
 import { api } from "./api";
-import { CONTEXTS, SLOTS, bpLevel, dayKey, fmtDate, fmtShortDate, fmtTime, glucoseLevel } from "./dose";
+import { CONTEXTS, SLOTS, bpLevel, spo2Level, dayKey, fmtDate, fmtShortDate, fmtTime, glucoseLevel } from "./dose";
 
 const RANGES = [
   { days: 7, label: "أسبوع" },
@@ -9,7 +9,7 @@ const RANGES = [
   { days: 30, label: "شهر" },
 ];
 
-export default function Readings({ settings, readings, doses, changes, bp, onChanged }) {
+export default function Readings({ settings, readings, doses, changes, bp, notes, onChanged }) {
   const [days, setDays] = useState(14);
   const since = Date.now() - days * 864e5;
 
@@ -41,6 +41,7 @@ export default function Readings({ settings, readings, doses, changes, bp, onCha
   const chartData = shown.filter((r) => r.context === "fasting").reverse().map((r) => ({ t: new Date(r.created_at).getTime(), glucose: r.glucose }));
 
   const bpShown = bp.filter((r) => new Date(r.created_at).getTime() >= since);
+  const notesShown = notes.filter((n) => new Date(n.created_at).getTime() >= since);
 
   async function removeBp(r) {
     if (!confirm(`تحذف قراءة الضغط ${r.systolic}/${r.diastolic} (${fmtTime(r.created_at)})؟`)) return;
@@ -133,21 +134,34 @@ export default function Readings({ settings, readings, doses, changes, bp, onCha
 
       {bpShown.length > 0 && (
         <div className="card">
-          <h3>قراءات الضغط</h3>
+          <h3>القياسات الحيوية</h3>
           <table>
-            <thead><tr><th>التاريخ</th><th>الساعة</th><th>الضغط</th><th>النبض</th><th className="no-print"></th></tr></thead>
+            <thead><tr><th>التاريخ</th><th>الساعة</th><th>الضغط</th><th>النبض</th><th>الأكسجين</th><th className="no-print"></th></tr></thead>
             <tbody>
               {bpShown.map((r) => (
                 <tr key={r.id}>
                   <td>{fmtShortDate(r.created_at)}</td>
                   <td>{fmtTime(r.created_at)}</td>
-                  <td><span className={`badge ${bpLevel(r, settings)}`}>{r.systolic}/{r.diastolic}</span></td>
+                  <td>{r.systolic ? <span className={`badge ${bpLevel(r, settings)}`}>{r.systolic}/{r.diastolic}</span> : "—"}</td>
                   <td>{r.pulse ?? "—"}</td>
+                  <td>{r.spo2 ? <span className={`badge ${spo2Level(r.spo2)}`}>{r.spo2}%</span> : "—"}</td>
                   <td className="no-print"><button className="x" onClick={() => removeBp(r)} aria-label="حذف">×</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {notesShown.length > 0 && (
+        <div className="card">
+          <h3>الملاحظات</h3>
+          {notesShown.map((n) => (
+            <div key={n.id} className="note-row">
+              <span className="muted">{fmtShortDate(n.created_at)} {fmtTime(n.created_at)}</span>
+              <p>{n.text}</p>
+            </div>
+          ))}
         </div>
       )}
 
