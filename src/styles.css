@@ -1,7 +1,7 @@
 :root {
   --bg: #f1f5f9; --card: #fff; --text: #0f172a; --muted: #64748b; --line: #e2e8f0;
   --brand: #0f766e; --ok: #059669; --warn: #d97706; --danger: #dc2626; --low: #7c3aed;
-  font-family: system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
+  font-family: "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font-size: 17px; }
