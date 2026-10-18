@@ -1,20 +1,28 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
-import Calculator from "./Calculator";
+import Today from "./Today";
 import Readings from "./Readings";
 import Settings from "./Settings";
 
 const TABS = [
-  { key: "calc", label: "الحاسبة" },
-  { key: "readings", label: "القراءات" },
+  { key: "today", label: "اليوم" },
+  { key: "readings", label: "الجدول" },
   { key: "settings", label: "الإعدادات" },
 ];
 
 export default function App() {
-  const [tab, setTab] = useState("calc");
+  const [tab, setTab] = useState("today");
   const [settings, setSettings] = useState(null);
   const [readings, setReadings] = useState([]);
+  const [doses, setDoses] = useState([]);
+  const [changes, setChanges] = useState([]);
   const [error, setError] = useState("");
+
+  async function load(table, setter, limit = 1000) {
+    const { data, error } = await supabase.from(table).select("*").order("created_at", { ascending: false }).limit(limit);
+    if (error) setError("ما قدرنا نوصل لقاعدة البيانات: " + error.message);
+    else setter(data);
+  }
 
   async function loadSettings() {
     const { data, error } = await supabase.from("settings").select("*").eq("id", 1).single();
@@ -22,26 +30,25 @@ export default function App() {
     else setSettings(data);
   }
 
-  async function loadReadings() {
-    const { data, error } = await supabase
-      .from("readings")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(500);
-    if (error) setError("ما قدرنا نجيب القراءات: " + error.message);
-    else setReadings(data);
-  }
+  const loadReadings = () => load("readings", setReadings);
+  const loadDoses = () => load("doses", setDoses);
+  const loadChanges = () => load("tresiba_changes", setChanges, 100);
 
   useEffect(() => {
     loadSettings();
     loadReadings();
-    // أي قراءة يسجلها أحد من العائلة تظهر عند الكل مباشرة
+    loadDoses();
+    loadChanges();
+    // أي شي يسجله أحد من العائلة يظهر عند الكل مباشرة
     const channel = supabase
-      .channel("readings")
+      .channel("live")
       .on("postgres_changes", { event: "*", schema: "public", table: "readings" }, loadReadings)
+      .on("postgres_changes", { event: "*", schema: "public", table: "doses" }, loadDoses)
       .subscribe();
     return () => supabase.removeChannel(channel);
   }, []);
+
+  const data = { settings, readings, doses, changes };
 
   return (
     <div className="app">
@@ -52,8 +59,15 @@ export default function App() {
       {error && <div className="alert danger">{error}</div>}
 
       <main>
-        {tab === "calc" && <Calculator settings={settings} readings={readings} onSaved={loadReadings} />}
-        {tab === "readings" && <Readings settings={settings} readings={readings} onChanged={loadReadings} />}
+        {tab === "today" && (
+          <Today
+            {...data}
+            onReading={loadReadings}
+            onDose={loadDoses}
+            onTresibaChanged={() => { loadSettings(); loadChanges(); }}
+          />
+        )}
+        {tab === "readings" && <Readings {...data} onChanged={() => { loadReadings(); loadDoses(); }} />}
         {tab === "settings" && <Settings settings={settings} onSaved={setSettings} />}
       </main>
 

@@ -65,3 +65,42 @@ tr:last-child td { border-bottom: 0; }
   body { background: #fff; }
   .card { box-shadow: none; border: 1px solid var(--line); break-inside: avoid; }
 }
+.badge.below { background: #0ea5e9; }
+.badge.empty { background: #e2e8f0; color: var(--muted); }
+.level-note { margin: 10px 0 0; font-weight: 600; padding: 8px 12px; border-radius: 10px; background: #f8fafc; }
+.level-note.low { color: var(--low); background: #f5f3ff; }
+.level-note.veryhigh { color: var(--danger); background: #fef2f2; }
+.level-note.high { color: var(--warn); background: #fffbeb; }
+.level-note.below { color: #0369a1; background: #f0f9ff; }
+.doses { display: flex; flex-direction: column; gap: 8px; }
+.dose-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+.dose-row div { display: flex; flex-direction: column; }
+.dose-row span { color: var(--muted); font-size: 14px; }
+.dose-row.taken { background: #ecfdf5; border-color: #a7f3d0; }
+.take { background: var(--brand); color: #fff; padding: 10px 18px; border-radius: 10px; font-weight: 700; }
+.take:disabled { opacity: .4; }
+.done { background: none; color: var(--ok); font-weight: 700; }
+.fasting-days { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0; }
+.fday { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.fday small { color: var(--muted); font-size: 12px; }
+.big-dose { margin: 8px 0; }
+.result.warn { background: #fffbeb; }
+.result p { margin: 6px 0 0; }
+.sheet-wrap { padding: 8px; overflow-x: auto; }
+.sheet { min-width: 560px; font-size: 14px; }
+.sheet th { font-size: 12px; text-align: center; }
+.sheet td { text-align: center; padding: 6px 3px; border-inline-start: 1px solid var(--line); }
+.sheet td:first-child { border-inline-start: 0; }
+.day-cell { font-size: 13px; white-space: nowrap; }
+.cell { display: flex; flex-direction: column; align-items: center; gap: 1px; background: none; padding: 2px; margin: 0 auto 4px; }
+.cell small { font-size: 11px; color: var(--muted); }
+.cell .badge { min-width: 40px; padding: 2px 6px; }
+.dose-cell { font-size: 12px; white-space: nowrap; }
+.dose-cell small { color: var(--muted); }
+.targets p { margin: 4px 0; }
+.print-only { display: none; }
+ul { margin: 6px 0 0; padding-inline-start: 20px; line-height: 1.8; }
+@media print {
+  .print-only { display: block; font-size: 18px; }
+  .sheet-wrap { overflow: visible; }
+}

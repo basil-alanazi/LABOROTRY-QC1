@@ -1,86 +1,84 @@
-// حساب الجرعة المقترحة من جدول Sliding scale اللي حدده الدكتور.
-// الموقع ما يخترع جرعة: لو ما فيه جدول، أو القراءة خارج الجدول، ما يقترح شي.
+// منطق خطة الدكتور: جرعات Humalog ثابتة، وتعديل Tresiba حسب قراءات الصيام.
 
+// نفس أعمدة ورقة "جدول متابعة السكر في الدم"
 export const CONTEXTS = {
-  fasting: "صايم (الصبح)",
-  before_meal: "قبل الأكل",
-  after_meal: "بعد الأكل بساعتين",
-  bedtime: "قبل النوم",
-  random: "قراءة عشوائية",
+  fasting: "قبل الفطور",
+  after_breakfast: "بعد الفطور بساعتين",
+  after_lunch: "بعد الغداء بساعتين",
+  after_dinner: "بعد العشاء بساعتين",
+  random: "عشوائية",
 };
 
-const RECENT_DOSE_HOURS = 3;
+export const SLOTS = {
+  breakfast: { label: "قبل الفطور", insulin: "Humalog", key: "humalog_breakfast" },
+  lunch: { label: "قبل الغداء", insulin: "Humalog", key: "humalog_lunch" },
+  dinner: { label: "قبل العشاء", insulin: "Humalog", key: "humalog_dinner" },
+  bedtime: { label: "قبل النوم", insulin: "Tresiba", key: "tresiba_dose" },
+};
 
-export function calculateDose(glucose, settings, readings = []) {
-  const g = Number(glucose);
-  if (!g || !settings) return null;
+export const TITRATION_DAYS = 4;
+const RECENT_LOW_HOURS = 2;
 
-  const alerts = [];
-  if (g < settings.low_threshold) {
-    return {
-      units: 0,
-      level: "danger",
-      alerts: [
-        `السكر منخفض (${g}) — لا تاخذ إنسولين.`,
-        "خذ 15 جرام سكر سريع (نص كوب عصير أو 3 حبات تمر)، وأعد القياس بعد 15 دقيقة.",
-      ],
-    };
-  }
-  if (g >= settings.high_alert) {
-    alerts.push(`السكر مرتفع جدًا (${g}) — تواصل مع الدكتور.`);
-  }
-
-  const lastDose = readings.find((r) => Number(r.insulin_units) > 0);
-  if (lastDose) {
-    const hours = (Date.now() - new Date(lastDose.created_at).getTime()) / 36e5;
-    if (hours < RECENT_DOSE_HOURS) {
-      alerts.push(
-        `آخر جرعة (${lastDose.insulin_units} وحدة) كانت قبل ${formatHours(hours)} — انتبه من تكرار الجرعة.`
-      );
-    }
-  }
-
-  const scale = settings.sliding_scale || [];
-  if (scale.length === 0) {
-    return { units: null, level: alerts.length ? "danger" : "info", alerts: [...alerts, "ما فيه خطة دكتور محفوظة — أضفها من الإعدادات عشان تطلع الجرعة."] };
-  }
-
-  const row = scale.find((r) => g >= Number(r.from) && g <= Number(r.to));
-  if (!row) {
-    const inTarget = g < Math.min(...scale.map((r) => Number(r.from)));
-    return {
-      units: inTarget ? 0 : null,
-      level: alerts.length ? "danger" : inTarget ? "ok" : "warn",
-      alerts: inTarget ? alerts : [...alerts, "القراءة خارج جدول الدكتور — تواصل مع الدكتور."],
-    };
-  }
-
-  let units = Number(row.units);
-  if (units > Number(settings.max_dose)) {
-    alerts.push(`الجرعة في الجدول أعلى من الحد الأقصى (${settings.max_dose}) — تم إيقافها عند الحد. راجع الدكتور.`);
-    units = Number(settings.max_dose);
-  }
-
-  return { units, level: alerts.length ? "danger" : "ok", alerts };
-}
-
-export function glucoseLevel(g, s) {
+export function glucoseLevel(g, context, s) {
   if (!s) return "ok";
   if (g < s.low_threshold) return "low";
-  if (g >= s.high_alert) return "veryhigh";
-  if (g > s.target_high) return "high";
+  const [lo, hi] = context === "fasting" ? [s.fasting_low, s.fasting_high] : context === "random" ? [s.fasting_low, s.post_high] : [s.post_low, s.post_high];
+  if (g > 300) return "veryhigh";
+  if (g > hi) return "high";
+  if (g < lo) return "below";
   return "ok";
 }
 
-function formatHours(h) {
-  const mins = Math.round(h * 60);
-  if (mins < 60) return `${mins} دقيقة`;
-  return `${Math.floor(mins / 60)} ساعة و ${mins % 60} دقيقة`;
+// آخر قراءة خلال ساعتين لو كانت هبوط → لا إنسولين
+export function recentLow(readings, s) {
+  const r = readings[0];
+  if (!r || !s) return null;
+  const hours = (Date.now() - new Date(r.created_at).getTime()) / 36e5;
+  return hours <= RECENT_LOW_HOURS && r.glucose < s.low_threshold ? r : null;
+}
+
+// أول قراءة صيام لكل يوم، بعد آخر تغيير في جرعة Tresiba
+export function fastingDaysSince(readings, sinceIso) {
+  const sinceDay = sinceIso ? dayKey(sinceIso) : null;
+  const byDay = new Map();
+  for (const r of [...readings].reverse()) {
+    if (r.context !== "fasting") continue;
+    const d = dayKey(r.created_at);
+    if (sinceDay && d <= sinceDay) continue;
+    if (!byDay.has(d)) byDay.set(d, r);
+  }
+  return [...byDay.values()].slice(-TITRATION_DAYS);
+}
+
+// قاعدة الدكتور: الأيام الأربعة كلها أو أغلبها (3 من 4)
+//   فوق 200 → +4 ، فوق 130 → +2 ، غير كذا → نفس الجرعة
+export function tresibaSuggestion(readings, s, lastChange) {
+  if (!s) return null;
+  const days = fastingDaysSince(readings, lastChange?.created_at);
+  const current = Number(s.tresiba_dose);
+  if (days.length < TITRATION_DAYS) {
+    return { status: "waiting", days, current, remaining: TITRATION_DAYS - days.length };
+  }
+  const vals = days.map((r) => r.glucose);
+  const majority = TITRATION_DAYS - 1;
+  if (vals.some((g) => g < s.fasting_low)) {
+    return { status: "low", days, current, message: `فيه قراءة صيام أقل من ${s.fasting_low} — لا تزيد الجرعة، وكلّم الدكتور.` };
+  }
+  const over200 = vals.filter((g) => g > 200).length;
+  const over130 = vals.filter((g) => g > s.fasting_high).length;
+  if (over200 >= majority) return { status: "increase", days, current, step: 4, next: current + 4, message: `${over200} من ${TITRATION_DAYS} أيام فوق 200` };
+  if (over130 >= majority) return { status: "increase", days, current, step: 2, next: current + 2, message: `${over130} من ${TITRATION_DAYS} أيام فوق ${s.fasting_high}` };
+  if (over130 === 0) return { status: "keep", days, current, message: "السكر الصايم في الهدف — نفس الجرعة." };
+  return { status: "keep", days, current, message: `${over130} من ${TITRATION_DAYS} أيام بس فوق ${s.fasting_high} (مو أغلبها) — نفس الجرعة، وكمّل القياس.` };
 }
 
 const tz = "Asia/Riyadh";
 export const fmtDate = (d) =>
   new Date(d).toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { timeZone: tz, weekday: "long", day: "numeric", month: "long", year: "numeric" });
+export const fmtShortDate = (d) =>
+  new Date(d).toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { timeZone: tz, weekday: "short", day: "numeric", month: "numeric" });
 export const fmtTime = (d) =>
   new Date(d).toLocaleTimeString("ar-SA-u-nu-latn", { timeZone: tz, hour: "numeric", minute: "2-digit" });
 export const dayKey = (d) => new Date(d).toLocaleDateString("en-CA", { timeZone: tz });
+export const riyadhHour = (d = new Date()) =>
+  Number(d.toLocaleString("en-US", { timeZone: tz, hour: "numeric", hour12: false })) % 24;
