@@ -21,6 +21,8 @@ export default function Today({ settings, readings, doses, changes, onChanged })
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [custom, setCustom] = useState(null); // الجرعة اللي يكتب لها كمية مختلفة
+  const [customUnits, setCustomUnits] = useState("");
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000);
@@ -59,11 +61,16 @@ export default function Today({ settings, readings, doses, changes, onChanged })
     }
   }
 
-  async function takeDose(slot) {
+  async function takeDose(slot, units = null) {
     const s = SLOTS[slot];
     if (low) return setMessage(`آخر قراءة ${low.glucose} (هبوط) — لا تاخذ إنسولين قبل ما يرتفع السكر.`);
-    if (!confirm(`تأكيد: أخذ ${settings[s.key]} وحدة ${s.insulin} ${s.label}؟`)) return;
-    await run(() => api.addDose(slot), `انسجلت الجرعة ✓ — ${fmtTime(new Date())}`);
+    const amount = units ?? settings[s.key];
+    if (!(amount >= 0.5 && amount <= 100)) return setMessage("اكتب كمية صحيحة");
+    const differs = units !== null && amount !== Number(settings[s.key]);
+    const question = `تأكيد: أخذ ${amount} وحدة ${s.insulin} ${s.label}؟` + (differs ? `\n(الخطة ${settings[s.key]} وحدة)` : "");
+    if (!confirm(question)) return;
+    const saved = await run(() => api.addDose(slot, units), `انسجلت الجرعة ✓ — ${fmtTime(new Date())}`);
+    if (saved) { setCustom(null); setCustomUnits(""); }
   }
 
   async function undoDose(d) {
@@ -139,9 +146,22 @@ export default function Today({ settings, readings, doses, changes, onChanged })
                     <span>{s.insulin} — {settings[s.key]} وحدة</span>
                   </div>
                   {taken ? (
-                    <button className="done" onClick={() => undoDose(taken)} title="إلغاء">✓ {fmtTime(taken.created_at)}</button>
-                  ) : (
-                    <button className="take" disabled={busy || !!low} onClick={() => takeDose(slot)}>أخذها</button>
+                    <button className="done" onClick={() => undoDose(taken)} title="إلغاء">
+                      ✓ {Number(taken.units) !== Number(settings[s.key]) && `${taken.units} وحدة · `}{fmtTime(taken.created_at)}
+                    </button>
+                  ) : custom === slot ? null : (
+                    <div className="dose-actions">
+                      <button className="take" disabled={busy || !!low} onClick={() => takeDose(slot)}>أخذها</button>
+                      <button className="link small" disabled={busy || !!low} onClick={() => { setCustom(slot); setCustomUnits(""); }}>كمية ثانية</button>
+                    </div>
+                  )}
+                  {!taken && custom === slot && (
+                    <div className="custom-dose">
+                      <input type="number" inputMode="decimal" step="0.5" autoFocus value={customUnits}
+                        onChange={(e) => setCustomUnits(e.target.value)} placeholder="كم وحدة؟" />
+                      <button className="take" disabled={busy || !customUnits} onClick={() => takeDose(slot, Number(customUnits))}>حفظ</button>
+                      <button className="link small" onClick={() => setCustom(null)}>إلغاء</button>
+                    </div>
                   )}
                 </div>
               );

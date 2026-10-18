@@ -85,8 +85,13 @@ export async function onRequest({ request, env, params }) {
       const insulin = SLOTS[body.slot] || bad("جرعة غير معروفة");
       const s = await db.prepare("SELECT * FROM settings WHERE id = 1").first();
       const key = body.slot === "bedtime" ? "tresiba_dose" : `humalog_${body.slot}`;
-      // الجرعة تنأخذ من خطة الدكتور المحفوظة، مو من المتصفح
-      return json(await insert("INSERT INTO doses (insulin, slot, units) VALUES (?, ?, ?)", insulin, body.slot, s[key]));
+      // الجرعة الافتراضية من خطة الدكتور المحفوظة، وإذا عطاه كمية ثانية تنحفظ مع رقم الخطة للمقارنة
+      let units = s[key];
+      if (body.units !== undefined && body.units !== null && body.units !== "") {
+        units = Number(body.units);
+        if (!(units >= 0.5 && units <= 100) || (units * 2) % 1 !== 0) bad("الكمية لازم تكون بين 0.5 و100 (بنص وحدة)");
+      }
+      return json(await insert("INSERT INTO doses (insulin, slot, units, planned_units) VALUES (?, ?, ?, ?)", insulin, body.slot, units, s[key]));
     }
 
     if (resource === "bp" && method === "POST") {

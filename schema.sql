@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS doses (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   insulin TEXT NOT NULL,   -- Humalog / Tresiba
   slot TEXT NOT NULL,      -- breakfast / lunch / dinner / bedtime
-  units REAL NOT NULL CHECK (units > 0 AND units <= 100)
+  units REAL NOT NULL CHECK (units > 0 AND units <= 100),   -- اللي أخذه فعلًا
+  planned_units REAL                                        -- اللي في خطة الدكتور وقتها
 );
 CREATE INDEX IF NOT EXISTS doses_created_at_idx ON doses (created_at DESC);
 

@@ -238,3 +238,10 @@ textarea { width: 100%; font: inherit; padding: 12px; border: 1px solid var(--li
   .warn-card { background: #33270f; color: #fbbf24; }
   .today-row td { background: #12302c; }
 }
+.dose-row { flex-wrap: wrap; }
+.dose-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.link.small { font-size: 13px; padding: 2px 4px; }
+.link:disabled { opacity: .4; }
+.custom-dose { display: flex; gap: 8px; align-items: center; width: 100%; }
+.custom-dose input { flex: 1; font-size: 20px; text-align: center; padding: 8px; }
+.planned { color: var(--warn); }

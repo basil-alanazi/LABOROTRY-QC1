@@ -121,7 +121,10 @@ export default function Readings({ settings, readings, doses, changes, bp, notes
                   ))}
                   <td className="dose-cell">
                     {row.doses.map((d) => (
-                      <div key={d.id}><b>{d.units}</b> {d.insulin === "Tresiba" ? "T" : "H"} <small>{fmtTime(d.created_at)}</small></div>
+                      <div key={d.id}>
+                        <b>{d.units}</b> {d.insulin === "Tresiba" ? "T" : "H"} <small>{fmtTime(d.created_at)}</small>
+                        {d.planned_units != null && Number(d.planned_units) !== Number(d.units) && <small className="planned"> (الخطة {d.planned_units})</small>}
+                      </div>
                     ))}
                   </td>
                 </tr>
