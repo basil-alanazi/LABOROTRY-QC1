@@ -7,7 +7,10 @@ const json = (data, status = 200) =>
 class BadRequest extends Error {}
 const bad = (msg) => { throw new BadRequest(msg); };
 
-const CONTEXTS = ["fasting", "after_breakfast", "after_lunch", "after_dinner", "random"];
+const CONTEXTS = [
+  "fasting", "after_breakfast", "before_lunch", "after_lunch", "before_dinner", "after_dinner", "bedtime", "random",
+];
+const MAX_BACKDATE_DAYS = 14;
 const SLOTS = { breakfast: "Humalog", lunch: "Humalog", dinner: "Humalog", bedtime: "Tresiba" };
 const KINDS = ["visit", "lab", "other"];
 const SETTING_FIELDS = [
@@ -31,6 +34,19 @@ const int = (v, min, max, label, optional = false) => {
   if (!(n >= min && n <= max)) bad(`${label} غير صحيح`);
   return n;
 };
+// وقت القياس الفعلي إذا انسجل متأخر. فاضي = الحين
+const parseAt = (v) => {
+  if (v === null || v === undefined || v === "") return null;
+  const d = new Date(v);
+  if (isNaN(d)) bad("الوقت غير صحيح");
+  const diff = Date.now() - d.getTime();
+  if (diff < -5 * 60e3) bad("الوقت ما يكون بالمستقبل");
+  if (diff > MAX_BACKDATE_DAYS * 864e5) bad(`ما يمديك تسجل أقدم من ${MAX_BACKDATE_DAYS} يوم`);
+  return d.toISOString();
+};
+// يضيف created_at للإدخال إذا فيه وقت محدد
+const withAt = (cols, vals, at) => (at ? [[...cols, "created_at"], [...vals, at]] : [cols, vals]);
+
 const parseTimes = (v) => {
   const times = Array.isArray(v) ? v.filter((t) => TIME_RE.test(t)) : [];
   return JSON.stringify([...new Set(times)].sort().slice(0, 8));
@@ -78,7 +94,9 @@ export async function onRequest({ request, env, params }) {
     if (resource === "readings" && method === "POST") {
       const glucose = int(body.glucose, 10, 700, "قراءة السكر");
       const context = CONTEXTS.includes(body.context) ? body.context : "random";
-      return json(await insert("INSERT INTO readings (glucose, context, note) VALUES (?, ?, ?)", glucose, context, text(body.note, 300)));
+      const lastMeal = context === "random" && TIME_RE.test(body.last_meal_at) ? body.last_meal_at : null;
+      const [cols, vals] = withAt(["glucose", "context", "note", "last_meal_at"], [glucose, context, text(body.note, 300), lastMeal], parseAt(body.at));
+      return json(await insert(`INSERT INTO readings (${cols}) VALUES (${cols.map(() => "?")})`, ...vals));
     }
 
     if (resource === "doses" && method === "POST") {
@@ -91,7 +109,8 @@ export async function onRequest({ request, env, params }) {
         units = Number(body.units);
         if (!(units >= 0.5 && units <= 100) || (units * 2) % 1 !== 0) bad("الكمية لازم تكون بين 0.5 و100 (بنص وحدة)");
       }
-      return json(await insert("INSERT INTO doses (insulin, slot, units, planned_units) VALUES (?, ?, ?, ?)", insulin, body.slot, units, s[key]));
+      const [cols, vals] = withAt(["insulin", "slot", "units", "planned_units"], [insulin, body.slot, units, s[key]], parseAt(body.at));
+      return json(await insert(`INSERT INTO doses (${cols}) VALUES (${cols.map(() => "?")})`, ...vals));
     }
 
     if (resource === "bp" && method === "POST") {
@@ -102,10 +121,8 @@ export async function onRequest({ request, env, params }) {
       if ((sys === null) !== (dia === null)) bad("اكتب الضغط العالي والواطي مع بعض");
       if (sys !== null && sys <= dia) bad("الضغط العالي لازم يكون أكبر من الواطي");
       if (sys === null && pulse === null && spo2 === null) bad("اكتب قراءة وحدة على الأقل");
-      return json(await insert(
-        "INSERT INTO bp_readings (systolic, diastolic, pulse, spo2, note) VALUES (?, ?, ?, ?, ?)",
-        sys, dia, pulse, spo2, text(body.note, 300),
-      ));
+      const [cols, vals] = withAt(["systolic", "diastolic", "pulse", "spo2", "note"], [sys, dia, pulse, spo2, text(body.note, 300)], parseAt(body.at));
+      return json(await insert(`INSERT INTO bp_readings (${cols}) VALUES (${cols.map(() => "?")})`, ...vals));
     }
 
     if (resource === "medications" && method === "POST") {

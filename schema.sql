@@ -5,9 +5,10 @@ CREATE TABLE IF NOT EXISTS readings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   glucose INTEGER NOT NULL CHECK (glucose BETWEEN 10 AND 700),
-  -- fasting / after_breakfast / after_lunch / after_dinner / random
+  -- fasting / after_breakfast / before_lunch / after_lunch / before_dinner / after_dinner / bedtime / random
   context TEXT NOT NULL DEFAULT 'random',
-  note TEXT
+  note TEXT,
+  last_meal_at TEXT   -- للقراءة العشوائية: ساعة آخر وجبة مثل 13:30
 );
 CREATE INDEX IF NOT EXISTS readings_created_at_idx ON readings (created_at DESC);
 
@@ -26,8 +27,8 @@ CREATE INDEX IF NOT EXISTS doses_created_at_idx ON doses (created_at DESC);
 CREATE TABLE IF NOT EXISTS bp_readings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-  systolic INTEGER NOT NULL CHECK (systolic BETWEEN 50 AND 260),
-  diastolic INTEGER NOT NULL CHECK (diastolic BETWEEN 30 AND 160),
+  systolic INTEGER CHECK (systolic IS NULL OR systolic BETWEEN 50 AND 260),
+  diastolic INTEGER CHECK (diastolic IS NULL OR diastolic BETWEEN 30 AND 160),
   pulse INTEGER CHECK (pulse IS NULL OR pulse BETWEEN 30 AND 220),
   spo2 INTEGER CHECK (spo2 IS NULL OR spo2 BETWEEN 50 AND 100),   -- الأكسجين %
   note TEXT

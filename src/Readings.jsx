@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ResponsiveContainer, CartesianGrid } from "recharts";
 import { api } from "./api";
-import { CONTEXTS, SLOTS, bpLevel, spo2Level, dayKey, fmtDate, fmtShortDate, fmtTime, glucoseLevel } from "./dose";
+import Report from "./Report";
+import { CONTEXTS, SLOTS, bpLevel, spo2Level, sinceMeal, dayKey, fmtDate, fmtShortDate, fmtTime, glucoseLevel } from "./dose";
 
 const RANGES = [
   { days: 7, label: "أسبوع" },
@@ -9,8 +10,9 @@ const RANGES = [
   { days: 30, label: "شهر" },
 ];
 
-export default function Readings({ settings, readings, doses, changes, bp, notes, onChanged }) {
-  const [days, setDays] = useState(14);
+export default function Readings({ settings, readings, doses, changes, bp, notes, meals, onChanged }) {
+  const [days, setDays] = useState(7);
+  const [view, setView] = useState("report");
   const since = Date.now() - days * 864e5;
 
   const shown = useMemo(() => readings.filter((r) => new Date(r.created_at).getTime() >= since), [readings, since]);
@@ -63,6 +65,10 @@ export default function Readings({ settings, readings, doses, changes, bp, notes
         ))}
         <button className="chip" onClick={() => window.print()}>طباعة للدكتور</button>
       </div>
+      <div className="segmented no-print">
+        <button className={view === "report" ? "on" : ""} onClick={() => setView("report")}>التقرير اليومي</button>
+        <button className={view === "sheet" ? "on" : ""} onClick={() => setView("sheet")}>جدول الورقة</button>
+      </div>
 
       <h2 className="print-only">جدول متابعة السكر — {settings?.patient_name}</h2>
 
@@ -92,7 +98,9 @@ export default function Readings({ settings, readings, doses, changes, bp, notes
         </div>
       )}
 
-      {rows.length === 0 ? (
+      {view === "report" && <Report settings={settings} readings={readings} doses={doses} bp={bp} meals={meals} since={since} />}
+
+      {view === "sheet" && (rows.length === 0 ? (
         <p className="empty">ما فيه قراءات سكر في هالفترة.</p>
       ) : (
         <div className="card sheet-wrap">
@@ -114,6 +122,7 @@ export default function Readings({ settings, readings, doses, changes, bp, notes
                         <button key={r.id} className="cell" onClick={() => removeReading(r)} title={r.note || "اضغط للحذف"}>
                           <span className={`badge ${glucoseLevel(r.glucose, c, settings)}`}>{r.glucose}</span>
                           <small>{fmtTime(r.created_at)}</small>
+                          {sinceMeal(r) && <small className="note">{sinceMeal(r)}</small>}
                           {r.note && <small className="note">{r.note}</small>}
                         </button>
                       ))}
@@ -133,7 +142,7 @@ export default function Readings({ settings, readings, doses, changes, bp, notes
           </table>
           <p className="hint">H = Humalog ، T = Tresiba. اضغط على أي قراءة لحذفها.</p>
         </div>
-      )}
+      ))}
 
       {bpShown.length > 0 && (
         <div className="card">

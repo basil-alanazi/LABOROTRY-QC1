@@ -2,8 +2,24 @@ import { useEffect, useState } from "react";
 import { api } from "./api";
 import {
   CONTEXTS, SLOTS, TITRATION_DAYS, dayKey, fmtDate, fmtShortDate, fmtTime,
-  glucoseLevel, recentLow, riyadhHour, tresibaSuggestion,
+  glucoseLevel, nowRiyadhLocal, recentLow, riyadhHour, riyadhLocalToIso, tresibaSuggestion,
 } from "./dose";
+
+const HUMALOG_GAP_HOURS = 3;
+
+// اختيار وقت التسجيل: الحين، أو وقت ثاني إذا انسجل متأخر
+function WhenPicker({ value, onChange, label }) {
+  return (
+    <div className="when">
+      <label>{label}</label>
+      <div className="chips">
+        <button className={!value ? "chip on" : "chip"} onClick={() => onChange("")}>الحين</button>
+        <button className={value ? "chip on" : "chip"} onClick={() => onChange(value || nowRiyadhLocal())}>وقت ثاني</button>
+      </div>
+      {value && <input type="datetime-local" value={value} max={nowRiyadhLocal()} onChange={(e) => onChange(e.target.value)} />}
+    </div>
+  );
+}
 
 function guessContext() {
   const h = riyadhHour();
@@ -19,6 +35,9 @@ export default function Today({ settings, readings, doses, changes, onChanged })
   const [glucose, setGlucose] = useState("");
   const [context, setContext] = useState(guessContext());
   const [note, setNote] = useState("");
+  const [readingAt, setReadingAt] = useState(""); // فاضي = الحين
+  const [lastMeal, setLastMeal] = useState("");
+  const [doseAt, setDoseAt] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [custom, setCustom] = useState(null); // الجرعة اللي يكتب لها كمية مختلفة
@@ -54,10 +73,16 @@ export default function Today({ settings, readings, doses, changes, onChanged })
   async function saveReading() {
     const g = Number(glucose);
     if (!g || g < 10 || g > 700) return setMessage("اكتب قراءة سكر صحيحة");
-    const saved = await run(() => api.addReading({ glucose: g, context, note: note.trim() || null }), `انحفظت القراءة ✓ — ${fmtTime(new Date())}`);
+    const at = riyadhLocalToIso(readingAt);
+    const saved = await run(
+      () => api.addReading({ glucose: g, context, note: note.trim() || null, at, last_meal_at: context === "random" ? lastMeal || null : null }),
+      `انحفظت القراءة ✓ — ${fmtTime(at || new Date())}`,
+    );
     if (saved) {
       setGlucose("");
       setNote("");
+      setReadingAt("");
+      setLastMeal("");
     }
   }
 
@@ -67,10 +92,18 @@ export default function Today({ settings, readings, doses, changes, onChanged })
     const amount = units ?? settings[s.key];
     if (!(amount >= 0.5 && amount <= 100)) return setMessage("اكتب كمية صحيحة");
     const differs = units !== null && amount !== Number(settings[s.key]);
-    const question = `تأكيد: أخذ ${amount} وحدة ${s.insulin} ${s.label}؟` + (differs ? `\n(الخطة ${settings[s.key]} وحدة)` : "");
+    const at = riyadhLocalToIso(doseAt);
+    const when = new Date(at || Date.now());
+    let question = `تأكيد: أخذ ${amount} وحدة ${s.insulin} ${s.label}؟` + (differs ? `\n(الخطة ${settings[s.key]} وحدة)` : "");
+    if (at) question += `\nالوقت: ${fmtTime(at)}`;
+    // تحذير إذا فيه جرعة Humalog ثانية قريبة
+    if (s.insulin === "Humalog") {
+      const near = doses.find((d) => d.insulin === "Humalog" && Math.abs(new Date(d.created_at) - when) < HUMALOG_GAP_HOURS * 36e5);
+      if (near) question = `⚠️ فيه جرعة Humalog ${near.units} وحدة انسجلت ${fmtTime(near.created_at)}، يعني قبل أقل من ${HUMALOG_GAP_HOURS} ساعات.\nإذا كانت انسجلت متأخر، اضغط إلغاء واختر "وقت ثاني" وحط وقتها الصحيح.\n\n` + question;
+    }
     if (!confirm(question)) return;
-    const saved = await run(() => api.addDose(slot, units), `انسجلت الجرعة ✓ — ${fmtTime(new Date())}`);
-    if (saved) { setCustom(null); setCustomUnits(""); }
+    const saved = await run(() => api.addDose(slot, units, at), `انسجلت الجرعة ✓ — ${fmtTime(when)}`);
+    if (saved) { setCustom(null); setCustomUnits(""); setDoseAt(""); }
   }
 
   async function undoDose(d) {
@@ -120,12 +153,19 @@ export default function Today({ settings, readings, doses, changes, onChanged })
             {level === "veryhigh" && "مرتفع جدًا — إذا تكرر كلّم الدكتور."}
           </p>
         )}
+        {context === "random" && (
+          <>
+            <label>آخر وجبة أكلها الساعة (اختياري)</label>
+            <input type="time" value={lastMeal} onChange={(e) => setLastMeal(e.target.value)} />
+          </>
+        )}
         {glucose && (
           <>
+            <WhenPicker label="وقت القياس" value={readingAt} onChange={setReadingAt} />
             <label>ملاحظة (اختياري)</label>
             <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="مثلاً: أكل كبسة" />
             <button className="primary" disabled={busy} onClick={saveReading}>احفظ القراءة</button>
-            <p className="hint">التاريخ والساعة يتسجلون تلقائيًا لحظة الحفظ.</p>
+            <p className="hint">إذا قسته الحين خلّه "الحين". وإذا تسجله متأخر اختر "وقت ثاني" وحط الوقت الصحيح.</p>
           </>
         )}
       </div>
@@ -136,6 +176,7 @@ export default function Today({ settings, readings, doses, changes, onChanged })
       {settings && (
         <div className="card">
           <h3>جرعات اليوم</h3>
+          <WhenPicker label="وقت الجرعة" value={doseAt} onChange={setDoseAt} />
           <div className="doses">
             {Object.entries(SLOTS).map(([slot, s]) => {
               const taken = todayDoses.find((d) => d.slot === slot);

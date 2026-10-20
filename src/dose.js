@@ -4,10 +4,14 @@
 export const CONTEXTS = {
   fasting: "قبل الفطور",
   after_breakfast: "بعد الفطور بساعتين",
+  before_lunch: "قبل الغداء",
   after_lunch: "بعد الغداء بساعتين",
+  before_dinner: "قبل العشاء",
   after_dinner: "بعد العشاء بساعتين",
+  bedtime: "قبل النوم",
   random: "عشوائية",
 };
+const PRE_MEAL = ["fasting", "before_lunch", "before_dinner"];
 
 export const SLOTS = {
   breakfast: { label: "قبل الفطور", insulin: "Humalog", key: "humalog_breakfast" },
@@ -22,7 +26,9 @@ const RECENT_LOW_HOURS = 2;
 export function glucoseLevel(g, context, s) {
   if (!s) return "ok";
   if (g < s.low_threshold) return "low";
-  const [lo, hi] = context === "fasting" ? [s.fasting_low, s.fasting_high] : context === "random" ? [s.fasting_low, s.post_high] : [s.post_low, s.post_high];
+  const [lo, hi] = PRE_MEAL.includes(context) ? [s.fasting_low, s.fasting_high]
+    : context === "random" ? [s.fasting_low, s.post_high]
+    : [s.post_low, s.post_high];
   if (g > 300) return "veryhigh";
   if (g > hi) return "high";
   if (g < lo) return "below";
@@ -115,3 +121,21 @@ export const fmtSlot = (hhmm) => {
   const [h, m] = hhmm.split(":").map(Number);
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "ص" : "م"}`;
 };
+
+// قيمة datetime-local (بتوقيت الرياض) ← ISO
+export const riyadhLocalToIso = (v) => (v ? new Date(`${v}:00+03:00`).toISOString() : null);
+export const nowRiyadhLocal = () =>
+  new Date(Date.now() + 3 * 36e5).toISOString().slice(0, 16);
+
+// كم ساعة بين آخر وجبة ووقت القياس
+export function sinceMeal(reading) {
+  if (!reading.last_meal_at) return null;
+  const at = new Date(reading.created_at);
+  const [h, m] = reading.last_meal_at.split(":").map(Number);
+  const meal = new Date(`${dayKey(at)}T${reading.last_meal_at}:00+03:00`);
+  if (meal > at) meal.setDate(meal.getDate() - 1);
+  const mins = Math.round((at - meal) / 6e4);
+  const label = `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "ص" : "م"}`;
+  const ago = mins < 60 ? `${mins} دقيقة` : `${Math.floor(mins / 60)} ساعة${mins % 60 ? ` و${mins % 60} د` : ""}`;
+  return `آخر وجبة ${label} (قبل ${ago})`;
+}

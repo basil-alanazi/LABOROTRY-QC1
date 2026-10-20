@@ -18,7 +18,7 @@ export const api = {
   all: () => call("all"),
   addReading: post("readings"),
   deleteReading: remove("readings"),
-  addDose: (slot, units = null) => call("doses", "POST", { slot, units }),
+  addDose: (slot, units = null, at = null) => call("doses", "POST", { slot, units, at }),
   deleteDose: remove("doses"),
   addBp: post("bp"),
   deleteBp: remove("bp"),

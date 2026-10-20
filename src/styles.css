@@ -245,3 +245,17 @@ textarea { width: 100%; font: inherit; padding: 12px; border: 1px solid var(--li
 .custom-dose { display: flex; gap: 8px; align-items: center; width: 100%; }
 .custom-dose input { flex: 1; font-size: 20px; text-align: center; padding: 8px; }
 .planned { color: var(--warn); }
+.when { margin: 4px 0 10px; }
+.when input { margin-top: 8px; }
+.segmented { display: flex; background: var(--card); border-radius: 12px; padding: 4px; gap: 4px; }
+.segmented button { flex: 1; background: none; padding: 10px; border-radius: 9px; color: var(--muted); font-weight: 600; }
+.segmented button.on { background: var(--brand); color: #fff; }
+.day-summary { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+.day-summary b { color: var(--text); }
+.timeline { list-style: none; margin: 0; padding: 0; }
+.tl { display: grid; grid-template-columns: 70px 1fr; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); align-items: start; }
+.tl-time { font-weight: 600; font-size: 14px; color: var(--muted); }
+.tl-body { line-height: 1.7; }
+.tl.dose .tl-body { color: var(--brand); }
+.block { display: block; }
+@media print { .report-day { break-inside: avoid; } }
