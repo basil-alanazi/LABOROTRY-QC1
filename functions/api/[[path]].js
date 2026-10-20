@@ -1,4 +1,6 @@
 // واجهة البيانات (Cloudflare Pages Functions + D1)
+import { broadcast, eventMessage, loadVapid, runReminders } from "../../server/notify.js";
+import { sendPush } from "../../server/push.js";
 // تحتاج ربط قاعدة البيانات dad-health-db باسم DB (مكتوب في wrangler.toml).
 
 const json = (data, status = 200) =>
@@ -52,13 +54,21 @@ const parseTimes = (v) => {
   return JSON.stringify([...new Set(times)].sort().slice(0, 8));
 };
 
-export async function onRequest({ request, env, params }) {
+export async function onRequest({ request, env, params, waitUntil }) {
   const db = env.DB;
   if (!db) return json({ error: "قاعدة البيانات مو مربوطة (DB)" }, 500);
   const [resource, id] = params.path || [];
   const method = request.method;
   const body = method === "POST" || method === "PUT" ? await request.json().catch(() => ({})) : {};
   const insert = (sql, ...args) => db.prepare(sql + " RETURNING *").bind(...args).first();
+  // بعد أي تسجيل: إشعار فوري لباقي العائلة (الجهاز اللي سجّل ما يوصله)
+  const device = request.headers.get("x-device");
+  const created = async (kind, row) => {
+    const settings = await db.prepare("SELECT * FROM settings WHERE id = 1").first();
+    const ev = eventMessage(kind, row, settings);
+    if (ev) waitUntil(broadcast(db, ev.msg, { alert: ev.alert, exclude: device }).catch(() => {}));
+    return json(row);
+  };
 
   try {
     if (resource === "all" && method === "GET") {
@@ -96,7 +106,7 @@ export async function onRequest({ request, env, params }) {
       const context = CONTEXTS.includes(body.context) ? body.context : "random";
       const lastMeal = context === "random" && TIME_RE.test(body.last_meal_at) ? body.last_meal_at : null;
       const [cols, vals] = withAt(["glucose", "context", "note", "last_meal_at"], [glucose, context, text(body.note, 300), lastMeal], parseAt(body.at));
-      return json(await insert(`INSERT INTO readings (${cols}) VALUES (${cols.map(() => "?")})`, ...vals));
+      return created("readings", await insert(`INSERT INTO readings (${cols}) VALUES (${cols.map(() => "?")})`, ...vals));
     }
 
     if (resource === "doses" && method === "POST") {
@@ -110,7 +120,7 @@ export async function onRequest({ request, env, params }) {
         if (!(units >= 0.5 && units <= 100) || (units * 2) % 1 !== 0) bad("الكمية لازم تكون بين 0.5 و100 (بنص وحدة)");
       }
       const [cols, vals] = withAt(["insulin", "slot", "units", "planned_units"], [insulin, body.slot, units, s[key]], parseAt(body.at));
-      return json(await insert(`INSERT INTO doses (${cols}) VALUES (${cols.map(() => "?")})`, ...vals));
+      return created("doses", await insert(`INSERT INTO doses (${cols}) VALUES (${cols.map(() => "?")})`, ...vals));
     }
 
     if (resource === "bp" && method === "POST") {
@@ -122,7 +132,7 @@ export async function onRequest({ request, env, params }) {
       if (sys !== null && sys <= dia) bad("الضغط العالي لازم يكون أكبر من الواطي");
       if (sys === null && pulse === null && spo2 === null) bad("اكتب قراءة وحدة على الأقل");
       const [cols, vals] = withAt(["systolic", "diastolic", "pulse", "spo2", "note"], [sys, dia, pulse, spo2, text(body.note, 300)], parseAt(body.at));
-      return json(await insert(`INSERT INTO bp_readings (${cols}) VALUES (${cols.map(() => "?")})`, ...vals));
+      return created("bp", await insert(`INSERT INTO bp_readings (${cols}) VALUES (${cols.map(() => "?")})`, ...vals));
     }
 
     if (resource === "medications" && method === "POST") {
@@ -158,7 +168,7 @@ export async function onRequest({ request, env, params }) {
 
     if (resource === "notes" && method === "POST") {
       const t = text(body.text, 1000) || bad("اكتب الملاحظة");
-      return json(await insert("INSERT INTO notes (text) VALUES (?)", t));
+      return created("notes", await insert("INSERT INTO notes (text) VALUES (?)", t));
     }
 
     if (resource === "labs" && (method === "POST" || (method === "PUT" && id))) {
@@ -182,7 +192,53 @@ export async function onRequest({ request, env, params }) {
       const followed = body.followed === false ? 0 : 1;
       const t = text(body.text, 300);
       if (!followed && !t) bad("اكتب وش أكل");
-      return json(await insert("INSERT INTO meals (slot, followed, text) VALUES (?, ?, ?)", slot, followed, t));
+      return created("meals", await insert("INSERT INTO meals (slot, followed, text) VALUES (?, ?, ?)", slot, followed, t));
+    }
+
+    // ===== الإشعارات =====
+    if (resource === "push" && id === "key" && method === "GET") {
+      const row = await db.prepare("SELECT v FROM secrets WHERE k = 'vapid_public'").first();
+      return json({ key: row?.v || null });
+    }
+
+    if (resource === "push" && id === "subscribe" && method === "POST") {
+      const sub = body.subscription || {};
+      const endpoint = typeof sub.endpoint === "string" && sub.endpoint.startsWith("https://") ? sub.endpoint : bad("اشتراك غير صحيح");
+      const p256dh = text(sub.keys?.p256dh, 200) || bad("اشتراك غير صحيح");
+      const auth = text(sub.keys?.auth, 100) || bad("اشتراك غير صحيح");
+      const mode = body.mode === "alerts" ? "alerts" : "all";
+      const row = await insert(
+        `INSERT INTO push_subs (endpoint, p256dh, auth, name, mode) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth, name = excluded.name, mode = excluded.mode`,
+        endpoint, p256dh, auth, text(body.name, 40), mode,
+      );
+      return json({ id: row.id, name: row.name, mode: row.mode });
+    }
+
+    if (resource === "push" && id === "unsubscribe" && method === "POST") {
+      await db.prepare("DELETE FROM push_subs WHERE id = ?").bind(Number(body.id)).run();
+      return json({ ok: true });
+    }
+
+    if (resource === "push" && id === "devices" && method === "GET") {
+      const rows = (await db.prepare("SELECT id, created_at, name, mode FROM push_subs ORDER BY created_at").all()).results;
+      return json(rows);
+    }
+
+    if (resource === "push" && id === "test" && method === "POST") {
+      const sub = await db.prepare("SELECT * FROM push_subs WHERE id = ?").bind(Number(body.id)).first();
+      if (!sub) bad("هالجهاز مو مشترك");
+      const status = await sendPush(sub, { title: "✅ الإشعارات شغالة", body: "بيوصلك كل جديد عن الوالد هنا.", tag: "test", url: "/" }, await loadVapid(db), { urgent: true });
+      if (status >= 300) bad(`خدمة الإشعارات رجّعت ${status}`);
+      return json({ ok: true });
+    }
+
+    // المنبّه: يستدعيه Worker كل كم دقيقة
+    if (resource === "cron") {
+      const row = await db.prepare("SELECT v FROM secrets WHERE k = 'cron_key'").first();
+      const key = request.headers.get("x-cron-key") || new URL(request.url).searchParams.get("key");
+      if (!row || key !== row.v) return json({ error: "غير مصرح" }, 401);
+      return json({ ok: true, sent: await runReminders(db) });
     }
 
     if (DELETABLE[resource] && method === "DELETE" && id) {
@@ -199,9 +255,18 @@ export async function onRequest({ request, env, params }) {
         values[k] = n;
       }
       const name = text(body.patient_name, 60) || old.patient_name;
+      let reminders = old.reminders;
+      if (Array.isArray(body.reminders)) {
+        reminders = JSON.stringify(body.reminders.slice(0, 30).map((r) => {
+          if (!TIME_RE.test(r.time)) bad("وقت تذكير غير صحيح");
+          if (r.type === "sugar" && CONTEXTS.includes(r.context)) return { time: r.time, type: "sugar", context: r.context, off: !!r.off };
+          if (r.type === "dose" && SLOTS[r.slot]) return { time: r.time, type: "dose", slot: r.slot, off: !!r.off };
+          return bad("تذكير غير صحيح");
+        }).sort((a, b) => (a.time < b.time ? -1 : 1)));
+      }
       const stmts = [
-        db.prepare(`UPDATE settings SET patient_name = ?, ${SETTING_FIELDS.map((k) => `${k} = ?`).join(", ")}, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = 1`)
-          .bind(name, ...SETTING_FIELDS.map((k) => values[k])),
+        db.prepare(`UPDATE settings SET patient_name = ?, reminders = ?, ${SETTING_FIELDS.map((k) => `${k} = ?`).join(", ")}, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = 1`)
+          .bind(name, reminders, ...SETTING_FIELDS.map((k) => values[k])),
       ];
       if (values.tresiba_dose !== Number(old.tresiba_dose)) {
         // أي تغيير في Tresiba ينحفظ في السجل، ويبدأ عدّ الأربعة أيام من جديد

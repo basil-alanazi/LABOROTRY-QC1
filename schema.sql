@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS settings (
   post_high INTEGER NOT NULL DEFAULT 180,
   bp_sys_high INTEGER NOT NULL DEFAULT 140,   -- الضغط: الانقباضي (العالي) من كذا وفوق = مرتفع
   bp_dia_high INTEGER NOT NULL DEFAULT 90,    -- الانبساطي (الواطي) من كذا وفوق = مرتفع
+  -- تذكيرات القياس والجرعات (بتوقيت الرياض)
+  reminders TEXT NOT NULL DEFAULT '[{"time":"07:00","type":"sugar","context":"fasting"},{"time":"07:15","type":"dose","slot":"breakfast"},{"time":"10:00","type":"sugar","context":"after_breakfast"},{"time":"13:00","type":"dose","slot":"lunch"},{"time":"15:00","type":"sugar","context":"after_lunch"},{"time":"20:00","type":"dose","slot":"dinner"},{"time":"22:00","type":"sugar","context":"after_dinner"},{"time":"23:00","type":"dose","slot":"bedtime"}]',
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 INSERT OR IGNORE INTO settings (id) VALUES (1);
@@ -123,3 +125,21 @@ CREATE TABLE IF NOT EXISTS meals (
   text TEXT
 );
 CREATE INDEX IF NOT EXISTS meals_created_at_idx ON meals (created_at DESC);
+
+-- ===== الإشعارات =====
+-- مفاتيح خاصة (VAPID ومفتاح المنبّه). ما تطلع من الواجهة أبد
+CREATE TABLE IF NOT EXISTS secrets (k TEXT PRIMARY KEY, v TEXT NOT NULL);
+
+-- الأجهزة المشتركة. mode: all = كل شي أول بأول، alerts = التنبيهات المهمة والتذكيرات بس
+CREATE TABLE IF NOT EXISTS push_subs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  name TEXT,
+  mode TEXT NOT NULL DEFAULT 'all'
+);
+
+-- التذكيرات اللي انرسلت (عشان ما تتكرر)
+CREATE TABLE IF NOT EXISTS sent_log (k TEXT PRIMARY KEY, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')));

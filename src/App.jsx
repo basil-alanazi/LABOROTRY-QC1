@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Settings as SettingsIcon } from "lucide-react";
+import { ArrowRight, Bell, Settings as SettingsIcon } from "lucide-react";
 import { api } from "./api";
 import Home from "./Home";
 import Today from "./Today";
@@ -11,6 +11,8 @@ import Diet from "./Diet";
 import Labs from "./Labs";
 import Readings from "./Readings";
 import Settings from "./Settings";
+import Notifications from "./Notifications";
+import { getDevice } from "./push";
 
 export const PAGES = {
   sugar: "السكر والإنسولين",
@@ -22,13 +24,20 @@ export const PAGES = {
   labs: "نتائج التحاليل",
   record: "السجل الصحي",
   settings: "الإعدادات",
+  notifications: "الإشعارات والتذكيرات",
+};
+
+// الصفحة من الرابط (مثل /#sugar لما تضغط على إشعار)
+const pageFromHash = () => {
+  const h = location.hash.replace("#", "");
+  return PAGES[h] ? h : "home";
 };
 
 const REFRESH_MS = 20000;
 const EMPTY = { settings: null, readings: [], doses: [], changes: [], bp: [], medications: [], medDoses: [], appointments: [], notes: [], labs: [], meals: [] };
 
 export default function App() {
-  const [page, setPage] = useState("home");
+  const [page, setPage] = useState(pageFromHash);
   const [data, setData] = useState(EMPTY);
   const [error, setError] = useState("");
 
@@ -52,9 +61,22 @@ export default function App() {
 
   // زر الرجوع في الجوال يرجع للرئيسية بدل ما يطلع من الموقع
   useEffect(() => {
+    if (location.hash) history.replaceState({ page: "home" }, "", location.pathname);
+    if (pageFromHash() !== "home") history.pushState({ page }, "");
     const onPop = () => setPage(history.state?.page || "home");
     window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
+    // الضغط على إشعار والموقع مفتوح
+    const onMessage = (e) => {
+      if (e.data?.type !== "open") return;
+      const p = new URL(e.data.url).hash.replace("#", "");
+      if (PAGES[p]) go(p);
+      reload();
+    };
+    navigator.serviceWorker?.addEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      navigator.serviceWorker?.removeEventListener("message", onMessage);
+    };
   }, []);
 
   function go(p) {
@@ -74,7 +96,10 @@ export default function App() {
             <h1>ود</h1>
             <span className="subtitle">متابعة صحة {data.settings?.patient_name || "الوالد"}</span>
           </div>
-          <button className="icon-btn" onClick={() => go("settings")} aria-label="الإعدادات"><SettingsIcon size={22} /></button>
+          <div className="top-actions">
+            <button className={`icon-btn ${getDevice() ? "" : "dot"}`} onClick={() => go("notifications")} aria-label="الإشعارات"><Bell size={22} /></button>
+            <button className="icon-btn" onClick={() => go("settings")} aria-label="الإعدادات"><SettingsIcon size={22} /></button>
+          </div>
         </header>
       ) : (
         <header className="top page-top">
@@ -95,6 +120,7 @@ export default function App() {
         {page === "diet" && <Diet {...props} />}
         {page === "labs" && <Labs {...props} />}
         {page === "record" && <Readings {...props} />}
+        {page === "notifications" && <Notifications settings={data.settings} onChanged={reload} />}
         {page === "settings" && <Settings settings={data.settings} onSaved={reload} />}
       </main>
     </div>

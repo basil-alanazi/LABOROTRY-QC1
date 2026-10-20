@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Droplet, Activity, Pill, CalendarDays, NotebookPen, History, Salad, FlaskConical } from "lucide-react";
 import { todayPlan } from "./mealPlan";
 import { avgGlucose } from "./Labs";
+import { getDevice } from "./push";
 import { CONTEXTS, apptDate, dayKey, fmtDate, fmtSlot, fmtTime, recentLow, relativeDays } from "./dose";
 
 function lastText(list, render, empty) {
@@ -78,6 +79,11 @@ export default function Home({ settings, readings, bp, medications, medDoses, ap
         <div className="date">{fmtDate(now)}</div>
       </div>
 
+      {!getDevice() && (
+        <button className="alert info as-btn" onClick={() => go("notifications")}>
+          🔔 فعّل الإشعارات عشان توصلك القراءات والتنبيهات وتذكيرات القياس
+        </button>
+      )}
       {low && (
         <button className="alert danger as-btn" onClick={() => go("sugar")}>
           ⚠️ آخر قراءة سكر {low.glucose} — هبوط. لا تاخذ إنسولين، وعالج الهبوط.

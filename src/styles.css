@@ -259,3 +259,21 @@ textarea { width: 100%; font: inherit; padding: 12px; border: 1px solid var(--li
 .tl.dose .tl-body { color: var(--brand); }
 .block { display: block; }
 @media print { .report-day { break-inside: avoid; } }
+.top-actions { display: flex; gap: 8px; }
+.icon-btn.dot { position: relative; }
+.icon-btn.dot::after { content: ""; position: absolute; top: 8px; inset-inline-end: 8px; width: 9px; height: 9px; border-radius: 50%; background: var(--danger); }
+.radio-list { display: flex; flex-direction: column; gap: 8px; }
+.radio { text-align: start; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+.radio.on { border-color: var(--brand); background: #e6f4f1; color: var(--brand); font-weight: 600; }
+.ok-line { color: var(--ok); margin: 0 0 8px; }
+.row-gap { display: flex; gap: 10px; align-items: center; }
+.row-gap .secondary { margin-top: 0; }
+.ios-steps ol { margin: 6px 0 0; padding-inline-start: 22px; line-height: 1.9; }
+.ios-steps p { margin: 0; }
+.rem-row { display: grid; grid-template-columns: 136px 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.rem-row input { padding: 8px; }
+.rem-row span { font-size: 14px; }
+.rem-row.off span, .rem-row.off input { opacity: .45; }
+.toggle { padding: 6px 12px; border-radius: 999px; background: var(--bg); color: var(--muted); font-size: 13px; font-weight: 600; }
+.toggle.on { background: var(--brand); color: #fff; }
+@media (prefers-color-scheme: dark) { .radio.on { background: #12302c; } }
