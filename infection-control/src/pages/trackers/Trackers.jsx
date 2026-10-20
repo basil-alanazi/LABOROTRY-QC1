@@ -242,14 +242,20 @@ export default function Trackers() {
     await supabase.from("culture_tracker").update({ deleted: true, deleted_by: session?.username, deleted_at: new Date().toISOString() }).eq("id", r.id);
     loadAll();
   }
-  async function uploadCultureAttachment(r, file) {
+  async function addCultureAttachments(r, files) {
     try {
-      const { path, name } = await uploadFile(r.item, file);
-      await supabase.from("culture_tracker").update({ attachment_path: path, attachment_name: name }).eq("id", r.id);
-      loadAll();
+      const uploaded = await Promise.all(Array.from(files).map((f) => uploadFile(r.item, f)));
+      const next = [...(r.attachments ?? []), ...uploaded];
+      updateCultureField(r.id, { attachments: next });
+      await supabase.from("culture_tracker").update({ attachments: next }).eq("id", r.id);
     } catch (err) {
       flash({ type: "error", text: "Could not upload: " + err.message });
     }
+  }
+  async function removeCultureAttachment(r, index) {
+    const next = (r.attachments ?? []).filter((_, i) => i !== index);
+    updateCultureField(r.id, { attachments: next });
+    await supabase.from("culture_tracker").update({ attachments: next }).eq("id", r.id);
   }
 
   // --- Agreement Tracker ---
@@ -273,14 +279,20 @@ export default function Trackers() {
     await supabase.from("agreement_tracker").update({ deleted: true, deleted_by: session?.username, deleted_at: new Date().toISOString() }).eq("id", r.id);
     loadAll();
   }
-  async function uploadAgreementAttachment(r, file) {
+  async function addAgreementAttachments(r, files) {
     try {
-      const { path, name } = await uploadFile(r.entity, file);
-      await supabase.from("agreement_tracker").update({ attachment_path: path, attachment_name: name }).eq("id", r.id);
-      loadAll();
+      const uploaded = await Promise.all(Array.from(files).map((f) => uploadFile(r.entity, f)));
+      const next = [...(r.attachments ?? []), ...uploaded];
+      updateAgreementField(r.id, { attachments: next });
+      await supabase.from("agreement_tracker").update({ attachments: next }).eq("id", r.id);
     } catch (err) {
       flash({ type: "error", text: "Could not upload: " + err.message });
     }
+  }
+  async function removeAgreementAttachment(r, index) {
+    const next = (r.attachments ?? []).filter((_, i) => i !== index);
+    updateAgreementField(r.id, { attachments: next });
+    await supabase.from("agreement_tracker").update({ attachments: next }).eq("id", r.id);
   }
 
   const overdueCount = useMemo(() => {
@@ -615,7 +627,7 @@ export default function Trackers() {
                       </td>
                       <td className="px-3 py-1.5">{badge && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.cls}`}>{badge.label}</span>}</td>
                       <td className="px-3 py-1.5">
-                        <AttachmentSlot path={r.attachment_path} name={r.attachment_name} onUpload={(f) => uploadCultureAttachment(r, f)} />
+                        <AttachmentList attachments={r.attachments} onAdd={(files) => addCultureAttachments(r, files)} onRemove={(index) => removeCultureAttachment(r, index)} />
                       </td>
                       <td className="px-3 py-1.5">
                         <button onClick={() => removeCulture(r)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
@@ -694,7 +706,7 @@ export default function Trackers() {
                       </td>
                       <td className="px-3 py-1.5">{badge && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.cls}`}>{badge.label}</span>}</td>
                       <td className="px-3 py-1.5">
-                        <AttachmentSlot path={r.attachment_path} name={r.attachment_name} onUpload={(f) => uploadAgreementAttachment(r, f)} />
+                        <AttachmentList attachments={r.attachments} onAdd={(files) => addAgreementAttachments(r, files)} onRemove={(index) => removeAgreementAttachment(r, index)} />
                       </td>
                       <td className="px-3 py-1.5">
                         <button onClick={() => removeAgreement(r)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
