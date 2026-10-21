@@ -277,3 +277,6 @@ textarea { width: 100%; font: inherit; padding: 12px; border: 1px solid var(--li
 .toggle { padding: 6px 12px; border-radius: 999px; background: var(--bg); color: var(--muted); font-size: 13px; font-weight: 600; }
 .toggle.on { background: var(--brand); color: #fff; }
 @media (prefers-color-scheme: dark) { .radio.on { background: #12302c; } }
+.edit-dose { width: 100%; margin-top: 4px; }
+.edit-dose label { margin-top: 4px; }
+.edit-dose .row-gap { margin-top: 10px; }

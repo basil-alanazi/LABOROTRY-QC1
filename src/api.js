@@ -28,6 +28,7 @@ export const api = {
   addReading: post("readings"),
   deleteReading: remove("readings"),
   addDose: (slot, units = null, at = null) => call("doses", "POST", { slot, units, at }),
+  updateDose: (id, d) => call(`doses/${id}`, "PUT", d),
   deleteDose: remove("doses"),
   addBp: post("bp"),
   deleteBp: remove("bp"),

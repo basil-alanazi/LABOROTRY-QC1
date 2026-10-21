@@ -123,6 +123,17 @@ export async function onRequest({ request, env, params, waitUntil }) {
       return created("doses", await insert(`INSERT INTO doses (${cols}) VALUES (${cols.map(() => "?")})`, ...vals));
     }
 
+    // تعديل جرعة مسجلة (الوقت أو الكمية)
+    if (resource === "doses" && method === "PUT" && id) {
+      const row = await db.prepare("SELECT * FROM doses WHERE id = ?").bind(Number(id)).first();
+      if (!row) bad("الجرعة مو موجودة");
+      const units = body.units === undefined || body.units === "" ? row.units : Number(body.units);
+      if (!(units >= 0.5 && units <= 100) || (units * 2) % 1 !== 0) bad("الكمية لازم تكون بين 0.5 و100 (بنص وحدة)");
+      const at = parseAt(body.at) || row.created_at;
+      await db.prepare("UPDATE doses SET units = ?, created_at = ? WHERE id = ?").bind(units, at, row.id).run();
+      return json({ ...row, units, created_at: at });
+    }
+
     if (resource === "bp" && method === "POST") {
       const sys = int(body.systolic, 50, 260, "الضغط العالي", true);
       const dia = int(body.diastolic, 30, 160, "الضغط الواطي", true);

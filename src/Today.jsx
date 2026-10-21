@@ -37,7 +37,9 @@ export default function Today({ settings, readings, doses, changes, onChanged })
   const [note, setNote] = useState("");
   const [readingAt, setReadingAt] = useState(""); // فاضي = الحين
   const [lastMeal, setLastMeal] = useState("");
-  const [doseAt, setDoseAt] = useState("");
+  const [doseOffset, setDoseOffset] = useState(0); // 0 اليوم، 1 أمس، 2 قبل أمس
+  const [doseTime, setDoseTime] = useState(""); // فاضي = الحين (لليوم بس)
+  const [editing, setEditing] = useState(null); // { id, units, time }
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [custom, setCustom] = useState(null); // الجرعة اللي يكتب لها كمية مختلفة
@@ -51,7 +53,19 @@ export default function Today({ settings, readings, doses, changes, onChanged })
   // اليوم يبدأ 4 الفجر، عشان جرعة Tresiba بعد 12 الليل تنحسب لليلة نفسها
   const doseDay = (d) => dayKey(new Date(d).getTime() - 4 * 36e5);
   const today = doseDay(now);
-  const todayDoses = doses.filter((d) => doseDay(d.created_at) === today);
+  const shiftDay = (key, n) => {
+    const d = new Date(`${key}T12:00:00+03:00`);
+    d.setDate(d.getDate() + n);
+    return dayKey(d);
+  };
+  const viewDay = shiftDay(today, -doseOffset);
+  const dayDoses = doses.filter((d) => doseDay(d.created_at) === viewDay);
+  // ساعة على يوم الجرعات ← ISO. قبل 4 الفجر تنحسب لليلة نفس اليوم (يعني تاريخ اليوم اللي بعده)
+  const doseIso = (dayKeyStr, hhmm) => {
+    const date = hhmm < "04:00" ? shiftDay(dayKeyStr, 1) : dayKeyStr;
+    return new Date(`${date}T${hhmm}:00+03:00`).toISOString();
+  };
+  const timeOf = (iso) => new Date(new Date(iso).getTime() + 3 * 36e5).toISOString().slice(11, 16);
   const low = recentLow(readings, settings);
   const tresiba = tresibaSuggestion(readings, settings, changes[0]);
 
@@ -92,23 +106,36 @@ export default function Today({ settings, readings, doses, changes, onChanged })
     const amount = units ?? settings[s.key];
     if (!(amount >= 0.5 && amount <= 100)) return setMessage("اكتب كمية صحيحة");
     const differs = units !== null && amount !== Number(settings[s.key]);
-    const at = riyadhLocalToIso(doseAt);
+    if (doseOffset > 0 && !doseTime) return setMessage("حدد الساعة اللي أخذ فيها الجرعة");
+    const at = doseTime ? doseIso(viewDay, doseTime) : null;
+    if (at && new Date(at) > new Date(Date.now() + 5 * 6e4)) return setMessage("الوقت ما يكون بالمستقبل");
     const when = new Date(at || Date.now());
     let question = `تأكيد: أخذ ${amount} وحدة ${s.insulin} ${s.label}؟` + (differs ? `\n(الخطة ${settings[s.key]} وحدة)` : "");
-    if (at) question += `\nالوقت: ${fmtTime(at)}`;
+    if (at) question += `\nالوقت: ${fmtShortDate(at)} ${fmtTime(at)}`;
     // تحذير إذا فيه جرعة Humalog ثانية قريبة
     if (s.insulin === "Humalog") {
       const near = doses.find((d) => d.insulin === "Humalog" && Math.abs(new Date(d.created_at) - when) < HUMALOG_GAP_HOURS * 36e5);
-      if (near) question = `⚠️ فيه جرعة Humalog ${near.units} وحدة انسجلت ${fmtTime(near.created_at)}، يعني قبل أقل من ${HUMALOG_GAP_HOURS} ساعات.\nإذا كانت انسجلت متأخر، اضغط إلغاء واختر "وقت ثاني" وحط وقتها الصحيح.\n\n` + question;
+      if (near) question = `⚠️ فيه جرعة Humalog ${near.units} وحدة انسجلت ${fmtTime(near.created_at)}، يعني الفرق أقل من ${HUMALOG_GAP_HOURS} ساعات.\nإذا وقتها غلط، اضغط إلغاء وعدّل وقتها.\n\n` + question;
     }
     if (!confirm(question)) return;
     const saved = await run(() => api.addDose(slot, units, at), `انسجلت الجرعة ✓ — ${fmtTime(when)}`);
-    if (saved) { setCustom(null); setCustomUnits(""); setDoseAt(""); }
+    if (saved) { setCustom(null); setCustomUnits(""); }
   }
 
-  async function undoDose(d) {
-    if (!confirm(`تلغي تسجيل جرعة ${d.units} وحدة (${fmtTime(d.created_at)})؟`)) return;
-    await run(() => api.deleteDose(d.id));
+  async function saveEdit(d) {
+    const units = Number(editing.units);
+    if (!(units >= 0.5 && units <= 100)) return setMessage("اكتب كمية صحيحة");
+    if (!editing.time) return setMessage("حدد الساعة");
+    const at = doseIso(doseDay(d.created_at), editing.time);
+    if (new Date(at) > new Date(Date.now() + 5 * 6e4)) return setMessage("الوقت ما يكون بالمستقبل");
+    const ok = await run(() => api.updateDose(d.id, { units, at }), `انعدلت الجرعة ✓ — ${units} وحدة الساعة ${fmtTime(at)}`);
+    if (ok) setEditing(null);
+  }
+
+  async function deleteDose(d) {
+    if (!confirm(`تحذف تسجيل جرعة ${d.units} وحدة (${fmtShortDate(d.created_at)} ${fmtTime(d.created_at)})؟`)) return;
+    const ok = await run(() => api.deleteDose(d.id), "انحذفت الجرعة");
+    if (ok) setEditing(null);
   }
 
   async function applyTresiba() {
@@ -175,11 +202,23 @@ export default function Today({ settings, readings, doses, changes, onChanged })
       {/* جرعات اليوم */}
       {settings && (
         <div className="card">
-          <h3>جرعات اليوم</h3>
-          <WhenPicker label="وقت الجرعة" value={doseAt} onChange={setDoseAt} />
+          <h3>الجرعات</h3>
+          <div className="chips">
+            {["اليوم", "أمس", "قبل أمس"].map((label, i) => (
+              <button key={i} className={doseOffset === i ? "chip on" : "chip"}
+                onClick={() => { setDoseOffset(i); setDoseTime(""); setEditing(null); setCustom(null); }}>{label}</button>
+            ))}
+          </div>
+          <p className="hint">{fmtDate(`${viewDay}T12:00:00+03:00`)}</p>
+          <label>الساعة اللي أخذ فيها الجرعة {doseOffset === 0 && "(فاضي = الحين)"}</label>
+          <div className="time-row">
+            <input type="time" value={doseTime} onChange={(e) => setDoseTime(e.target.value)} />
+            {doseTime && <button className="link small" onClick={() => setDoseTime("")}>مسح</button>}
+          </div>
           <div className="doses">
             {Object.entries(SLOTS).map(([slot, s]) => {
-              const taken = todayDoses.find((d) => d.slot === slot);
+              const taken = dayDoses.find((d) => d.slot === slot);
+              const isEditing = taken && editing?.id === taken.id;
               return (
                 <div key={slot} className={`dose-row ${taken ? "taken" : ""}`}>
                   <div>
@@ -187,13 +226,34 @@ export default function Today({ settings, readings, doses, changes, onChanged })
                     <span>{s.insulin} — {settings[s.key]} وحدة</span>
                   </div>
                   {taken ? (
-                    <button className="done" onClick={() => undoDose(taken)} title="إلغاء">
-                      ✓ {Number(taken.units) !== Number(settings[s.key]) && `${taken.units} وحدة · `}{fmtTime(taken.created_at)}
-                    </button>
+                    !isEditing && (
+                      <button className="done" onClick={() => setEditing({ id: taken.id, units: String(taken.units), time: timeOf(taken.created_at) })} title="تعديل">
+                        ✓ {Number(taken.units) !== Number(settings[s.key]) && `${taken.units} وحدة · `}{fmtTime(taken.created_at)} ✎
+                      </button>
+                    )
                   ) : custom === slot ? null : (
                     <div className="dose-actions">
                       <button className="take" disabled={busy || !!low} onClick={() => takeDose(slot)}>أخذها</button>
                       <button className="link small" disabled={busy || !!low} onClick={() => { setCustom(slot); setCustomUnits(""); }}>كمية ثانية</button>
+                    </div>
+                  )}
+                  {isEditing && (
+                    <div className="edit-dose">
+                      <div className="two-col">
+                        <div>
+                          <label>الكمية (وحدة)</label>
+                          <input type="number" inputMode="decimal" step="0.5" value={editing.units} onChange={(e) => setEditing({ ...editing, units: e.target.value })} />
+                        </div>
+                        <div>
+                          <label>الساعة</label>
+                          <input type="time" value={editing.time} onChange={(e) => setEditing({ ...editing, time: e.target.value })} />
+                        </div>
+                      </div>
+                      <div className="row-gap">
+                        <button className="take" disabled={busy} onClick={() => saveEdit(taken)}>حفظ التعديل</button>
+                        <button className="link small danger-link" disabled={busy} onClick={() => deleteDose(taken)}>حذف</button>
+                        <button className="link small" onClick={() => setEditing(null)}>إلغاء</button>
+                      </div>
                     </div>
                   )}
                   {!taken && custom === slot && (
