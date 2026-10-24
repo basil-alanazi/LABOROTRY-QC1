@@ -1,2 +1,2 @@
 [{"relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {"namespace": "android_app", "package_name": "app.wad.family", "sha256_cert_fingerprints": ["13:FD:E9:0C:E1:5C:D1:F4:4C:F2:87:3F:FF:65:D7:3F:44:7C:03:53:2D:EC:3B:B7:DB:77:98:2F:28:31:90:41"]}}]
+  "target": {"namespace": "android_app", "package_name": "app.wad.family", "sha256_cert_fingerprints": ["11:FB:4D:7F:2E:F6:75:C7:68:B8:74:16:D7:A1:A1:C5:D0:91:05:60:5F:C8:F0:7C:9C:92:E7:48:E3:FB:48:E0"]}}]
