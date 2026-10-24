@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Bell, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { api, setPatient, setUnauthorizedHandler } from "./api";
-import Home from "./Home";
+import HomeNew from "./HomeNew";
 import Today from "./Today";
 import Vitals from "./Vitals";
 import Meds from "./Meds";
@@ -16,7 +16,6 @@ import Login from "./Login";
 import Account from "./Account";
 import PatientForm from "./PatientForm";
 import { VerseBackground } from "./Verse";
-import { getDevice } from "./push";
 
 export const PAGES = {
   sugar: "السكر والإنسولين",
@@ -158,20 +157,7 @@ export default function App() {
   return (
     <div className="app">
       <VerseBackground />
-      {page === "home" ? (
-        <header className="top">
-          <div className="brand">
-            <h1>ود</h1>
-            <button className="patient-chip" onClick={() => go("account")}>
-              {patient.name} <ChevronDown size={16} />
-            </button>
-          </div>
-          <div className="top-actions">
-            <button className={`icon-btn ${getDevice() ? "" : "dot"}`} onClick={() => go("notifications")} aria-label="الإشعارات"><Bell size={22} /></button>
-            <button className="icon-btn" onClick={() => go("settings")} aria-label="خطة العلاج"><SlidersHorizontal size={22} /></button>
-          </div>
-        </header>
-      ) : (
+      {page !== "home" && (
         <header className="top page-top">
           <button className="icon-btn" onClick={back} aria-label="رجوع"><ArrowRight size={22} /></button>
           <h2>{PAGES[page]}</h2>
@@ -182,7 +168,7 @@ export default function App() {
       {error && <div className="alert danger">{error}</div>}
 
       <main>
-        {page === "home" && <Home {...data} me={me} patient={patient} go={go} />}
+        {page === "home" && <HomeNew {...data} me={me} patient={patient} go={go} />}
         {page === "sugar" && <Today {...props} />}
         {page === "vitals" && <Vitals {...props} />}
         {page === "meds" && <Meds {...props} />}
