@@ -1,5 +1,5 @@
 // الذكاء الاصطناعي: تحليل صور الأكل، ونصائح الأمراض المزمنة
-import { CONDITIONS, HARAM, arWord, callModel, computeTargets, extractJson, readingsSummary } from "./diet.js";
+import { CONDITIONS, arWord, callModel, computeTargets, extractJson, readingsSummary } from "./diet.js";
 
 // موديلات تشوف الصور
 const VISION_MODELS = ["@cf/google/gemma-4-26b-a4b-it", "@cf/meta/llama-4-scout-17b-16e-instruct"];
@@ -25,12 +25,11 @@ const MEAL_SYSTEM = `أنت أخصائي تغذية علاجية سعودي. ي�
 قواعد:
 - تعرّف على الأكل اللي في الصورة وقدّر الكمية بمقاييس منزلية (صحن، ملعقة، رغيف، حبة).
 - قدّر السعرات والكارب بالجرام للكمية اللي في الصورة.
-- الحلال: إذا شكّيت إن فيه خنزير أو كحول أو جيلاتين حيواني قل "doubt" أو "no" مع السبب. غير كذا "ok".
 - لا تغيّر ولا تقترح أي جرعة دواء أو إنسولين.
 - إذا الصورة مو أكل رجّع is_food=false.
 - اكتب بالعربي السعودي البسيط وباختصار.
 رجّع JSON بس بهالشكل:
-{"is_food":true,"items":[{"name":"اسم الأكلة","amount":"الكمية"}],"kcal":0,"carbs":0,"halal":"ok","halal_note":"","verdict":"good|ok|careful|avoid","verdict_text":"جملة وحدة: مناسب له أو لا وليش","sugar_effect":"كيف بيأثر على سكره أو ضغطه","tips":["نصيحة قصيرة عن هالوجبة بالذات"],"swap":"بديل أصح إذا يحتاج"}`;
+{"is_food":true,"items":[{"name":"اسم الأكلة","amount":"الكمية"}],"kcal":0,"carbs":0,"verdict":"good|ok|careful|avoid","verdict_text":"جملة وحدة: مناسب له أو لا وليش","sugar_effect":"كيف بيأثر على سكره أو ضغطه","tips":["نصيحة قصيرة عن هالوجبة بالذات"],"swap":"بديل أصح إذا يحتاج"}`;
 
 export async function analyzeMeal(env, db, patient, image, slot) {
   const t = computeTargets(patient);
@@ -68,8 +67,6 @@ function cleanMeal(a, p) {
     items: (Array.isArray(a.items) ? a.items : []).slice(0, 12).map((x) => ({ name: str(x?.name, 60), amount: str(x?.amount, 60) })).filter((x) => x.name),
     kcal: n(a.kcal),
     carbs: n(a.carbs),
-    halal: ["ok", "doubt", "no"].includes(a.halal) ? a.halal : "ok",
-    halal_note: str(a.halal_note),
     verdict: VERDICTS.includes(a.verdict) ? a.verdict : "ok",
     verdict_text: str(a.verdict_text),
     sugar_effect: str(a.sugar_effect),
@@ -78,16 +75,10 @@ function cleanMeal(a, p) {
     warnings: [],
   };
   if (out.is_food && !out.items.length) throw new Error("ما تعرّف على الأكل");
-  // فحص الكود نفسه، ما نعتمد على الموديل بس
   const names = out.items.map((x) => x.name).join("، ");
-  for (const re of HARAM) {
-    const m = names.match(re);
-    if (m) { out.halal = "no"; out.warnings.push(`فيه "${m[0]}" وهو غير حلال`); }
-  }
   for (const b of bannedWords(p)) {
     if (arWord(b).test(names)) { out.warnings.push(`فيه "${b}" وهو مسجّل إنه ما ياكله أو عنده حساسية منه`); out.verdict = "avoid"; }
   }
-  if (out.halal === "no") out.verdict = "avoid";
   return out;
 }
 
@@ -98,7 +89,7 @@ const ADVICE_SYSTEM = `أنت طبيب أسرة سعودي تكتب لعائلة
 - لا تشخّص. إذا لاحظت شي في القراءات أو الملاحظات أو التاريخ المرضي يدل على مرض مو مسجّل أو مضاعفة، حطه في noticed بصيغة "يستاهل تسألون الدكتور عن...".
 - تعرّف على الأمراض من القائمة ومن التاريخ المرضي المكتوب، وحط لكل مرض بطاقة.
 - علامات الخطر (warning_signs) لازم تكون واضحة: متى يروحون الطوارئ فورًا.
-- الأكل حلال، وأكلات سعودية مألوفة.
+- أكلات سعودية مألوفة.
 - اكتب بالعربي السعودي البسيط، وجمل قصيرة.
 رجّع JSON بس بهالشكل:
 {"overview":"سطرين عن وضعه العام من الأرقام","conditions":[{"name":"اسم المرض","status":"وضعه الحالي من قراءاته","do":["سوّوا"],"avoid":["تجنبوا"],"warning_signs":["روحوا الطوارئ إذا..."],"ask_doctor":["سؤال للدكتور بالزيارة الجاية"]}],"noticed":[{"title":"شي لاحظته","detail":"ليش ووش تسوون"}],"daily":["عادة يومية تساعده"]}`;
@@ -156,9 +147,6 @@ function cleanAdvice(a) {
     daily: list(a?.daily),
   };
   if (!out.conditions.length && !out.overview) throw new Error("الرد فاضي");
-  // "تجنبوا ..." عادي، بس اللي ينصح فيه لازم حلال
-  const recommended = JSON.stringify([out.daily, out.conditions.map((c) => c.do)]);
-  for (const re of HARAM) if (re.test(recommended)) throw new Error("فيه شي غير حلال");
   return out;
 }
 
@@ -167,7 +155,7 @@ function mockMeal() {
   return JSON.stringify({
     is_food: true,
     items: [{ name: "دجاج مشوي", amount: "ربع دجاجة" }, { name: "سلطة خضار", amount: "صحن صغير" }, { name: "خبز بر", amount: "نص رغيف" }],
-    kcal: 520, carbs: 38, halal: "ok", halal_note: "",
+    kcal: 520, carbs: 38,
     verdict: "good", verdict_text: "وجبة مناسبة له: بروتين عالي وكارب معتدل.",
     sugar_effect: "ارتفاع خفيف ومتوقع بعد ساعتين، خصوصًا من الخبز.",
     tips: ["خلوه ياكل السلطة أول", "امشوا معه ١٠ دقايق بعد الأكل"],

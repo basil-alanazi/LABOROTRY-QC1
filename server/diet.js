@@ -1,8 +1,8 @@
 // الحمية بالذكاء الاصطناعي (Cloudflare Workers AI).
-// الكود يحسب السعرات والأهداف، والذكاء الاصطناعي يختار الأكل، وبعدها الكود يفحص الحلال والممنوع.
+// الكود يحسب السعرات والأهداف، والذكاء الاصطناعي يختار الأكل، وبعدها الكود يفحص الأكل الممنوع عنده.
 
 const MODELS = ["@cf/google/gemma-4-26b-a4b-it", "@cf/zai-org/glm-4.7-flash"];
-const MAX_TRIES = 3;
+const MAX_TRIES = 2; // كل محاولة ممكن تاخذ نص دقيقة، وCloudflare يقطع بعد 100 ثانية
 const DAYS = ["السبت", "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"];
 const MEALS = ["breakfast", "snack1", "lunch", "snack2", "dinner"];
 export const CONDITIONS = {
@@ -21,19 +21,14 @@ export const CONDITIONS = {
 };
 const ACTIVITY = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 };
 
-// كلمة عربية كاملة (مع ال/و/ب قبلها)، عشان "كبيرة" ما تنحسب "بيرة"
-const AR = "\\u0600-\\u06FF";
+// كلمة عربية كاملة (مع ال/و/ب قبلها)، عشان "رز" ما تنحسب داخل كلمة ثانية
+// حروف عربية بس (بدون الفاصلة والأرقام العربية)
+const AR = "\\u0621-\\u063A\\u0641-\\u064A\\u0671-\\u06D3";
 export const arWord = (term) => {
   const t = term.replace(/^(ال|بال|وال)/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`(?<![${AR}])(?:ال|بال|وال|و|ب|لل|فال)?${t}(?![${AR}])`);
 };
 
-// أي ذكر لهذي = الحمية مرفوضة (الحلال)
-export const HARAM = [
-  ...["خنزير", "بيكون", "سلامي", "ببروني", "نبيذ", "كحول", "كحولي", "بيرة", "ويسكي", "فودكا", "ميرين", "ساكي", "جيلاتين"].map(arWord),
-  /\bbacon\b/i, /\bpork\b/i, /\bham\b/i, /\bprosciutto\b/i, /\bpepperoni\b/i, /\bsalami\b/i,
-  /\bwine\b/i, /\balcohol\b/i, /\bbeer\b/i, /\brum\b/i, /\bvodka\b/i, /\bmirin\b/i, /\bgelatin\b/i, /\blard\b/i,
-];
 
 const num = (v) => (v === null || v === undefined || v === "" ? null : Number(v));
 
@@ -124,7 +119,6 @@ function buildPrompt(p, t, s) {
 
 const SYSTEM = `أنت أخصائي تغذية علاجية للعائلات السعودية. تسوي جدول أكل أسبوعي صحي حسب حالة المريض وقراءاته.
 قواعد لازمة:
-- الأكل حلال 100%: ممنوع الخنزير ومشتقاته والكحول بكل أنواعه والجيلاتين.
 - لا تذكر أي أكل من الحساسية أو اللي ما ياكله، ولا حتى كبديل.
 - أكلات سعودية وخليجية مألوفة ومتوفرة، بكميات منزلية واضحة (رغيف، ملعقة، كوب، حبة).
 - لا تغيّر ولا تقترح أي جرعة دواء أو إنسولين. التغذية بس.
@@ -145,16 +139,12 @@ export function extractJson(text) {
 // يرجع قائمة المشاكل (فاضية = الحمية سليمة)
 export function validatePlan(plan, p) {
   const problems = [];
-  if (!Array.isArray(plan.days) || plan.days.length !== 7) problems.push("لازم سبعة أيام");
-  for (const d of plan.days || []) {
-    for (const m of MEALS) {
+  if (!Array.isArray(plan.days) || plan.days.length < 7) problems.push("لازم سبعة أيام");
+  for (const d of (plan.days || []).slice(0, 7)) {
+    // الوجبات الرئيسية لازم، والسناك إذا ناقص عادي
+    for (const m of ["breakfast", "lunch", "dinner"]) {
       if (!d[m] || typeof d[m].items !== "string" || !d[m].items.trim()) problems.push(`${d.day || "يوم"}: ناقص ${m}`);
     }
-  }
-  const all = JSON.stringify(plan);
-  for (const re of HARAM) {
-    const m = all.match(re);
-    if (m) problems.push(`فيه شي غير حلال: "${m[0]}"`);
   }
   const banned = [p.allergies, p.dislikes].filter(Boolean).join("،").split(/[،,\n]|\sو(?=\S)/).map((x) => x.trim()).filter((x) => x.length >= 2);
   const daysText = JSON.stringify(plan.days || []);
@@ -168,8 +158,12 @@ export async function callModel(env, messages, { models = MODELS, mock = mockPla
   let lastErr;
   for (const model of models) {
     try {
-      const res = await env.AI.run(model, { messages, max_tokens: maxTokens, temperature: 0.4 });
-      const text = res?.response ?? res?.choices?.[0]?.message?.content ?? res;
+      // بدون "تفكير" مطوّل: أسرع، وما يخلص الحد قبل ما يكتب الجواب
+      const opts = model.includes("gemma") ? { chat_template_kwargs: { enable_thinking: false } } : {};
+      const res = await env.AI.run(model, { messages, max_tokens: maxTokens, temperature: 0.4, ...opts });
+      const out = res?.response ?? res?.choices?.[0]?.message?.content;
+      const text = typeof out === "string" ? out.replace(/<think>[\s\S]*?<\/think>/g, "").trim() : out;
+      if (!text) throw new Error(`رد فاضي من ${model}${res?.choices?.[0]?.finish_reason === "length" ? " (طويل زيادة)" : ""}`);
       return { text, model };
     } catch (e) {
       lastErr = e;
@@ -199,6 +193,7 @@ export async function generateDiet(env, db, patient) {
     const problems = validatePlan(plan, patient);
     if (!problems.length) {
       plan.days = DAYS.map((name, idx) => ({ ...(plan.days.find((d) => d.day === name) || plan.days[idx]), day: name }));
+      plan.days.forEach((d) => { for (const m of MEALS) if (!d[m]?.items) delete d[m]; });
       return { plan: { ...plan, targets, readings: summary }, model };
     }
     lastProblems = problems;

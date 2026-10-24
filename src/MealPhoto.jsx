@@ -10,7 +10,6 @@ const VERDICT = {
   careful: ["انتبهوا", "warn"],
   avoid: ["الأفضل يتجنبه", "bad"],
 };
-const HALAL = { doubt: "⚠️ مو متأكدين إنه حلال", no: "⛔ فيه شي غير حلال" };
 
 // الوجبة الحالية حسب الساعة بالرياض
 function slotNow() {
@@ -44,7 +43,6 @@ export function Analysis({ a }) {
   return (
     <div className="analysis">
       <div className={`verdict ${tone}`}><b>{label}</b>{a.verdict_text && <span>{a.verdict_text}</span>}</div>
-      {HALAL[a.halal] && <div className="alert danger">{HALAL[a.halal]}{a.halal_note ? `: ${a.halal_note}` : ""}</div>}
       {a.warnings?.map((w, i) => <div key={i} className="alert danger">{w}</div>)}
       <ul className="food-items">{a.items.map((x, i) => <li key={i}><b>{x.name}</b>{x.amount && <span>{x.amount}</span>}</li>)}</ul>
       <div className="target-chips">
