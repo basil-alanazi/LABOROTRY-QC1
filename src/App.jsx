@@ -8,6 +8,7 @@ import Meds from "./Meds";
 import Appointments from "./Appointments";
 import Notes from "./Notes";
 import Diet from "./Diet";
+import Advice from "./Advice";
 import Labs from "./Labs";
 import Readings from "./Readings";
 import Settings from "./Settings";
@@ -24,6 +25,7 @@ export const PAGES = {
   appointments: "المواعيد الطبية",
   notes: "الملاحظات اليومية",
   diet: "الخطة الغذائية",
+  advice: "نصائح صحية",
   labs: "نتائج التحاليل",
   record: "السجل الصحي",
   settings: "خطة العلاج والأهداف",
@@ -38,7 +40,7 @@ const pageFromHash = () => {
 };
 
 const REFRESH_MS = 20000;
-const EMPTY = { settings: null, readings: [], doses: [], changes: [], bp: [], medications: [], medDoses: [], appointments: [], notes: [], labs: [], meals: [], diet: null };
+const EMPTY = { settings: null, readings: [], doses: [], changes: [], bp: [], medications: [], medDoses: [], appointments: [], notes: [], labs: [], meals: [], diet: null, advice: null };
 const PATIENT_KEY = "wad_patient";
 
 const savedPatient = () => { try { return Number(localStorage.getItem(PATIENT_KEY)) || null; } catch { return null; } };
@@ -173,6 +175,7 @@ export default function App() {
         {page === "appointments" && <Appointments {...props} />}
         {page === "notes" && <Notes {...props} />}
         {page === "diet" && <Diet {...props} patient={patient} />}
+        {page === "advice" && <Advice {...props} patient={patient} />}
         {page === "labs" && <Labs {...props} />}
         {page === "record" && <Readings {...props} />}
         {page === "notifications" && <Notifications settings={data.settings} onChanged={reload} />}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { api } from "./api";
 import { dayKey, fmtDate, fmtTime } from "./dose";
+import MealPhoto from "./MealPhoto";
 
 const DAY_NAMES = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 const MEALS = [
@@ -91,6 +92,7 @@ export default function Diet({ diet, targets, meals, patient, onChanged }) {
         </div>
         {generateButton}
         {error && <div className="alert danger">{error}</div>}
+        <MealPhoto meals={meals} patient={patient} onChanged={onChanged} />
         <p className="disclaimer">الحمية إرشادية، وما تغني عن الدكتور أو أخصائي التغذية، خصوصًا لمرضى الكلى. وما تغيّر أي جرعة دواء.</p>
       </section>
     );
@@ -98,6 +100,7 @@ export default function Diet({ diet, targets, meals, patient, onChanged }) {
 
   return (
     <section>
+      <MealPhoto meals={meals} patient={patient} onChanged={onChanged} />
       <div className="card">
         <h3>أكل اليوم{today ? ` — ${today.day}` : ""}</h3>
         {MEALS.map(([key, label, slot]) => {
@@ -112,7 +115,7 @@ export default function Diet({ diet, targets, meals, patient, onChanged }) {
               </div>
               <p>{m.items}</p>
               {slot === "snack" ? null : done ? (
-                <p className="ok-line">✓ {done.followed ? "أكلها" : `أكل: ${done.text}`} — {fmtTime(done.created_at)}</p>
+                <p className="ok-line">✓ {done.has_photo ? "📸 " : ""}{done.followed ? "أكلها" : `أكل: ${done.text}`} — {fmtTime(done.created_at)}</p>
               ) : other === key ? (
                 <div className="other">
                   <input autoFocus value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder="وش أكل بداله؟" />

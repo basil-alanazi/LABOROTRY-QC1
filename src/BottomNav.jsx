@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Activity, Droplet, Home as HomeIcon, LineChart, NotebookPen, Pill, Plus, Syringe, Users, Utensils, X } from "lucide-react";
+import { Activity, Camera, Droplet, Home as HomeIcon, LineChart, NotebookPen, Pill, Plus, Syringe, Users, Utensils, X } from "lucide-react";
 
 const TABS = [
   ["home", "الرئيسية", HomeIcon],
@@ -17,7 +17,7 @@ export default function BottomNav({ page, go, patient }) {
     ["vitals", "ضغط ونبض", Activity],
     ...(patient?.uses_insulin ? [["sugar", "جرعة إنسولين", Syringe]] : []),
     ["meds", "دواء", Pill],
-    ["diet", "وجبة", Utensils],
+    ["diet", "صورة أكل", Camera],
     ["notes", "ملاحظة", NotebookPen],
   ];
 

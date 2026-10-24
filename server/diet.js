@@ -23,13 +23,13 @@ const ACTIVITY = { sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725 }
 
 // كلمة عربية كاملة (مع ال/و/ب قبلها)، عشان "كبيرة" ما تنحسب "بيرة"
 const AR = "\\u0600-\\u06FF";
-const arWord = (term) => {
+export const arWord = (term) => {
   const t = term.replace(/^(ال|بال|وال)/, "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`(?<![${AR}])(?:ال|بال|وال|و|ب|لل|فال)?${t}(?![${AR}])`);
 };
 
 // أي ذكر لهذي = الحمية مرفوضة (الحلال)
-const HARAM = [
+export const HARAM = [
   ...["خنزير", "بيكون", "سلامي", "ببروني", "نبيذ", "كحول", "كحولي", "بيرة", "ويسكي", "فودكا", "ميرين", "ساكي", "جيلاتين"].map(arWord),
   /\bbacon\b/i, /\bpork\b/i, /\bham\b/i, /\bprosciutto\b/i, /\bpepperoni\b/i, /\bsalami\b/i,
   /\bwine\b/i, /\balcohol\b/i, /\bbeer\b/i, /\brum\b/i, /\bvodka\b/i, /\bmirin\b/i, /\bgelatin\b/i, /\blard\b/i,
@@ -134,7 +134,7 @@ const SYSTEM = `أنت أخصائي تغذية علاجية للعائلات ا�
 {"summary":"سطرين عن فكرة الحمية","why":["سبب مربوط بقراءاته أو حالته"],"days":[{"day":"السبت","breakfast":{"items":"...","kcal":0,"carbs":0},"snack1":{"items":"...","kcal":0,"carbs":0},"lunch":{"items":"...","kcal":0,"carbs":0},"snack2":{"items":"...","kcal":0,"carbs":0},"dinner":{"items":"...","kcal":0,"carbs":0}}],"avoid":["أكل يتجنبه"],"tips":["نصيحة"],"shopping":["مقاضي الأسبوع"]}
 الأيام سبعة بالترتيب: ${DAYS.join("، ")}.`;
 
-function extractJson(text) {
+export function extractJson(text) {
   if (typeof text === "object" && text) return text;
   const s = String(text || "");
   const start = s.indexOf("{"), end = s.lastIndexOf("}");
@@ -162,13 +162,13 @@ export function validatePlan(plan, p) {
   return problems;
 }
 
-async function callModel(env, messages) {
-  if (env.MOCK_AI === "1") return { text: mockPlan(), model: "mock" };
+export async function callModel(env, messages, { models = MODELS, mock = mockPlan, maxTokens = 6000 } = {}) {
+  if (env.MOCK_AI === "1") return { text: mock(), model: "mock" };
   if (!env.AI) throw new Error("الذكاء الاصطناعي مو مربوط (AI binding)");
   let lastErr;
-  for (const model of MODELS) {
+  for (const model of models) {
     try {
-      const res = await env.AI.run(model, { messages, max_tokens: 6000, temperature: 0.4 });
+      const res = await env.AI.run(model, { messages, max_tokens: maxTokens, temperature: 0.4 });
       const text = res?.response ?? res?.choices?.[0]?.message?.content ?? res;
       return { text, model };
     } catch (e) {

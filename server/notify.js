@@ -84,7 +84,9 @@ function baseMessage(kind, row, patient) {
     return { alert: false, msg: { title: "🩺 قياس جديد", body: parts.join(" · "), tag: `bp-${row.id}`, url: "/#vitals" } };
   }
   if (kind === "meals") {
-    return { alert: false, msg: { title: `🍽️ ${MEALS[row.slot] || "وجبة"}`, body: row.followed ? "أكلها حسب الخطة" : `أكل: ${row.text}`, tag: `m-${row.id}`, url: "/#diet" } };
+    const verdict = row.analysis ? JSON.parse(row.analysis).verdict_text : "";
+    const body = [row.followed ? "أكلها حسب الخطة" : `أكل: ${row.text}`, verdict].filter(Boolean).join(" — ");
+    return { alert: false, msg: { title: `${row.has_photo ? "📸" : "🍽️"} ${MEALS[row.slot] || "وجبة"}`, body, tag: `m-${row.id}`, url: "/#diet" } };
   }
   if (kind === "notes") {
     return { alert: false, msg: { title: "📝 ملاحظة جديدة", body: row.text.slice(0, 120), tag: `n-${row.id}`, url: "/#notes" } };

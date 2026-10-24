@@ -182,7 +182,9 @@ CREATE TABLE IF NOT EXISTS meals (
   followed INTEGER NOT NULL DEFAULT 1,
   text TEXT,
   patient_id INTEGER NOT NULL DEFAULT 1,
-  user_id INTEGER
+  user_id INTEGER,
+  photo TEXT,     -- صورة الأكل (data:image/jpeg;base64، صغيرة)
+  analysis TEXT   -- تحليل الصورة بالذكاء الاصطناعي (JSON)
 );
 CREATE INDEX IF NOT EXISTS meals_p_idx ON meals (patient_id, created_at DESC);
 
@@ -196,6 +198,17 @@ CREATE TABLE IF NOT EXISTS diet_plans (
   user_id INTEGER
 );
 CREATE INDEX IF NOT EXISTS diet_plans_p_idx ON diet_plans (patient_id, created_at DESC);
+
+-- نصائح الأمراض المزمنة من الذكاء الاصطناعي (advice = JSON)
+CREATE TABLE IF NOT EXISTS health_advice (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  patient_id INTEGER NOT NULL,
+  advice TEXT NOT NULL,
+  model TEXT,
+  user_id INTEGER
+);
+CREATE INDEX IF NOT EXISTS health_advice_p_idx ON health_advice (patient_id, created_at DESC);
 
 -- ===== الإشعارات =====
 CREATE TABLE IF NOT EXISTS secrets (k TEXT PRIMARY KEY, v TEXT NOT NULL);

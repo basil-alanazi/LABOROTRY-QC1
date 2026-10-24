@@ -7,6 +7,7 @@ import {
   recordFailure, sessionCookie, tooManyAttempts, verifyPassword,
 } from "../../server/auth.js";
 import { CONDITIONS, computeTargets, generateDiet } from "../../server/diet.js";
+import { analyzeMeal, generateAdvice } from "../../server/health.js";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", ...headers } });
@@ -38,6 +39,13 @@ const LAB_TESTS = ["hba1c", "other"];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+// صورة من الجوال بعد ما صغّرناها (حوالي 50–150 كيلو)
+const MAX_PHOTO = 600_000;
+const parsePhoto = (v) => {
+  if (typeof v !== "string" || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v)) bad("الصورة غير صحيحة");
+  if (v.length > MAX_PHOTO) bad("الصورة كبيرة، جرّب وحدة ثانية");
+  return v;
+};
 const text = (v, max) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 const int = (v, min, max, label, optional = false) => {
   if (optional && (v === null || v === undefined || v === "")) return null;
@@ -125,7 +133,7 @@ export async function onRequest({ request, env, params, waitUntil }) {
   const insert = (sql, ...args) => db.prepare(sql + " RETURNING *").bind(...args).first();
 
   try {
-    const [a, b, c, d] = path;
+    const [a, b, c, d, e] = path;
 
     // ===== بدون تسجيل دخول =====
     if (a === "auth" && b === "login" && method === "POST") {
@@ -302,13 +310,13 @@ export async function onRequest({ request, env, params, waitUntil }) {
     if (a === "p" && b) {
       const patient = await db.prepare("SELECT * FROM patients WHERE id = ? AND family_id = ? AND archived = 0").bind(Number(b), me.family_id).first();
       if (!patient) bad("المريض مو موجود", 404);
-      return await patientRoute(c, d, patient);
+      return await patientRoute(c, d, patient, e);
     }
 
     return json({ error: "غير موجود" }, 404);
 
     // ===== مسارات المريض =====
-    async function patientRoute(resource, id, patient) {
+    async function patientRoute(resource, id, patient, sub) {
       const pid = patient.id;
       const device = request.headers.get("x-device");
       // بعد أي تسجيل: إشعار فوري لباقي العائلة (الجهاز اللي سجّل ما يوصله)
@@ -324,7 +332,7 @@ export async function onRequest({ request, env, params, waitUntil }) {
 
       if (resource === "all" && method === "GET") {
         const q = (sql) => db.prepare(sql).bind(pid);
-        const [readings, doses, changes, bp, medications, medDoses, appointments, notes, labs, meals, diet] = await db.batch([
+        const [readings, doses, changes, bp, medications, medDoses, appointments, notes, labs, meals, diet, advice] = await db.batch([
           q("SELECT * FROM readings WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1000"),
           q("SELECT * FROM doses WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1000"),
           q("SELECT * FROM tresiba_changes WHERE patient_id = ? ORDER BY created_at DESC LIMIT 100"),
@@ -334,8 +342,10 @@ export async function onRequest({ request, env, params, waitUntil }) {
           q("SELECT * FROM appointments WHERE patient_id = ? ORDER BY at DESC LIMIT 200"),
           q("SELECT * FROM notes WHERE patient_id = ? ORDER BY created_at DESC LIMIT 500"),
           q("SELECT * FROM labs WHERE patient_id = ? ORDER BY taken_on DESC LIMIT 200"),
-          q("SELECT * FROM meals WHERE patient_id = ? ORDER BY created_at DESC LIMIT 500"),
+          // الصور نفسها ما تنحمّل هنا، كل صورة لها رابط
+          q("SELECT id, created_at, slot, followed, text, analysis, patient_id, user_id, photo IS NOT NULL AS has_photo FROM meals WHERE patient_id = ? ORDER BY created_at DESC LIMIT 500"),
           q("SELECT * FROM diet_plans WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1"),
+          q("SELECT * FROM health_advice WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1"),
         ]);
         const plan = diet.results[0];
         return json({
@@ -350,7 +360,8 @@ export async function onRequest({ request, env, params, waitUntil }) {
           appointments: appointments.results,
           notes: notes.results,
           labs: labs.results,
-          meals: meals.results,
+          meals: meals.results.map((m) => ({ ...m, analysis: m.analysis ? JSON.parse(m.analysis) : null })),
+          advice: advice.results[0] ? { ...JSON.parse(advice.results[0].advice), created_at: advice.results[0].created_at, model: advice.results[0].model } : null,
           diet: plan ? { ...JSON.parse(plan.plan), created_at: plan.created_at, model: plan.model } : null,
         });
       }
@@ -441,12 +452,28 @@ export async function onRequest({ request, env, params, waitUntil }) {
         return json({ ok: true });
       }
 
-      if (resource === "meals" && method === "POST") {
+      // تحليل صورة أكل (بدون حفظ): يقول وش فيها ويناسبه أو لا
+      if (resource === "meals" && id === "analyze" && method === "POST") {
+        const slot = MEAL_SLOTS.includes(body.slot) ? body.slot : null;
+        const { analysis, model } = await analyzeMeal(env, db, patient, parsePhoto(body.photo), slot);
+        return json({ ...analysis, model });
+      }
+      if (resource === "meals" && id && sub === "photo" && method === "GET") {
+        const row = await db.prepare("SELECT photo FROM meals WHERE id = ? AND patient_id = ?").bind(Number(id), pid).first();
+        const m = row?.photo?.match(/^data:(image\/\w+);base64,(.+)$/);
+        if (!m) bad("ما فيه صورة", 404);
+        const bytes = Uint8Array.from(atob(m[2]), (ch) => ch.charCodeAt(0));
+        return new Response(bytes, { headers: { "content-type": m[1], "cache-control": "private, max-age=31536000, immutable" } });
+      }
+      if (resource === "meals" && !id && method === "POST") {
         const slot = MEAL_SLOTS.includes(body.slot) ? body.slot : bad("الوجبة غير معروفة");
         const followed = body.followed === false ? 0 : 1;
         const t = text(body.text, 300);
         if (!followed && !t) bad("اكتب وش أكل");
-        return created("meals", await add("meals", ["slot", "followed", "text", "user_id"], [slot, followed, t, me.id]));
+        const photo = body.photo ? parsePhoto(body.photo) : null;
+        const analysis = body.analysis && typeof body.analysis === "object" ? JSON.stringify(body.analysis).slice(0, 8000) : null;
+        const { photo: _, ...row } = await add("meals", ["slot", "followed", "text", "user_id", "photo", "analysis"], [slot, followed, t, me.id, photo, analysis], parseAt(body.at));
+        return created("meals", { ...row, has_photo: photo ? 1 : 0 });
       }
 
       // خطة العلاج والأهداف والتذكيرات
@@ -475,6 +502,12 @@ export async function onRequest({ request, env, params, waitUntil }) {
         const { plan, model } = await generateDiet(env, db, patient);
         const row = await insert("INSERT INTO diet_plans (patient_id, plan, model, user_id) VALUES (?, ?, ?, ?)", pid, JSON.stringify(plan), model, me.id);
         return json({ ...plan, created_at: row.created_at, model });
+      }
+
+      if (resource === "advice" && id === "generate" && method === "POST") {
+        const { advice, model } = await generateAdvice(env, db, patient);
+        const row = await insert("INSERT INTO health_advice (patient_id, advice, model, user_id) VALUES (?, ?, ?, ?)", pid, JSON.stringify(advice), model, me.id);
+        return json({ ...advice, created_at: row.created_at, model });
       }
 
       if (DELETABLE[resource] && method === "DELETE" && id) {

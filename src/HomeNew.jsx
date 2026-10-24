@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Activity, Bell, CalendarDays, ChevronDown, ChevronLeft, Droplet, FlaskConical,
-  NotebookPen, Pill, SlidersHorizontal, Syringe, Utensils,
+  HeartPulse, NotebookPen, Pill, SlidersHorizontal, Sparkles, Syringe, Utensils,
 } from "lucide-react";
 import { todayDiet } from "./Diet";
 import { getDevice } from "./push";
@@ -81,10 +81,12 @@ const QUICK = [
   ["diet", "وجبة", Utensils],
 ];
 const SECTIONS = [
+  ["advice", "نصائح صحية", Sparkles],
   ["meds", "الأدوية", Pill],
   ["appointments", "المواعيد", CalendarDays],
   ["labs", "التحاليل", FlaskConical],
   ["notes", "الملاحظات", NotebookPen],
+  ["vitals", "الضغط والنبض", HeartPulse],
   ["notifications", "الإشعارات", Bell],
   ["settings", "خطة العلاج", SlidersHorizontal],
 ];
@@ -118,6 +120,7 @@ export default function HomeNew(props) {
     m.nextAppt && { icon: CalendarDays, title: m.nextAppt.title, sub: `${relativeDays(apptDate(m.nextAppt.at))} · ${fmtTime(apptDate(m.nextAppt.at))}`, to: "appointments" },
   ].filter(Boolean);
   if (!props.diet) todayItems.push({ icon: Utensils, title: "✨ سوّ له حمية بالذكاء الاصطناعي", sub: "حسب حالته وقراءاته، وحلال", to: "diet" });
+  if (!props.advice) todayItems.push({ icon: Sparkles, title: "✨ نصائح لأمراضه المزمنة", sub: "وش تسوون، وعلامات الخطر، وأسئلة للدكتور", to: "advice" });
 
   const sections = (
     <div className="hn-sections">
