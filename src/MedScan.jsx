@@ -15,6 +15,7 @@ export default function MedScan({ onResult, label = "صوّر العلبة" }) {
   const ref = useRef(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [note, setNote] = useState("");
 
   async function pick(e) {
     const file = e.target.files?.[0];
@@ -22,9 +23,13 @@ export default function MedScan({ onResult, label = "صوّر العلبة" }) {
     if (!file) return;
     setBusy(true);
     setError("");
+    setNote("");
     try {
       // دقة أعلى من صور الأكل عشان الكتابة الصغيرة على العلبة
-      onResult(await api.scanMedicine(await shrink(file, 1280)));
+      const m = await api.scanMedicine(await shrink(file, 1280));
+      onResult(m);
+      // الجرعة ما نخمّنها: لو مو مكتوبة يكتبها هو
+      if (!m.strength) setNote("الجرعة مو واضحة في الصورة: اكتبها بنفسك، أو صوّر جهة ثانية من العلبة أو الشريط.");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -39,6 +44,7 @@ export default function MedScan({ onResult, label = "صوّر العلبة" }) {
       </button>
       <input ref={ref} type="file" accept="image/*" capture="environment" hidden onChange={pick} />
       {error && <p className="level-note veryhigh">{error}</p>}
+      {note && <p className="hint">⚠️ {note}</p>}
     </>
   );
 }
