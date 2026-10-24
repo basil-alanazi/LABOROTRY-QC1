@@ -36,13 +36,23 @@ export default function PatientForm({ patient, onSaved, onCancel }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const [otherCond, setOtherCond] = useState("");
+  const custom = form.conditions.filter((c) => !CONDITIONS[c]);
+  const addCondition = () => {
+    const c = otherCond.trim();
+    if (c && !form.conditions.includes(c)) set("conditions", [...form.conditions, c]);
+    setOtherCond("");
+  };
   const toggle = (c) => set("conditions", form.conditions.includes(c) ? form.conditions.filter((x) => x !== c) : [...form.conditions, c]);
 
   async function save() {
     setBusy(true);
     setError("");
     try {
-      const saved = patient ? await api.updatePatient(patient.id, form) : await api.addPatient(form);
+      // لو كتب مرض ونسي يضغط "أضف"
+      const pending = otherCond.trim();
+      const data = pending && !form.conditions.includes(pending) ? { ...form, conditions: [...form.conditions, pending] } : form;
+      const saved = patient ? await api.updatePatient(patient.id, data) : await api.addPatient(data);
       if (!patient && form.uses_insulin) {
         // جرعات الإنسولين تنحفظ في خطة العلاج
         setPatient(saved.id);
@@ -104,6 +114,12 @@ export default function PatientForm({ patient, onSaved, onCancel }) {
           {Object.entries(CONDITIONS).map(([k, v]) => (
             <button key={k} className={form.conditions.includes(k) ? "chip on" : "chip"} onClick={() => toggle(k)}>{v}</button>
           ))}
+          {custom.map((c) => <button key={c} className="chip on" onClick={() => toggle(c)} aria-label={`شيل ${c}`}>{c} ✕</button>)}
+        </div>
+        <label>مرض مو موجود في القائمة؟ اكتبه هنا</label>
+        <div className="other">
+          <input value={otherCond} onChange={(e) => setOtherCond(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCondition())} placeholder="مثلاً: الربو، اعتلال الأعصاب، الزهايمر" maxLength={40} />
+          <button className="take" onClick={addCondition} disabled={!otherCond.trim()}>أضف</button>
         </div>
         <label>التاريخ المرضي (عمليات، أمراض سابقة، أي شي مهم)</label>
         <textarea rows={3} value={form.history || ""} onChange={(e) => set("history", e.target.value)} placeholder="مثلاً: عملية قلب مفتوح 2020، جلطة خفيفة..." />

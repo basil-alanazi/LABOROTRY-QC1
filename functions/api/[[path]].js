@@ -110,7 +110,10 @@ function defaultReminders(conditions, usesInsulin) {
 
 // الملف الصحي من الطلب (للإضافة والتعديل)
 function parseProfile(body) {
-  const conditions = Array.isArray(body.conditions) ? body.conditions.filter((c) => CONDITIONS[c]) : [];
+  // من القائمة، أو مرض يكتبونه بأنفسهم
+  const conditions = Array.isArray(body.conditions)
+    ? body.conditions.filter((c) => typeof c === "string").map((c) => c.trim()).filter((c) => CONDITIONS[c] || (c.length >= 2 && c.length <= 40)).slice(0, 20)
+    : [];
   const year = new Date().getFullYear();
   return {
     name: text(body.name, 60) || bad("اكتب اسم المريض"),
