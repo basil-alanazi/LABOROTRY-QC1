@@ -16,7 +16,7 @@ export default function Help({ go }) {
     <section>
       <div className="card help-video">
         <video controls playsInline preload="metadata" poster="/how-to-use.jpg" src="/how-to-use.mp4" />
-        <p className="hint">شخص يستخدم ود خطوة خطوة (حساب تجريبي). الشرح بالصوت الإنجليزي، والترجمة العربية مكتوبة في الفيديو.</p>
+        <p className="hint">تسجيل شاشة لشخص يستخدم ود خطوة خطوة (حساب تجريبي). الشرح بالصوت الإنجليزي، والترجمة تحت.</p>
       </div>
       <div className="card">
         <h3>الخطوات باختصار</h3>

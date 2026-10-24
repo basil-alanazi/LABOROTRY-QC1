@@ -549,7 +549,7 @@ body.doc-open { overflow: hidden; }
 
 /* طريقة الاستخدام */
 .help-video { padding: 10px; }
-.help-video video { width: 100%; aspect-ratio: 16 / 9; border-radius: 16px; background: #000; display: block; }
+.help-video video { display: block; width: auto; max-width: 100%; height: 72vh; aspect-ratio: 720 / 1558; margin: 0 auto; border-radius: 22px; background: #000; }
 .help-video .hint { margin: 8px 4px 2px; }
 .help-step { display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: start; padding: 12px 4px; margin: 0; border: 0; border-bottom: 1px solid var(--line); background: none; color: inherit; font: inherit; }
 .help-step:last-child { border-bottom: 0; }
