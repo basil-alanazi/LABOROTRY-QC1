@@ -454,3 +454,32 @@ summary { color: var(--gold); }
 
 /* هوية ود: الجناح والقلب + الاسم بخط قرآني */
 .login-logo { display: block; margin: 0 auto 12px; width: 132px; height: 132px; border-radius: 30px; box-shadow: 0 14px 30px -12px rgb(0 0 0 / .45), 0 0 0 2px rgb(226 194 122 / .5); }
+
+/* =====================================================================
+   ألوان "دفء" من الشعار: كريمي دافي + برونزي/كراميل + ذهبي، ولمسة زيتوني
+   (تغطي ألوان رحمة الخضراء)
+   ===================================================================== */
+:root {
+  --bg: #F6EEE3; --card: #FFFAF3; --text: #3A2A1F; --muted: #8A7765; --line: #EADCC8;
+  --brand: #A0703E; --brand-2: #74502B; --gold: #C79A5B; --soft: #F2E4D0;
+  --cream: #FBF1E2; --olive: #6F7F4A;
+  --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M30 4 L36 24 L56 30 L36 36 L30 56 L24 36 L4 30 L24 24Z' fill='none' stroke='%23E6D6BE'/%3E%3C/svg%3E");
+  --star-light: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpath d='M24 2 L29 19 L46 24 L29 29 L24 46 L19 29 L2 24 L19 19Z' fill='none' stroke='%23FBEBD2'/%3E%3C/svg%3E");
+}
+.page-top { background: rgb(246 238 227 / .92); }
+.page-patient, .secondary, .tag, .target-chips span, .appt-when, .alert.warn, .warn-card, .result.warn { color: #7A4E1C; }
+.info-card, .welcome, .alert.info { color: #5E4126; border-color: #E8D3B4; }
+.primary { box-shadow: 0 10px 20px -12px rgb(116 80 43 / .65); }
+.chip.on, .segmented button.on, .avatar { color: var(--cream); }
+.radio.on, .toggle-row.on { background: #F4E8D7; }
+.ai-btn { background: linear-gradient(135deg, var(--brand-2), var(--brand) 55%, var(--gold)); }
+input:focus, textarea:focus { box-shadow: 0 0 0 3px rgb(199 154 91 / .22); }
+.dose-row.taken, .meal.taken, .med-slot.taken { background: #EEF2E4; border-color: #CFDBB8; }
+.done, .ok-line { color: var(--olive); }
+.today-row td { background: #F4EADB; }
+.login-hero { background: linear-gradient(160deg, #B98750, #74502B); }
+.login-hero .logo, .verse.on-dark blockquote { color: var(--cream); }
+.login-logo { box-shadow: 0 14px 30px -12px rgb(60 35 10 / .5), 0 0 0 2px rgb(251 241 226 / .6); }
+.cond-med-head b, .med-advice b, .condition h3 { color: var(--brand-2); }
+.app-dl { background: linear-gradient(150deg, var(--brand), var(--brand-2)); }
+.verdict.ok { background: #EAF0DD; color: #4F5E2E; }

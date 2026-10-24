@@ -145,7 +145,7 @@ export default function HomeNew(props) {
           <div className="lbl">آخر قراءة سكر · {lastLine}</div>
           <div className="big"><b>{m.last?.glucose ?? "—"}</b><span>mg/dL</span></div>
           {m.level && <span className={`badge ${m.level}`}>{LEVEL_TEXT[m.level]} ({m.target})</span>}
-          <Spark values={m.spark} color="#F6E7C4" />
+          <Spark values={m.spark} color="#FBEBD2" />
           <div className="minis">
             <div className="mini"><small>الضغط</small><b>{m.lastBp ? `${m.lastBp.systolic}/${m.lastBp.diastolic}` : "—"}</b></div>
             <div className="mini">

@@ -6,18 +6,18 @@
 .hn-hello small { color: var(--muted); font-size: 13px; display: block; }
 .hn-hello b { font-size: 22px; }
 .hn-pill { display: inline-flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--line); padding: 5px 12px 5px 5px; border-radius: 999px; font-weight: 600; font-size: 14px; }
-.hn-pill i { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-weight: 800; background: var(--brand); color: #F6E7C4; }
+.hn-pill i { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-weight: 800; background: var(--brand); color: var(--cream); }
 .hn-alert { display: block; width: 100%; padding: 12px 14px; border-radius: 16px; margin-bottom: 10px; font-weight: 600; font-size: 14px; background: var(--card); border: 1px solid var(--line); }
 .hn-alert.danger { background: #FDE8EA; color: #B42335; border-color: #F7C7CE; }
 
-.hn-hero { display: block; width: 100%; position: relative; overflow: hidden; background: linear-gradient(150deg, #0E5E4F, #0A463B); color: #fff; border-radius: 26px; padding: 20px; box-shadow: 0 18px 40px -18px rgb(14 94 79 / .55); }
+.hn-hero { display: block; width: 100%; position: relative; overflow: hidden; background: linear-gradient(150deg, #B98750, #74502B); color: #fff; border-radius: 26px; padding: 20px; box-shadow: 0 18px 40px -18px rgb(116 80 43 / .5); }
 .hn-hero::after { content: ""; position: absolute; inset: 0; opacity: .12; pointer-events: none; background-image: var(--star-light); }
 .hn-hero .lbl { font-size: 13px; opacity: .8; }
 .hn-hero .big { display: flex; align-items: baseline; gap: 8px; margin: 4px 0; }
 .hn-hero .big b { font-size: 56px; line-height: 1; }
 .hn-hero .big span { opacity: .75; font-size: 14px; }
-.hn-hero .badge { display: inline-block; background: #F6E7C4; color: #7A5A12; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; min-width: 0; }
-.hn-hero .badge.ok { background: #D7F2E6; color: #0B6B4C; }
+.hn-hero .badge { display: inline-block; background: #FBEBD2; color: #7A4E1C; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; min-width: 0; }
+.hn-hero .badge.ok { background: #E6EFD6; color: #4F5E2E; }
 .hn-hero .badge.low, .hn-hero .badge.veryhigh { background: #FFD9DD; color: #A3172A; }
 .hn-spark { display: block; margin: 12px 0 4px; }
 .hn-hero .minis { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; position: relative; z-index: 1; }
