@@ -193,6 +193,17 @@ async function englishDish(env, items) {
   return String(text).replace(/<think>[\s\S]*?<\/think>/g, "").trim().split("\n").filter(Boolean).pop()?.replace(/^["']|["']$/g, "").slice(0, 300) || items;
 }
 
+// الموديل يرجّع base64، وأحيانًا ملف (stream)
+async function toBase64(res) {
+  if (typeof res?.image === "string" && res.image) return res.image;
+  const body = res instanceof ReadableStream ? res : res?.image instanceof ReadableStream ? res.image : null;
+  if (!body) throw new Error(`ما طلعت صورة: ${JSON.stringify(res)?.slice(0, 200)}`);
+  const bytes = new Uint8Array(await new Response(body).arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
 export async function mealImage(env, db, items) {
   const key = await sha256(items.trim());
   const hit = await db.prepare("SELECT image FROM food_images WHERE k = ?").bind(key).first();
@@ -203,11 +214,17 @@ export async function mealImage(env, db, items) {
     image = `data:image/svg+xml;base64,${btoa(svg)}`;
   } else {
     if (!env.AI) throw new Error("الذكاء الاصطناعي مو مربوط");
-    const dish = await englishDish(env, items);
-    const prompt = `Appetizing realistic food photo, top-down view, of ${dish}. Home-style Saudi cooking, served on a white plate on a wooden table, soft natural light. No text, no people, no hands.`;
-    const res = await env.AI.run(IMAGE_MODEL, { prompt, steps: 4 });
-    if (!res?.image) throw new Error("ما طلعت صورة");
-    image = `data:image/jpeg;base64,${res.image}`;
+    try {
+      // لو الترجمة فشلت نرسل الوصف العربي نفسه
+      const dish = await englishDish(env, items).catch(() => items);
+      const prompt = `Appetizing realistic food photo, top-down view, of ${dish}. Home-style Saudi cooking, served on a white plate on a wooden table, soft natural light. No text, no people, no hands.`;
+      const res = await env.AI.run(IMAGE_MODEL, { prompt, steps: 4 });
+      image = `data:image/jpeg;base64,${await toBase64(res)}`;
+    } catch (e) {
+      // آخر خطأ ينحفظ عشان نعرف وش صار
+      await db.prepare("INSERT OR REPLACE INTO secrets (k, v) VALUES ('last_image_error', ?)").bind(`${new Date().toISOString()} ${e?.message || e}`.slice(0, 500)).run().catch(() => {});
+      throw e;
+    }
   }
   await db.prepare("INSERT OR REPLACE INTO food_images (k, image) VALUES (?, ?)").bind(key, image).run();
   return image;

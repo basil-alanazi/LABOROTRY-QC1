@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light; /* التصميم فاتح دايمًا، حتى لو الجوال على الوضع الليلي */
   --bg: #f1f5f9; --card: #fff; --text: #0f172a; --muted: #64748b; --line: #e2e8f0;
   --brand: #0f766e; --ok: #059669; --warn: #d97706; --danger: #dc2626; --low: #7c3aed;
   font-family: "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", Tahoma, sans-serif;
@@ -178,26 +179,6 @@ textarea { width: 100%; font: inherit; padding: 12px; border: 1px solid var(--li
 .note-row p { margin: 0; }
 
 /* الوضع الليلي */
-@media (prefers-color-scheme: dark) {
-  :root { --bg: #0b1214; --card: #152124; --text: #e6eef0; --muted: #93a4a8; --line: #26363a; --brand: #2dd4bf; }
-  input, textarea { background: #0f191b; color: var(--text); border-color: var(--line); }
-  .chip { background: var(--card); color: var(--text); }
-  .clock { background: #0f766e; }
-  .primary { background: #0f766e; }
-  .secondary, .info-card, .tabs button.active { background: #12302c; }
-  .alert.info { background: #12302c; }
-  .alert.danger, .result.danger { background: #3a1517; }
-  .alert.warn, .result.warn { background: #33270f; color: #fbbf24; }
-  .dose-row.taken, .med-slot.taken { background: #0f2e24; border-color: #1f5a45; }
-  .level-note { background: #1b2a2d; }
-  .tile.teal   { --tile-bg: #12302c; --tile-fg: #5eead4; }
-  .tile.blue   { --tile-bg: #142436; --tile-fg: #93c5fd; }
-  .tile.purple { --tile-bg: #221c3a; --tile-fg: #c4b5fd; }
-  .tile.amber  { --tile-bg: #2e2312; --tile-fg: #fcd34d; }
-  .tile.rose   { --tile-bg: #331a22; --tile-fg: #fda4af; }
-  .tile.green  { --tile-bg: #142a20; --tile-fg: #86efac; }
-  .appt-when { background: #2e2312; color: #fcd34d; }
-}
 .tile.orange { --tile-bg: #fdf1ea; --tile-fg: #b4532a; }
 .tile.indigo { --tile-bg: #eef0fb; --tile-fg: #4a52a8; }
 .tile-sub { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -231,13 +212,6 @@ textarea { width: 100%; font: inherit; padding: 12px; border: 1px solid var(--li
 .a1c-bar .bar.high { background: var(--warn); }
 .a1c-bar .bar.veryhigh { background: var(--danger); }
 .a1c-bar small { font-size: 11px; color: var(--muted); }
-@media (prefers-color-scheme: dark) {
-  .tile.orange { --tile-bg: #33200f; --tile-fg: #fdba74; }
-  .tile.indigo { --tile-bg: #1d1f3d; --tile-fg: #a5b4fc; }
-  .meal.taken { background: #0f2e24; border-color: #1f5a45; }
-  .warn-card { background: #33270f; color: #fbbf24; }
-  .today-row td { background: #12302c; }
-}
 .dose-row { flex-wrap: wrap; }
 .dose-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .link.small { font-size: 13px; padding: 2px 4px; }
@@ -276,7 +250,6 @@ textarea { width: 100%; font: inherit; padding: 12px; border: 1px solid var(--li
 .rem-row.off span, .rem-row.off input { opacity: .45; }
 .toggle { padding: 6px 12px; border-radius: 999px; background: var(--bg); color: var(--muted); font-size: 13px; font-weight: 600; }
 .toggle.on { background: var(--brand); color: #fff; }
-@media (prefers-color-scheme: dark) { .radio.on { background: #12302c; } }
 .edit-dose { width: 100%; margin-top: 4px; }
 .edit-dose label { margin-top: 4px; }
 .edit-dose .row-gap { margin-top: 10px; }
@@ -330,12 +303,6 @@ summary { cursor: pointer; color: var(--brand); font-weight: 600; padding: 8px 0
 .meal.snack { background: var(--bg); border-style: dashed; }
 .meal.snack p { margin-bottom: 0; }
 h4 { margin: 12px 0 4px; font-size: 15px; }
-
-@media (prefers-color-scheme: dark) {
-  .welcome, .toggle-row.on, .avatar { background: #12302c; }
-  .admin { border-color: #3b3f75; }
-  .verse-bg span { opacity: .07; color: #5eead4; }
-}
 
 /* =====================================================================
    تصميم "رحمة": كريمي + أخضر غامق + ذهبي، ونقش نجمة خفيف
@@ -424,25 +391,6 @@ summary { color: var(--gold); }
 .r-sheet-grid span { width: 48px; height: 48px; border-radius: 16px; display: grid; place-items: center; background: var(--soft); color: var(--gold); }
 
 /* رحمة بالليل */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0F1A17; --card: #16231F; --text: #EDE6D6; --muted: #9C9483; --line: #263631;
-    --brand: #1E8A73; --brand-2: #0E5E4F; --gold: #D4AF5A; --soft: #2A2618;
-    --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M30 4 L36 24 L56 30 L36 36 L30 56 L24 36 L4 30 L24 24Z' fill='none' stroke='%23233630'/%3E%3C/svg%3E");
-  }
-  .page-top { background: rgb(15 26 23 / .9); }
-  input, textarea { background: #121D1A; }
-  .r-nav { background: rgb(22 35 31 / .95); }
-  .info-card, .welcome, .alert.info, .secondary, .tag, .target-chips span, .appt-when, .page-patient { color: #E7D3A2; border-color: #3A3420; }
-  .alert.warn, .warn-card, .result.warn { background: #2E2614; color: #E7C77F; }
-  .alert.danger, .result.danger { background: #3A1517; color: #FCA5A5; }
-  .dose-row.taken, .meal.taken, .med-slot.taken { background: #12302A; border-color: #1F5247; }
-  .meal.snack { background: #1A2723; }
-  .radio.on, .toggle-row.on { background: #12302A; }
-  .chip.on, .segmented button.on { color: #0F1A17; background: var(--gold); border-color: var(--gold); }
-  .today-row td { background: #12302A; }
-  .avatar { background: var(--gold); color: #0F1A17; }
-}
 
 /* ===== صور الأكل ===== */
 .photo-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
@@ -474,13 +422,6 @@ summary { color: var(--gold); }
 .condition ul { margin: 0; line-height: 1.9; }
 .condition .alert ul { margin-top: 4px; }
 .cond-status { background: var(--soft); padding: 8px 12px; border-radius: 12px; }
-
-@media (prefers-color-scheme: dark) {
-  .verdict.ok { background: #12342A; color: #7EE2B8; }
-  .verdict.mid { color: #E8CF8F; }
-  .verdict.warn { background: #3A2A10; color: #F5C27A; }
-  .verdict.bad { background: #3A1517; color: #FCA5A5; }
-}
 
 /* ===== صور أكلات الحمية ===== */
 .meal-body { display: flex; gap: 12px; align-items: center; }

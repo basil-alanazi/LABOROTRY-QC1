@@ -44,7 +44,3 @@
 .hn-sections span { color: var(--gold); }
 .hn-sections em { position: absolute; top: 6px; inset-inline-end: 8px; font-style: normal; background: #E5484D; color: #fff; font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; display: grid; place-items: center; }
 
-@media (prefers-color-scheme: dark) {
-  .hn-pill i { color: #0F1A17; background: var(--gold); }
-  .hn-alert.danger { background: #3A1517; color: #FCA5A5; border-color: #5B2125; }
-}
