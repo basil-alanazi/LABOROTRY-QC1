@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
-import { api } from "./api";
+import { api, isNetworkError, waitForNew } from "./api";
 import { dayKey, fmtDate, fmtTime } from "./dose";
 import MealPhoto from "./MealPhoto";
 
@@ -47,11 +47,17 @@ export default function Diet({ diet, targets, meals, patient, onChanged }) {
     if (diet && !confirm("تسوي حمية جديدة على آخر القراءات؟ الحمية الحالية تنحفظ في السجل.")) return;
     setBusy(true);
     setError("");
+    const before = diet?.created_at;
     try {
       await api.generateDiet();
       onChanged();
     } catch (e) {
-      setError(e.message);
+      if (!isNetworkError(e)) { setError(e.message); return; }
+      // الاتصال انقطع، بس الحمية غالبًا للحين تتجهز
+      setError("الاتصال تقطّع، ننتظر الحمية تخلص...");
+      const got = await waitForNew("diet", before);
+      setError(got ? "" : "ما وصلت الحمية. تأكد من النت وجرّب مرة ثانية.");
+      if (got) onChanged();
     } finally {
       setBusy(false);
     }

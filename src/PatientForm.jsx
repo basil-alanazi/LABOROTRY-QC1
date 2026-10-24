@@ -43,7 +43,10 @@ export default function PatientForm({ patient, onSaved, onCancel }) {
     if (c && !form.conditions.includes(c)) set("conditions", [...form.conditions, c]);
     setOtherCond("");
   };
-  const setMeds = (c, v) => setForm((f) => ({ ...f, condition_meds: { ...f.condition_meds, [c]: v } }));
+  // أدوية كل مرض: قائمة (القديم كان نص واحد)
+  const [openCond, setOpenCond] = useState(null);
+  const medsOf = (c) => [form.condition_meds?.[c] ?? []].flat();
+  const setMeds = (c, list) => setForm((f) => ({ ...f, condition_meds: { ...f.condition_meds, [c]: list } }));
   const toggle = (c) => set("conditions", form.conditions.includes(c) ? form.conditions.filter((x) => x !== c) : [...form.conditions, c]);
 
   async function save() {
@@ -124,14 +127,36 @@ export default function PatientForm({ patient, onSaved, onCancel }) {
         </div>
         {form.conditions.length > 0 && (
           <div className="cond-meds">
-            <label>وش ياخذ لكل مرض؟ (اكتب اسم الدواء وجرعته، ولو ما ياخذ شي خلها فاضية)</label>
-            {form.conditions.map((c) => (
-              <div key={c} className="cond-med">
-                <b>{CONDITIONS[c] || c}</b>
-                <input value={form.condition_meds?.[c] || ""} onChange={(e) => setMeds(c, e.target.value)} maxLength={200}
-                  placeholder="اسم الدواء وجرعته ووقته، مثلاً: 0.4 بالليل" />
-              </div>
-            ))}
+            <label>وش ياخذ لكل مرض؟ اضغط على المرض وأضف أدويته (لو ما ياخذ شي خله)</label>
+            {form.conditions.map((c) => {
+              const list = medsOf(c);
+              const filled = list.filter((x) => x.trim()).length;
+              const open = openCond === c;
+              return (
+                <div key={c} className={`cond-med ${open ? "open" : ""}`}>
+                  <button type="button" className="cond-med-head" onClick={() => {
+                    setOpenCond(open ? null : c);
+                    if (!open && !list.length) setMeds(c, [""]);
+                  }}>
+                    <b>{CONDITIONS[c] || c}</b>
+                    <span>{filled ? `${filled} ${filled === 1 ? "دواء" : "أدوية"}` : "ما فيه أدوية"} {open ? "▲" : "▼"}</span>
+                  </button>
+                  {open && (
+                    <div className="cond-med-list">
+                      {list.map((m, i) => (
+                        <div key={i} className="cond-med-row">
+                          <input autoFocus={i === list.length - 1 && !m} value={m} maxLength={120}
+                            onChange={(e) => setMeds(c, list.map((x, j) => (j === i ? e.target.value : x)))}
+                            placeholder="اسم الدواء وجرعته ووقته" />
+                          <button type="button" className="icon-btn" aria-label="شيل الدواء" onClick={() => setMeds(c, list.filter((_, j) => j !== i))}>✕</button>
+                        </div>
+                      ))}
+                      <button type="button" className="link add-med" onClick={() => setMeds(c, [...list, ""])}>+ دواء ثاني</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
         <label>التاريخ المرضي (عمليات، أمراض سابقة، أي شي مهم)</label>

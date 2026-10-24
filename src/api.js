@@ -21,7 +21,8 @@ async function call(path, method = "GET", body) {
   });
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && !path.startsWith("auth/login")) onUnauthorized();
-  if (!res.ok) throw new Error(data.error || `خطأ ${res.status}`);
+  // الطلبات الطويلة ترجع 200 دايمًا، والخطأ يكون داخل الرد
+  if (!res.ok || data.error) throw new Error(data.error || `خطأ ${res.status}`);
   return data;
 }
 
@@ -31,6 +32,17 @@ export const setPatient = (id) => { patientId = id; };
 const pp = (path) => `p/${patientId}/${path}`;
 const post = (path) => (body) => call(pp(path), "POST", body);
 const remove = (path) => (id) => call(pp(`${path}/${id}`), "DELETE");
+
+// لما الاتصال ينقطع والذكاء الاصطناعي للحين يشتغل: نتابع لين تنحفظ النتيجة
+export async function waitForNew(key, before, { tries = 12, every = 10000 } = {}) {
+  for (let i = 0; i < tries; i++) {
+    await new Promise((r) => setTimeout(r, every));
+    const d = await call(pp("all")).catch(() => null);
+    if (d?.[key] && d[key].created_at !== before) return d[key];
+  }
+  return null;
+}
+export const isNetworkError = (e) => /load failed|failed to fetch|networkerror|network connection/i.test(e?.message || "");
 
 export const api = {
   // الحساب

@@ -46,6 +46,26 @@ const parsePhoto = (v) => {
   if (v.length > MAX_PHOTO) bad("الصورة كبيرة، جرّب وحدة ثانية");
   return v;
 };
+// شغل طويل (الذكاء الاصطناعي): نرسل مسافات كل شوي عشان الجوال ما يقطع الاتصال،
+// وبعدها النتيجة (أو {error}) كـ JSON. المسافات قبل الـ JSON ما تأثر على قراءته.
+const longJob = (work) => {
+  const enc = new TextEncoder();
+  const body = new ReadableStream({
+    async start(ctrl) {
+      ctrl.enqueue(enc.encode(" "));
+      const t = setInterval(() => ctrl.enqueue(enc.encode(" ")), 5000);
+      try {
+        ctrl.enqueue(enc.encode(JSON.stringify(await work())));
+      } catch (e) {
+        ctrl.enqueue(enc.encode(JSON.stringify({ error: e.message })));
+      } finally {
+        clearInterval(t);
+        ctrl.close();
+      }
+    },
+  });
+  return new Response(body, { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "content-encoding": "identity" } });
+};
 const DIET_MEALS = ["breakfast", "snack1", "lunch", "snack2", "dinner"];
 // صورة محفوظة كـ data URL ← ملف صورة
 const imageResponse = (data) => {
@@ -116,7 +136,9 @@ function parseProfile(body) {
     : [];
   // أدوية كل مرض (اختياري): بس للأمراض المختارة
   const meds = body.condition_meds && typeof body.condition_meds === "object" ? body.condition_meds : {};
-  const conditionMeds = Object.fromEntries(conditions.map((c) => [c, text(meds[c], 200)]).filter(([, v]) => v));
+  // كل مرض: قائمة أدوية (والقديم كان نص واحد)
+  const medList = (v) => (Array.isArray(v) ? v : [v]).map((x) => text(x, 120)).filter(Boolean).slice(0, 10);
+  const conditionMeds = Object.fromEntries(conditions.map((c) => [c, medList(meds[c])]).filter(([, v]) => v.length));
   const year = new Date().getFullYear();
   return {
     name: text(body.name, 60) || bad("اكتب اسم المريض"),
@@ -520,15 +542,19 @@ export async function onRequest({ request, env, params, waitUntil }) {
       }
 
       if (resource === "diet" && id === "generate" && method === "POST") {
-        const { plan, model } = await generateDiet(env, db, patient);
-        const row = await insert("INSERT INTO diet_plans (patient_id, plan, model, user_id) VALUES (?, ?, ?, ?)", pid, JSON.stringify(plan), model, me.id);
-        return json({ ...plan, created_at: row.created_at, model });
+        return longJob(async () => {
+          const { plan, model } = await generateDiet(env, db, patient);
+          const row = await insert("INSERT INTO diet_plans (patient_id, plan, model, user_id) VALUES (?, ?, ?, ?)", pid, JSON.stringify(plan), model, me.id);
+          return { ...plan, created_at: row.created_at, model };
+        });
       }
 
       if (resource === "advice" && id === "generate" && method === "POST") {
-        const { advice, model } = await generateAdvice(env, db, patient);
-        const row = await insert("INSERT INTO health_advice (patient_id, advice, model, user_id) VALUES (?, ?, ?, ?)", pid, JSON.stringify(advice), model, me.id);
-        return json({ ...advice, created_at: row.created_at, model });
+        return longJob(async () => {
+          const { advice, model } = await generateAdvice(env, db, patient);
+          const row = await insert("INSERT INTO health_advice (patient_id, advice, model, user_id) VALUES (?, ?, ?, ?)", pid, JSON.stringify(advice), model, me.id);
+          return { ...advice, created_at: row.created_at, model };
+        });
       }
 
       if (DELETABLE[resource] && method === "DELETE" && id) {

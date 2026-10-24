@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
-import { api } from "./api";
+import { api, isNetworkError, waitForNew } from "./api";
 import { fmtDate } from "./dose";
 
 // نصائح الأمراض المزمنة بالذكاء الاصطناعي، مبنية على قراءاته وملاحظاتكم
@@ -11,11 +11,16 @@ export default function Advice({ advice, patient, onChanged }) {
   async function generate() {
     setBusy(true);
     setError("");
+    const before = advice?.created_at;
     try {
       await api.generateAdvice();
       onChanged();
     } catch (e) {
-      setError(e.message);
+      if (!isNetworkError(e)) { setError(e.message); return; }
+      setError("الاتصال تقطّع، ننتظر النصائح تخلص...");
+      const got = await waitForNew("advice", before);
+      setError(got ? "" : "ما وصلت النصائح. تأكد من النت وجرّب مرة ثانية.");
+      if (got) onChanged();
     } finally {
       setBusy(false);
     }

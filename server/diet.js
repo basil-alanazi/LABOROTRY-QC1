@@ -35,7 +35,8 @@ const num = (v) => (v === null || v === undefined || v === "" ? null : Number(v)
 // أدوية كل مرض اللي كتبتها العائلة في ملفه
 export function conditionMedsLine(p) {
   const m = JSON.parse(p.condition_meds || "{}");
-  const parts = Object.entries(m).filter(([, v]) => v).map(([c, v]) => `${CONDITIONS[c] || c}: ${v}`);
+  const parts = Object.entries(m).map(([c, v]) => [c, [v].flat().filter(Boolean)]).filter(([, v]) => v.length)
+    .map(([c, v]) => `${CONDITIONS[c] || c}: ${v.join("، ")}`);
   return parts.length ? `أدوية يأخذها لأمراضه: ${parts.join("؛ ")}.` : "";
 }
 
