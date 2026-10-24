@@ -1,5 +1,5 @@
 // الذكاء الاصطناعي: تحليل صور الأكل، ونصائح الأمراض المزمنة
-import { CONDITIONS, arWord, callModel, computeTargets, extractJson, readingsSummary } from "./diet.js";
+import { CONDITIONS, arWord, callModel, computeTargets, conditionMedsLine, extractJson, readingsSummary } from "./diet.js";
 
 // موديلات تشوف الصور
 const VISION_MODELS = ["@cf/google/gemma-4-26b-a4b-it", "@cf/meta/llama-4-scout-17b-16e-instruct"];
@@ -11,6 +11,7 @@ function patientLines(p, t) {
     `المريض: ${p.name}، ${p.sex === "female" ? "أنثى" : "ذكر"}${t.age ? `، العمر ${t.age}` : ""}${p.weight_kg ? `، الوزن ${p.weight_kg} كغ` : ""}${t.bmi ? ` (BMI ${t.bmi})` : ""}.`,
     `الأمراض: ${t.conditions.map((c) => CONDITIONS[c] || c).join("، ") || "لا يوجد"}.`,
     p.history ? `التاريخ المرضي: ${p.history}` : "",
+    conditionMedsLine(p),
     p.allergies ? `حساسية: ${p.allergies}` : "",
     p.dislikes ? `أكل ما ياكله: ${p.dislikes}` : "",
     p.uses_insulin ? "يأخذ إنسولين بجرعات ثابتة قبل الوجبات." : "",
@@ -90,9 +91,10 @@ const ADVICE_SYSTEM = `أنت طبيب أسرة سعودي تكتب لعائلة
 - تعرّف على الأمراض من القائمة ومن التاريخ المرضي المكتوب، وحط لكل مرض بطاقة.
 - علامات الخطر (warning_signs) لازم تكون واضحة: متى يروحون الطوارئ فورًا.
 - أكلات سعودية مألوفة.
+- في medications: حط كل دواء مذكور عنده (من أدوية أمراضه وصفحة الأدوية والإنسولين)، ولا تضيف دواء ما ذكرناه. اذكر الاسم العلمي، وفايدته، وكيف ينأخذ صح، والأعراض الجانبية اللي تنتبهون لها، وأي تعارض مع أمراضه أو أدويته الثانية. إذا ما عرفت الدواء اكتب في generic "ما عرفناه، اسألوا الصيدلي" ولا تخمّن.
 - اكتب بالعربي السعودي البسيط، وجمل قصيرة.
 رجّع JSON بس بهالشكل:
-{"overview":"سطرين عن وضعه العام من الأرقام","conditions":[{"name":"اسم المرض","status":"وضعه الحالي من قراءاته","do":["سوّوا"],"avoid":["تجنبوا"],"warning_signs":["روحوا الطوارئ إذا..."],"ask_doctor":["سؤال للدكتور بالزيارة الجاية"]}],"noticed":[{"title":"شي لاحظته","detail":"ليش ووش تسوون"}],"daily":["عادة يومية تساعده"]}`;
+{"overview":"سطرين عن وضعه العام من الأرقام","medications":[{"name":"اسم الدواء كما كتبناه","generic":"الاسم العلمي","for":"وش فايدته","how":"كيف ينأخذ صح","side_effects":["عرض جانبي تنتبهون له"],"watch":["تعارض مع مرض أو دواء ثاني عنده"]}],"conditions":[{"name":"اسم المرض","status":"وضعه الحالي من قراءاته","do":["سوّوا"],"avoid":["تجنبوا"],"warning_signs":["روحوا الطوارئ إذا..."],"ask_doctor":["سؤال للدكتور بالزيارة الجاية"]}],"noticed":[{"title":"شي لاحظته","detail":"ليش ووش تسوون"}],"daily":["عادة يومية تساعده"]}`;
 
 async function adviceContext(db, patient) {
   const t = computeTargets(patient);
@@ -106,7 +108,8 @@ async function adviceContext(db, patient) {
   const spo2 = bp.map((b) => b.spo2).filter(Boolean);
   return [
     ...patientLines(patient, t),
-    s.meds.length ? `أدويته: ${s.meds.join("، ")}.` : "",
+    s.meds.length ? `أدوية مسجّلة في صفحة الأدوية: ${s.meds.join("، ")}.` : "",
+    patient.uses_insulin ? `الإنسولين: Humalog ${patient.humalog_breakfast} قبل الفطور، ${patient.humalog_lunch} قبل الغداء، ${patient.humalog_dinner} قبل العشاء؛ Tresiba ${patient.tresiba_dose} قبل النوم.` : "",
     s.count ? `السكر آخر أسبوعين (${s.count} قراءة): متوسط الصيام ${s.fasting_avg ?? "—"} (الهدف ${patient.fasting_low}–${patient.fasting_high})، بعد الأكل ${s.after_meal_avg ?? "—"} (الهدف ${patient.post_low}–${patient.post_high})، فوق 250: ${s.highs} مرة، هبوط تحت 70: ${s.lows} مرة.` : "ما فيه قراءات سكر آخر أسبوعين.",
     s.spikes.length ? `قراءات عالية مع ملاحظاتها:\n- ${s.spikes.join("\n- ")}` : "",
     s.bp_avg ? `متوسط الضغط: ${s.bp_avg} (الحد ${patient.bp_sys_high}/${patient.bp_dia_high}).` : "",
@@ -124,7 +127,7 @@ export async function generateAdvice(env, db, patient) {
   ];
   let lastErr;
   for (let i = 0; i < MAX_TRIES; i++) {
-    const { text, model } = await callModel(env, messages, { mock: mockAdvice, maxTokens: 4000 });
+    const { text, model } = await callModel(env, messages, { mock: mockAdvice, maxTokens: 6000 });
     try {
       return { advice: cleanAdvice(extractJson(text)), model };
     } catch (e) {
@@ -143,6 +146,9 @@ function cleanAdvice(a) {
     conditions: (Array.isArray(a?.conditions) ? a.conditions : []).slice(0, 8).map((c) => ({
       name: str(c?.name, 60), status: str(c?.status), do: list(c?.do), avoid: list(c?.avoid), warning_signs: list(c?.warning_signs), ask_doctor: list(c?.ask_doctor, 5),
     })).filter((c) => c.name),
+    medications: (Array.isArray(a?.medications) ? a.medications : []).slice(0, 15).map((m) => ({
+      name: str(m?.name, 80), generic: str(m?.generic, 80), for: str(m?.for, 200), how: str(m?.how), side_effects: list(m?.side_effects, 5), watch: list(m?.watch, 5),
+    })).filter((m) => m.name),
     noticed: (Array.isArray(a?.noticed) ? a.noticed : []).slice(0, 6).map((x) => ({ title: str(x?.title, 100), detail: str(x?.detail) })).filter((x) => x.title),
     daily: list(a?.daily),
   };
@@ -170,6 +176,7 @@ function mockAdvice() {
       { name: "سكري النوع الثاني", status: "متوسط الصيام فوق ٢٠٠ وفيه قراءات فوق ٤٠٠", do: ["قيسوا الصيام كل يوم", "وجبات بمواعيد ثابتة"], avoid: ["العصيرات والتمر الكثير", "السهر والأكل المتأخر"], warning_signs: ["سكر فوق ٤٠٠ مع دوخة أو استفراغ: طوارئ", "سكر تحت ٧٠ وما تحسّن بعد العلاج: طوارئ"], ask_doctor: ["هل يحتاج نعدل خطة الإنسولين؟"] },
       { name: "ضغط الدم المرتفع", status: "المتوسط حوالي ١٤٥/٨٨", do: ["قيسوه الصبح والمسا", "قللوا الملح"], avoid: ["المخللات والشوربات الجاهزة"], warning_signs: ["ضغط فوق ١٨٠ مع صداع قوي أو ألم صدر: طوارئ"], ask_doctor: ["هل جرعة دواء الضغط كافية؟"] },
     ],
+    medications: [{ name: "أومنك أوكاس 0.4", generic: "تامسولوسين", for: "يسهّل البول مع تضخم البروستاتا", how: "حبة وحدة باليوم بعد نفس الوجبة، تنبلع كاملة بدون كسر", side_effects: ["دوخة لما يقوم بسرعة"], watch: ["مع أدوية الضغط ممكن ينزل الضغط زيادة: خلوه يقوم على مهله"] }],
     noticed: [{ title: "ألم العين مع السكر العالي", detail: "يستاهل تسألون الدكتور عن فحص قاع العين." }],
     daily: ["مشي ١٥ دقيقة بعد الغداء", "مويه كفاية", "تفقدوا قدميه كل يوم"],
   });

@@ -40,6 +40,7 @@ export default function Advice({ advice, patient, onChanged }) {
             <li>علامات الخطر: متى تروحون الطوارئ</li>
             <li>أسئلة تسألونها الدكتور بالزيارة الجاية</li>
             <li>أشياء لاحظها في القراءات أو ملاحظاتكم تستاهل تسألون عنها</li>
+            <li>أدويته: وش فايدة كل دواء، وكيف ينأخذ، ووش تنتبهون له</li>
           </ul>
           <p className="hint">💡 كل ما كتبتوا أكثر في التاريخ المرضي والملاحظات (دوخة، ألم، تنميل...)، صارت النصائح أدق.</p>
         </div>
@@ -64,6 +65,22 @@ export default function Advice({ advice, patient, onChanged }) {
         <div className="card warn-card">
           <h3>👀 لاحظنا</h3>
           {advice.noticed.map((n, i) => <p key={i}><b>{n.title}</b><br />{n.detail}</p>)}
+        </div>
+      )}
+
+      {advice.medications?.length > 0 && (
+        <div className="card">
+          <h3>💊 أدويته</h3>
+          {advice.medications.map((m, i) => (
+            <div key={i} className="med-advice">
+              <b>{m.name}</b>{m.generic && <small> · {m.generic}</small>}
+              {m.for && <p>🎯 {m.for}</p>}
+              {m.how && <p>🕐 {m.how}</p>}
+              {m.side_effects.length > 0 && <p>⚠️ انتبهوا: {m.side_effects.join("، ")}</p>}
+              {m.watch.map((w, j) => <p key={j} className="med-watch">🔁 {w}</p>)}
+            </div>
+          ))}
+          <p className="hint">ما نغيّر أي جرعة. أي تعديل يكون من الدكتور.</p>
         </div>
       )}
 

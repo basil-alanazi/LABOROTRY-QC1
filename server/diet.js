@@ -32,6 +32,13 @@ export const arWord = (term) => {
 
 const num = (v) => (v === null || v === undefined || v === "" ? null : Number(v));
 
+// أدوية كل مرض اللي كتبتها العائلة في ملفه
+export function conditionMedsLine(p) {
+  const m = JSON.parse(p.condition_meds || "{}");
+  const parts = Object.entries(m).filter(([, v]) => v).map(([c, v]) => `${CONDITIONS[c] || c}: ${v}`);
+  return parts.length ? `أدوية يأخذها لأمراضه: ${parts.join("؛ ")}.` : "";
+}
+
 // السعرات والأهداف من بيانات المريض (معادلة Mifflin-St Jeor)
 export function computeTargets(p) {
   const conditions = JSON.parse(p.conditions || "[]");
@@ -101,6 +108,7 @@ function buildPrompt(p, t, s) {
     `المريض: ${p.name}، ${p.sex === "female" ? "أنثى" : "ذكر"}${t.age ? `، العمر ${t.age}` : ""}${p.height_cm ? `، الطول ${p.height_cm} سم` : ""}${p.weight_kg ? `، الوزن ${p.weight_kg} كغ` : ""}${t.bmi ? ` (BMI ${t.bmi})` : ""}.`,
     `الأمراض: ${t.conditions.map((c) => CONDITIONS[c] || c).join("، ") || "لا يوجد"}.`,
     p.history ? `التاريخ المرضي: ${p.history}` : "",
+    conditionMedsLine(p),
     p.allergies ? `حساسية (ممنوع نهائيًا): ${p.allergies}` : "",
     p.dislikes ? `أكل ما ياكله (لا تذكره أبدًا): ${p.dislikes}` : "",
     p.likes ? `أكل يحبه (استخدمه إذا كان صحي): ${p.likes}` : "",

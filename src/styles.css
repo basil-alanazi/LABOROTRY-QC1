@@ -432,3 +432,15 @@ summary { color: var(--gold); }
 .dish-img.loading, .dish-ic.loading { background: linear-gradient(100deg, var(--soft) 30%, var(--card) 50%, var(--soft) 70%) 0 0 / 300% 100%; animation: dish-shimmer 1.4s linear infinite; }
 @keyframes dish-shimmer { to { background-position: -300% 0; } }
 .hn-item .dish-ic { overflow: hidden; padding: 0; }
+
+/* أدوية كل مرض في ملف المريض */
+.cond-meds { display: grid; gap: 8px; margin-top: 6px; }
+.cond-med { display: grid; gap: 4px; padding: 10px 12px; border-radius: 14px; background: var(--soft); }
+.cond-med b { font-size: 14px; color: var(--brand); }
+.cond-med input { margin: 0; }
+.med-advice { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.med-advice:last-of-type { border-bottom: 0; }
+.med-advice b { font-size: 16px; color: var(--brand); }
+.med-advice small { color: var(--muted); }
+.med-advice p { margin: 6px 0 0; }
+.med-watch { background: #FDF0DC; color: #8A4B08; padding: 6px 10px; border-radius: 10px; }

@@ -114,6 +114,9 @@ function parseProfile(body) {
   const conditions = Array.isArray(body.conditions)
     ? body.conditions.filter((c) => typeof c === "string").map((c) => c.trim()).filter((c) => CONDITIONS[c] || (c.length >= 2 && c.length <= 40)).slice(0, 20)
     : [];
+  // أدوية كل مرض (اختياري): بس للأمراض المختارة
+  const meds = body.condition_meds && typeof body.condition_meds === "object" ? body.condition_meds : {};
+  const conditionMeds = Object.fromEntries(conditions.map((c) => [c, text(meds[c], 200)]).filter(([, v]) => v));
   const year = new Date().getFullYear();
   return {
     name: text(body.name, 60) || bad("اكتب اسم المريض"),
@@ -127,6 +130,7 @@ function parseProfile(body) {
     likes: text(body.likes, 300),
     dislikes: text(body.dislikes, 300),
     history: text(body.history, 1500),
+    condition_meds: Object.keys(conditionMeds).length ? JSON.stringify(conditionMeds) : null,
     uses_insulin: body.uses_insulin ? 1 : 0,
     tresiba_titration: body.uses_insulin && body.tresiba_titration ? 1 : 0,
   };

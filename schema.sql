@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS patients (
   likes TEXT,
   dislikes TEXT,
   history TEXT,             -- التاريخ المرضي والعمليات
+  condition_meds TEXT,      -- أدوية كل مرض (JSON: {"المرض": "الأدوية"})
   -- الإنسولين (اختياري)
   uses_insulin INTEGER NOT NULL DEFAULT 0,
   tresiba_titration INTEGER NOT NULL DEFAULT 0,  -- قاعدة زيادة Tresiba حسب قراءات الصيام

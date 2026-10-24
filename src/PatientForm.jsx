@@ -24,14 +24,14 @@ const ACTIVITY = {
 };
 
 const empty = {
-  name: "", sex: "", birth_year: "", height_cm: "", weight_kg: "", activity: "light", conditions: [],
+  name: "", sex: "", birth_year: "", height_cm: "", weight_kg: "", activity: "light", conditions: [], condition_meds: {},
   allergies: "", likes: "", dislikes: "", history: "", uses_insulin: false, tresiba_titration: false,
   humalog_breakfast: "", humalog_lunch: "", humalog_dinner: "", tresiba_dose: "",
 };
 
 export default function PatientForm({ patient, onSaved, onCancel }) {
   const [form, setForm] = useState(() => patient
-    ? { ...empty, ...patient, conditions: JSON.parse(patient.conditions || "[]"), uses_insulin: !!patient.uses_insulin, tresiba_titration: !!patient.tresiba_titration }
+    ? { ...empty, ...patient, conditions: JSON.parse(patient.conditions || "[]"), condition_meds: JSON.parse(patient.condition_meds || "{}"), uses_insulin: !!patient.uses_insulin, tresiba_titration: !!patient.tresiba_titration }
     : empty);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -43,6 +43,7 @@ export default function PatientForm({ patient, onSaved, onCancel }) {
     if (c && !form.conditions.includes(c)) set("conditions", [...form.conditions, c]);
     setOtherCond("");
   };
+  const setMeds = (c, v) => setForm((f) => ({ ...f, condition_meds: { ...f.condition_meds, [c]: v } }));
   const toggle = (c) => set("conditions", form.conditions.includes(c) ? form.conditions.filter((x) => x !== c) : [...form.conditions, c]);
 
   async function save() {
@@ -121,6 +122,18 @@ export default function PatientForm({ patient, onSaved, onCancel }) {
           <input value={otherCond} onChange={(e) => setOtherCond(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCondition())} placeholder="مثلاً: الربو، اعتلال الأعصاب، الزهايمر" maxLength={40} />
           <button className="take" onClick={addCondition} disabled={!otherCond.trim()}>أضف</button>
         </div>
+        {form.conditions.length > 0 && (
+          <div className="cond-meds">
+            <label>وش ياخذ لكل مرض؟ (اكتب اسم الدواء وجرعته، ولو ما ياخذ شي خلها فاضية)</label>
+            {form.conditions.map((c) => (
+              <div key={c} className="cond-med">
+                <b>{CONDITIONS[c] || c}</b>
+                <input value={form.condition_meds?.[c] || ""} onChange={(e) => setMeds(c, e.target.value)} maxLength={200}
+                  placeholder="اسم الدواء وجرعته ووقته، مثلاً: 0.4 بالليل" />
+              </div>
+            ))}
+          </div>
+        )}
         <label>التاريخ المرضي (عمليات، أمراض سابقة، أي شي مهم)</label>
         <textarea rows={3} value={form.history || ""} onChange={(e) => set("history", e.target.value)} placeholder="مثلاً: عملية قلب مفتوح 2020، جلطة خفيفة..." />
         <label>حساسية من أكل أو دواء</label>
