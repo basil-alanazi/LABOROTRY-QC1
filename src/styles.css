@@ -336,3 +336,110 @@ h4 { margin: 12px 0 4px; font-size: 15px; }
   .admin { border-color: #3b3f75; }
   .verse-bg span { opacity: .07; color: #5eead4; }
 }
+
+/* =====================================================================
+   تصميم "رحمة": كريمي + أخضر غامق + ذهبي، ونقش نجمة خفيف
+   ===================================================================== */
+:root {
+  --bg: #F6F1E7; --card: #FFFDF8; --text: #1F2A27; --muted: #7A7466; --line: #E9E1D0;
+  --brand: #0E5E4F; --brand-2: #0A463B; --gold: #B8913A; --soft: #F3EAD6;
+  --ok: #0B8F62; --warn: #C27A12; --danger: #C8323F; --low: #7C3AED;
+  --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M30 4 L36 24 L56 30 L36 36 L30 56 L24 36 L4 30 L24 24Z' fill='none' stroke='%23E2D6BC'/%3E%3C/svg%3E");
+  --star-light: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cpath d='M24 2 L29 19 L46 24 L29 29 L24 46 L19 29 L2 24 L19 19Z' fill='none' stroke='%23F6E7C4'/%3E%3C/svg%3E");
+}
+body { background: var(--bg); color: var(--text); }
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; opacity: .45; background-image: var(--star); pointer-events: none; }
+.verse-bg { display: none; }
+.app { padding-bottom: 120px; }
+
+/* العناوين والهيدر */
+.page-top { background: rgb(246 241 231 / .92); backdrop-filter: blur(10px); margin: 0 -16px; padding: 14px 16px 12px; border-bottom: 1px solid var(--line); }
+.page-top h2 { font-size: 19px; }
+.icon-btn { background: var(--card); border: 1px solid var(--line); box-shadow: none; color: var(--brand); }
+.page-patient { background: var(--soft); color: #7A5A12; font-weight: 600; }
+.card h3, .section-title { color: var(--text); }
+h3 { letter-spacing: -.1px; }
+
+/* البطاقات */
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 6px 18px -14px rgb(60 45 10 / .35); }
+.clock { background: linear-gradient(150deg, var(--brand), var(--brand-2)); color: #fff; border: 0; position: relative; overflow: hidden; }
+.clock::after { content: ""; position: absolute; inset: 0; opacity: .12; background-image: var(--star-light); pointer-events: none; }
+.info-card, .welcome { background: var(--soft); color: #5E4A1A; border-color: #E6D6AE; }
+
+/* الأزرار */
+.primary { background: linear-gradient(150deg, var(--brand), var(--brand-2)); border-radius: 16px; box-shadow: 0 10px 20px -12px rgb(14 94 79 / .7); }
+.secondary { background: var(--soft); color: #7A5A12; border-radius: 14px; }
+.link { color: var(--gold); }
+.take { background: var(--brand); border-radius: 12px; }
+.done { color: var(--ok); }
+.chip { background: var(--card); border: 1px solid var(--line); color: var(--text); }
+.chip.on { background: var(--brand); border-color: var(--brand); color: #F6E7C4; }
+.segmented { background: var(--soft); border: 1px solid #E6D6AE; }
+.segmented button.on { background: var(--brand); color: #F6E7C4; }
+.radio { background: var(--card); border-color: var(--line); }
+.radio.on, .toggle-row.on { border-color: var(--brand); background: #E5F0EC; color: var(--brand); }
+.toggle.on { background: var(--brand); }
+.ai-btn { background: linear-gradient(135deg, var(--brand), #2F6B3E 60%, var(--gold)); }
+
+/* الحقول */
+input, textarea { background: #FFFEFB; border: 1px solid var(--line); border-radius: 14px; color: var(--text); }
+input:focus, textarea:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgb(184 145 58 / .18); }
+label { color: var(--muted); }
+
+/* التنبيهات والحالات */
+.alert.info { background: var(--soft); color: #5E4A1A; border: 1px solid #E6D6AE; }
+.alert.danger { background: #FDE8EA; color: #A3172A; }
+.alert.warn, .warn-card, .result.warn { background: #FBF0DA; color: #7A5A12; }
+.result.danger { background: #FDECEE; }
+.dose-row, .meal, .med-slot { border-color: var(--line); border-radius: 16px; }
+.dose-row.taken, .meal.taken, .med-slot.taken { background: #E9F4EE; border-color: #BFDCCB; }
+.meal.snack { background: #FBF7EE; }
+.avatar { background: var(--brand); color: #F6E7C4; }
+.patient-chip { background: var(--card); border: 1px solid var(--line); color: var(--brand); box-shadow: none; }
+.tag, .target-chips span { background: var(--soft); color: #7A5A12; }
+.appt-when { background: var(--soft); color: #7A5A12; }
+.stats div { border: 1px solid var(--line); }
+.today-row td { background: #EEF5F0; }
+.admin { border: 2px dashed #E1CC97; }
+summary { color: var(--gold); }
+
+/* الدخول */
+.login-hero { background: linear-gradient(160deg, var(--brand), var(--brand-2)); position: relative; overflow: hidden; }
+.login-hero::after { content: ""; position: absolute; inset: 0; opacity: .14; background-image: var(--star-light); pointer-events: none; }
+.login-hero .logo { color: #F6E7C4; }
+.verse.on-dark blockquote { color: #F6E7C4; }
+.login-card { position: relative; z-index: 1; }
+
+/* الشريط تحت + زر التسجيل */
+.r-nav { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); width: min(608px, calc(100% - 28px)); height: 66px; display: flex; justify-content: space-around; align-items: center; background: rgb(255 253 248 / .96); border: 1px solid var(--line); border-radius: 24px; box-shadow: 0 10px 30px -12px rgb(60 45 10 / .35); backdrop-filter: blur(16px); z-index: 20; padding-bottom: env(safe-area-inset-bottom); }
+.r-nav > button { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--muted); background: none; min-width: 56px; }
+.r-nav > button.on { color: var(--brand); font-weight: 700; }
+.r-nav .r-plus { width: 56px; height: 56px; min-width: 56px; margin-top: -30px; border-radius: 20px; display: grid; place-items: center; background: var(--gold); color: #fff; box-shadow: 0 10px 22px -8px rgb(184 145 58 / .8); }
+.r-sheet-bg { position: fixed; inset: 0; background: rgb(20 15 5 / .35); z-index: 30; display: flex; align-items: flex-end; justify-content: center; }
+.r-sheet { width: min(640px, 100%); background: var(--card); color: var(--text); border-radius: 26px 26px 0 0; padding: 18px 18px calc(24px + env(safe-area-inset-bottom)); }
+.r-sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font-size: 16px; }
+.r-sheet-head button { background: none; color: var(--muted); }
+.r-sheet-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.r-sheet-grid button { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 6px; border-radius: 18px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-weight: 600; font-size: 13px; }
+.r-sheet-grid span { width: 48px; height: 48px; border-radius: 16px; display: grid; place-items: center; background: var(--soft); color: var(--gold); }
+
+/* رحمة بالليل */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0F1A17; --card: #16231F; --text: #EDE6D6; --muted: #9C9483; --line: #263631;
+    --brand: #1E8A73; --brand-2: #0E5E4F; --gold: #D4AF5A; --soft: #2A2618;
+    --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M30 4 L36 24 L56 30 L36 36 L30 56 L24 36 L4 30 L24 24Z' fill='none' stroke='%23233630'/%3E%3C/svg%3E");
+  }
+  .page-top { background: rgb(15 26 23 / .9); }
+  input, textarea { background: #121D1A; }
+  .r-nav { background: rgb(22 35 31 / .95); }
+  .info-card, .welcome, .alert.info, .secondary, .tag, .target-chips span, .appt-when, .page-patient { color: #E7D3A2; border-color: #3A3420; }
+  .alert.warn, .warn-card, .result.warn { background: #2E2614; color: #E7C77F; }
+  .alert.danger, .result.danger { background: #3A1517; color: #FCA5A5; }
+  .dose-row.taken, .meal.taken, .med-slot.taken { background: #12302A; border-color: #1F5247; }
+  .meal.snack { background: #1A2723; }
+  .radio.on, .toggle-row.on { background: #12302A; }
+  .chip.on, .segmented button.on { color: #0F1A17; background: var(--gold); border-color: var(--gold); }
+  .today-row td { background: #12302A; }
+  .avatar { background: var(--gold); color: #0F1A17; }
+}

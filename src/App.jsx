@@ -15,7 +15,7 @@ import Notifications from "./Notifications";
 import Login from "./Login";
 import Account from "./Account";
 import PatientForm from "./PatientForm";
-import { VerseBackground } from "./Verse";
+import BottomNav from "./BottomNav";
 
 export const PAGES = {
   sugar: "السكر والإنسولين",
@@ -132,8 +132,8 @@ export default function App() {
     setPage("home");
   }
 
-  if (me === undefined) return <div className="app"><VerseBackground /><p className="empty">جاري التحميل...</p></div>;
-  if (me === null) return <><VerseBackground /><Login onDone={loadMe} /></>;
+  if (me === undefined) return <div className="app"><p className="empty">جاري التحميل...</p></div>;
+  if (me === null) return <Login onDone={loadMe} />;
 
   const patient = me.patients.find((p) => p.id === patientId);
 
@@ -141,7 +141,6 @@ export default function App() {
   if (!patient) {
     return (
       <div className="app">
-        <VerseBackground />
         <header className="top"><div><h1>ود</h1><span className="subtitle">حياكم يا {me.family.name}</span></div></header>
         <div className="card welcome">
           <h3>أهلًا {me.user.display_name} 🤍</h3>
@@ -156,7 +155,6 @@ export default function App() {
 
   return (
     <div className="app">
-      <VerseBackground />
       {page !== "home" && (
         <header className="top page-top">
           <button className="icon-btn" onClick={back} aria-label="رجوع"><ArrowRight size={22} /></button>
@@ -189,6 +187,7 @@ export default function App() {
           />
         )}
       </main>
+      <BottomNav page={page} go={go} patient={patient} />
     </div>
   );
 }
