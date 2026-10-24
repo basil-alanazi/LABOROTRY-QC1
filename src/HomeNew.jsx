@@ -7,7 +7,7 @@ import { DishImage, todayDiet } from "./Diet";
 import { getDevice } from "./push";
 import { CONTEXTS, SLOTS, apptDate, dayKey, fmtSlot, fmtTime, glucoseLevel, recentLow, relativeDays } from "./dose";
 import { VERSE } from "./Verse";
-import InstallBanner, { isIOS, standalone } from "./InstallBanner";
+import { isIOS, standalone } from "./InstallCard";
 import "./homeNew.css";
 
 const DOSE_TIMES = { breakfast: "07:15", lunch: "13:00", dinner: "20:00", bedtime: "23:00" };
@@ -103,8 +103,10 @@ export default function HomeNew(props) {
   const alerts = (
     <>
       {m.low && <button className="hn-alert danger" onClick={() => go("sugar")}>⚠️ آخر قراءة {m.low.glucose} هبوط. لا تعطونه إنسولين، وعالجوا الهبوط.</button>}
-      {/* الآيفون: الإشعارات تشتغل بس من الأيقونة، فالبانر فوق يكفي */}
-      {!getDevice() && !(isIOS() && !standalone()) && <button className="hn-alert" onClick={() => go("notifications")}>🔔 فعّل الإشعارات عشان توصلك القراءات والتذكيرات</button>}
+      {/* الآيفون: الإشعارات تشتغل بس لما يكون مثبت كتطبيق */}
+      {!getDevice() && (isIOS() && !standalone()
+        ? <button className="hn-alert" onClick={() => go("account")}>📱 ثبّت ود كتطبيق عشان توصلك الإشعارات</button>
+        : <button className="hn-alert" onClick={() => go("notifications")}>🔔 فعّل الإشعارات عشان توصلك القراءات والتذكيرات</button>)}
     </>
   );
   const patientPill = (
@@ -142,7 +144,6 @@ export default function HomeNew(props) {
           <div className="hn-hello"><small>{greeting()}</small><b>{name}</b></div>
           {patientPill}
         </div>
-        <InstallBanner />
         {alerts}
         <button className="hn-hero" onClick={() => go("sugar")}>
           <div className="lbl">آخر قراءة سكر · {lastLine}</div>

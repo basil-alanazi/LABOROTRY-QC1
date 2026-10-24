@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import PatientForm from "./PatientForm";
+import InstallCard from "./InstallCard";
 
 // العائلة: المرضى، وأفراد العائلة، والحساب، ولوحة المدير
 export default function Account({ me, currentPatient, onPatientsChanged, onSelectPatient, onLogout }) {
@@ -77,12 +78,7 @@ export default function Account({ me, currentPatient, onPatientsChanged, onSelec
         </details>
       </div>
 
-      <div className="card">
-        <h3>📱 حمّل تطبيق ود</h3>
-        <a className="primary app-dl" href="/wad.apk" download>تحميل التطبيق للأندرويد (APK)</a>
-        <p className="hint">بعد التحميل افتح الملف، ولو طلب "السماح بالتثبيت من هالمصدر" وافق عليه.</p>
-        <p className="hint">الآيفون: افتح الموقع من Safari ← زر المشاركة ← "إضافة إلى الشاشة الرئيسية".</p>
-      </div>
+      <InstallCard />
 
       <div className="card">
         <h3>🔑 حسابي</h3>
