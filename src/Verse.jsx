@@ -5,7 +5,7 @@ export function Verse({ className = "" }) {
   return (
     <figure className={`verse ${className}`}>
       <blockquote>﴿{VERSE}﴾</blockquote>
-      <figcaption>سورة الإسراء · ٢٤</figcaption>
+      <figcaption>سورة الإسراء، الآية ٢٤</figcaption>
     </figure>
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { LogoMark } from "./Logo";
 import { api } from "./api";
 import { Verse } from "./Verse";
 
@@ -25,6 +26,7 @@ export default function Login({ onDone }) {
   return (
     <div className="login">
       <div className="login-hero">
+        <LogoMark className="login-mark" />
         <div className="logo">ود</div>
         <p className="tagline">متابعة صحة من نحب</p>
         <Verse className="on-dark" />

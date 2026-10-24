@@ -1,0 +1,17 @@
+// شعار ود: جناح ذهبي منخفض يحضن قلب
+// ﴿وَاخْفِضْ لَهُمَا جَنَاحَ الذُّلِّ مِنَ الرَّحْمَةِ﴾
+export function LogoMark({ className = "", size = 120 }) {
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
+      <defs>
+        <linearGradient id="wad-gold" x1="0.9" y1="0.1" x2="0.1" y2="0.9">
+          <stop offset="0" stopColor="#E9CD8C" />
+          <stop offset="1" stopColor="#B8913A" />
+        </linearGradient>
+      </defs>
+      <path fill="url(#wad-gold)" d="M84 20 C 58 10 22 22 16 62 C 15 70 17 78 22 84 C 24 78 27 75 31 74 C 29 69 30 65 33 62 C 31 57 33 52 37 50 C 37 45 40 41 45 40 C 47 35 52 33 57 34 C 61 30 67 29 72 31 C 78 28 83 25 84 20Z" />
+      <path fill="none" stroke="#0E5E4F" strokeWidth="1.3" strokeLinecap="round" opacity=".55" d="M31 74 C 26 66 24 56 25 48 M33 62 C 30 52 32 42 36 35 M37 50 C 38 40 43 32 50 27 M45 40 C 49 32 56 27 64 24 M57 34 C 63 28 70 25 78 23" />
+      <path fill="#F6F1E7" transform="translate(58 64) scale(1.35)" d="M0 6 C -9 -1 -11 -8 -6 -11 C -3 -13 -0.5 -11 0 -8.5 C 0.5 -11 3 -13 6 -11 C 11 -8 9 -1 0 6Z" />
+    </svg>
+  );
+}
