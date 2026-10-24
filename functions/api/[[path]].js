@@ -98,6 +98,11 @@ const parseAt = (v) => {
   return d.toISOString();
 };
 const withAt = (cols, vals, at) => (at ? [[...cols, "created_at"], [...vals, at]] : [cols, vals]);
+// أيام الأسبوع للدواء: فاضي أو كل الأيام = كل يوم
+const parseWeekdays = (v) => {
+  const days = Array.isArray(v) ? [...new Set(v.map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort() : [];
+  return days.length && days.length < 7 ? JSON.stringify(days) : null;
+};
 const parseTimes = (v) => {
   const times = Array.isArray(v) ? v.filter((t) => TIME_RE.test(t)) : [];
   return JSON.stringify([...new Set(times)].sort().slice(0, 8));
@@ -403,7 +408,7 @@ export async function onRequest({ request, env, params, waitUntil }) {
           doses: doses.results,
           changes: changes.results,
           bp: bp.results,
-          medications: medications.results.map((m) => ({ ...m, times: JSON.parse(m.times || "[]") })),
+          medications: medications.results.map((m) => ({ ...m, times: JSON.parse(m.times || "[]"), weekdays: m.weekdays ? JSON.parse(m.weekdays) : null })),
           medDoses: medDoses.results,
           appointments: appointments.results,
           notes: notes.results,
@@ -462,15 +467,16 @@ export async function onRequest({ request, env, params, waitUntil }) {
         real(body.per_dose, 0.1, 50, "الكمية بكل جرعة") ?? 1,
         text(body.unit, 20),
         int(body.alert_days, 1, 90, "أيام التنبيه", true) ?? 7,
+        parseWeekdays(body.weekdays),
       ];
       if (resource === "medications" && method === "POST" && !id) {
         const name = text(body.name, 80) || bad("اكتب اسم الدواء");
-        return json(await add("medications", ["name", "dose", "times", "notes", "stock", "per_dose", "unit", "alert_days"], [name, text(body.dose, 80), parseTimes(body.times), text(body.notes, 300), ...stockFields()]));
+        return json(await add("medications", ["name", "dose", "times", "notes", "stock", "per_dose", "unit", "alert_days", "weekdays"], [name, text(body.dose, 80), parseTimes(body.times), text(body.notes, 300), ...stockFields()]));
       }
 
       if (resource === "medications" && method === "PUT" && id && !sub) {
         const name = text(body.name, 80) || bad("اكتب اسم الدواء");
-        await db.prepare("UPDATE medications SET name = ?, dose = ?, times = ?, notes = ?, active = ?, stock = ?, per_dose = ?, unit = ?, alert_days = ? WHERE id = ? AND patient_id = ?")
+        await db.prepare("UPDATE medications SET name = ?, dose = ?, times = ?, notes = ?, active = ?, stock = ?, per_dose = ?, unit = ?, alert_days = ?, weekdays = ? WHERE id = ? AND patient_id = ?")
           .bind(name, text(body.dose, 80), parseTimes(body.times), text(body.notes, 300), body.active === false ? 0 : 1, ...stockFields(), Number(id), pid).run();
         return json({ ok: true });
       }

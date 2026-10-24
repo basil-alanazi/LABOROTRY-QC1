@@ -170,7 +170,8 @@ async function patientReminders(db, p) {
   // الجرد: تنبيه مرة باليوم إذا الدواء قرب يخلص أو خلص
   for (const m of meds) {
     if (m.stock === null || m.stock === undefined) continue;
-    const perDay = Number(m.per_dose || 1) * JSON.parse(m.times || "[]").length;
+    const week = m.weekdays ? JSON.parse(m.weekdays).length : 7;
+    const perDay = (Number(m.per_dose || 1) * JSON.parse(m.times || "[]").length * week) / 7;
     const days = perDay ? Math.floor(m.stock / perDay) : null;
     const unit = m.unit || "حبة";
     if (m.stock <= 0 && due("10:00")) {
@@ -181,6 +182,8 @@ async function patientReminders(db, p) {
   }
 
   for (const m of meds) {
+    // دواء بأيام محددة: ما نذكّر إلا في يومه
+    if (m.weekdays && !JSON.parse(m.weekdays).includes(riyadh(now).getUTCDay())) continue;
     for (const t of JSON.parse(m.times || "[]")) {
       const done = medDoses.some((x) => x.medication_id === m.id && x.time_slot === t && dayKey(new Date(x.created_at)) === today);
       if (!done && due(t)) {

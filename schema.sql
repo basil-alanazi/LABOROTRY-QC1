@@ -136,7 +136,8 @@ CREATE TABLE IF NOT EXISTS medications (
   stock REAL,                             -- الكمية الباقية (فاضي = ما نتابع الجرد)
   per_dose REAL NOT NULL DEFAULT 1,       -- كم ينقص مع كل جرعة
   unit TEXT,                              -- حبة، قطرة، إبرة...
-  alert_days INTEGER NOT NULL DEFAULT 7   -- ينبّه قبل ما يخلص بكم يوم
+  alert_days INTEGER NOT NULL DEFAULT 7,  -- ينبّه قبل ما يخلص بكم يوم
+  weekdays TEXT                           -- أيام محددة JSON [0..6] (0 = الأحد)، فاضي = كل يوم
 );
 
 CREATE TABLE IF NOT EXISTS med_doses (

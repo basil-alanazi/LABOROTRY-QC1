@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { DishImage, todayDiet } from "./Diet";
 import { getDevice } from "./push";
-import { CONTEXTS, SLOTS, apptDate, medSupply, dayKey, fmtSlot, fmtTime, glucoseLevel, recentLow, relativeDays } from "./dose";
+import { CONTEXTS, SLOTS, apptDate, medDueToday, medSupply, dayKey, fmtSlot, fmtTime, glucoseLevel, recentLow, relativeDays } from "./dose";
 import { VERSE } from "./Verse";
 import { isIOS, standalone } from "./InstallCard";
 import "./homeNew.css";
@@ -50,7 +50,7 @@ function useModel({ settings, readings, doses, bp, medications, medDoses, appoin
   // الأدوية الباقية اليوم
   const todayKey = dayKey(new Date());
   const takenMeds = new Set(medDoses.filter((d) => dayKey(d.created_at) === todayKey).map((d) => `${d.medication_id}@${d.time_slot}`));
-  const medList = medications.filter((m) => m.active).flatMap((m) => m.times.map((t) => ({ m, t, taken: takenMeds.has(`${m.id}@${t}`) })));
+  const medList = medications.filter((m) => m.active && medDueToday(m)).flatMap((m) => m.times.map((t) => ({ m, t, taken: takenMeds.has(`${m.id}@${t}`) })));
   const medsLeft = medList.filter((x) => !x.taken).sort((a, b) => (a.t < b.t ? -1 : 1));
 
   const upcoming = appointments.filter((a) => apptDate(a.at) >= new Date(dayKey(new Date()))).sort((a, b) => (a.at < b.at ? -1 : 1));

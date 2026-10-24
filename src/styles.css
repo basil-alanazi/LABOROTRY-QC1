@@ -578,3 +578,6 @@ body.doc-open { overflow: hidden; }
 /* الجداول العريضة تتمرر داخل البطاقة بدل ما توسّع الصفحة */
 .card > table { display: block; overflow-x: auto; max-width: 100%; }
 .card > table td, .card > table th { white-space: nowrap; }
+.med-days { margin: 6px 0 0; font-size: 14px; color: var(--brand-2); font-weight: 600; }
+.med-times.not-today { opacity: .45; }
+.chips.weekdays { margin-top: 6px; }

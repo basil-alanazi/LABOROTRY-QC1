@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "./api";
 import PatientForm from "./PatientForm";
 import InstallCard from "./InstallCard";
+import { SIZES, getFontSize, setFontSize } from "./fontSize";
 
 // العائلة: المرضى، وأفراد العائلة، والحساب، ولوحة المدير
 export default function Account({ me, currentPatient, onPatientsChanged, onSelectPatient, onLogout, onHelp }) {
@@ -78,6 +79,8 @@ export default function Account({ me, currentPatient, onPatientsChanged, onSelec
         </details>
       </div>
 
+      <FontSizeCard />
+
       <InstallCard />
 
       <button className="card help-link" onClick={onHelp}>🎬 طريقة الاستخدام <small>فيديو يشرح التطبيق</small></button>
@@ -120,5 +123,21 @@ export default function Account({ me, currentPatient, onPatientsChanged, onSelec
         </div>
       )}
     </section>
+  );
+}
+
+// حجم الخط: ينحفظ في هالجوال بس
+function FontSizeCard() {
+  const [size, setSize] = useState(getFontSize);
+  return (
+    <div className="card">
+      <h3>🔠 حجم الخط</h3>
+      <div className="segmented">
+        {SIZES.map(([k, label]) => (
+          <button key={k} className={size === k ? "on" : ""} onClick={() => { setFontSize(k); setSize(k); }}>{label}</button>
+        ))}
+      </div>
+      <p className="hint">يكبّر كل الموقع في هالجوال بس، ومناسب لكبار السن. في الكمبيوتر استخدم تكبير المتصفح (Ctrl و +).</p>
+    </div>
   );
 }

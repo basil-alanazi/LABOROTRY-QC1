@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "./api";
 import MedScan from "./MedScan";
-import { dayKey, fmtSlot, fmtTime, medSupply } from "./dose";
+import { WEEKDAYS, dayKey, fmtSlot, fmtTime, medDueToday, medSupply } from "./dose";
 
 const EMPTY = { name: "", dose: "", times: ["08:00"], notes: "", stock: "", per_dose: 1, unit: "حبة", alert_days: 7 };
 const UNITS = ["حبة", "قطرة", "بخة", "إبرة", "كيس", "ملعقة", "مل"];
@@ -25,6 +25,19 @@ function MedForm({ initial, onSave, onCancel, message }) {
       }))} />
       <label>الجرعة</label>
       <input value={form.dose || ""} onChange={(e) => set("dose", e.target.value)} placeholder="مثلاً حبة 500 ملغ" />
+      <label>كم مرة؟</label>
+      <div className="chips">
+        <button className={!form.weekdays?.length ? "chip on" : "chip"} onClick={() => set("weekdays", null)}>كل يوم</button>
+        <button className={form.weekdays?.length ? "chip on" : "chip"} onClick={() => set("weekdays", form.weekdays?.length ? form.weekdays : [5])}>أيام محددة</button>
+      </div>
+      {form.weekdays?.length > 0 && (
+        <div className="chips weekdays">
+          {WEEKDAYS.map((d, i) => (
+            <button key={d} className={form.weekdays.includes(i) ? "chip on" : "chip"}
+              onClick={() => set("weekdays", form.weekdays.includes(i) ? form.weekdays.filter((x) => x !== i) : [...form.weekdays, i].sort())}>{d}</button>
+          ))}
+        </div>
+      )}
       <label>المواعيد</label>
       {form.times.map((t, i) => (
         <div key={i} className="time-row">
@@ -138,7 +151,10 @@ export default function Meds({ medications, medDoses, onChanged }) {
             </div>
             <button className="link" onClick={() => setEditing(m)}>تعديل</button>
           </div>
-          <div className="med-times">
+          {m.weekdays?.length > 0 && (
+            <p className="med-days">📅 {m.weekdays.map((d) => WEEKDAYS[d]).join("، ")}{medDueToday(m) ? " · اليوم يومه" : " · مو يومه اليوم"}</p>
+          )}
+          <div className={`med-times ${medDueToday(m) ? "" : "not-today"}`}>
             {m.times.map((slot) => {
               const taken = takenToday.find((d) => d.medication_id === m.id && d.time_slot === slot);
               return (

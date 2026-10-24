@@ -98,10 +98,15 @@ export function bpLevel(r, s) {
   return "ok";
 }
 
+// أيام الأسبوع (0 = الأحد)، واليوم بتوقيت الرياض
+export const WEEKDAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+export const todayWeekday = () => new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Riyadh" })).getDay();
+export const medDueToday = (m) => !m.weekdays || m.weekdays.includes(todayWeekday());
+
 // الجرد: كم باقي ويكفي كم يوم
 export function medSupply(m) {
   if (m.stock === null || m.stock === undefined) return null;
-  const perDay = Number(m.per_dose || 1) * (m.times?.length || 0);
+  const perDay = (Number(m.per_dose || 1) * (m.times?.length || 0) * (m.weekdays?.length || 7)) / 7;
   const days = perDay ? Math.floor(m.stock / perDay) : null;
   const state = m.stock <= 0 ? "out" : days !== null && days <= (m.alert_days ?? 7) ? "low" : "ok";
   return { stock: m.stock, unit: m.unit || "حبة", days, state };

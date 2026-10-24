@@ -44,3 +44,6 @@
 .hn-sections span { color: var(--gold); }
 .hn-sections em { position: absolute; top: 6px; inset-inline-end: 8px; font-style: normal; background: #E5484D; color: #fff; font-size: 11px; min-width: 18px; height: 18px; border-radius: 9px; display: grid; place-items: center; }
 
+/* تتصغّر لو الشاشة ضيقة (مثل الخط الكبير) */
+.hn-quick button { min-width: 0; }
+.hn-quick span { width: 100%; max-width: 58px; height: auto; aspect-ratio: 1; }
