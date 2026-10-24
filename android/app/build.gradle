@@ -1,0 +1,43 @@
+// تطبيق ود للأندرويد: يفتح الموقع كتطبيق كامل (Trusted Web Activity)
+// المفتاح يتسوى في GitHub Actions وقت البناء (شوف .github/workflows/android.yml)
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "app.wad.family"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "app.wad.family"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(System.getenv("WAD_KEYSTORE") ?: "wad.keystore")
+            storePassword System.getenv("WAD_KEY_PASS")
+            keyAlias "wad"
+            keyPassword System.getenv("WAD_KEY_PASS")
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation "com.google.androidbrowserhelper:androidbrowserhelper:2.5.0"
+}

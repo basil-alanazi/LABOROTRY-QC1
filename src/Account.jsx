@@ -78,6 +78,13 @@ export default function Account({ me, currentPatient, onPatientsChanged, onSelec
       </div>
 
       <div className="card">
+        <h3>📱 حمّل تطبيق ود</h3>
+        <a className="primary app-dl" href="/wad.apk" download>تحميل التطبيق للأندرويد (APK)</a>
+        <p className="hint">بعد التحميل افتح الملف، ولو طلب "السماح بالتثبيت من هالمصدر" وافق عليه.</p>
+        <p className="hint">الآيفون: افتح الموقع من Safari ← زر المشاركة ← "إضافة إلى الشاشة الرئيسية".</p>
+      </div>
+
+      <div className="card">
         <h3>🔑 حسابي</h3>
         <p className="muted">{me.user.display_name} · <span dir="ltr">@{me.user.username}</span></p>
         <details>

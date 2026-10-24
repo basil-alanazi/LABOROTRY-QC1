@@ -450,3 +450,4 @@ summary { color: var(--gold); }
 .med-advice small { color: var(--muted); }
 .med-advice p { margin: 6px 0 0; }
 .med-watch { background: #FDF0DC; color: #8A4B08; padding: 6px 10px; border-radius: 10px; }
+.app-dl { display: block; text-align: center; text-decoration: none; padding: 14px; border-radius: 16px; background: var(--brand); color: #fff; font-weight: 700; margin: 8px 0; }

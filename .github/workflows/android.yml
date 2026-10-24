@@ -1,0 +1,62 @@
+# يبني تطبيق ود للأندرويد (wad.apk) ويحطه في الموقع: https://wad-4py.pages.dev/wad.apk
+# يشتغل لما يتغير شي في مجلد android/
+name: Android app
+
+on:
+  push:
+    branches: [wad]
+    paths: ["android/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: wad
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Signing key
+        run: |
+          PASS="$(openssl rand -hex 16)"
+          echo "::add-mask::$PASS"
+          echo "WAD_KEY_PASS=$PASS" >> "$GITHUB_ENV"
+          echo "WAD_KEYSTORE=$RUNNER_TEMP/wad.keystore" >> "$GITHUB_ENV"
+          keytool -genkeypair -keystore "$RUNNER_TEMP/wad.keystore" -alias wad -keyalg RSA -keysize 2048 \
+            -validity 10000 -storepass "$PASS" -keypass "$PASS" -dname "CN=Wad, O=Wad"
+
+      - name: Build APK
+        working-directory: android
+        run: gradle --no-daemon assembleRelease
+
+      - name: Put the app on the site
+        run: |
+          SHA="$(keytool -list -v -keystore "$WAD_KEYSTORE" -alias wad -storepass "$WAD_KEY_PASS" | grep -m1 'SHA256:' | awk '{print $2}')"
+          mkdir -p public/.well-known
+          cat > public/.well-known/assetlinks.json <<JSON
+          [{"relation": ["delegate_permission/common.handle_all_urls"],
+            "target": {"namespace": "android_app", "package_name": "app.wad.family", "sha256_cert_fingerprints": ["$SHA"]}}]
+          JSON
+          cp android/app/build/outputs/apk/release/app-release.apk public/wad.apk
+          ls -la public/wad.apk
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/wad.apk public/.well-known/assetlinks.json
+          git commit -m "Android app: build wad.apk"
+          git push origin HEAD:wad

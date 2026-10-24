@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ود</string>
+    <string name="site_url">https://wad-4py.pages.dev/</string>
+    <string name="site_host">wad-4py.pages.dev</string>
+    <string name="asset_statements" translatable="false">[{ \"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": { \"namespace\": \"web\", \"site\": \"https://wad-4py.pages.dev\" } }]</string>
+</resources>
