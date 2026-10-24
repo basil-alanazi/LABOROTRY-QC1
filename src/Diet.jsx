@@ -97,7 +97,6 @@ export default function Diet({ diet, targets, meals, patient, onChanged }) {
             <li>قراءات السكر والضغط آخر أسبوعين، والأكلات اللي رفعت السكر</li>
             <li>التحاليل، وأوقات الإنسولين إذا ياخذ</li>
           </ul>
-          <p className="ok-line">☪️ حلال 100%، والكود يفحص كل حمية قبل ما توصلك.</p>
           {targetChips}
           {!targets?.kcal && <p className="hint">💡 حط الطول والوزن وسنة الميلاد في ملفه (صفحة العائلة) عشان السعرات تنحسب بدقة.</p>}
         </div>
@@ -209,7 +208,7 @@ export default function Diet({ diet, targets, meals, patient, onChanged }) {
 
       {generateButton}
       {error && <div className="alert danger">{error}</div>}
-      <p className="disclaimer">☪️ حلال · الحمية إرشادية وما تغني عن الدكتور أو أخصائي التغذية. وما تغيّر أي جرعة دواء.</p>
+      <p className="disclaimer">الحمية إرشادية وما تغني عن الدكتور أو أخصائي التغذية. وما تغيّر أي جرعة دواء.</p>
     </section>
   );
 }

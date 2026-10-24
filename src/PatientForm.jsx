@@ -117,7 +117,7 @@ export default function PatientForm({ patient, onSaved, onCancel }) {
         <input value={form.dislikes || ""} onChange={(e) => set("dislikes", e.target.value)} placeholder="مثلاً: الرز، الشاي، السمك" />
         <label>أكل يحبه</label>
         <input value={form.likes || ""} onChange={(e) => set("likes", e.target.value)} placeholder="مثلاً: المرقوق، الفول، الدجاج" />
-        <p className="hint">الحمية تكون حلال دايمًا، وما يطلع فيها أي شي من الممنوع.</p>
+        <p className="hint">ما يطلع في الحمية أي شي من الممنوع.</p>
       </div>
 
       <div className="card">

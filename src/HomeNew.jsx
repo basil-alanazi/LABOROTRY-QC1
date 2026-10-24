@@ -119,7 +119,7 @@ export default function HomeNew(props) {
     m.nextMeal?.[1] && { image: <DishImage diet={props.diet} day={m.meals.day} meal={m.nextMeal[2]} className="ic dish-ic" />, icon: Utensils, title: `${m.nextMeal[0]}: ${m.nextMeal[1].items}`, sub: [m.nextMeal[1].kcal && `${m.nextMeal[1].kcal} سعرة`, m.nextMeal[1].carbs && `${m.nextMeal[1].carbs} جم كارب`].filter(Boolean).join(" · "), to: "diet", action: "أكلها" },
     m.nextAppt && { icon: CalendarDays, title: m.nextAppt.title, sub: `${relativeDays(apptDate(m.nextAppt.at))} · ${fmtTime(apptDate(m.nextAppt.at))}`, to: "appointments" },
   ].filter(Boolean);
-  if (!props.diet) todayItems.push({ icon: Utensils, title: "✨ سوّ له حمية بالذكاء الاصطناعي", sub: "حسب حالته وقراءاته، وحلال", to: "diet" });
+  if (!props.diet) todayItems.push({ icon: Utensils, title: "✨ سوّ له حمية بالذكاء الاصطناعي", sub: "حسب حالته وقراءاته", to: "diet" });
   if (!props.advice) todayItems.push({ icon: Sparkles, title: "✨ نصائح لأمراضه المزمنة", sub: "وش تسوون، وعلامات الخطر، وأسئلة للدكتور", to: "advice" });
 
   const sections = (
