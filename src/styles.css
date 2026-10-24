@@ -481,3 +481,13 @@ summary { color: var(--gold); }
   .verdict.warn { background: #3A2A10; color: #F5C27A; }
   .verdict.bad { background: #3A1517; color: #FCA5A5; }
 }
+
+/* ===== صور أكلات الحمية ===== */
+.meal-body { display: flex; gap: 12px; align-items: center; }
+.meal-body p { flex: 1; margin: 0; }
+.dish-img { flex: none; width: 84px; height: 84px; border-radius: 16px; overflow: hidden; background: var(--soft); }
+.dish-img img, .dish-ic img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .3s; }
+.dish-img.ok img, .dish-ic.ok img { opacity: 1; }
+.dish-img.loading, .dish-ic.loading { background: linear-gradient(100deg, var(--soft) 30%, var(--card) 50%, var(--soft) 70%) 0 0 / 300% 100%; animation: dish-shimmer 1.4s linear infinite; }
+@keyframes dish-shimmer { to { background-position: -300% 0; } }
+.hn-item .dish-ic { overflow: hidden; padding: 0; }

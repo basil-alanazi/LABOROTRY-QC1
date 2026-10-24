@@ -186,3 +186,41 @@ function mockAdvice() {
     daily: ["مشي ١٥ دقيقة بعد الغداء", "مويه كفاية", "تفقدوا قدميه كل يوم"],
   });
 }
+
+// ===== صورة لكل وجبة في الحمية =====
+// الصورة تنحفظ حسب وصف الأكلة، فنفس الأكلة ما تتولد مرتين
+const IMAGE_MODEL = "@cf/black-forest-labs/flux-1-schnell";
+
+async function sha256(s) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// وصف إنجليزي قصير للأكلة (موديلات الصور تفهم الإنجليزي أحسن)
+async function englishDish(env, items) {
+  const { text } = await callModel(env, [
+    { role: "system", content: "Translate the Arabic meal into a short English description of the food on the plate, for a food photo. Keep the dishes and portions. Reply with the description only, one line, max 40 words." },
+    { role: "user", content: items },
+  ], { mock: () => "grilled chicken with salad", maxTokens: 400 });
+  return String(text).replace(/<think>[\s\S]*?<\/think>/g, "").trim().split("\n").filter(Boolean).pop()?.replace(/^["']|["']$/g, "").slice(0, 300) || items;
+}
+
+export async function mealImage(env, db, items) {
+  const key = await sha256(items.trim());
+  const hit = await db.prepare("SELECT image FROM food_images WHERE k = ?").bind(key).first();
+  if (hit) return hit.image;
+  let image;
+  if (env.MOCK_AI === "1") {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect width="256" height="256" fill="#F3EAD6"/><circle cx="128" cy="128" r="96" fill="#fff"/><circle cx="105" cy="115" r="38" fill="#C07A3C"/><circle cx="155" cy="150" r="30" fill="#5AAA50"/></svg>`;
+    image = `data:image/svg+xml;base64,${btoa(svg)}`;
+  } else {
+    if (!env.AI) throw new Error("الذكاء الاصطناعي مو مربوط");
+    const dish = await englishDish(env, items);
+    const prompt = `Appetizing realistic food photo, top-down view, of ${dish}. Home-style Saudi cooking, served on a white plate on a wooden table, soft natural light. No text, no people, no hands.`;
+    const res = await env.AI.run(IMAGE_MODEL, { prompt, steps: 4 });
+    if (!res?.image) throw new Error("ما طلعت صورة");
+    image = `data:image/jpeg;base64,${res.image}`;
+  }
+  await db.prepare("INSERT OR REPLACE INTO food_images (k, image) VALUES (?, ?)").bind(key, image).run();
+  return image;
+}

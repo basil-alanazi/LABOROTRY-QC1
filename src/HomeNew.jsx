@@ -3,7 +3,7 @@ import {
   Activity, Bell, CalendarDays, ChevronDown, ChevronLeft, Droplet, FlaskConical,
   HeartPulse, NotebookPen, Pill, SlidersHorizontal, Sparkles, Syringe, Utensils,
 } from "lucide-react";
-import { todayDiet } from "./Diet";
+import { DishImage, todayDiet } from "./Diet";
 import { getDevice } from "./push";
 import { CONTEXTS, SLOTS, apptDate, dayKey, fmtSlot, fmtTime, glucoseLevel, recentLow, relativeDays } from "./dose";
 import { VERSE } from "./Verse";
@@ -56,9 +56,9 @@ function useModel({ settings, readings, doses, bp, medications, medDoses, appoin
   const nextAppt = upcoming[0];
   const meals = todayDiet(diet);
   const now = hhmmNow();
-  const nextMeal = meals ? (now < "11:00" ? ["الفطور", meals.breakfast] : now < "17:00" ? ["الغداء", meals.lunch] : ["العشاء", meals.dinner]) : null;
+  const nextMeal = meals ? (now < "11:00" ? ["الفطور", meals.breakfast, "breakfast"] : now < "17:00" ? ["الغداء", meals.lunch, "lunch"] : ["العشاء", meals.dinner, "dinner"]) : null;
 
-  return { last, level, target, spark, inRange, lastBp, lastA1c, doseList, nextDose, medsLeft, nextAppt, nextMeal, low: recentLow(readings, s) };
+  return { last, level, target, spark, inRange, lastBp, lastA1c, doseList, nextDose, medsLeft, nextAppt, nextMeal, meals, low: recentLow(readings, s) };
 }
 
 function Spark({ values, color, height = 48, fill = true }) {
@@ -116,7 +116,7 @@ export default function HomeNew(props) {
   const todayItems = [
     m.nextDose && { icon: Syringe, title: `${m.nextDose.insulin} ${m.nextDose.units} وحدة`, sub: `${m.nextDose.label} · ${fmtSlot(m.nextDose.time)} · ${untilText(m.nextDose.time)}`, to: "sugar", action: "أخذها" },
     ...m.medsLeft.slice(0, 2).map((x) => ({ icon: Pill, title: `${x.m.name}${x.m.dose ? ` ${x.m.dose}` : ""}`, sub: `الساعة ${fmtSlot(x.t)}`, to: "meds", action: "أخذه" })),
-    m.nextMeal?.[1] && { icon: Utensils, title: `${m.nextMeal[0]}: ${m.nextMeal[1].items}`, sub: [m.nextMeal[1].kcal && `${m.nextMeal[1].kcal} سعرة`, m.nextMeal[1].carbs && `${m.nextMeal[1].carbs} جم كارب`].filter(Boolean).join(" · "), to: "diet", action: "أكلها" },
+    m.nextMeal?.[1] && { image: <DishImage diet={props.diet} day={m.meals.day} meal={m.nextMeal[2]} className="ic dish-ic" />, icon: Utensils, title: `${m.nextMeal[0]}: ${m.nextMeal[1].items}`, sub: [m.nextMeal[1].kcal && `${m.nextMeal[1].kcal} سعرة`, m.nextMeal[1].carbs && `${m.nextMeal[1].carbs} جم كارب`].filter(Boolean).join(" · "), to: "diet", action: "أكلها" },
     m.nextAppt && { icon: CalendarDays, title: m.nextAppt.title, sub: `${relativeDays(apptDate(m.nextAppt.at))} · ${fmtTime(apptDate(m.nextAppt.at))}`, to: "appointments" },
   ].filter(Boolean);
   if (!props.diet) todayItems.push({ icon: Utensils, title: "✨ سوّ له حمية بالذكاء الاصطناعي", sub: "حسب حالته وقراءاته، وحلال", to: "diet" });
@@ -161,7 +161,7 @@ export default function HomeNew(props) {
         <div className="hn-list">
           {todayItems.map((it, i) => (
             <button key={i} className="hn-item" onClick={() => go(it.to)}>
-              <span className="ic"><it.icon size={22} /></span>
+              {it.image || <span className="ic"><it.icon size={22} /></span>}
               <div><b>{it.title}</b><small>{it.sub}</small></div>
               <ChevronLeft size={18} className="end" />
             </button>

@@ -70,6 +70,7 @@ export const api = {
   addMeal: post("meals"),
   analyzeMeal: (photo, slot) => call(pp("meals/analyze"), "POST", { photo, slot }),
   mealPhotoUrl: (id) => `/api/${pp(`meals/${id}/photo`)}`,
+  dietImageUrl: (day, meal, v) => `/api/${pp("diet/image")}?day=${encodeURIComponent(day)}&meal=${meal}&v=${encodeURIComponent(v || "")}`,
   generateAdvice: () => call(pp("advice/generate"), "POST", {}),
   deleteMeal: remove("meals"),
   savePlan: (s) => call(pp("plan"), "PUT", s),

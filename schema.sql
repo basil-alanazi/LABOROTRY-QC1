@@ -199,6 +199,13 @@ CREATE TABLE IF NOT EXISTS diet_plans (
 );
 CREATE INDEX IF NOT EXISTS diet_plans_p_idx ON diet_plans (patient_id, created_at DESC);
 
+-- صور الأكلات اللي يولّدها الذكاء الاصطناعي (مشتركة، حسب وصف الأكلة)
+CREATE TABLE IF NOT EXISTS food_images (
+  k TEXT PRIMARY KEY,   -- SHA-256 لوصف الأكلة
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  image TEXT NOT NULL   -- data:image/jpeg;base64
+);
+
 -- نصائح الأمراض المزمنة من الذكاء الاصطناعي (advice = JSON)
 CREATE TABLE IF NOT EXISTS health_advice (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -12,6 +12,17 @@ const MEALS = [
   ["snack2", "سناك العصر", "snack"],
   ["dinner", "العشاء", "dinner"],
 ];
+// صورة الأكلة يولدها الذكاء الاصطناعي (أول مرة تاخذ ثواني، بعدين محفوظة)
+export function DishImage({ diet, day, meal, className = "dish-img" }) {
+  const [state, setState] = useState("loading");
+  if (state === "error") return null;
+  return (
+    <span className={`${className} ${state}`}>
+      <img src={api.dietImageUrl(day, meal, diet.created_at)} alt="" onLoad={() => setState("ok")} onError={() => setState("error")} />
+    </span>
+  );
+}
+
 const GOALS = { lose: "تنزيل وزن تدريجي", gain: "زيادة وزن", maintain: "ثبات الوزن" };
 
 // أكل اليوم من الحمية (حسب يوم الأسبوع بتوقيت الرياض)
@@ -113,7 +124,10 @@ export default function Diet({ diet, targets, meals, patient, onChanged }) {
                 <strong>{label}</strong>
                 <span className="muted">{m.kcal ? `${m.kcal} سعرة` : ""}{m.carbs ? ` · ${m.carbs} جم كارب` : ""}</span>
               </div>
-              <p>{m.items}</p>
+              <div className="meal-body">
+                <DishImage diet={diet} day={today.day} meal={key} />
+                <p>{m.items}</p>
+              </div>
               {slot === "snack" ? null : done ? (
                 <p className="ok-line">✓ {done.has_photo ? "📸 " : ""}{done.followed ? "أكلها" : `أكل: ${done.text}`} — {fmtTime(done.created_at)}</p>
               ) : other === key ? (

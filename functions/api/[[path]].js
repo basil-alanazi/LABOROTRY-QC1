@@ -7,7 +7,7 @@ import {
   recordFailure, sessionCookie, tooManyAttempts, verifyPassword,
 } from "../../server/auth.js";
 import { CONDITIONS, computeTargets, generateDiet } from "../../server/diet.js";
-import { analyzeMeal, generateAdvice } from "../../server/health.js";
+import { analyzeMeal, generateAdvice, mealImage } from "../../server/health.js";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", ...headers } });
@@ -45,6 +45,14 @@ const parsePhoto = (v) => {
   if (typeof v !== "string" || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v)) bad("الصورة غير صحيحة");
   if (v.length > MAX_PHOTO) bad("الصورة كبيرة، جرّب وحدة ثانية");
   return v;
+};
+const DIET_MEALS = ["breakfast", "snack1", "lunch", "snack2", "dinner"];
+// صورة محفوظة كـ data URL ← ملف صورة
+const imageResponse = (data) => {
+  const m = data?.match(/^data:(image\/[\w+.-]+);base64,(.+)$/);
+  if (!m) bad("ما فيه صورة", 404);
+  const bytes = Uint8Array.from(atob(m[2]), (ch) => ch.charCodeAt(0));
+  return new Response(bytes, { headers: { "content-type": m[1], "cache-control": "private, max-age=31536000, immutable" } });
 };
 const text = (v, max) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 const int = (v, min, max, label, optional = false) => {
@@ -460,10 +468,16 @@ export async function onRequest({ request, env, params, waitUntil }) {
       }
       if (resource === "meals" && id && sub === "photo" && method === "GET") {
         const row = await db.prepare("SELECT photo FROM meals WHERE id = ? AND patient_id = ?").bind(Number(id), pid).first();
-        const m = row?.photo?.match(/^data:(image\/\w+);base64,(.+)$/);
-        if (!m) bad("ما فيه صورة", 404);
-        const bytes = Uint8Array.from(atob(m[2]), (ch) => ch.charCodeAt(0));
-        return new Response(bytes, { headers: { "content-type": m[1], "cache-control": "private, max-age=31536000, immutable" } });
+        return imageResponse(row?.photo);
+      }
+      // صورة أكلة من الحمية: /diet/image?day=السبت&meal=lunch
+      if (resource === "diet" && id === "image" && method === "GET") {
+        const qs = new URL(request.url).searchParams;
+        const row = await db.prepare("SELECT plan FROM diet_plans WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1").bind(pid).first();
+        const day = row && JSON.parse(row.plan).days?.find((x) => x.day === qs.get("day"));
+        const items = DIET_MEALS.includes(qs.get("meal")) ? day?.[qs.get("meal")]?.items : null;
+        if (!items) bad("الأكلة مو موجودة", 404);
+        return imageResponse(await mealImage(env, db, items));
       }
       if (resource === "meals" && !id && method === "POST") {
         const slot = MEAL_SLOTS.includes(body.slot) ? body.slot : bad("الوجبة غير معروفة");
