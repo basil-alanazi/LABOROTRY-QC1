@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Droplet, Activity, Pill, CalendarDays, NotebookPen, History, Salad, FlaskConical } from "lucide-react";
-import { todayPlan } from "./mealPlan";
+import { todayDiet } from "./Diet";
 import { avgGlucose } from "./Labs";
 import { getDevice } from "./push";
 import { CONTEXTS, apptDate, dayKey, fmtDate, fmtSlot, fmtTime, recentLow, relativeDays } from "./dose";
@@ -20,7 +20,7 @@ function dueMeds(medications, medDoses) {
     .flatMap((m) => m.times.filter((t) => t <= now && !taken.has(`${m.id}@${t}`)).map((t) => ({ m, t })));
 }
 
-export default function Home({ settings, readings, bp, medications, medDoses, appointments, notes, labs, go }) {
+export default function Home({ settings, readings, bp, medications, medDoses, appointments, notes, labs, diet, go }) {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 15000);
@@ -38,8 +38,8 @@ export default function Home({ settings, readings, bp, medications, medDoses, ap
 
   const tiles = [
     {
-      key: "sugar", wide: true, color: "teal", Icon: Droplet, title: "السكر والإنسولين",
-      sub: lastText(readings, (r) => `آخر قراءة ${r.glucose} (${CONTEXTS[r.context]})`, "القراءات والجرعات وتعديل Tresiba"),
+      key: "sugar", wide: true, color: "teal", Icon: Droplet, title: settings?.uses_insulin ? "السكر والإنسولين" : "السكر",
+      sub: lastText(readings, (r) => `آخر قراءة ${r.glucose} (${CONTEXTS[r.context]})`, settings?.uses_insulin ? "القراءات والجرعات" : "سجّل قراءات السكر"),
     },
     {
       key: "vitals", color: "blue", Icon: Activity, title: "القياسات الحيوية",
@@ -52,7 +52,7 @@ export default function Home({ settings, readings, bp, medications, medDoses, ap
     },
     {
       key: "diet", color: "orange", Icon: Salad, title: "الخطة الغذائية",
-      sub: `غداء اليوم: ${todayPlan(now).lunch}`,
+      sub: diet ? `غداء اليوم: ${todayDiet(diet, now)?.lunch?.items || ""}` : "✨ سوّ له حمية بالذكاء الاصطناعي",
     },
     {
       key: "labs", color: "indigo", Icon: FlaskConical, title: "نتائج التحاليل",

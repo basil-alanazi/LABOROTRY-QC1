@@ -280,3 +280,59 @@ textarea { width: 100%; font: inherit; padding: 12px; border: 1px solid var(--li
 .edit-dose { width: 100%; margin-top: 4px; }
 .edit-dose label { margin-top: 4px; }
 .edit-dose .row-gap { margin-top: 10px; }
+
+/* ===== ود: الآية والدخول والعائلة ===== */
+.verse { margin: 0; text-align: center; }
+.verse blockquote { margin: 0; font-family: "Amiri Quran", "IBM Plex Sans Arabic", serif; font-size: 22px; line-height: 2.1; color: var(--brand); }
+.verse figcaption { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.verse.on-dark blockquote { color: #fff; }
+.verse.on-dark figcaption { color: rgb(255 255 255 / .75); }
+.verse-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; display: grid; place-items: center; overflow: hidden; }
+.verse-bg span { font-family: "Amiri Quran", serif; font-size: clamp(34px, 9vw, 64px); line-height: 2.2; text-align: center; color: var(--brand); opacity: .055; padding: 24px; transform: rotate(-8deg); max-width: 900px; }
+body { background: var(--bg); }
+.app, .login { position: relative; }
+
+.login { min-height: 100vh; max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; }
+.login-hero { background: linear-gradient(160deg, #0f766e, #134e4a); color: #fff; padding: 48px 24px 64px; text-align: center; border-radius: 0 0 32px 32px; }
+.login-hero .logo { font-size: 72px; font-weight: 800; line-height: 1; }
+.login-hero .tagline { margin: 6px 0 22px; opacity: .85; }
+.login-card { margin: -36px 16px 24px; padding: 22px; }
+.login-card h2 { margin: 0 0 6px; font-size: 20px; }
+.center { text-align: center; }
+
+.brand { display: flex; align-items: center; gap: 10px; }
+.patient-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--card); color: var(--brand); font-weight: 700; padding: 7px 12px; border-radius: 999px; box-shadow: 0 1px 2px rgb(0 0 0 / .06); font-size: 15px; }
+.page-patient { margin-inline-start: auto; font-size: 13px; color: var(--muted); background: var(--card); padding: 4px 10px; border-radius: 999px; }
+.welcome { background: #e6f4f1; }
+.welcome p { margin: 6px 0 0; }
+
+.three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.toggle-row { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: start; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); margin-top: 8px; }
+.toggle-row b { color: var(--muted); }
+.toggle-row.on { border-color: var(--brand); background: #e6f4f1; }
+.toggle-row.on b { color: var(--brand); }
+
+.patient-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.patient-pick { display: flex; align-items: center; gap: 10px; background: none; color: var(--text); font-size: 16px; padding: 6px 0; }
+.patient-row.current .patient-pick { font-weight: 700; }
+.avatar { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: #e6f4f1; color: var(--brand); font-weight: 800; }
+.member { padding: 8px 0; border-bottom: 1px solid var(--line); gap: 8px; }
+details { margin-top: 10px; }
+summary { cursor: pointer; color: var(--brand); font-weight: 600; padding: 8px 0; }
+.admin { border: 2px dashed #c7d2fe; }
+
+.target-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.target-chips span { background: var(--bg); padding: 5px 10px; border-radius: 999px; font-size: 13px; }
+.ai-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #0f766e, #4a52a8); }
+.ai-intro ul { line-height: 1.9; }
+.chip.static { cursor: default; }
+.link.full { width: 100%; display: flex; }
+.meal.snack { background: var(--bg); border-style: dashed; }
+.meal.snack p { margin-bottom: 0; }
+h4 { margin: 12px 0 4px; font-size: 15px; }
+
+@media (prefers-color-scheme: dark) {
+  .welcome, .toggle-row.on, .avatar { background: #12302c; }
+  .admin { border-color: #3b3f75; }
+  .verse-bg span { opacity: .07; color: #5eead4; }
+}

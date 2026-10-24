@@ -4,6 +4,7 @@ import { api } from "./api";
 const GROUPS = [
   {
     title: "Humalog (قبل الوجبات)",
+    insulin: true,
     fields: [
       ["humalog_breakfast", "قبل الفطور (وحدة)"],
       ["humalog_lunch", "قبل الغداء (وحدة)"],
@@ -12,6 +13,7 @@ const GROUPS = [
   },
   {
     title: "Tresiba (قبل النوم)",
+    insulin: true,
     fields: [["tresiba_dose", "الجرعة الحالية (وحدة)"]],
   },
   {
@@ -42,9 +44,11 @@ export default function Settings({ settings, onSaved }) {
 
   const set = (k, v) => setForm({ ...form, [k]: v });
 
+  const groups = GROUPS.filter((g) => !g.insulin || settings.uses_insulin);
+
   async function save() {
-    const payload = { patient_name: form.patient_name };
-    for (const g of GROUPS) for (const [k] of g.fields) {
+    const payload = {};
+    for (const g of groups) for (const [k] of g.fields) {
       const n = Number(form[k]);
       if (!(n > 0)) return setMessage("فيه رقم ناقص أو غلط");
       payload[k] = n;
@@ -60,12 +64,9 @@ export default function Settings({ settings, onSaved }) {
 
   return (
     <section>
-      <div className="card">
-        <label>الاسم</label>
-        <input value={form.patient_name || ""} onChange={(e) => set("patient_name", e.target.value)} />
-      </div>
+      <p className="hint">الملف الصحي (الطول والوزن والأمراض والأكل) تعدّله من صفحة العائلة.</p>
 
-      {GROUPS.map((g) => (
+      {groups.map((g) => (
         <div key={g.title} className="card">
           <h3>{g.title}</h3>
           {g.fields.map(([k, label]) => (
@@ -77,7 +78,7 @@ export default function Settings({ settings, onSaved }) {
         </div>
       ))}
 
-      <div className="card">
+      {!!settings.tresiba_titration && <div className="card">
         <h3>قاعدة تعديل Tresiba (من الدكتور)</h3>
         <p>نشوف قراءة الصيام 4 أيام. إذا كلها أو أغلبها (3 من 4):</p>
         <ul>
@@ -86,9 +87,9 @@ export default function Settings({ settings, onSaved }) {
           <li>{form.fasting_high} أو أقل → نفس الجرعة</li>
           <li>أي قراءة صيام أقل من {form.fasting_low} → لا تزيد، وكلّم الدكتور</li>
         </ul>
-      </div>
+      </div>}
 
-      <button className="primary" onClick={save}>احفظ الإعدادات</button>
+      <button className="primary" onClick={save}>احفظ</button>
       {message && <div className="alert info">{message}</div>}
     </section>
   );

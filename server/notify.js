@@ -31,11 +31,11 @@ export async function loadVapid(db) {
   return { publicKey: s.vapid_public, privateJwk: JSON.parse(s.vapid_private), subject: "mailto:wad-health@users.noreply.github.com" };
 }
 
-// يرسل لكل الأجهزة المشتركة. alert = تنبيه مهم (يوصل حتى لوضع "المهم بس")
-export async function broadcast(db, message, { alert = false, exclude = null } = {}) {
+// يرسل لأجهزة العائلة. alert = تنبيه مهم (يوصل حتى لوضع "المهم بس")
+export async function broadcast(db, familyId, message, { alert = false, exclude = null } = {}) {
   const vapid = await loadVapid(db);
   if (!vapid) return 0;
-  const subs = (await db.prepare("SELECT * FROM push_subs").all()).results
+  const subs = (await db.prepare("SELECT * FROM push_subs WHERE family_id = ?").bind(familyId).all()).results
     .filter((s) => String(s.id) !== String(exclude) && (alert || s.mode === "all"));
   let sent = 0;
   await Promise.all(subs.map(async (s) => {
@@ -54,8 +54,14 @@ const atLabel = (iso) => {
 };
 
 // رسالة الإشعار الفوري لكل نوع تسجيل
-export function eventMessage(kind, row, settings) {
-  const s = settings;
+export function eventMessage(kind, row, patient) {
+  const ev = baseMessage(kind, row, patient);
+  if (ev) ev.msg.body = `${patient.name} · ${ev.msg.body}`;
+  return ev;
+}
+
+function baseMessage(kind, row, patient) {
+  const s = patient;
   if (kind === "readings") {
     const g = row.glucose;
     const ctx = CONTEXTS[row.context] || "";
@@ -92,26 +98,40 @@ async function once(db, key) {
   return r.meta.changes > 0;
 }
 
-// التذكيرات: قياس السكر، والجرعات، والأدوية، والمواعيد
+// التذكيرات لكل المرضى: قياس السكر، والجرعات، والأدوية، والمواعيد
 export async function runReminders(db) {
+  const patients = (await db.prepare("SELECT * FROM patients WHERE archived = 0").all()).results;
+  const out = [];
+  for (const p of patients) out.push(...await patientReminders(db, p));
+  // تنظيف السجلات القديمة
+  const week = new Date(Date.now() - 7 * 864e5).toISOString();
+  await db.batch([
+    db.prepare("DELETE FROM sent_log WHERE created_at < ?").bind(week),
+    db.prepare("DELETE FROM login_attempts WHERE created_at < ?").bind(week),
+    db.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(new Date().toISOString()),
+  ]);
+  return out;
+}
+
+async function patientReminders(db, p) {
   const now = new Date();
   const today = dayKey(now);
   const nowMin = toMin(hhmm(now));
   const due = (t) => nowMin >= toMin(t) && nowMin - toMin(t) < REMINDER_WINDOW_MIN;
-  const settings = await db.prepare("SELECT * FROM settings WHERE id = 1").first();
-  const reminders = JSON.parse(settings.reminders || "[]");
+  const reminders = JSON.parse(p.reminders || "[]");
   const since = new Date(now.getTime() - 36 * 36e5).toISOString();
   const [readings, doses, meds, medDoses, appts] = (await db.batch([
-    db.prepare("SELECT * FROM readings WHERE created_at >= ?").bind(since),
-    db.prepare("SELECT * FROM doses WHERE created_at >= ?").bind(since),
-    db.prepare("SELECT * FROM medications WHERE active = 1"),
-    db.prepare("SELECT * FROM med_doses WHERE created_at >= ?").bind(since),
-    db.prepare("SELECT * FROM appointments WHERE at >= ?").bind(today),
+    db.prepare("SELECT * FROM readings WHERE patient_id = ? AND created_at >= ?").bind(p.id, since),
+    db.prepare("SELECT * FROM doses WHERE patient_id = ? AND created_at >= ?").bind(p.id, since),
+    db.prepare("SELECT * FROM medications WHERE patient_id = ? AND active = 1").bind(p.id),
+    db.prepare("SELECT * FROM med_doses WHERE patient_id = ? AND created_at >= ?").bind(p.id, since),
+    db.prepare("SELECT * FROM appointments WHERE patient_id = ? AND at >= ?").bind(p.id, today),
   ])).map((r) => r.results);
 
   const out = [];
   const send = async (key, msg, alert = true) => {
-    if (await once(db, key)) out.push({ key, sent: await broadcast(db, msg, { alert }) });
+    msg.body = `${p.name} · ${msg.body}`;
+    if (await once(db, `p${p.id}:${key}`)) out.push({ key: `p${p.id}:${key}`, sent: await broadcast(db, p.family_id, msg, { alert }) });
   };
 
   for (const r of reminders) {
@@ -119,20 +139,20 @@ export async function runReminders(db) {
     if (r.type === "sugar") {
       const done = readings.some((x) => x.context === r.context && dayKey(new Date(x.created_at)) === today);
       if (!done && due(r.time)) {
-        await send(`${today}:sugar:${r.context}:${r.time}`, { title: "⏰ وقت قياس السكر", body: `${CONTEXTS[r.context]} — سجّلوا القراءة في ود.`, tag: `rem-sugar-${r.context}`, url: "/#sugar" });
+        await send(`${today}:sugar:${r.context}:${r.time}`, { title: "⏰ وقت قياس السكر", body: `${CONTEXTS[r.context]} — سجّلوا القراءة في ود.`, tag: `rem-sugar-${p.id}-${r.context}`, url: "/#sugar" });
       }
     }
-    if (r.type === "dose") {
+    if (r.type === "dose" && p.uses_insulin) {
       const slot = SLOTS[r.slot];
       const day = r.slot === "bedtime" ? doseDay(now) : today;
       const done = doses.some((x) => x.slot === r.slot && (r.slot === "bedtime" ? doseDay(x.created_at) : dayKey(new Date(x.created_at))) === day);
       if (!done && due(r.time) && nowMin - toMin(r.time) < LATE_DOSE_MIN) {
-        await send(`${day}:dose:${r.slot}:${r.time}`, { title: `💉 جرعة ${slot.insulin} ${settings[slot.key]} وحدة`, body: `${slot.label}. قيسوا السكر قبلها، وإذا كان تحت ${settings.low_threshold} لا تعطونه.`, tag: `rem-dose-${r.slot}`, url: "/#sugar" });
+        await send(`${day}:dose:${r.slot}:${r.time}`, { title: `💉 جرعة ${slot.insulin} ${p[slot.key]} وحدة`, body: `${slot.label}. قيسوا السكر قبلها، وإذا كان تحت ${p.low_threshold} لا تعطونه.`, tag: `rem-dose-${p.id}-${r.slot}`, url: "/#sugar" });
       }
       // إذا تأخرت الجرعة: تنبيه ثاني
       const late = toMin(r.time) + LATE_DOSE_MIN;
       if (!done && nowMin >= late && nowMin - late < REMINDER_WINDOW_MIN) {
-        await send(`${day}:dose-late:${r.slot}:${r.time}`, { title: `⚠️ جرعة ${slot.label} ما انسجلت`, body: `${slot.insulin} ${settings[slot.key]} وحدة. إذا أخذها سجّلوها، وإذا ما أخذها انتبهوا.`, tag: `rem-dose-${r.slot}`, url: "/#sugar" });
+        await send(`${day}:dose-late:${r.slot}:${r.time}`, { title: `⚠️ جرعة ${slot.label} ما انسجلت`, body: `${slot.insulin} ${p[slot.key]} وحدة. إذا أخذها سجّلوها، وإذا ما أخذها انتبهوا.`, tag: `rem-dose-${p.id}-${r.slot}`, url: "/#sugar" });
       }
     }
   }
@@ -157,8 +177,5 @@ export async function runReminders(db) {
       await send(`appt-2h:${a.id}`, { title: "📅 موعد بعد شوي", body: `${a.title} — ${fmt12(t)}${a.place ? ` · ${a.place}` : ""}`, tag: `appt-${a.id}`, url: "/#appointments" });
     }
   }
-
-  // تنظيف السجل القديم
-  await db.prepare("DELETE FROM sent_log WHERE created_at < ?").bind(new Date(now.getTime() - 7 * 864e5).toISOString()).run();
   return out;
 }

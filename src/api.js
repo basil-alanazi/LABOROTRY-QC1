@@ -5,6 +5,9 @@ function deviceId() {
   try { return JSON.parse(localStorage.getItem("wad_device"))?.id; } catch { return undefined; }
 }
 
+let onUnauthorized = () => {};
+export const setUnauthorizedHandler = (fn) => { onUnauthorized = fn; };
+
 async function call(path, method = "GET", body) {
   const headers = {};
   if (body) headers["content-type"] = "application/json";
@@ -13,27 +16,48 @@ async function call(path, method = "GET", body) {
   const res = await fetch(`/api/${path}`, {
     method,
     headers,
+    credentials: "same-origin",
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && !path.startsWith("auth/login")) onUnauthorized();
   if (!res.ok) throw new Error(data.error || `خطأ ${res.status}`);
   return data;
 }
 
-const post = (path) => (body) => call(path, "POST", body);
-const remove = (path) => (id) => call(`${path}/${id}`, "DELETE");
+// المريض الحالي: كل بيانات القياسات والأدوية تروح له
+let patientId = null;
+export const setPatient = (id) => { patientId = id; };
+const pp = (path) => `p/${patientId}/${path}`;
+const post = (path) => (body) => call(pp(path), "POST", body);
+const remove = (path) => (id) => call(pp(`${path}/${id}`), "DELETE");
 
 export const api = {
-  all: () => call("all"),
+  // الحساب
+  login: (username, password) => call("auth/login", "POST", { username, password }),
+  logout: () => call("auth/logout", "POST", {}),
+  me: () => call("auth/me"),
+  changePassword: (old, next) => call("auth/password", "POST", { old, new: next }),
+  members: () => call("family/members"),
+  addMember: (m) => call("family/members", "POST", m),
+  removeMember: (id) => call(`family/members/${id}`, "DELETE"),
+  adminFamilies: () => call("admin/families"),
+  adminAddFamily: (f) => call("admin/families", "POST", f),
+  addPatient: (p) => call("patients", "POST", p),
+  updatePatient: (id, p) => call(`patients/${id}`, "PUT", p),
+  archivePatient: (id) => call(`patients/${id}`, "DELETE"),
+
+  // بيانات المريض الحالي
+  all: () => call(pp("all")),
   addReading: post("readings"),
   deleteReading: remove("readings"),
-  addDose: (slot, units = null, at = null) => call("doses", "POST", { slot, units, at }),
-  updateDose: (id, d) => call(`doses/${id}`, "PUT", d),
+  addDose: (slot, units = null, at = null) => call(pp("doses"), "POST", { slot, units, at }),
+  updateDose: (id, d) => call(pp(`doses/${id}`), "PUT", d),
   deleteDose: remove("doses"),
   addBp: post("bp"),
   deleteBp: remove("bp"),
   addMedication: post("medications"),
-  updateMedication: (id, m) => call(`medications/${id}`, "PUT", m),
+  updateMedication: (id, m) => call(pp(`medications/${id}`), "PUT", m),
   addMedDose: post("med-doses"),
   deleteMedDose: remove("med-doses"),
   addAppointment: post("appointments"),
@@ -41,14 +65,18 @@ export const api = {
   addNote: post("notes"),
   deleteNote: remove("notes"),
   addLab: post("labs"),
-  updateLab: (id, l) => call(`labs/${id}`, "PUT", l),
+  updateLab: (id, l) => call(pp(`labs/${id}`), "PUT", l),
   deleteLab: remove("labs"),
   addMeal: post("meals"),
   deleteMeal: remove("meals"),
+  savePlan: (s) => call(pp("plan"), "PUT", s),
+  saveSettings: (s) => call(pp("plan"), "PUT", s),
+  generateDiet: () => call(pp("diet/generate"), "POST", {}),
+
+  // الإشعارات
   pushKey: () => call("push/key"),
   pushSubscribe: (b) => call("push/subscribe", "POST", b),
   pushUnsubscribe: (id) => call("push/unsubscribe", "POST", { id }),
   pushDevices: () => call("push/devices"),
   pushTest: (id) => call("push/test", "POST", { id }),
-  saveSettings: (s) => call("settings", "PUT", s),
 };

@@ -199,8 +199,8 @@ export default function Today({ settings, readings, doses, changes, onChanged })
 
       {message && <div className="alert info">{message}</div>}
 
-      {/* جرعات اليوم */}
-      {settings && (
+      {/* الجرعات (لمرضى الإنسولين بس) */}
+      {settings?.uses_insulin ? (
         <div className="card">
           <h3>الجرعات</h3>
           <div className="chips">
@@ -269,10 +269,10 @@ export default function Today({ settings, readings, doses, changes, onChanged })
             })}
           </div>
         </div>
-      )}
+      ) : null}
 
-      {/* تعديل Tresiba */}
-      {tresiba && (
+      {/* تعديل Tresiba (إذا الدكتور عطاه قاعدة الزيادة) */}
+      {tresiba && settings?.tresiba_titration ? (
         <div className={`card result ${tresiba.status === "increase" ? "warn" : tresiba.status === "low" ? "danger" : "ok"}`}>
           <h3>تعديل Tresiba — الجرعة الحالية {tresiba.current} وحدة</h3>
           <p className="hint">حسب قراءات الصيام لـ{TITRATION_DAYS} أيام{changes[0] ? ` بعد آخر تعديل (${fmtShortDate(changes[0].created_at)})` : ""}.</p>
@@ -301,7 +301,7 @@ export default function Today({ settings, readings, doses, changes, onChanged })
             </>
           )}
         </div>
-      )}
+      ) : null}
 
       <p className="disclaimer">الموقع يطبّق خطة الدكتور المحفوظة في الإعدادات فقط، وما يغني عن مراجعته.</p>
     </section>

@@ -6,3 +6,7 @@ compatibility_date = "2026-09-01"
 binding = "DB"
 database_name = "dad-health-db"
 database_id = "9d870bbc-a48c-4f4d-b869-723e8509313f"
+
+# الذكاء الاصطناعي للحمية (Workers AI، فيه حد مجاني يومي)
+[ai]
+binding = "AI"
