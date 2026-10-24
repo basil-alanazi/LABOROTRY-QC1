@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "./api";
+import MedScan from "./MedScan";
 import { dayKey, fmtSlot, fmtTime } from "./dose";
 
 const EMPTY = { name: "", dose: "", times: ["08:00"], notes: "" };
@@ -14,6 +15,12 @@ function MedForm({ initial, onSave, onCancel }) {
       <h3>{initial.id ? "تعديل الدواء" : "أضف دواء"}</h3>
       <label>اسم الدواء</label>
       <input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="مثلاً Metformin" />
+      <MedScan label="صوّر علبة الدواء وتنعبّى لحالها" onResult={(m) => setForm((f) => ({
+        ...f,
+        name: [m.name_ar && m.name !== m.name_ar ? `${m.name_ar} (${m.name})` : m.name_ar || m.name, m.generic].filter(Boolean).join(" · "),
+        dose: f.dose || m.strength,
+        notes: f.notes || m.for,
+      }))} />
       <label>الجرعة</label>
       <input value={form.dose || ""} onChange={(e) => set("dose", e.target.value)} placeholder="مثلاً حبة 500 ملغ" />
       <label>المواعيد</label>

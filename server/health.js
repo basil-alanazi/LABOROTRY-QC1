@@ -92,6 +92,7 @@ const ADVICE_SYSTEM = `أنت طبيب أسرة سعودي تكتب لعائلة
 - علامات الخطر (warning_signs) لازم تكون واضحة: متى يروحون الطوارئ فورًا.
 - أكلات سعودية مألوفة.
 - في medications: حط كل دواء مذكور عنده (من أدوية أمراضه وصفحة الأدوية والإنسولين)، ولا تضيف دواء ما ذكرناه. اذكر الاسم العلمي، وفايدته، وكيف ينأخذ صح، والأعراض الجانبية اللي تنتبهون لها، وأي تعارض مع أمراضه أو أدويته الثانية. إذا ما عرفت الدواء اكتب في generic "ما عرفناه، اسألوا الصيدلي" ولا تخمّن.
+- إذا فيه دوائين بنفس المادة الفعالة (اسمين تجاريين لنفس الدواء)، نبّه بوضوح في watch وفي noticed إن هذا تكرار وما ياخذهم مع بعض، واسألوا الدكتور أو الصيدلي.
 - اكتب بالعربي السعودي البسيط، وجمل قصيرة.
 رجّع JSON بس بهالشكل:
 {"overview":"سطرين عن وضعه العام من الأرقام","medications":[{"name":"اسم الدواء كما كتبناه","generic":"الاسم العلمي","for":"وش فايدته","how":"كيف ينأخذ صح","side_effects":["عرض جانبي تنتبهون له"],"watch":["تعارض مع مرض أو دواء ثاني عنده"]}],"conditions":[{"name":"اسم المرض","status":"وضعه الحالي من قراءاته","do":["سوّوا"],"avoid":["تجنبوا"],"warning_signs":["روحوا الطوارئ إذا..."],"ask_doctor":["سؤال للدكتور بالزيارة الجاية"]}],"noticed":[{"title":"شي لاحظته","detail":"ليش ووش تسوون"}],"daily":["عادة يومية تساعده"]}`;
@@ -235,4 +236,36 @@ export async function mealImage(env, db, items) {
   }
   await db.prepare("INSERT OR REPLACE INTO food_images (k, image) VALUES (?, ?)").bind(key, image).run();
   return image;
+}
+
+// ===== قراءة علبة الدواء من صورة =====
+const MED_SYSTEM = `أنت صيدلي. يوصلك صورة علبة دواء أو شريط أو وصفة، واقرا منها الدواء.
+قواعد:
+- اكتب الاسم التجاري زي ما هو مكتوب على العلبة (بالإنجليزي إذا مكتوب إنجليزي، وأضف كتابته بالعربي).
+- الاسم العلمي (المادة الفعالة) من العلبة، وإذا مو مكتوب وأنت متأكد منه اكتبه.
+- التركيز مثل "5 mg" أو "0.4 mg" أو "500 mg".
+- إذا الصورة مو واضحة أو مو دواء، رجّع name فاضي ولا تخمّن.
+رجّع JSON بس بهالشكل:
+{"name":"Finascar","name_ar":"فيناسكار","generic":"فيناسترايد (Finasteride)","strength":"5 mg","form":"حبوب","for":"وش يعالج باختصار"}`;
+
+export async function scanMedicine(env, image) {
+  const messages = [
+    { role: "system", content: MED_SYSTEM },
+    { role: "user", content: [{ type: "text", text: "اقرا الدواء من هالصورة." }, { type: "image_url", image_url: { url: image } }] },
+  ];
+  const mock = () => JSON.stringify({ name: "Finascar", name_ar: "فيناسكار", generic: "فيناسترايد (Finasteride)", strength: "5 mg", form: "حبوب", for: "تضخم البروستاتا" });
+  let lastErr;
+  for (let i = 0; i < MAX_TRIES; i++) {
+    const { text } = await callModel(env, messages, { models: VISION_MODELS, mock, maxTokens: 600 });
+    try {
+      const a = extractJson(text);
+      const str = (v, max = 80) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+      const out = { name: str(a.name), name_ar: str(a.name_ar), generic: str(a.generic), strength: str(a.strength, 30), form: str(a.form, 30), for: str(a.for, 120) };
+      if (!out.name && !out.name_ar) throw new Error("ما قدرنا نقرا اسم الدواء. صوّر العلبة من قريب وفي مكان منوّر.");
+      return out;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr;
 }

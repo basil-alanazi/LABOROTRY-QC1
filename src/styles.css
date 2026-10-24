@@ -492,3 +492,7 @@ input:focus, textarea:focus { box-shadow: 0 0 0 3px rgb(199 154 91 / .22); }
 .install-way p { margin: 6px 0 0; }
 .install-way .primary { margin-top: 8px; }
 .install-way .app-dl { margin: 8px 0 0; }
+
+/* تصوير علبة الدواء */
+.med-scan { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--brand); margin: 6px 0; }
+.add-med-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }

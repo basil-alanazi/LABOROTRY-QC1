@@ -7,7 +7,7 @@ import {
   recordFailure, sessionCookie, tooManyAttempts, verifyPassword,
 } from "../../server/auth.js";
 import { CONDITIONS, computeTargets, generateDiet } from "../../server/diet.js";
-import { analyzeMeal, generateAdvice, mealImage } from "../../server/health.js";
+import { analyzeMeal, generateAdvice, mealImage, scanMedicine } from "../../server/health.js";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", ...headers } });
@@ -287,6 +287,11 @@ export async function onRequest({ request, env, params, waitUntil }) {
     }
 
     // ===== المرضى =====
+    // قراءة علبة دواء من صورة (للملف الصحي وصفحة الأدوية)
+    if (a === "ai" && b === "med-scan" && method === "POST") {
+      return json(await scanMedicine(env, parsePhoto(body.photo)));
+    }
+
     if (a === "patients") {
       if (method === "POST" && !b) {
         const p = parseProfile(body);

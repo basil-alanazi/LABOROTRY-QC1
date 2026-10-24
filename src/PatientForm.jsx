@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api, setPatient } from "./api";
+import MedScan, { medLabel } from "./MedScan";
 
 // نفس القائمة اللي في السيرفر (server/diet.js)
 export const CONDITIONS = {
@@ -151,7 +152,14 @@ export default function PatientForm({ patient, onSaved, onCancel }) {
                           <button type="button" className="icon-btn" aria-label="شيل الدواء" onClick={() => setMeds(c, list.filter((_, j) => j !== i))}>✕</button>
                         </div>
                       ))}
-                      <button type="button" className="link add-med" onClick={() => setMeds(c, [...list, ""])}>+ دواء ثاني</button>
+                      <div className="add-med-row">
+                        <button type="button" className="link add-med" onClick={() => setMeds(c, [...list, ""])}>+ دواء ثاني</button>
+                        {/* العلبة تعبّي أول مربع فاضي، أو تضيف واحد جديد */}
+                        <MedScan onResult={(m) => {
+                          const i = list.findIndex((x) => !x.trim());
+                          setMeds(c, i >= 0 ? list.map((x, j) => (j === i ? medLabel(m) : x)) : [...list, medLabel(m)]);
+                        }} />
+                      </div>
                     </div>
                   )}
                 </div>
