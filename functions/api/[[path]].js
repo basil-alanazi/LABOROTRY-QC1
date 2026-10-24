@@ -449,29 +449,57 @@ export async function onRequest({ request, env, params, waitUntil }) {
         const dia = int(body.diastolic, 30, 160, "الضغط الواطي", true);
         const pulse = int(body.pulse, 30, 220, "النبض", true);
         const spo2 = int(body.spo2, 50, 100, "الأكسجين", true);
+        const temp = real(body.temp, 30, 45, "الحرارة");
         if ((sys === null) !== (dia === null)) bad("اكتب الضغط العالي والواطي مع بعض");
         if (sys !== null && sys <= dia) bad("الضغط العالي لازم يكون أكبر من الواطي");
-        if (sys === null && pulse === null && spo2 === null) bad("اكتب قراءة وحدة على الأقل");
-        return created("bp", await add("bp_readings", ["systolic", "diastolic", "pulse", "spo2", "note", "user_id"], [sys, dia, pulse, spo2, text(body.note, 300), me.id], parseAt(body.at)));
+        if (sys === null && pulse === null && spo2 === null && temp === null) bad("اكتب قراءة وحدة على الأقل");
+        return created("bp", await add("bp_readings", ["systolic", "diastolic", "pulse", "spo2", "temp", "note", "user_id"], [sys, dia, pulse, spo2, temp, text(body.note, 300), me.id], parseAt(body.at)));
       }
 
-      if (resource === "medications" && method === "POST") {
+      // الجرد (اختياري): الكمية الباقية وكم ينقص مع كل جرعة
+      const stockFields = () => [
+        real(body.stock, 0, 10000, "الكمية الباقية"),
+        real(body.per_dose, 0.1, 50, "الكمية بكل جرعة") ?? 1,
+        text(body.unit, 20),
+        int(body.alert_days, 1, 90, "أيام التنبيه", true) ?? 7,
+      ];
+      if (resource === "medications" && method === "POST" && !id) {
         const name = text(body.name, 80) || bad("اكتب اسم الدواء");
-        return json(await add("medications", ["name", "dose", "times", "notes"], [name, text(body.dose, 80), parseTimes(body.times), text(body.notes, 300)]));
+        return json(await add("medications", ["name", "dose", "times", "notes", "stock", "per_dose", "unit", "alert_days"], [name, text(body.dose, 80), parseTimes(body.times), text(body.notes, 300), ...stockFields()]));
       }
 
-      if (resource === "medications" && method === "PUT" && id) {
+      if (resource === "medications" && method === "PUT" && id && !sub) {
         const name = text(body.name, 80) || bad("اكتب اسم الدواء");
-        await db.prepare("UPDATE medications SET name = ?, dose = ?, times = ?, notes = ?, active = ? WHERE id = ? AND patient_id = ?")
-          .bind(name, text(body.dose, 80), parseTimes(body.times), text(body.notes, 300), body.active === false ? 0 : 1, Number(id), pid).run();
+        await db.prepare("UPDATE medications SET name = ?, dose = ?, times = ?, notes = ?, active = ?, stock = ?, per_dose = ?, unit = ?, alert_days = ? WHERE id = ? AND patient_id = ?")
+          .bind(name, text(body.dose, 80), parseTimes(body.times), text(body.notes, 300), body.active === false ? 0 : 1, ...stockFields(), Number(id), pid).run();
         return json({ ok: true });
+      }
+
+      // وصلت علبة جديدة: نزيد الكمية
+      if (resource === "medications" && id && sub === "refill" && method === "POST") {
+        const amount = real(body.amount, 0.1, 10000, "الكمية") ?? bad("اكتب الكمية");
+        await db.prepare("UPDATE medications SET stock = COALESCE(stock, 0) + ? WHERE id = ? AND patient_id = ?").bind(amount, Number(id), pid).run();
+        return json(await db.prepare("SELECT * FROM medications WHERE id = ?").bind(Number(id)).first());
       }
 
       if (resource === "med-doses" && method === "POST") {
         const med = await db.prepare("SELECT id FROM medications WHERE id = ? AND patient_id = ?").bind(Number(body.medication_id), pid).first();
         if (!med) bad("الدواء مو موجود");
         const slot = TIME_RE.test(body.time_slot) ? body.time_slot : bad("الموعد غير صحيح");
-        return json(await add("med_doses", ["medication_id", "time_slot", "user_id"], [med.id, slot, me.id]));
+        const row = await add("med_doses", ["medication_id", "time_slot", "user_id"], [med.id, slot, me.id]);
+        // كل جرعة تنقص من الجرد
+        await db.prepare("UPDATE medications SET stock = MAX(stock - per_dose, 0) WHERE id = ? AND stock IS NOT NULL").bind(med.id).run();
+        return json(row);
+      }
+      if (resource === "med-doses" && method === "DELETE" && id) {
+        const dose = await db.prepare("SELECT medication_id FROM med_doses WHERE id = ? AND patient_id = ?").bind(Number(id), pid).first();
+        if (dose) {
+          await db.batch([
+            db.prepare("DELETE FROM med_doses WHERE id = ? AND patient_id = ?").bind(Number(id), pid),
+            db.prepare("UPDATE medications SET stock = stock + per_dose WHERE id = ? AND stock IS NOT NULL").bind(dose.medication_id),
+          ]);
+        }
+        return json({ ok: true });
       }
 
       if (resource === "appointments" && method === "POST") {

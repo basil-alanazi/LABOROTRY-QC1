@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { Printer, X } from "lucide-react";
 import { CONDITIONS } from "./PatientForm";
-import { CONTEXTS, bpLevel, dayKey, fmtDate, fmtTime, glucoseLevel } from "./dose";
+import { CONTEXTS, bpLevel, dayKey, fmtDate, fmtTime, glucoseLevel, tempLevel } from "./dose";
 
 // أعمدة جدول السكر بترتيب اليوم
 const COLS = ["fasting", "after_breakfast", "before_lunch", "after_lunch", "before_dinner", "after_dinner", "bedtime", "random"];
@@ -25,7 +25,8 @@ export default function DoctorReport({ patient, readings, doses, bp, notes, labs
   const data = useMemo(() => {
     const rs = readings.filter(inRange);
     const ds = doses.filter(inRange);
-    const bs = bp.filter(inRange).filter((b) => b.systolic);
+    const vitals = bp.filter(inRange).sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+    const bs = vitals.filter((b) => b.systolic);
     const level = (r) => glucoseLevel(r.glucose, r.context, patient);
     // صف لكل يوم: القراءات في أعمدتها + مجموع الإنسولين
     const map = new Map();
@@ -45,7 +46,9 @@ export default function DoctorReport({ patient, readings, doses, bp, notes, labs
       lows: rs.filter((r) => r.glucose < patient.low_threshold).length,
       max: rs.length ? Math.max(...rs.map((r) => r.glucose)) : null,
       min: rs.length ? Math.min(...rs.map((r) => r.glucose)) : null,
-      bp: bs.sort((a, b) => (a.created_at < b.created_at ? -1 : 1)),
+      bp: vitals,
+      bpCount: bs.length,
+      temps: vitals.filter((b) => b.temp).map((b) => b.temp),
       bpAvg: bs.length ? `${avg(bs.map((b) => b.systolic))}/${avg(bs.map((b) => b.diastolic))}` : null,
       bpHigh: bs.filter((b) => b.systolic >= patient.bp_sys_high || b.diastolic >= patient.bp_dia_high).length,
       notes: notes.filter(inRange).sort((a, b) => (a.created_at < b.created_at ? -1 : 1)),
@@ -110,7 +113,7 @@ export default function DoctorReport({ patient, readings, doses, bp, notes, labs
             <div><b>{data.highs}</b><span>قراءات 250 وفوق</span></div>
             <div><b>{data.lows}</b><span>هبوط تحت {patient.low_threshold}</span></div>
             <div><b>{data.min ?? "—"} – {data.max ?? "—"}</b><span>أقل – أعلى</span></div>
-            <div><b>{data.bpAvg ?? "—"}</b><span>متوسط الضغط ({data.bpHigh} من {data.bp.length} عالية)</span></div>
+            <div><b>{data.bpAvg ?? "—"}</b><span>متوسط الضغط ({data.bpHigh} من {data.bpCount} عالية)</span></div>
           </div>
         </section>
 
@@ -145,9 +148,9 @@ export default function DoctorReport({ patient, readings, doses, bp, notes, labs
 
         {data.bp.length > 0 && (
           <section>
-            <h2>قراءات الضغط</h2>
+            <h2>الضغط والقياسات الحيوية</h2>
             <table className="doc-table doc-bp">
-              <thead><tr><th>التاريخ</th><th>الساعة</th><th>الضغط</th><th>النبض</th><th>الأكسجين</th></tr></thead>
+              <thead><tr><th>التاريخ</th><th>الساعة</th><th>الضغط</th><th>النبض</th><th>الأكسجين</th><th>الحرارة</th></tr></thead>
               <tbody>
                 {data.bp.map((b) => {
                   const l = bpLevel(b, patient);
@@ -155,9 +158,10 @@ export default function DoctorReport({ patient, readings, doses, bp, notes, labs
                     <tr key={b.id}>
                       <td>{shortDate(dayKey(b.created_at))}</td>
                       <td>{fmtTime(b.created_at)}</td>
-                      <td><span className={`v ${l}`}>{b.systolic}/{b.diastolic}{MARK[l] || ""}</span></td>
+                      <td>{b.systolic ? <span className={`v ${l}`}>{b.systolic}/{b.diastolic}{MARK[l] || ""}</span> : ""}</td>
                       <td>{b.pulse || ""}</td>
                       <td>{b.spo2 ? `${b.spo2}%` : ""}</td>
+                      <td>{b.temp ? <span className={`v ${tempLevel(b.temp)}`}>{b.temp}°{MARK[tempLevel(b.temp)] || ""}</span> : ""}</td>
                     </tr>
                   );
                 })}

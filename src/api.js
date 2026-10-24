@@ -70,6 +70,7 @@ export const api = {
   deleteBp: remove("bp"),
   addMedication: post("medications"),
   updateMedication: (id, m) => call(pp(`medications/${id}`), "PUT", m),
+  refillMedication: (id, amount) => call(pp(`medications/${id}/refill`), "POST", { amount }),
   addMedDose: post("med-doses"),
   deleteMedDose: remove("med-doses"),
   addAppointment: post("appointments"),

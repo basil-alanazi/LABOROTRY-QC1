@@ -61,7 +61,8 @@ export default function Report({ settings, readings, doses, bp, meals, since }) 
                 <span className="tl-body">
                   🩺 {x.b.systolic ? <>ضغط <span className={`badge ${bpLevel(x.b, settings)}`}>{x.b.systolic}/{x.b.diastolic}</span> </> : null}
                   {x.b.pulse && <span className="muted">نبض {x.b.pulse} </span>}
-                  {x.b.spo2 && <span className="muted">أكسجين {x.b.spo2}%</span>}
+                  {x.b.spo2 && <span className="muted">أكسجين {x.b.spo2}% </span>}
+                  {x.b.temp && <span className="muted">حرارة {x.b.temp}°</span>}
                 </span>
               )}
               {x.kind === "meal" && (

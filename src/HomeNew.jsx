@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { DishImage, todayDiet } from "./Diet";
 import { getDevice } from "./push";
-import { CONTEXTS, SLOTS, apptDate, dayKey, fmtSlot, fmtTime, glucoseLevel, recentLow, relativeDays } from "./dose";
+import { CONTEXTS, SLOTS, apptDate, medSupply, dayKey, fmtSlot, fmtTime, glucoseLevel, recentLow, relativeDays } from "./dose";
 import { VERSE } from "./Verse";
 import { isIOS, standalone } from "./InstallCard";
 import "./homeNew.css";
@@ -100,8 +100,15 @@ export default function HomeNew(props) {
   const name = me.user.display_name;
   const quick = QUICK.filter(([, , , insulin]) => !insulin || props.settings?.uses_insulin);
 
+  // أدوية قربت تخلص أو خلصت
+  const supply = props.medications.filter((x) => x.active).map((x) => [x, medSupply(x)]).filter(([, s]) => s && s.state !== "ok");
   const alerts = (
     <>
+      {supply.map(([x, s]) => (
+        <button key={`stock-${x.id}`} className={`hn-alert ${s.state === "out" ? "danger" : "warn"}`} onClick={() => go("meds")}>
+          {s.state === "out" ? `⛔ ${x.name} خلص. اصرفوه من الصيدلية.` : `📦 ${x.name} قرب يخلص: باقي ${s.stock} ${s.unit} (يكفي ${s.days} يوم).`}
+        </button>
+      ))}
       {m.low && <button className="hn-alert danger" onClick={() => go("sugar")}>⚠️ آخر قراءة {m.low.glucose} هبوط. لا تعطونه إنسولين، وعالجوا الهبوط.</button>}
       {/* الآيفون: الإشعارات تشتغل بس لما يكون مثبت كتطبيق */}
       {!getDevice() && (isIOS() && !standalone()

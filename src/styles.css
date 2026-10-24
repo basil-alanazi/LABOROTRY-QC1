@@ -563,3 +563,18 @@ body.doc-open { overflow: hidden; }
 .hn-help small { color: var(--muted); font-size: 12.5px; }
 .help-link { display: block; width: 100%; text-align: start; font-weight: 700; font-size: 16px; color: var(--text); }
 .help-link small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
+
+/* الجرد */
+.stock-box { margin-top: 14px; padding: 12px 14px; border-radius: 16px; background: var(--soft); }
+.stock-box > b { font-size: 15px; color: var(--brand-2); }
+.stock-box .hint { margin: 2px 0 6px; }
+.stock-row { display: grid; grid-template-columns: 1fr 110px; gap: 8px; }
+.stock-row select { border: 1px solid var(--line); border-radius: 14px; background: #FFFEFB; padding: 0 10px; font: inherit; color: var(--text); }
+.supply { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0 2px; padding: 8px 12px; border-radius: 12px; background: var(--soft); font-size: 14px; }
+.supply.low { background: #FBF0DA; color: #7A4E1C; }
+.supply.out { background: #FDE8EA; color: #A3172A; }
+.supply .link { margin: 0; }
+.hn-alert.warn { background: #FBF0DA; color: #7A4E1C; border-color: #EBD3A8; }
+/* الجداول العريضة تتمرر داخل البطاقة بدل ما توسّع الصفحة */
+.card > table { display: block; overflow-x: auto; max-width: 100%; }
+.card > table td, .card > table th { white-space: nowrap; }

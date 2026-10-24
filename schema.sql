@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS bp_readings (
   diastolic INTEGER CHECK (diastolic IS NULL OR diastolic BETWEEN 30 AND 160),
   pulse INTEGER CHECK (pulse IS NULL OR pulse BETWEEN 30 AND 220),
   spo2 INTEGER CHECK (spo2 IS NULL OR spo2 BETWEEN 50 AND 100),
+  temp REAL,              -- درجة الحرارة °C
   note TEXT,
   patient_id INTEGER NOT NULL DEFAULT 1,
   user_id INTEGER
@@ -131,7 +132,11 @@ CREATE TABLE IF NOT EXISTS medications (
   times TEXT NOT NULL DEFAULT '[]',
   notes TEXT,
   active INTEGER NOT NULL DEFAULT 1,
-  patient_id INTEGER NOT NULL DEFAULT 1
+  patient_id INTEGER NOT NULL DEFAULT 1,
+  stock REAL,                             -- الكمية الباقية (فاضي = ما نتابع الجرد)
+  per_dose REAL NOT NULL DEFAULT 1,       -- كم ينقص مع كل جرعة
+  unit TEXT,                              -- حبة، قطرة، إبرة...
+  alert_days INTEGER NOT NULL DEFAULT 7   -- ينبّه قبل ما يخلص بكم يوم
 );
 
 CREATE TABLE IF NOT EXISTS med_doses (

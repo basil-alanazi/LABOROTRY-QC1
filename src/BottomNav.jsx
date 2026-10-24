@@ -14,7 +14,7 @@ export default function BottomNav({ page, go, patient }) {
   const [sheet, setSheet] = useState(false);
   const options = [
     ["sugar", "قراءة سكر", Droplet],
-    ["vitals", "ضغط ونبض", Activity],
+    ["vitals", "ضغط وحرارة", Activity],
     ...(patient?.uses_insulin ? [["sugar", "جرعة إنسولين", Syringe]] : []),
     ["meds", "دواء", Pill],
     ["diet", "صورة أكل", Camera],

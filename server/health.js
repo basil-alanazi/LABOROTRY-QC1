@@ -103,7 +103,7 @@ async function adviceContext(db, patient) {
   const since = new Date(Date.now() - 30 * 864e5).toISOString();
   const [notes, bp] = (await db.batch([
     db.prepare("SELECT text, created_at FROM notes WHERE patient_id = ? AND created_at >= ? ORDER BY created_at DESC LIMIT 15").bind(patient.id, since),
-    db.prepare("SELECT systolic, diastolic, pulse, spo2 FROM bp_readings WHERE patient_id = ? AND created_at >= ? ORDER BY created_at DESC LIMIT 30").bind(patient.id, since),
+    db.prepare("SELECT systolic, diastolic, pulse, spo2, temp FROM bp_readings WHERE patient_id = ? AND created_at >= ? ORDER BY created_at DESC LIMIT 30").bind(patient.id, since),
   ])).map((r) => r.results);
   const pulses = bp.map((b) => b.pulse).filter(Boolean);
   const spo2 = bp.map((b) => b.spo2).filter(Boolean);
@@ -116,6 +116,7 @@ async function adviceContext(db, patient) {
     s.bp_avg ? `متوسط الضغط: ${s.bp_avg} (الحد ${patient.bp_sys_high}/${patient.bp_dia_high}).` : "",
     pulses.length ? `النبض: من ${Math.min(...pulses)} إلى ${Math.max(...pulses)}.` : "",
     spo2.length ? `الأكسجين: أقل قراءة ${Math.min(...spo2)}%.` : "",
+    bp.some((b) => b.temp) ? `الحرارة: أعلى قراءة ${Math.max(...bp.map((b) => b.temp).filter(Boolean))}° آخر شهر.` : "",
     s.labs.length ? `التحاليل: ${s.labs.join("، ")}.` : "",
     notes.length ? `ملاحظات العائلة آخر شهر:\n- ${notes.map((n) => n.text).join("\n- ")}` : "",
   ].filter(Boolean).join("\n");

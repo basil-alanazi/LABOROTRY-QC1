@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ResponsiveContai
 import { api } from "./api";
 import Report from "./Report";
 import DoctorReport from "./DoctorReport";
-import { CONTEXTS, SLOTS, bpLevel, spo2Level, sinceMeal, dayKey, fmtDate, fmtShortDate, fmtTime, glucoseLevel } from "./dose";
+import { CONTEXTS, SLOTS, bpLevel, spo2Level, tempLevel, sinceMeal, dayKey, fmtDate, fmtShortDate, fmtTime, glucoseLevel } from "./dose";
 
 const RANGES = [
   { days: 7, label: "أسبوع" },
@@ -153,7 +153,7 @@ export default function Readings({ settings, readings, doses, changes, bp, notes
         <div className="card">
           <h3>القياسات الحيوية</h3>
           <table>
-            <thead><tr><th>التاريخ</th><th>الساعة</th><th>الضغط</th><th>النبض</th><th>الأكسجين</th><th className="no-print"></th></tr></thead>
+            <thead><tr><th>التاريخ</th><th>الساعة</th><th>الضغط</th><th>النبض</th><th>الأكسجين</th><th>الحرارة</th><th className="no-print"></th></tr></thead>
             <tbody>
               {bpShown.map((r) => (
                 <tr key={r.id}>
@@ -162,6 +162,7 @@ export default function Readings({ settings, readings, doses, changes, bp, notes
                   <td>{r.systolic ? <span className={`badge ${bpLevel(r, settings)}`}>{r.systolic}/{r.diastolic}</span> : "—"}</td>
                   <td>{r.pulse ?? "—"}</td>
                   <td>{r.spo2 ? <span className={`badge ${spo2Level(r.spo2)}`}>{r.spo2}%</span> : "—"}</td>
+                  <td>{r.temp ? <span className={`badge ${tempLevel(r.temp)}`}>{r.temp}°</span> : "—"}</td>
                   <td className="no-print"><button className="x" onClick={() => removeBp(r)} aria-label="حذف">×</button></td>
                 </tr>
               ))}

@@ -98,6 +98,24 @@ export function bpLevel(r, s) {
   return "ok";
 }
 
+// الجرد: كم باقي ويكفي كم يوم
+export function medSupply(m) {
+  if (m.stock === null || m.stock === undefined) return null;
+  const perDay = Number(m.per_dose || 1) * (m.times?.length || 0);
+  const days = perDay ? Math.floor(m.stock / perDay) : null;
+  const state = m.stock <= 0 ? "out" : days !== null && days <= (m.alert_days ?? 7) ? "low" : "ok";
+  return { stock: m.stock, unit: m.unit || "حبة", days, state };
+}
+
+// الحرارة: 37.8 وفوق حرارة، 39 وفوق عالية جدًا
+export function tempLevel(t) {
+  if (t == null) return "ok";
+  if (t >= 39 || t < 35) return "veryhigh";
+  if (t >= 37.8) return "high";
+  if (t < 36) return "below";
+  return "ok";
+}
+
 export function spo2Level(v) {
   if (v == null) return "ok";
   if (v < 90) return "veryhigh";

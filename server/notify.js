@@ -79,7 +79,8 @@ function baseMessage(kind, row, patient) {
     if (row.systolic) parts.push(`ضغط ${row.systolic}/${row.diastolic}`);
     if (row.pulse) parts.push(`نبض ${row.pulse}`);
     if (row.spo2) parts.push(`أكسجين ${row.spo2}%`);
-    const danger = (row.systolic && (row.systolic >= 180 || row.diastolic >= 120)) || (row.spo2 && row.spo2 < 90);
+    if (row.temp) parts.push(`حرارة ${row.temp}°`);
+    const danger = (row.systolic && (row.systolic >= 180 || row.diastolic >= 120)) || (row.spo2 && row.spo2 < 90) || (row.temp && (row.temp >= 39 || row.temp < 35));
     if (danger) return { alert: true, msg: { title: "⚠️ قياس خطير", body: `${parts.join(" · ")}. أعد القياس بعد 5 دقايق راحة، وإذا ما تحسن كلّموا الدكتور.`, tag: `bp-${row.id}`, url: "/#vitals", alert: true } };
     return { alert: false, msg: { title: "🩺 قياس جديد", body: parts.join(" · "), tag: `bp-${row.id}`, url: "/#vitals" } };
   }
@@ -164,6 +165,19 @@ async function patientReminders(db, p) {
   for (const [i, r] of reminders.entries()) {
     if (r.off || r.type !== "monthly" || r.day !== dom || !due(r.time)) continue;
     await send(`${today}:monthly:${i}:${r.time}`, { title: "📅 تذكير شهري", body: r.text, tag: `rem-monthly-${p.id}-${i}`, url: "/#appointments" });
+  }
+
+  // الجرد: تنبيه مرة باليوم إذا الدواء قرب يخلص أو خلص
+  for (const m of meds) {
+    if (m.stock === null || m.stock === undefined) continue;
+    const perDay = Number(m.per_dose || 1) * JSON.parse(m.times || "[]").length;
+    const days = perDay ? Math.floor(m.stock / perDay) : null;
+    const unit = m.unit || "حبة";
+    if (m.stock <= 0 && due("10:00")) {
+      await send(`${today}:stock-out:${m.id}`, { title: `⛔ ${m.name} خلص`, body: "اصرفوه من الصيدلية، وسجّلوا العلبة الجديدة في صفحة الأدوية.", tag: `stock-${m.id}`, url: "/#meds" });
+    } else if (days !== null && days <= (m.alert_days ?? 7) && due("10:00")) {
+      await send(`${today}:stock-low:${m.id}`, { title: `📦 ${m.name} قرب يخلص`, body: `باقي ${m.stock} ${unit}، يكفي ${days} يوم تقريبًا.`, tag: `stock-${m.id}`, url: "/#meds" }, false);
+    }
   }
 
   for (const m of meds) {
