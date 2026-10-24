@@ -7,7 +7,7 @@ const EMPTY = { name: "", dose: "", times: ["08:00"], notes: "", stock: "", per_
 const UNITS = ["حبة", "قطرة", "بخة", "إبرة", "كيس", "ملعقة", "مل"];
 const SUPPLY = { ok: "", low: "قرب يخلص", out: "خلص" };
 
-function MedForm({ initial, onSave, onCancel }) {
+function MedForm({ initial, onSave, onCancel, message }) {
   const [form, setForm] = useState(initial);
   const set = (k, v) => setForm({ ...form, [k]: v });
   const setTime = (i, v) => set("times", form.times.map((t, j) => (j === i ? v : t)));
@@ -56,6 +56,8 @@ function MedForm({ initial, onSave, onCancel }) {
         </div>
       </div>
       <button className="primary" onClick={() => onSave(form)}>احفظ</button>
+      {/* لو الحفظ ما زبط، السبب يطلع هنا */}
+      {message && <div className="alert danger">{message}</div>}
       <button className="link" onClick={onCancel}>إلغاء</button>
     </div>
   );
@@ -68,6 +70,7 @@ export default function Meds({ medications, medDoses, onChanged }) {
   const takenToday = medDoses.filter((d) => dayKey(d.created_at) === today);
 
   async function save(form) {
+    setMessage("");
     try {
       if (form.id) await api.updateMedication(form.id, { ...form, active: true });
       else await api.addMedication(form);
@@ -112,7 +115,7 @@ export default function Meds({ medications, medDoses, onChanged }) {
     onChanged();
   }
 
-  if (editing) return <section><MedForm initial={editing} onSave={save} onCancel={() => setEditing(null)} /></section>;
+  if (editing) return <section><MedForm initial={editing} onSave={save} onCancel={() => { setEditing(null); setMessage(""); }} message={message} /></section>;
 
   const active = medications.filter((m) => m.active);
   const stopped = medications.filter((m) => !m.active);
