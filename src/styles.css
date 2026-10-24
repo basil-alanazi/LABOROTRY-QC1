@@ -496,3 +496,5 @@ input:focus, textarea:focus { box-shadow: 0 0 0 3px rgb(199 154 91 / .22); }
 /* تصوير علبة الدواء */
 .med-scan { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--brand); margin: 6px 0; }
 .add-med-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rem-monthly { grid-column: 1 / -1; display: grid; gap: 4px; padding: 10px 12px; margin-top: 6px; border-radius: 14px; background: var(--soft); }
+.rem-monthly input { margin: 0 0 4px; }

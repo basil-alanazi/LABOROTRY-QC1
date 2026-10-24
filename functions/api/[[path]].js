@@ -110,6 +110,12 @@ function parseReminders(list) {
     if (!TIME_RE.test(r.time)) bad("وقت تذكير غير صحيح");
     if (r.type === "sugar" && CONTEXTS.includes(r.context)) return { time: r.time, type: "sugar", context: r.context, off: !!r.off };
     if (r.type === "dose" && SLOTS[r.slot]) return { time: r.time, type: "dose", slot: r.slot, off: !!r.off };
+    // تذكير شهري بيوم ثابت (1–28 عشان يجي كل شهر)
+    if (r.type === "monthly") {
+      const day = Number(r.day);
+      if (!(Number.isInteger(day) && day >= 1 && day <= 28)) bad("يوم التذكير الشهري لازم بين 1 و28");
+      return { time: r.time, type: "monthly", day, text: text(r.text, 120) || bad("اكتب نص التذكير الشهري"), off: !!r.off };
+    }
     return bad("تذكير غير صحيح");
   }).sort((a, b) => (a.time < b.time ? -1 : 1)));
 }

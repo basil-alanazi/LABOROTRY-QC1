@@ -159,6 +159,13 @@ async function patientReminders(db, p) {
     }
   }
 
+  // التذكيرات الشهرية (مثل: احجزوا موعد إبرة العين)
+  const dom = Number(today.slice(8, 10));
+  for (const [i, r] of reminders.entries()) {
+    if (r.off || r.type !== "monthly" || r.day !== dom || !due(r.time)) continue;
+    await send(`${today}:monthly:${i}:${r.time}`, { title: "📅 تذكير شهري", body: r.text, tag: `rem-monthly-${p.id}-${i}`, url: "/#appointments" });
+  }
+
   for (const m of meds) {
     for (const t of JSON.parse(m.times || "[]")) {
       const done = medDoses.some((x) => x.medication_id === m.id && x.time_slot === t && dayKey(new Date(x.created_at)) === today);
