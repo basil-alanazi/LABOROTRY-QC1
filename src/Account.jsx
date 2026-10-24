@@ -4,7 +4,7 @@ import PatientForm from "./PatientForm";
 import InstallCard from "./InstallCard";
 
 // العائلة: المرضى، وأفراد العائلة، والحساب، ولوحة المدير
-export default function Account({ me, currentPatient, onPatientsChanged, onSelectPatient, onLogout }) {
+export default function Account({ me, currentPatient, onPatientsChanged, onSelectPatient, onLogout, onHelp }) {
   const [editing, setEditing] = useState(null); // مريض للتعديل، أو "new"
   const [members, setMembers] = useState([]);
   const [member, setMember] = useState({ display_name: "", username: "", password: "" });
@@ -79,6 +79,8 @@ export default function Account({ me, currentPatient, onPatientsChanged, onSelec
       </div>
 
       <InstallCard />
+
+      <button className="card help-link" onClick={onHelp}>🎬 طريقة الاستخدام <small>فيديو يشرح التطبيق</small></button>
 
       <div className="card">
         <h3>🔑 حسابي</h3>

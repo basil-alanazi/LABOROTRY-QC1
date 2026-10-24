@@ -546,3 +546,20 @@ body.doc-open { overflow: hidden; }
   .doc section, .doc-table tr { break-inside: avoid; }
   .doc * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* طريقة الاستخدام */
+.help-video { padding: 10px; }
+.help-video video { width: 100%; aspect-ratio: 16 / 9; border-radius: 16px; background: #000; display: block; }
+.help-video .hint { margin: 8px 4px 2px; }
+.help-step { display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: start; padding: 12px 4px; margin: 0; border: 0; border-bottom: 1px solid var(--line); background: none; color: inherit; font: inherit; }
+.help-step:last-child { border-bottom: 0; }
+.help-step > span { font-size: 22px; line-height: 1.3; }
+.help-step b { display: block; font-size: 15px; }
+.help-step small { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.hn-help { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 14px; padding: 14px 16px; border-radius: 20px; background: var(--card); border: 1px solid var(--line); text-align: start; color: var(--text); }
+.hn-help > span { font-size: 26px; }
+.hn-help div { flex: 1; }
+.hn-help b { display: block; font-size: 15px; }
+.hn-help small { color: var(--muted); font-size: 12.5px; }
+.help-link { display: block; width: 100%; text-align: start; font-weight: 700; font-size: 16px; color: var(--text); }
+.help-link small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }

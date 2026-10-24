@@ -9,6 +9,7 @@ import Appointments from "./Appointments";
 import Notes from "./Notes";
 import Diet from "./Diet";
 import Advice from "./Advice";
+import Help from "./Help";
 import Labs from "./Labs";
 import Readings from "./Readings";
 import Settings from "./Settings";
@@ -31,6 +32,7 @@ export const PAGES = {
   settings: "خطة العلاج والأهداف",
   notifications: "الإشعارات والتذكيرات",
   account: "العائلة والحساب",
+  help: "طريقة الاستخدام",
 };
 
 // الصفحة من الرابط (مثل /#sugar لما تضغط على إشعار)
@@ -177,6 +179,7 @@ export default function App() {
         {page === "diet" && <Diet {...props} patient={patient} />}
         {page === "advice" && <Advice {...props} patient={patient} />}
         {page === "labs" && <Labs {...props} />}
+        {page === "help" && <Help go={go} />}
         {page === "record" && <Readings {...props} />}
         {page === "notifications" && <Notifications settings={data.settings} onChanged={reload} />}
         {page === "settings" && <Settings settings={data.settings} onSaved={async () => { await reload(); await loadMe(); }} />}
@@ -187,6 +190,7 @@ export default function App() {
             onPatientsChanged={loadMe}
             onSelectPatient={(id) => { selectPatient(id); go("home"); }}
             onLogout={logout}
+            onHelp={() => go("help")}
           />
         )}
       </main>

@@ -173,6 +173,9 @@ export default function HomeNew(props) {
         </div>
         <h3 className="hn-h">الأقسام</h3>
         {sections}
+        <button className="hn-help" onClick={() => go("help")}>
+          <span>🎬</span><div><b>طريقة الاستخدام</b><small>فيديو يشرح التطبيق خطوة خطوة</small></div><ChevronLeft size={18} />
+        </button>
       </div>
   );
 }
