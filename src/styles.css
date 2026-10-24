@@ -498,3 +498,51 @@ input:focus, textarea:focus { box-shadow: 0 0 0 3px rgb(199 154 91 / .22); }
 .add-med-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .rem-monthly { grid-column: 1 / -1; display: grid; gap: 4px; padding: 10px 12px; margin-top: 6px; border-radius: 14px; background: var(--soft); }
 .rem-monthly input { margin: 0 0 4px; }
+
+/* ===== تقرير الدكتور (A4) ===== */
+.doc-btn { margin: 4px 0 12px; }
+body.doc-open { overflow: hidden; }
+.doc-overlay { position: fixed; inset: 0; z-index: 100; background: #E9E2D6; overflow: auto; padding: 0 0 40px; }
+.doc-toolbar { position: sticky; top: 0; z-index: 1; display: flex; gap: 8px; padding: 10px 12px; background: rgb(246 238 227 / .95); border-bottom: 1px solid var(--line); }
+.doc-toolbar button { margin: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.doc-toolbar .primary { flex: 1; }
+.doc { background: #fff; color: #1d1d1d; max-width: 210mm; margin: 12px auto; padding: 14mm 12mm; font-size: 12px; line-height: 1.5; box-shadow: 0 6px 20px -10px rgb(0 0 0 / .3); }
+.doc h1 { font-size: 19px; margin: 0; }
+.doc h2 { font-size: 14px; margin: 14px 0 6px; padding-bottom: 3px; border-bottom: 2px solid #A0703E; color: #5a3b1c; }
+.doc-head { display: flex; gap: 12px; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+.doc-head img { border-radius: 12px; }
+.doc-head p { margin: 2px 0 0; color: #555; }
+.doc-patient { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; }
+.doc-patient span { color: #666; margin-inline-end: 6px; }
+.doc-table { width: 100%; border-collapse: collapse; }
+.doc-table th, .doc-table td { border: 1px solid #cfcfcf; padding: 4px 5px; text-align: center; vertical-align: top; }
+.doc-table thead th { background: #F3E9DB; font-size: 11px; }
+.doc-meds th { width: 28%; text-align: start; background: #FAF5EE; font-weight: 700; }
+.doc-meds td { text-align: start; }
+.doc-note { margin: 6px 0 0; color: #333; }
+.doc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.doc-stats div { border: 1px solid #ddd; border-radius: 8px; padding: 6px; text-align: center; }
+.doc-stats b { display: block; font-size: 16px; }
+.doc-stats span { font-size: 10px; color: #555; }
+.doc-sugar { font-size: 11px; }
+.doc-sugar td .v { display: block; }
+.doc-day { white-space: nowrap; font-weight: 600; }
+.doc .v.high { color: #B45309; font-weight: 700; }
+.doc .v.veryhigh { color: #B91C1C; font-weight: 800; }
+.doc .v.low, .doc .v.below { color: #6D28D9; font-weight: 800; }
+.doc-legend { color: #666; font-size: 10px; margin: 4px 0 0; }
+.doc-notes { margin: 0; padding-inline-start: 18px; }
+.doc-foot { margin-top: 16px; padding-top: 6px; border-top: 1px solid #ddd; color: #777; font-size: 10px; text-align: center; }
+
+@media print {
+  @page { size: A4; margin: 10mm; }
+  body.doc-open { background: #fff !important; overflow: visible; }
+  body.doc-open::before { display: none; }
+  body.doc-open #root > .app > *:not(main), body.doc-open main > section > *:not(.doc-overlay) { display: none !important; }
+  body.doc-open .r-nav, body.doc-open .doc-toolbar { display: none !important; }
+  body.doc-open .app { padding: 0 !important; max-width: none; }
+  .doc-overlay { position: static; background: #fff; overflow: visible; padding: 0; }
+  .doc { margin: 0; padding: 0 2px; max-width: none; box-shadow: none; }
+  .doc section, .doc-table tr { break-inside: avoid; }
+  .doc * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

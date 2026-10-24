@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ResponsiveContainer, CartesianGrid } from "recharts";
 import { api } from "./api";
 import Report from "./Report";
+import DoctorReport from "./DoctorReport";
 import { CONTEXTS, SLOTS, bpLevel, spo2Level, sinceMeal, dayKey, fmtDate, fmtShortDate, fmtTime, glucoseLevel } from "./dose";
 
 const RANGES = [
@@ -10,9 +11,10 @@ const RANGES = [
   { days: 30, label: "شهر" },
 ];
 
-export default function Readings({ settings, readings, doses, changes, bp, notes, meals, onChanged }) {
+export default function Readings({ settings, readings, doses, changes, bp, notes, meals, labs = [], onChanged }) {
   const [days, setDays] = useState(7);
   const [view, setView] = useState("report");
+  const [doc, setDoc] = useState(false);
   const since = Date.now() - days * 864e5;
 
   const shown = useMemo(() => readings.filter((r) => new Date(r.created_at).getTime() >= since), [readings, since]);
@@ -63,8 +65,11 @@ export default function Readings({ settings, readings, doses, changes, bp, notes
         {RANGES.map((r) => (
           <button key={r.days} className={days === r.days ? "chip on" : "chip"} onClick={() => setDays(r.days)}>{r.label}</button>
         ))}
-        <button className="chip" onClick={() => window.print()}>طباعة للدكتور</button>
       </div>
+      <button className="primary doc-btn no-print" onClick={() => setDoc(true)} disabled={!settings}>🖨️ تقرير للدكتور (طباعة أو PDF)</button>
+      {doc && settings && (
+        <DoctorReport patient={settings} readings={readings} doses={doses} bp={bp} notes={notes} labs={labs} days={days} onClose={() => setDoc(false)} />
+      )}
       <div className="segmented no-print">
         <button className={view === "report" ? "on" : ""} onClick={() => setView("report")}>التقرير اليومي</button>
         <button className={view === "sheet" ? "on" : ""} onClick={() => setView("sheet")}>جدول الورقة</button>
