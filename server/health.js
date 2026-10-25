@@ -186,7 +186,7 @@ function mockAdvice() {
 
 // ===== صورة لكل وجبة في الحمية =====
 // الصورة تنحفظ حسب وصف الأكلة، فنفس الأكلة ما تتولد مرتين
-const IMAGE_MODEL = "@cf/black-forest-labs/flux-1-schnell";
+export const IMAGE_MODEL = "@cf/black-forest-labs/flux-1-schnell";
 
 async function sha256(s) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -203,7 +203,7 @@ async function englishDish(env, items) {
 }
 
 // الموديل يرجّع base64، وأحيانًا ملف (stream)
-async function toBase64(res) {
+export async function toBase64(res) {
   if (typeof res?.image === "string" && res.image) return res.image;
   const body = res instanceof ReadableStream ? res : res?.image instanceof ReadableStream ? res.image : null;
   if (!body) throw new Error(`ما طلعت صورة: ${JSON.stringify(res)?.slice(0, 200)}`);

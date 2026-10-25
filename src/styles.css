@@ -581,3 +581,8 @@ body.doc-open { overflow: hidden; }
 .med-days { margin: 6px 0 0; font-size: 14px; color: var(--brand-2); font-weight: 600; }
 .med-times.not-today { opacity: .45; }
 .chips.weekdays { margin-top: 6px; }
+
+/* توليد صور الفيديوهات التعليمية */
+.edu-gen { margin-top: 12px; }
+.edu-bar { height: 10px; background: var(--cream); border-radius: 999px; overflow: hidden; margin: 10px 0; }
+.edu-bar span { display: block; height: 100%; background: var(--brand); transition: width .3s; }

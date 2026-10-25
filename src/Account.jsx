@@ -120,9 +120,43 @@ export default function Account({ me, currentPatient, onPatientsChanged, onSelec
             <input dir="ltr" value={fam.password} onChange={(e) => setFam({ ...fam, password: e.target.value })} />
             <button className="primary" onClick={() => act(async () => { const r = await api.adminAddFamily(fam); setFam({ name: "", username: "", password: "", display_name: "" }); loadFamilies(); return r; }, "انفتح حساب العائلة ✓ — عطهم اليوزر والباسوورد")}>افتح الحساب</button>
           </details>
+          <EduImagesCard />
         </div>
       )}
     </section>
+  );
+}
+
+// صور الفيديوهات التعليمية: تنولد وحدة وحدة بذكاء الموقع (للمدير بس)
+function EduImagesCard() {
+  const [list, setList] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const load = () => api.eduImages().then(setList).catch((e) => setErr(e.message));
+  useEffect(() => { load(); }, []);
+  const run = async (all) => {
+    setBusy(true); setErr("");
+    const todo = list.filter((x) => all || !x.done);
+    for (const x of todo) {
+      try {
+        await api.eduImage(x.id);
+        setList((l) => l.map((y) => (y.id === x.id ? { ...y, done: true } : y)));
+      } catch (e) { setErr(`${x.id}: ${e.message}`); }
+    }
+    setBusy(false);
+  };
+  if (!list) return err ? <div className="alert danger">{err}</div> : null;
+  const done = list.filter((x) => x.done).length;
+  return (
+    <details className="edu-gen">
+      <summary>🎬 صور الفيديوهات التعليمية ({done}/{list.length})</summary>
+      <p className="muted">صور واقعية بذكاء الموقع للفيديوهات التعليمية. ما تطلع لأحد في الموقع. خل الصفحة مفتوحة لين يخلص.</p>
+      <div className="edu-bar"><span style={{ width: `${(done / list.length) * 100}%` }} /></div>
+      {err && <div className="alert danger">{err}</div>}
+      <button className="primary" disabled={busy || done === list.length} onClick={() => run(false)}>
+        {busy ? `جاري التوليد… ${done}/${list.length}` : done === list.length ? "كل الصور جاهزة ✓" : "ولّد الصور"}
+      </button>
+    </details>
   );
 }
 

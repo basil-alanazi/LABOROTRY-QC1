@@ -8,6 +8,7 @@ import {
 } from "../../server/auth.js";
 import { CONDITIONS, computeTargets, generateDiet } from "../../server/diet.js";
 import { analyzeMeal, generateAdvice, mealImage, scanMedicine } from "../../server/health.js";
+import { eduImage, eduStatus } from "../../server/edu.js";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", ...headers } });
@@ -295,6 +296,9 @@ export async function onRequest({ request, env, params, waitUntil }) {
           .bind(fam.id, username, text(body.display_name, 40) || username, h.salt, h.hash, me.id).run();
         return json({ id: fam.id, name: fam.name, owner: username });
       }
+      // صور الفيديوهات التعليمية: الحالة، وتوليد صورة وحدة كل طلب
+      if (b === "edu-images" && method === "GET") return json(await eduStatus(db));
+      if (b === "edu-images" && c && method === "POST") return json(await eduImage(env, db, c));
     }
 
     // ===== المرضى =====
