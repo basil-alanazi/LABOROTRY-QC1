@@ -52,7 +52,7 @@ export async function currentUser(db, request) {
   const token = readToken(request);
   if (!token) return null;
   const row = await db.prepare(
-    `SELECT u.id, u.family_id, u.username, u.display_name, u.role, u.is_admin, f.name AS family_name
+    `SELECT u.id, u.family_id, u.username, u.display_name, u.role, u.is_admin, u.is_doctor, f.name AS family_name
      FROM sessions s JOIN users u ON u.id = s.user_id JOIN families f ON f.id = u.family_id
      WHERE s.token_hash = ? AND s.expires_at > ?`,
   ).bind(await sha256(token), new Date().toISOString()).first();

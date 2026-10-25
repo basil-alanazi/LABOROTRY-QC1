@@ -19,8 +19,18 @@ CREATE TABLE IF NOT EXISTS users (
   pass_hash TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'member',
   is_admin INTEGER NOT NULL DEFAULT 0,
-  created_by INTEGER
+  created_by INTEGER,
+  is_doctor INTEGER NOT NULL DEFAULT 0  -- دكتور يتابع مرضى من عائلات ثانية
 );
+
+-- العائلات اللي يتابعها كل دكتور (الدكتور يفتحها، أو العائلة تشاركه)
+CREATE TABLE IF NOT EXISTS doctor_families (
+  doctor_id INTEGER NOT NULL REFERENCES users(id),
+  family_id INTEGER NOT NULL REFERENCES families(id),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  PRIMARY KEY (doctor_id, family_id)
+);
+CREATE INDEX IF NOT EXISTS doctor_families_f_idx ON doctor_families (family_id);
 
 -- الجلسات: نخزن hash التوكن بس، والتوكن نفسه في كوكي HttpOnly
 CREATE TABLE IF NOT EXISTS sessions (

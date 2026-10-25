@@ -9,6 +9,7 @@ import {
 import { CONDITIONS, computeTargets, generateDiet } from "../../server/diet.js";
 import { analyzeMeal, generateAdvice, mealImage, scanMedicine } from "../../server/health.js";
 import { eduImage, eduStatus } from "../../server/edu.js";
+import { access, patientSummary } from "../../server/doctor.js";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", ...headers } });
@@ -170,7 +171,7 @@ function parseProfile(body) {
   };
 }
 
-const publicUser = (u) => ({ id: u.id, username: u.username, display_name: u.display_name, role: u.role, is_admin: !!u.is_admin });
+const publicUser = (u) => ({ id: u.id, username: u.username, display_name: u.display_name, role: u.role, is_admin: !!u.is_admin, is_doctor: !!u.is_doctor });
 
 export async function onRequest({ request, env, params, waitUntil }) {
   const db = env.DB;
@@ -222,7 +223,10 @@ export async function onRequest({ request, env, params, waitUntil }) {
     }
 
     if (a === "auth" && b === "me" && method === "GET") {
-      const patients = (await db.prepare("SELECT * FROM patients WHERE family_id = ? AND archived = 0 ORDER BY id").bind(me.family_id).all()).results;
+      const patients = (await db.prepare(
+        `SELECT p.*, f.name AS family_name FROM patients p JOIN families f ON f.id = p.family_id
+         WHERE p.archived = 0 AND ${access("p.")} ORDER BY p.id`,
+      ).bind(me.family_id, me.id).all()).results;
       return json({ user: publicUser(me), family: { id: me.family_id, name: me.family_name }, patients });
     }
 
@@ -270,6 +274,73 @@ export async function onRequest({ request, env, params, waitUntil }) {
       }
     }
 
+    // ===== مشاركة العائلة مع دكتور (صاحب الحساب يقرر) =====
+    if (a === "family" && b === "doctors") {
+      if (method === "GET") {
+        return json((await db.prepare(
+          `SELECT u.id, u.username, u.display_name, df.created_at FROM doctor_families df JOIN users u ON u.id = df.doctor_id
+           WHERE df.family_id = ? ORDER BY df.created_at`,
+        ).bind(me.family_id).all()).results);
+      }
+      if (me.role !== "owner") bad("بس صاحب الحساب يقدر يشارك مع دكتور", 403);
+      if (method === "POST") {
+        const username = text(body.username, 30) || bad("اكتب يوزر الدكتور");
+        const doc = await db.prepare("SELECT id, username, display_name FROM users WHERE username = ? AND is_doctor = 1").bind(username).first();
+        if (!doc) bad("ما فيه دكتور بهاليوزر");
+        await db.prepare("INSERT OR IGNORE INTO doctor_families (doctor_id, family_id) VALUES (?, ?)").bind(doc.id, me.family_id).run();
+        return json(doc);
+      }
+      if (method === "DELETE" && c) {
+        await db.prepare("DELETE FROM doctor_families WHERE doctor_id = ? AND family_id = ?").bind(Number(c), me.family_id).run();
+        return json({ ok: true });
+      }
+    }
+
+    // ===== الدكتور: مرضاه، ويفتح حسابات لمرضى جدد =====
+    if (a === "doctor") {
+      if (!me.is_doctor) bad("للدكاترة بس", 403);
+      if (b === "patients" && method === "GET") {
+        const rows = (await db.prepare(
+          `SELECT p.*, f.name AS family_name,
+            (SELECT username FROM users u WHERE u.family_id = p.family_id AND u.role = 'owner' ORDER BY u.id LIMIT 1) AS owner
+           FROM patients p JOIN families f ON f.id = p.family_id
+           WHERE p.archived = 0 AND p.family_id IN (SELECT family_id FROM doctor_families WHERE doctor_id = ?) ORDER BY p.name`,
+        ).bind(me.id).all()).results;
+        const out = await Promise.all(rows.map(async (p) => ({
+          id: p.id, name: p.name, family_name: p.family_name, owner: p.owner, sex: p.sex, birth_year: p.birth_year,
+          conditions: p.conditions, uses_insulin: p.uses_insulin,
+          plan: { humalog_breakfast: p.humalog_breakfast, humalog_lunch: p.humalog_lunch, humalog_dinner: p.humalog_dinner, tresiba_dose: p.tresiba_dose },
+          summary: await patientSummary(db, p),
+        })));
+        return json(out.sort((x, y) => y.summary.score - x.summary.score));
+      }
+      if (b === "patients" && method === "POST") {
+        const username = text(body.username, 30) || bad("اكتب يوزر المريض");
+        if (!USERNAME_RE.test(username)) bad("اليوزر حروف وأرقام بس، من 3 إلى 30");
+        const password = String(body.password || "");
+        if (password.length < 4) bad("الباسوورد لازم 4 حروف أو أكثر");
+        if (await db.prepare("SELECT 1 FROM users WHERE username = ?").bind(username).first()) bad("هاليوزر مأخوذ، اختر غيره");
+        const p = parseProfile(body);
+        const plan = {};
+        for (const k of ["humalog_breakfast", "humalog_lunch", "humalog_dinner", "tresiba_dose"]) {
+          const n = Number(body[k] || 0);
+          if (!(n >= 0 && n <= 100)) bad("جرعة الإنسولين غير صحيحة");
+          plan[k] = p.uses_insulin ? n : 0;
+        }
+        const fam = await insert("INSERT INTO families (name) VALUES (?)", text(body.family_name, 60) || `عائلة ${p.name}`);
+        const h = await hashPassword(password);
+        const cols = [...Object.keys(p), ...Object.keys(plan)];
+        await db.batch([
+          db.prepare("INSERT INTO users (family_id, username, display_name, pass_salt, pass_hash, role, created_by) VALUES (?, ?, ?, ?, ?, 'owner', ?)")
+            .bind(fam.id, username, text(body.display_name, 40) || p.name, h.salt, h.hash, me.id),
+          db.prepare(`INSERT INTO patients (family_id, ${cols.join(", ")}, reminders) VALUES (?, ${placeholders(cols)}, ?)`)
+            .bind(fam.id, ...Object.values(p), ...Object.values(plan), defaultReminders(JSON.parse(p.conditions), p.uses_insulin)),
+          db.prepare("INSERT INTO doctor_families (doctor_id, family_id) VALUES (?, ?)").bind(me.id, fam.id),
+        ]);
+        return json({ family_id: fam.id, username });
+      }
+    }
+
     // ===== مدير الموقع: حسابات العائلات =====
     if (a === "admin") {
       if (!me.is_admin) bad("للمدير بس", 403);
@@ -296,6 +367,26 @@ export async function onRequest({ request, env, params, waitUntil }) {
           .bind(fam.id, username, text(body.display_name, 40) || username, h.salt, h.hash, me.id).run();
         return json({ id: fam.id, name: fam.name, owner: username });
       }
+      // حسابات الدكاترة
+      if (b === "doctors" && method === "GET") {
+        return json((await db.prepare(
+          `SELECT u.id, u.username, u.display_name, u.created_at, (SELECT count(*) FROM doctor_families df WHERE df.doctor_id = u.id) AS families
+           FROM users u WHERE u.is_doctor = 1 ORDER BY u.id`,
+        ).all()).results);
+      }
+      if (b === "doctors" && method === "POST") {
+        const name = text(body.display_name, 40) || bad("اكتب اسم الدكتور");
+        const username = text(body.username, 30) || bad("اكتب يوزر الدكتور");
+        if (!USERNAME_RE.test(username)) bad("اليوزر حروف وأرقام بس، من 3 إلى 30");
+        const password = String(body.password || "");
+        if (password.length < 6) bad("باسوورد الدكتور لازم 6 حروف أو أكثر");
+        if (await db.prepare("SELECT 1 FROM users WHERE username = ?").bind(username).first()) bad("هاليوزر مأخوذ، اختر غيره");
+        const fam = await insert("INSERT INTO families (name) VALUES (?)", text(body.clinic, 60) || `عيادة ${name}`);
+        const h = await hashPassword(password);
+        await db.prepare("INSERT INTO users (family_id, username, display_name, pass_salt, pass_hash, role, is_doctor, created_by) VALUES (?, ?, ?, ?, ?, 'owner', 1, ?)")
+          .bind(fam.id, username, name, h.salt, h.hash, me.id).run();
+        return json({ username, display_name: name });
+      }
       // صور الفيديوهات التعليمية: الحالة، وتوليد صورة وحدة كل طلب
       if (b === "edu-images" && method === "GET") return json(await eduStatus(db));
       if (b === "edu-images" && c && method === "POST") return json(await eduImage(env, db, c));
@@ -318,7 +409,7 @@ export async function onRequest({ request, env, params, waitUntil }) {
         return json(row);
       }
       if (method === "PUT" && b) {
-        const existing = await db.prepare("SELECT * FROM patients WHERE id = ? AND family_id = ?").bind(Number(b), me.family_id).first();
+        const existing = await db.prepare(`SELECT * FROM patients WHERE id = ? AND ${access()}`).bind(Number(b), me.family_id, me.id).first();
         if (!existing) bad("المريض مو موجود", 404);
         const p = parseProfile(body);
         const sets = Object.keys(p).map((k) => `${k} = ?`).join(", ");
@@ -365,7 +456,7 @@ export async function onRequest({ request, env, params, waitUntil }) {
 
     // ===== بيانات مريض: /api/p/:pid/... =====
     if (a === "p" && b) {
-      const patient = await db.prepare("SELECT * FROM patients WHERE id = ? AND family_id = ? AND archived = 0").bind(Number(b), me.family_id).first();
+      const patient = await db.prepare(`SELECT * FROM patients WHERE id = ? AND archived = 0 AND ${access()}`).bind(Number(b), me.family_id, me.id).first();
       if (!patient) bad("المريض مو موجود", 404);
       return await patientRoute(c, d, patient, e);
     }
@@ -587,6 +678,11 @@ export async function onRequest({ request, env, params, waitUntil }) {
             .bind(patient.tresiba_dose, values.tresiba_dose, text(body.reason, 200) || "تعديل يدوي", pid));
         }
         await db.batch(stmts);
+        const changed = ["humalog_breakfast", "humalog_lunch", "humalog_dinner", "tresiba_dose"].filter((k) => values[k] !== Number(patient[k]));
+        if (me.is_doctor && patient.family_id !== me.family_id && changed.length) {
+          const plan = `Humalog ${values.humalog_breakfast} / ${values.humalog_lunch} / ${values.humalog_dinner} · Tresiba ${values.tresiba_dose}`;
+          waitUntil(broadcast(db, patient.family_id, { title: `🩺 ${me.display_name} عدّل جرعات الإنسولين`, body: `${patient.name} · الجرعات الجديدة: ${plan}`, tag: `plan-${pid}`, url: "/#settings" }, { alert: true }).catch(() => {}));
+        }
         return json(await db.prepare("SELECT * FROM patients WHERE id = ?").bind(pid).first());
       }
 

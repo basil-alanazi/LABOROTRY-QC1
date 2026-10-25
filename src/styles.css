@@ -591,3 +591,30 @@ body.doc-open { overflow: hidden; }
 .edu-gen { margin-top: 12px; }
 .edu-bar { height: 10px; background: var(--cream); border-radius: 999px; overflow: hidden; margin: 10px 0; }
 .edu-bar span { display: block; height: 100%; background: var(--brand); transition: width .3s; }
+
+/* حساب الدكتور */
+.dh-head { display: flex; align-items: center; gap: 12px; padding: 18px 4px 10px; }
+.dh-head img { border-radius: 14px; }
+.dh-head h1 { margin: 0; font-size: 1.25rem; }
+.dh-head span { color: var(--muted, #8A7765); font-size: .85rem; }
+.dh-head > div { flex: 1; min-width: 0; }
+.dh-acc { width: auto; padding: 8px 14px; }
+.dh-search { margin-bottom: 12px; }
+.dh-card h3 { margin: 0; }
+.dh-card h3 small { font-weight: 500; color: var(--muted, #8A7765); }
+.dh-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.dh-last { text-align: left; font-size: .75rem; }
+.dh-flags { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 2px; }
+.dh-flag { font-size: .8rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #FBF0DA; color: #7A5A12; }
+.dh-flag.danger { background: #FDE8EA; color: #A3172A; }
+.dh-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 6px; }
+.dh-stats div { background: var(--cream); border-radius: 12px; padding: 8px 6px; text-align: center; }
+.dh-stats b { display: block; font-size: 1.1rem; }
+.dh-stats span { font-size: .72rem; color: var(--muted, #8A7765); }
+.dh-stats .ok { color: #2F7D4F; } .dh-stats .warn { color: #B45309; } .dh-stats .bad { color: #B91C1C; }
+.dh-plan, .dh-missed { font-size: .85rem; margin: 6px 0 0; }
+.dh-missed { color: #A3172A; }
+.dh-actions { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 8px; margin-top: 12px; }
+.dh-actions button { min-width: 0; padding-inline: 6px; }
+.dh-note { font-size: .78rem; text-align: center; }
+.dh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

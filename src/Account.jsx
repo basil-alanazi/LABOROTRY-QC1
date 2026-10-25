@@ -38,12 +38,24 @@ export default function Account({ me, currentPatient, onPatientsChanged, onSelec
     );
   }
 
+  const doctor = me.user.is_doctor;
   const canRemove = (m) => m.id !== me.user.id && m.role !== "owner" && (me.user.role === "owner" || m.created_by === me.user.id);
 
   return (
     <section>
       {message && <div className="alert info">{message}</div>}
 
+      {doctor && currentPatient && (
+        <div className="card">
+          <h3>🩺 المريض المفتوح</h3>
+          <div className="patient-row current">
+            <span className="patient-pick"><span className="avatar">{currentPatient.name.slice(0, 1)}</span><span>{currentPatient.name}</span><small className="muted">{currentPatient.family_name}</small></span>
+            <button className="link small" onClick={() => setEditing(currentPatient)}>تعديل الملف</button>
+          </div>
+        </div>
+      )}
+
+      {!doctor && <>
       <div className="card">
         <h3>👨‍👩‍👧 المرضى في عائلة {me.family.name}</h3>
         {me.patients.map((p) => (
@@ -78,6 +90,9 @@ export default function Account({ me, currentPatient, onPatientsChanged, onSelec
           <button className="primary" onClick={() => act(async () => { await api.addMember(member); setMember({ display_name: "", username: "", password: "" }); loadMembers(); }, "انضاف ✓ — عطه اليوزر والباسوورد")}>أضف</button>
         </details>
       </div>
+
+      <ShareDoctorCard owner={me.user.role === "owner"} />
+      </>}
 
       <FontSizeCard />
 
@@ -120,10 +135,77 @@ export default function Account({ me, currentPatient, onPatientsChanged, onSelec
             <input dir="ltr" value={fam.password} onChange={(e) => setFam({ ...fam, password: e.target.value })} />
             <button className="primary" onClick={() => act(async () => { const r = await api.adminAddFamily(fam); setFam({ name: "", username: "", password: "", display_name: "" }); loadFamilies(); return r; }, "انفتح حساب العائلة ✓ — عطهم اليوزر والباسوورد")}>افتح الحساب</button>
           </details>
+          <DoctorsAdmin />
           <EduImagesCard />
         </div>
       )}
     </section>
+  );
+}
+
+// مشاركة العائلة مع الدكتور: يشوف تقارير المرضى ويعدّل الجرعات
+function ShareDoctorCard({ owner }) {
+  const [list, setList] = useState([]);
+  const [username, setUsername] = useState("");
+  const [msg, setMsg] = useState("");
+  const load = () => api.familyDoctors().then(setList).catch(() => {});
+  useEffect(() => { load(); }, []);
+  const run = async (fn, ok) => { setMsg(""); try { await fn(); setMsg(ok); load(); } catch (e) { setMsg("⚠️ " + e.message); } };
+  if (!owner && !list.length) return null;
+  return (
+    <div className="card">
+      <h3>🩺 الدكتور المتابع</h3>
+      <p className="muted">الدكتور اللي تشاركونه يشوف تقارير السكر والضغط والتزام الأدوية، ويقدر يعدّل جرعات الإنسولين، ويوصلكم إشعار إذا عدّلها.</p>
+      {list.map((d) => (
+        <div key={d.id} className="row-between member">
+          <span>{d.display_name} <small className="muted" dir="ltr">@{d.username}</small></span>
+          {owner && <button className="link small danger-link" onClick={() => confirm(`توقف المشاركة مع ${d.display_name}؟`) && run(() => api.unshareDoctor(d.id), "وقفت المشاركة")}>إيقاف</button>}
+        </div>
+      ))}
+      {owner && (
+        <details>
+          <summary>+ شارك مع دكتور</summary>
+          <label>يوزر الدكتور (يعطيك إياه الدكتور)</label>
+          <input dir="ltr" autoCapitalize="none" value={username} onChange={(e) => setUsername(e.target.value)} />
+          <button className="primary" disabled={!username} onClick={() => run(async () => { await api.shareWithDoctor(username); setUsername(""); }, "تمت المشاركة ✓")}>شارك</button>
+        </details>
+      )}
+      {msg && <div className={msg.startsWith("⚠️") ? "alert danger" : "alert info"}>{msg}</div>}
+    </div>
+  );
+}
+
+// المدير: حسابات الدكاترة
+function DoctorsAdmin() {
+  const [list, setList] = useState([]);
+  const [f, setF] = useState({ display_name: "", clinic: "", username: "", password: "" });
+  const [msg, setMsg] = useState("");
+  const load = () => api.adminDoctors().then(setList).catch(() => {});
+  useEffect(() => { load(); }, []);
+  async function add() {
+    setMsg("");
+    try { await api.adminAddDoctor(f); setF({ display_name: "", clinic: "", username: "", password: "" }); setMsg("انفتح حساب الدكتور ✓ — عطه اليوزر والباسوورد"); load(); } catch (e) { setMsg("⚠️ " + e.message); }
+  }
+  return (
+    <details className="edu-gen">
+      <summary>🩺 حسابات الدكاترة ({list.length})</summary>
+      {list.map((d) => (
+        <div key={d.id} className="row-between member">
+          <span><b>{d.display_name}</b> <small className="muted" dir="ltr">@{d.username}</small></span>
+          <small className="muted">{d.families} عائلة</small>
+        </div>
+      ))}
+      <label>اسم الدكتور</label>
+      <input value={f.display_name} onChange={(e) => setF({ ...f, display_name: e.target.value })} placeholder="مثلاً د. سارة" />
+      <label>اسم العيادة (اختياري)</label>
+      <input value={f.clinic} onChange={(e) => setF({ ...f, clinic: e.target.value })} />
+      <label>اليوزر</label>
+      <input dir="ltr" autoCapitalize="none" value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} />
+      <label>الباسوورد (6 وفوق)</label>
+      <input dir="ltr" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
+      {msg && <div className={msg.startsWith("⚠️") ? "alert danger" : "alert info"}>{msg}</div>}
+      <button className="primary" onClick={add}>افتح حساب دكتور</button>
+    </details>
   );
 }
 

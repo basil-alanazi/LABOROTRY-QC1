@@ -18,8 +18,10 @@ import Login from "./Login";
 import Account from "./Account";
 import PatientForm from "./PatientForm";
 import BottomNav from "./BottomNav";
+import DoctorHome from "./DoctorHome";
 
 export const PAGES = {
+  patient: "ملف المريض",
   sugar: "السكر والإنسولين",
   vitals: "القياسات الحيوية",
   meds: "الأدوية",
@@ -71,10 +73,11 @@ export default function App() {
   }
 
   function selectPatient(id) {
+    // نفس المريض (بعد حفظ مثلاً): نخلي البيانات لين يوصل الجديد
+    if (id !== patientRef.current) setData(EMPTY);
     patientRef.current = id;
     setPatient(id);
     setPatientId(id);
-    setData(EMPTY);
     if (id) {
       rememberPatient(id);
       reload();
@@ -140,9 +143,22 @@ export default function App() {
   if (me === null) return <Login onDone={loadMe} />;
 
   const patient = me.patients.find((p) => p.id === patientId);
+  const doctor = me.user.is_doctor;
+  // الدكتور: يفتح مريض من قائمته على صفحة معينة
+  const openPatient = (id, p) => { selectPatient(id); go(p); };
+
+  // الدكتور: الرئيسية عنده قائمة مرضاه
+  if (doctor && (page === "home" || (!patient && page !== "account"))) {
+    return (
+      <div className="app">
+        <main><DoctorHome me={me} open={openPatient} go={go} onPatientsChanged={loadMe} /></main>
+        <BottomNav page="home" go={go} patient={patient} doctor />
+      </div>
+    );
+  }
 
   // أول مرة: ما فيه مرضى
-  if (!patient) {
+  if (!patient && !doctor) {
     return (
       <div className="app">
         <header className="top"><div><h1>ود</h1><span className="subtitle">حياكم يا {me.family.name}</span></div></header>
@@ -163,14 +179,14 @@ export default function App() {
         <header className="top page-top">
           <button className="icon-btn" onClick={back} aria-label="رجوع"><ArrowRight size={22} /></button>
           <h2>{PAGES[page]}</h2>
-          {page !== "account" && <span className="page-patient">{patient.name}</span>}
+          {page !== "account" && patient && <span className="page-patient">{patient.name}{doctor && patient.family_name ? ` · ${patient.family_name}` : ""}</span>}
         </header>
       )}
 
       {error && <div className="alert danger">{error}</div>}
 
       <main>
-        {page === "home" && <HomeNew {...data} me={me} patient={patient} go={go} />}
+        {(page === "home" || page === "patient") && <HomeNew {...data} me={me} patient={patient} go={go} />}
         {page === "sugar" && <Today {...props} />}
         {page === "vitals" && <Vitals {...props} />}
         {page === "meds" && <Meds {...props} />}
@@ -194,7 +210,7 @@ export default function App() {
           />
         )}
       </main>
-      <BottomNav page={page} go={go} patient={patient} />
+      <BottomNav page={page} go={go} patient={patient} doctor={doctor} />
     </div>
   );
 }

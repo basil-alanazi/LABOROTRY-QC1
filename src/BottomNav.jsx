@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Activity, Camera, Droplet, Home as HomeIcon, LineChart, NotebookPen, Pill, Plus, Syringe, Users, Utensils, X } from "lucide-react";
+import { Activity, Camera, Droplet, Home as HomeIcon, LineChart, NotebookPen, Pill, Plus, Stethoscope, Syringe, Users, Utensils, X } from "lucide-react";
 
 const TABS = [
   ["home", "الرئيسية", HomeIcon],
@@ -10,8 +10,18 @@ const TABS = [
 ];
 
 // الشريط تحت + قائمة "وش تبي تسجل"
-export default function BottomNav({ page, go, patient }) {
+// الدكتور: مرضاه، وملف المريض المفتوح، وتقاريره، وجرعاته
+const DOCTOR_TABS = [
+  ["home", "مرضاي", Stethoscope],
+  ["patient", "المريض", HomeIcon],
+  null,
+  ["record", "التقارير", LineChart],
+  ["settings", "الجرعات", Syringe],
+];
+
+export default function BottomNav({ page, go, patient, doctor }) {
   const [sheet, setSheet] = useState(false);
+  const tabs = doctor ? DOCTOR_TABS : TABS;
   const options = [
     ["sugar", "قراءة سكر", Droplet],
     ["vitals", "ضغط وحرارة", Activity],
@@ -24,7 +34,7 @@ export default function BottomNav({ page, go, patient }) {
   return (
     <>
       <nav className="r-nav">
-        {TABS.map((t) => t ? (
+        {tabs.map((t) => t ? (
           <button key={t[0]} className={page === t[0] ? "on" : ""} onClick={() => page !== t[0] && go(t[0])}>
             {(() => { const Icon = t[2]; return <Icon size={22} />; })()}{t[1]}
           </button>

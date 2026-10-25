@@ -44,7 +44,7 @@ export default function Settings({ settings, onSaved }) {
 
   const set = (k, v) => setForm({ ...form, [k]: v });
 
-  const groups = GROUPS.filter((g) => !g.insulin || settings.uses_insulin);
+  const groups = GROUPS.filter((g) => !g.insulin || form.uses_insulin);
 
   async function save() {
     const payload = {};
@@ -78,7 +78,7 @@ export default function Settings({ settings, onSaved }) {
         </div>
       ))}
 
-      {!!settings.tresiba_titration && <div className="card">
+      {!!form.tresiba_titration && <div className="card">
         <h3>قاعدة تعديل Tresiba (من الدكتور)</h3>
         <p>نشوف قراءة الصيام 4 أيام. إذا كلها أو أغلبها (3 من 4):</p>
         <ul>
