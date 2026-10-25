@@ -83,8 +83,7 @@ export async function eduImage(env, db, id) {
     image = `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#C79A5B"/></svg>`)}`;
   } else {
     if (!env.AI) throw new Error("الذكاء الاصطناعي مو مربوط");
-    // كل مرة بذرة جديدة، فإعادة التوليد تطلع صورة ثانية
-    const res = await env.AI.run(IMAGE_MODEL, { prompt: `${prompt} ${STYLE}`, steps: 8, seed: Math.floor(Math.random() * 1e9) });
+    const res = await env.AI.run(IMAGE_MODEL, { prompt: `${prompt} ${STYLE}`, steps: 8 });
     image = `data:image/jpeg;base64,${await toBase64(res)}`;
   }
   await db.prepare("INSERT OR REPLACE INTO food_images (k, image) VALUES (?, ?)").bind(eduKey(id), image).run();
