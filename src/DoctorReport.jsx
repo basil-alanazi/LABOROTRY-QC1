@@ -9,6 +9,12 @@ const SHORT = { fasting: "صيام", after_breakfast: "بعد الفطور", bef
 // علامة تبان حتى في الطباعة الأبيض والأسود
 const MARK = { low: "↓", below: "↓", high: "↑", veryhigh: "↑↑" };
 
+// وجبات الهيومالوج بترتيب اليوم
+const MEALS = { breakfast: "فطور", lunch: "غداء", dinner: "عشاء" };
+const SLOT = { ...MEALS, bedtime: "قبل النوم" };
+// جرعة بعد نص الليل (عشاء متأخر أو تريسيبا) تنحسب على اليوم اللي قبله
+const doseDay = (d) => dayKey(new Date(new Date(d).getTime() - 4 * 3600e3));
+
 const avg = (a) => (a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : null);
 const shortDate = (d) => new Date(`${d}T12:00:00+03:00`).toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { weekday: "short", day: "numeric", month: "numeric" });
 
@@ -30,9 +36,21 @@ export default function DoctorReport({ patient, readings, doses, bp, notes, labs
     const level = (r) => glucoseLevel(r.glucose, r.context, patient);
     // صف لكل يوم: القراءات في أعمدتها + مجموع الإنسولين
     const map = new Map();
-    const row = (k) => map.get(k) || map.set(k, { cells: {}, humalog: 0, tresiba: 0 }).get(k);
+    const row = (k) => map.get(k) || map.set(k, { cells: {}, meals: {}, tresiba: [] }).get(k);
     for (const r of rs) (row(dayKey(r.created_at)).cells[r.context] ||= []).push(r);
-    for (const d of ds) row(dayKey(d.created_at))[d.insulin === "Tresiba" ? "tresiba" : "humalog"] += Number(d.units);
+    for (const d of ds) {
+      const rw = row(doseDay(d.created_at));
+      if (d.insulin === "Tresiba") rw.tresiba.push(d);
+      else (rw.meals[d.slot] ||= []).push(d);
+    }
+    // سجل كل جرعة: وقتها، والمخطط، وآخر قراءة سكر قبلها بساعتين
+    const log = [...ds].sort((a, b) => (a.created_at < b.created_at ? -1 : 1)).map((d) => {
+      const t = new Date(d.created_at).getTime();
+      const before = rs.filter((r) => { const rt = new Date(r.created_at).getTime(); return rt <= t && t - rt <= 2 * 3600e3; })
+        .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
+      return { ...d, before };
+    });
+    const humalog = ds.filter((d) => d.insulin !== "Tresiba");
     const fasting = rs.filter((r) => r.context === "fasting").map((r) => r.glucose);
     const post = rs.filter((r) => r.context.startsWith("after_")).map((r) => r.glucose);
     return {
@@ -51,11 +69,16 @@ export default function DoctorReport({ patient, readings, doses, bp, notes, labs
       temps: vitals.filter((b) => b.temp).map((b) => b.temp),
       bpAvg: bs.length ? `${avg(bs.map((b) => b.systolic))}/${avg(bs.map((b) => b.diastolic))}` : null,
       bpHigh: bs.filter((b) => b.systolic >= patient.bp_sys_high || b.diastolic >= patient.bp_dia_high).length,
+      log,
+      humalogTotal: humalog.reduce((x, d) => x + Number(d.units), 0),
+      humalogOff: humalog.filter((d) => d.planned_units && Number(d.units) !== Number(d.planned_units)).length,
+      today: dayKey(new Date()),
       notes: notes.filter(inRange).sort((a, b) => (a.created_at < b.created_at ? -1 : 1)),
       level,
     };
   }, [readings, doses, bp, notes, days, patient]);
 
+  const uses = !!patient.uses_insulin;
   const conditions = JSON.parse(patient.conditions || "[]");
   const meds = JSON.parse(patient.condition_meds || "{}");
   const age = patient.birth_year ? new Date().getFullYear() - patient.birth_year : null;
@@ -122,7 +145,7 @@ export default function DoctorReport({ patient, readings, doses, bp, notes, labs
           {data.days.length ? (
             <table className="doc-table doc-sugar">
               <thead>
-                <tr><th>اليوم</th>{COLS.map((c) => <th key={c}>{SHORT[c]}</th>)}<th>Humalog</th><th>Tresiba</th></tr>
+                <tr><th>اليوم</th>{COLS.map((c) => <th key={c}>{SHORT[c]}</th>)}{Object.values(MEALS).map((m) => <th key={m} className="doc-ins">Humalog {m}</th>)}<th className="doc-ins">Tresiba</th></tr>
               </thead>
               <tbody>
                 {data.days.map(([k, d]) => (
@@ -136,15 +159,46 @@ export default function DoctorReport({ patient, readings, doses, bp, notes, labs
                         })}
                       </td>
                     ))}
-                    <td>{d.humalog || ""}</td>
-                    <td>{d.tresiba || ""}</td>
+                    {Object.keys(MEALS).map((m) => (
+                      <td key={m} className="doc-ins">
+                        {d.meals[m] ? d.meals[m].map((x) => <Units key={x.id} d={x} />) : uses && k < data.today ? <span className="v miss">✗</span> : ""}
+                      </td>
+                    ))}
+                    <td className="doc-ins">{d.tresiba.length ? d.tresiba.map((x) => <Units key={x.id} d={x} />) : uses && k < data.today ? <span className="v miss">✗</span> : ""}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : <p>ما فيه قراءات في هالفترة.</p>}
-          <p className="doc-legend">↑ أعلى من الهدف · ↑↑ فوق 300 · ↓ أقل من الهدف أو هبوط · الإنسولين = مجموع الوحدات باليوم</p>
+          <p className="doc-legend">↑ أعلى من الهدف · ↑↑ فوق 300 · ↓ أقل من الهدف أو هبوط · الإنسولين بالوحدات لكل جرعة، وبين قوسين المخطط إذا اختلف · ✗ ما انسجلت الجرعة · جرعة بعد نص الليل تنحسب على اليوم اللي قبله</p>
         </section>
+
+        {data.log.length > 0 && (
+          <section>
+            <h2>سجل جرعات الإنسولين</h2>
+            <p className="doc-note">مجموع الهيومالوج {data.humalogTotal} وحدة في {data.log.filter((d) => d.insulin !== "Tresiba").length} جرعة{data.humalogOff ? ` · ${data.humalogOff} جرعة مختلفة عن المخطط` : ""}</p>
+            <table className="doc-table doc-doses">
+              <thead><tr><th>التاريخ</th><th>الساعة</th><th>الإنسولين</th><th>الوجبة</th><th>الجرعة</th><th>المخطط</th><th>السكر قبلها</th></tr></thead>
+              <tbody>
+                {data.log.map((d) => {
+                  const off = d.planned_units && Number(d.units) !== Number(d.planned_units);
+                  const l = d.before && data.level(d.before);
+                  return (
+                    <tr key={d.id}>
+                      <td>{shortDate(dayKey(d.created_at))}</td>
+                      <td>{fmtTime(d.created_at)}</td>
+                      <td>{d.insulin}</td>
+                      <td>{SLOT[d.slot] || d.slot}</td>
+                      <td><b className={off ? "v high" : ""}>{d.units}</b></td>
+                      <td>{d.planned_units ?? "—"}</td>
+                      <td>{d.before ? <span className={`v ${l}`}>{d.before.glucose}{MARK[l] || ""} <small>({fmtTime(d.before.created_at)})</small></span> : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </section>
+        )}
 
         {data.bp.length > 0 && (
           <section>
@@ -183,4 +237,10 @@ export default function DoctorReport({ patient, readings, doses, bp, notes, labs
       </article>
     </div>
   );
+}
+
+// وحدات الجرعة، وبين قوسين المخطط إذا اختلف
+function Units({ d }) {
+  const off = d.planned_units && Number(d.units) !== Number(d.planned_units);
+  return <span className={`v${off ? " high" : ""}`}>{d.units}{off ? <small> ({d.planned_units})</small> : ""}</span>;
 }

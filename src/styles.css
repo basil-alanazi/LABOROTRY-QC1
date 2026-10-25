@@ -527,6 +527,11 @@ body.doc-open { overflow: hidden; }
 .doc-sugar { font-size: 11px; }
 .doc-sugar td .v { display: block; }
 .doc-day { white-space: nowrap; font-weight: 600; }
+.doc-sugar .doc-ins { background: #FBF6EE; }
+.doc-sugar thead .doc-ins { background: #EADBC5; }
+.doc .v.miss { color: #999; }
+.doc-doses { font-size: 11px; }
+.doc-doses small, .doc-sugar small { color: #777; font-weight: 400; }
 .doc .v.high { color: #B45309; font-weight: 700; }
 .doc .v.veryhigh { color: #B91C1C; font-weight: 800; }
 .doc .v.low, .doc .v.below { color: #6D28D9; font-weight: 800; }
