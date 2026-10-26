@@ -38,6 +38,12 @@ const DELETABLE = {
 };
 const MEAL_SLOTS = ["breakfast", "lunch", "dinner", "snack"];
 const LAB_TESTS = ["hba1c", "other"];
+const EDU_TOPICS = ["insulin", "sugar", "bp", "temp", "eye", "meds"];
+// رقم الفيديو من أي شكل لرابط يوتيوب (watch، youtu.be، shorts، embed)
+const youtubeId = (url) => {
+  const m = String(url || "").trim().match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/);
+  return m ? m[1] : null;
+};
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -272,6 +278,25 @@ export async function onRequest({ request, env, params, waitUntil }) {
         ]);
         return json({ ok: true });
       }
+    }
+
+    // ===== الفيديوهات التعليمية: روابط يوتيوب يضيفها المدير، ويشوفها الكل =====
+    if (a === "edu-videos") {
+      const row = await db.prepare("SELECT v FROM secrets WHERE k = 'edu_videos'").first();
+      const list = row ? JSON.parse(row.v) : [];
+      if (method === "GET") return json(list);
+      if (!me.is_admin) bad("للمدير بس", 403);
+      let next = list;
+      if (method === "POST") {
+        const id = youtubeId(body.url) || bad("الرابط مو رابط يوتيوب");
+        const topic = EDU_TOPICS.includes(body.topic) ? body.topic : bad("اختر القسم");
+        if (list.some((v) => v.id === id && v.topic === topic)) bad("هالفيديو موجود في نفس القسم");
+        next = [...list, { id, topic, title: text(body.title, 120) || "فيديو تعليمي" }];
+      } else if (method === "DELETE" && b) {
+        next = list.filter((v) => !(v.id === b && v.topic === c));
+      } else bad("غير موجود", 404);
+      await db.prepare("INSERT OR REPLACE INTO secrets (k, v) VALUES ('edu_videos', ?)").bind(JSON.stringify(next)).run();
+      return json(next);
     }
 
     // ===== مشاركة العائلة مع دكتور (صاحب الحساب يقرر) =====

@@ -10,6 +10,7 @@ import Notes from "./Notes";
 import Diet from "./Diet";
 import Advice from "./Advice";
 import Help from "./Help";
+import Learn from "./Learn";
 import Labs from "./Labs";
 import Readings from "./Readings";
 import Settings from "./Settings";
@@ -35,6 +36,7 @@ export const PAGES = {
   notifications: "الإشعارات والتذكيرات",
   account: "العائلة والحساب",
   help: "طريقة الاستخدام",
+  learn: "فيديوهات تعليمية",
 };
 
 // الصفحة من الرابط (مثل /#sugar لما تضغط على إشعار)
@@ -196,6 +198,7 @@ export default function App() {
         {page === "advice" && <Advice {...props} patient={patient} />}
         {page === "labs" && <Labs {...props} />}
         {page === "help" && <Help go={go} />}
+        {page === "learn" && <Learn me={me} />}
         {page === "record" && <Readings {...props} />}
         {page === "notifications" && <Notifications settings={data.settings} onChanged={reload} />}
         {page === "settings" && <Settings settings={data.settings} onSaved={async () => { await reload(); await loadMe(); }} />}

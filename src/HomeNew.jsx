@@ -183,6 +183,9 @@ export default function HomeNew(props) {
         <button className="hn-help" onClick={() => go("help")}>
           <span>🎬</span><div><b>طريقة الاستخدام</b><small>فيديو يشرح التطبيق خطوة خطوة</small></div><ChevronLeft size={18} />
         </button>
+        <button className="hn-help" onClick={() => go("learn")}>
+          <span>📚</span><div><b>فيديوهات تعليمية</b><small>الإنسولين، قياس السكر والضغط والحرارة، قطرة العين</small></div><ChevronLeft size={18} />
+        </button>
       </div>
   );
 }

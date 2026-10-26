@@ -618,3 +618,17 @@ body.doc-open { overflow: hidden; }
 .dh-actions button { min-width: 0; padding-inline: 6px; }
 .dh-note { font-size: .78rem; text-align: center; }
 .dh-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* الفيديوهات التعليمية */
+.learn-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+.learn-tabs button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); color: var(--text); font-size: 13px; font-weight: 600; position: relative; }
+.learn-tabs button span { font-size: 22px; }
+.learn-tabs button small { position: absolute; top: 6px; left: 8px; font-size: 11px; color: var(--brand); }
+.learn-tabs button.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.learn-tabs button.on small { color: #fff; }
+.learn-video { padding: 10px; }
+.learn-video iframe, .learn-thumb { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: 14px; display: block; }
+.learn-thumb { position: relative; padding: 0; overflow: hidden; background: #000; }
+.learn-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.learn-play { position: absolute; inset: 0; margin: auto; width: 64px; height: 64px; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; font-size: 26px; display: grid; place-items: center; padding-inline-start: 4px; }
+.learn-video .row-between { margin-top: 8px; gap: 8px; }
