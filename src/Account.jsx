@@ -3,6 +3,7 @@ import { api } from "./api";
 import PatientForm from "./PatientForm";
 import InstallCard from "./InstallCard";
 import { SIZES, getFontSize, setFontSize } from "./fontSize";
+import { THEMES, getTheme, setTheme } from "./theme";
 
 // العائلة: المرضى، وأفراد العائلة، والحساب، ولوحة المدير
 export default function Account({ me, currentPatient, onPatientsChanged, onSelectPatient, onLogout, onHelp }) {
@@ -95,6 +96,7 @@ export default function Account({ me, currentPatient, onPatientsChanged, onSelec
       </>}
 
       <FontSizeCard />
+      <ThemeCard />
 
       <InstallCard />
 
@@ -239,6 +241,24 @@ function EduImagesCard() {
         {busy ? `جاري التوليد… ${done}/${list.length}` : done === list.length ? "كل الصور جاهزة ✓" : "ولّد الصور"}
       </button>
     </details>
+  );
+}
+
+// ألوان التطبيق: تنحفظ في هالجوال بس
+function ThemeCard() {
+  const [theme, set] = useState(getTheme);
+  return (
+    <div className="card">
+      <h3>🎨 ألوان التطبيق</h3>
+      <div className="theme-pick">
+        {Object.entries(THEMES).map(([k, t]) => (
+          <button key={k} className={theme === k ? "on" : ""} onClick={() => { setTheme(k); set(k); }}>
+            <span style={{ background: `linear-gradient(135deg, ${t.brand}, ${t.brand2})` }} />{t.name}
+          </button>
+        ))}
+      </div>
+      <p className="hint">تتغير في هالجوال بس، وكل واحد في العائلة يختار اللي يعجبه.</p>
+    </div>
   );
 }
 

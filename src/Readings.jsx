@@ -1,3 +1,4 @@
+import { brandColor } from "./theme";
 import { useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ResponsiveContainer, CartesianGrid } from "recharts";
 import { api } from "./api";
@@ -97,7 +98,7 @@ export default function Readings({ settings, readings, doses, changes, bp, notes
                 tickFormatter={(t) => new Date(t).toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { day: "numeric", month: "numeric" })} />
               <YAxis fontSize={11} orientation="right" />
               <Tooltip labelFormatter={(t) => `${fmtDate(t)} — ${fmtTime(t)}`} formatter={(v) => [v, "الصيام"]} />
-              <Line dataKey="glucose" stroke="#A0703E" strokeWidth={2} dot={{ r: 3 }} />
+              <Line dataKey="glucose" stroke={brandColor()} strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>

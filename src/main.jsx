@@ -9,9 +9,11 @@ import "@fontsource/ibm-plex-sans-arabic/latin-700.css";
 import "@fontsource/amiri-quran/arabic-400.css";
 import "./styles.css";
 import { applyFontSize } from "./fontSize";
+import { applyTheme } from "./theme";
 
 // حجم الخط المحفوظ في هالجوال
 applyFontSize();
+applyTheme();
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
