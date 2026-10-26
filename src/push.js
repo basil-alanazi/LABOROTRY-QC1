@@ -1,3 +1,4 @@
+import { getLang } from "./i18n";
 // الاشتراك في الإشعارات على هالجهاز
 import { api } from "./api";
 
@@ -27,7 +28,7 @@ export async function subscribe({ name, mode }) {
   const { key } = await api.pushKey();
   let sub = await reg.pushManager.getSubscription();
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(key) });
-  const saved = await api.pushSubscribe({ subscription: sub.toJSON(), name, mode });
+  const saved = await api.pushSubscribe({ subscription: sub.toJSON(), name, mode, lang: getLang() });
   setDevice(saved);
   return saved;
 }

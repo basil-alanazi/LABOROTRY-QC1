@@ -246,7 +246,29 @@ CREATE TABLE IF NOT EXISTS push_subs (
   name TEXT,
   mode TEXT NOT NULL DEFAULT 'all',  -- all / alerts
   family_id INTEGER NOT NULL DEFAULT 1,
-  user_id INTEGER
+  user_id INTEGER,
+  lang TEXT NOT NULL DEFAULT 'ar'   -- لغة الإشعارات في هالجهاز
 );
+
+-- رسائل للمصمم (مدير الموقع) من أي مستخدم
+CREATE TABLE IF NOT EXISTS feedback (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  user_id INTEGER NOT NULL,
+  family_id INTEGER NOT NULL,
+  text TEXT NOT NULL,
+  read INTEGER NOT NULL DEFAULT 0
+);
+
+-- ملاحظات بين العائلة والدكتور عن المريض
+CREATE TABLE IF NOT EXISTS doctor_notes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  patient_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  from_doctor INTEGER NOT NULL DEFAULT 0,
+  text TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS doctor_notes_p_idx ON doctor_notes (patient_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS sent_log (k TEXT PRIMARY KEY, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')));

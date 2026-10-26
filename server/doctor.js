@@ -31,7 +31,7 @@ function adherenceDays(first, now) {
 export async function patientSummary(db, p, now = new Date()) {
   const since = new Date(now.getTime() - (DAYS + 1) * 864e5).toISOString();
   const q = (sql) => db.prepare(sql).bind(p.id, since);
-  const [readings, doses, bp, meds, medDoses, first] = (await db.batch([
+  const [readings, doses, bp, meds, medDoses, first, notes] = (await db.batch([
     q("SELECT glucose, context, created_at FROM readings WHERE patient_id = ? AND created_at >= ?"),
     q("SELECT slot, units, planned_units, created_at FROM doses WHERE patient_id = ? AND created_at >= ?"),
     q("SELECT systolic, diastolic, created_at FROM bp_readings WHERE patient_id = ? AND created_at >= ?"),
@@ -39,7 +39,10 @@ export async function patientSummary(db, p, now = new Date()) {
     q("SELECT medication_id, time_slot, created_at FROM med_doses WHERE patient_id = ? AND created_at >= ?"),
     db.prepare(`SELECT min(t) AS t FROM (SELECT min(created_at) t FROM readings WHERE patient_id = ?1
       UNION ALL SELECT min(created_at) FROM doses WHERE patient_id = ?1 UNION ALL SELECT min(created_at) FROM med_doses WHERE patient_id = ?1)`).bind(p.id),
+    db.prepare("SELECT text, created_at, from_doctor FROM doctor_notes WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1").bind(p.id),
   ])).map((r) => r.results);
+  // آخر ملاحظة من العائلة ما رد عليها الدكتور
+  const familyNote = notes[0] && !notes[0].from_doctor ? notes[0] : null;
   const start = first[0]?.t ? dayKey(first[0].t) : null;
   const days = adherenceDays(start, now);
   const daySet = new Set(days);
@@ -79,6 +82,7 @@ export async function patientSummary(db, p, now = new Date()) {
 
   // تنبيهات للدكتور، الأهم أول
   const flags = [];
+  if (familyNote) flags.push({ level: "info", text: "💬 ملاحظة جديدة من العائلة" });
   if (lows) flags.push({ level: "danger", text: `${lows} هبوط` });
   if (veryHigh) flags.push({ level: "danger", text: `${veryHigh} قراءة فوق 300` });
   if (insulinPct !== null && insulinPct < 80) flags.push({ level: "warn", text: `فوّت ${missed.length} جرعة إنسولين` });
@@ -100,6 +104,7 @@ export async function patientSummary(db, p, now = new Date()) {
     bpCount: bs.length,
     insulin: insulinExpected ? { pct: insulinPct, taken: insulinTaken, expected: insulinExpected, missed: missed.slice(-6) } : null,
     meds: medExpected ? { pct: medPct, taken: medDone, expected: medExpected } : null,
+    familyNote,
     flags,
     score: flags.reduce((n, f) => n + (f.level === "danger" ? 10 : 1), 0),
   };

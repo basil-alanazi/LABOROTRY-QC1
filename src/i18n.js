@@ -13,8 +13,13 @@ export function getLang() {
 }
 
 // تغيير اللغة يعيد تحميل الصفحة عشان كل النصوص تنبني من جديد
-export function setLang(lang) {
+export async function setLang(lang) {
   try { localStorage.setItem(KEY, lang); } catch { /* التخزين مقفل */ }
+  // إشعارات هالجهاز تصير بنفس اللغة
+  try {
+    const d = JSON.parse(localStorage.getItem("wad_device"));
+    if (d?.id) await fetch("/api/push/lang", { method: "POST", headers: { "content-type": "application/json" }, credentials: "same-origin", body: JSON.stringify({ id: d.id, lang }) });
+  } catch { /* ما يمنع تغيير اللغة */ }
   location.reload();
 }
 

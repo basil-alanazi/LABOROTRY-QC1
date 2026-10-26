@@ -9,8 +9,8 @@
   "orientation": "portrait",
   "dir": "rtl",
   "lang": "ar",
-  "background_color": "#F6EEE3",
-  "theme_color": "#8C6136",
+  "background_color": "#F6F8FB",
+  "theme_color": "#1F5A8C",
   "categories": [
     "health",
     "medical"

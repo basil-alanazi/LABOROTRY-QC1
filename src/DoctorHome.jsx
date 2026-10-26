@@ -86,8 +86,11 @@ export default function DoctorHome({ me, open, go, onPatientsChanged }) {
               <p className="dh-missed">جرعات ما انسجلت: {s.insulin.missed.map((m) => `${short(m.day)} ${SLOT[m.slot]}`).join("، ")}</p>
             )}
 
+            {s.familyNote && <p className="dh-note-snip">💬 {s.familyNote.text.slice(0, 140)}</p>}
+
             <div className="dh-actions">
               <button className="primary" onClick={() => open(p.id, "record")}>📊 التقارير</button>
+              <button className="secondary" onClick={() => open(p.id, "doctor")}>💬 ملاحظات</button>
               {p.uses_insulin ? <button className="secondary" onClick={() => open(p.id, "settings")}>💉 الجرعات</button> : null}
               <button className="secondary" onClick={() => open(p.id, "patient")}>الملف</button>
             </div>

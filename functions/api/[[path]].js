@@ -1,6 +1,7 @@
 // واجهة البيانات (Cloudflare Pages Functions + D1 + Workers AI)
 // كل طلب يتحقق من المستخدم، وما يوصل إلا لبيانات عائلته.
 import { broadcast, eventMessage, loadVapid, runReminders } from "../../server/notify.js";
+import { LANGS, tFor } from "../../server/i18n.js";
 import { sendPush } from "../../server/push.js";
 import {
   USERNAME_RE, clearCookie, createSession, currentUser, endSession, hashPassword,
@@ -299,6 +300,15 @@ export async function onRequest({ request, env, params, waitUntil }) {
       return json(next);
     }
 
+    // ===== رسالة للمصمم (مدير الموقع) =====
+    if (a === "feedback" && method === "POST") {
+      const t0 = text(body.text, 2000) || bad("اكتب رسالتك");
+      const row = await insert("INSERT INTO feedback (user_id, family_id, text) VALUES (?, ?, ?)", me.id, me.family_id, t0);
+      const admins = (await db.prepare("SELECT DISTINCT family_id FROM users WHERE is_admin = 1").all()).results;
+      for (const f of admins) waitUntil(broadcast(db, f.family_id, (t) => ({ title: t("✉️ رسالة جديدة من {0}", me.display_name), body: t0.slice(0, 160), tag: `fb-${row.id}`, url: "/#account" }), { alert: true }).catch(() => {}));
+      return json({ ok: true });
+    }
+
     // ===== مشاركة العائلة مع دكتور (صاحب الحساب يقرر) =====
     if (a === "family" && b === "doctors") {
       if (method === "GET") {
@@ -392,6 +402,17 @@ export async function onRequest({ request, env, params, waitUntil }) {
           .bind(fam.id, username, text(body.display_name, 40) || username, h.salt, h.hash, me.id).run();
         return json({ id: fam.id, name: fam.name, owner: username });
       }
+      // رسائل المستخدمين للمصمم
+      if (b === "feedback" && method === "GET") {
+        return json((await db.prepare(
+          `SELECT fb.*, u.display_name, u.username, f.name AS family_name FROM feedback fb
+           LEFT JOIN users u ON u.id = fb.user_id LEFT JOIN families f ON f.id = fb.family_id ORDER BY fb.created_at DESC LIMIT 200`,
+        ).all()).results);
+      }
+      if (b === "feedback" && c && method === "POST") {
+        await db.prepare("UPDATE feedback SET read = 1 WHERE id = ?").bind(Number(c)).run();
+        return json({ ok: true });
+      }
       // حسابات الدكاترة
       if (b === "doctors" && method === "GET") {
         return json((await db.prepare(
@@ -455,11 +476,12 @@ export async function onRequest({ request, env, params, waitUntil }) {
         const p256dh = text(sub.keys?.p256dh, 200) || bad("اشتراك غير صحيح");
         const auth = text(sub.keys?.auth, 100) || bad("اشتراك غير صحيح");
         const mode = body.mode === "alerts" ? "alerts" : "all";
+        const lang = LANGS.includes(body.lang) ? body.lang : "ar";
         const row = await insert(
-          `INSERT INTO push_subs (endpoint, p256dh, auth, name, mode, family_id, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)
+          `INSERT INTO push_subs (endpoint, p256dh, auth, name, mode, family_id, user_id, lang) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth, name = excluded.name,
-             mode = excluded.mode, family_id = excluded.family_id, user_id = excluded.user_id`,
-          endpoint, p256dh, auth, text(body.name, 40) || me.display_name, mode, me.family_id, me.id,
+             mode = excluded.mode, family_id = excluded.family_id, user_id = excluded.user_id, lang = excluded.lang`,
+          endpoint, p256dh, auth, text(body.name, 40) || me.display_name, mode, me.family_id, me.id, lang,
         );
         return json({ id: row.id, name: row.name, mode: row.mode });
       }
@@ -470,10 +492,17 @@ export async function onRequest({ request, env, params, waitUntil }) {
       if (b === "devices" && method === "GET") {
         return json((await db.prepare("SELECT id, created_at, name, mode FROM push_subs WHERE family_id = ? ORDER BY created_at").bind(me.family_id).all()).results);
       }
+      // لغة إشعارات هالجهاز (لما تتغير لغة التطبيق)
+      if (b === "lang" && method === "POST") {
+        const lang = LANGS.includes(body.lang) ? body.lang : "ar";
+        await db.prepare("UPDATE push_subs SET lang = ? WHERE id = ? AND family_id = ?").bind(lang, Number(body.id), me.family_id).run();
+        return json({ ok: true });
+      }
       if (b === "test" && method === "POST") {
         const sub = await db.prepare("SELECT * FROM push_subs WHERE id = ? AND family_id = ?").bind(Number(body.id), me.family_id).first();
         if (!sub) bad("هالجهاز مو مشترك");
-        const status = await sendPush(sub, { title: "✅ الإشعارات شغالة", body: "بيوصلك كل جديد عن عائلتك هنا.", tag: "test", url: "/" }, await loadVapid(db), { urgent: true });
+        const t = tFor(sub.lang);
+        const status = await sendPush(sub, { title: t("✅ الإشعارات شغالة"), body: t("بيوصلك كل جديد عن عائلتك هنا."), tag: "test", url: "/" }, await loadVapid(db), { urgent: true });
         if (status >= 300) bad(`خدمة الإشعارات رجّعت ${status}`);
         return json({ ok: true });
       }
@@ -505,7 +534,7 @@ export async function onRequest({ request, env, params, waitUntil }) {
 
       if (resource === "all" && method === "GET") {
         const q = (sql) => db.prepare(sql).bind(pid);
-        const [readings, doses, changes, bp, medications, medDoses, appointments, notes, labs, meals, diet, advice] = await db.batch([
+        const [readings, doses, changes, bp, medications, medDoses, appointments, notes, labs, meals, diet, advice, doctorNotes] = await db.batch([
           q("SELECT * FROM readings WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1000"),
           q("SELECT * FROM doses WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1000"),
           q("SELECT * FROM tresiba_changes WHERE patient_id = ? ORDER BY created_at DESC LIMIT 100"),
@@ -519,6 +548,8 @@ export async function onRequest({ request, env, params, waitUntil }) {
           q("SELECT id, created_at, slot, followed, text, analysis, patient_id, user_id, photo IS NOT NULL AS has_photo FROM meals WHERE patient_id = ? ORDER BY created_at DESC LIMIT 500"),
           q("SELECT * FROM diet_plans WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1"),
           q("SELECT * FROM health_advice WHERE patient_id = ? ORDER BY created_at DESC LIMIT 1"),
+          q(`SELECT n.*, u.display_name AS author FROM doctor_notes n LEFT JOIN users u ON u.id = n.user_id
+             WHERE n.patient_id = ? ORDER BY n.created_at DESC LIMIT 200`),
         ]);
         const plan = diet.results[0];
         return json({
@@ -536,7 +567,27 @@ export async function onRequest({ request, env, params, waitUntil }) {
           meals: meals.results.map((m) => ({ ...m, analysis: m.analysis ? JSON.parse(m.analysis) : null })),
           advice: advice.results[0] ? { ...JSON.parse(advice.results[0].advice), created_at: advice.results[0].created_at, model: advice.results[0].model } : null,
           diet: plan ? { ...JSON.parse(plan.plan), created_at: plan.created_at, model: plan.model } : null,
+          doctorNotes: doctorNotes.results,
         });
+      }
+
+      // ملاحظات بين العائلة والدكتور: كل طرف يوصله إشعار بملاحظة الثاني
+      if (resource === "doctor-notes" && !id && method === "POST") {
+        const t0 = text(body.text, 1500) || bad("اكتب الملاحظة");
+        const fromDoctor = me.is_doctor && patient.family_id !== me.family_id ? 1 : 0;
+        const row = await insert("INSERT INTO doctor_notes (patient_id, user_id, from_doctor, text) VALUES (?, ?, ?, ?)", pid, me.id, fromDoctor, t0);
+        const short = t0.slice(0, 160);
+        if (fromDoctor) {
+          waitUntil(broadcast(db, patient.family_id, (t) => ({ title: t("🩺 ملاحظة من {0}", me.display_name), body: `${patient.name} · ${short}`, tag: `dn-${row.id}`, url: "/#doctor" }), { alert: true }).catch(() => {}));
+        } else {
+          const clinics = (await db.prepare("SELECT DISTINCT u.family_id FROM doctor_families df JOIN users u ON u.id = df.doctor_id WHERE df.family_id = ?").bind(patient.family_id).all()).results;
+          for (const c of clinics) waitUntil(broadcast(db, c.family_id, (t) => ({ title: t("💬 ملاحظة من العائلة عن {0}", patient.name), body: `${me.display_name}: ${short}`, tag: `dn-${row.id}`, url: "/" }), { alert: true }).catch(() => {}));
+        }
+        return json({ ...row, author: me.display_name });
+      }
+      if (resource === "doctor-notes" && id && method === "DELETE") {
+        await db.prepare("DELETE FROM doctor_notes WHERE id = ? AND patient_id = ? AND user_id = ?").bind(Number(id), pid, me.id).run();
+        return json({ ok: true });
       }
 
       if (resource === "readings" && method === "POST") {
@@ -706,7 +757,7 @@ export async function onRequest({ request, env, params, waitUntil }) {
         const changed = ["humalog_breakfast", "humalog_lunch", "humalog_dinner", "tresiba_dose"].filter((k) => values[k] !== Number(patient[k]));
         if (me.is_doctor && patient.family_id !== me.family_id && changed.length) {
           const plan = `Humalog ${values.humalog_breakfast} / ${values.humalog_lunch} / ${values.humalog_dinner} · Tresiba ${values.tresiba_dose}`;
-          waitUntil(broadcast(db, patient.family_id, { title: `🩺 ${me.display_name} عدّل جرعات الإنسولين`, body: `${patient.name} · الجرعات الجديدة: ${plan}`, tag: `plan-${pid}`, url: "/#settings" }, { alert: true }).catch(() => {}));
+          waitUntil(broadcast(db, patient.family_id, (t) => ({ title: t("🩺 {0} عدّل جرعات الإنسولين", me.display_name), body: `${patient.name} · ${t("الجرعات الجديدة: {0}", plan)}`, tag: `plan-${pid}`, url: "/#settings" }), { alert: true }).catch(() => {}));
         }
         return json(await db.prepare("SELECT * FROM patients WHERE id = ?").bind(pid).first());
       }

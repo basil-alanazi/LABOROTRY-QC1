@@ -1,3 +1,4 @@
+import { fmtShortDate, fmtTime } from "./dose";
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import PatientForm from "./PatientForm";
@@ -102,6 +103,8 @@ export default function Account({ me, currentPatient, onPatientsChanged, onSelec
 
       <InstallCard />
 
+      {!me.user.is_admin && <FeedbackCard />}
+
       <button className="card help-link" onClick={onHelp}>🎬 طريقة الاستخدام <small>فيديو يشرح التطبيق</small></button>
 
       <div className="card">
@@ -139,6 +142,7 @@ export default function Account({ me, currentPatient, onPatientsChanged, onSelec
             <input dir="ltr" value={fam.password} onChange={(e) => setFam({ ...fam, password: e.target.value })} />
             <button className="primary" onClick={() => act(async () => { const r = await api.adminAddFamily(fam); setFam({ name: "", username: "", password: "", display_name: "" }); loadFamilies(); return r; }, "انفتح حساب العائلة ✓ — عطهم اليوزر والباسوورد")}>افتح الحساب</button>
           </details>
+          <FeedbackAdmin />
           <DoctorsAdmin />
           <EduImagesCard />
         </div>
@@ -176,6 +180,47 @@ function ShareDoctorCard({ owner }) {
       )}
       {msg && <div className={msg.startsWith("⚠️") ? "alert danger" : "alert info"}>{msg}</div>}
     </div>
+  );
+}
+
+// رسالة للمصمم: اقتراح أو مشكلة
+function FeedbackCard() {
+  const [text, setText] = useState("");
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function send() {
+    setBusy(true); setMsg("");
+    try { await api.sendFeedback(text); setText(""); setMsg("وصلت رسالتك ✓ شكرًا لك"); } catch (e) { setMsg("⚠️ " + e.message); }
+    setBusy(false);
+  }
+  return (
+    <div className="card">
+      <h3>✉️ راسل مصمم التطبيق</h3>
+      <p className="muted">اقتراح، مشكلة، أو شي تبي يتغير؟ اكتبه هنا ويوصله على طول.</p>
+      <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="اكتب رسالتك..." />
+      {msg && <div className={msg.startsWith("⚠️") ? "alert danger" : "alert info"}>{msg}</div>}
+      <button className="primary" disabled={busy || !text.trim()} onClick={send}>{busy ? "جاري الإرسال..." : "أرسل"}</button>
+    </div>
+  );
+}
+
+// المدير: رسائل المستخدمين
+function FeedbackAdmin() {
+  const [list, setList] = useState([]);
+  const load = () => api.adminFeedback().then(setList).catch(() => {});
+  useEffect(() => { load(); }, []);
+  const unread = list.filter((f) => !f.read).length;
+  return (
+    <details className="edu-gen" onToggle={(e) => { if (e.target.open) list.filter((f) => !f.read).forEach((f) => api.readFeedback(f.id).catch(() => {})); }}>
+      <summary>✉️ رسائل المستخدمين ({unread ? `${unread} جديدة` : list.length})</summary>
+      {!list.length && <p className="muted">ما وصلت رسائل للحين.</p>}
+      {list.map((f) => (
+        <div key={f.id} className={`fb-msg ${f.read ? "" : "unread"}`}>
+          <b>{f.display_name}</b> <small className="muted" dir="ltr">@{f.username}</small> <small className="muted">· {f.family_name} · {fmtShortDate(f.created_at)} {fmtTime(f.created_at)}</small>
+          <p>{f.text}</p>
+        </div>
+      ))}
+    </details>
   );
 }
 

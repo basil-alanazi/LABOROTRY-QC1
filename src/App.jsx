@@ -11,6 +11,7 @@ import Diet from "./Diet";
 import Advice from "./Advice";
 import Help from "./Help";
 import Learn from "./Learn";
+import DoctorNotes from "./DoctorNotes";
 import Labs from "./Labs";
 import Readings from "./Readings";
 import Settings from "./Settings";
@@ -37,6 +38,7 @@ export const PAGES = {
   account: "العائلة والحساب",
   help: "طريقة الاستخدام",
   learn: "فيديوهات تعليمية",
+  doctor: "ملاحظات الدكتور والعائلة",
 };
 
 // الصفحة من الرابط (مثل /#sugar لما تضغط على إشعار)
@@ -46,7 +48,7 @@ const pageFromHash = () => {
 };
 
 const REFRESH_MS = 20000;
-const EMPTY = { settings: null, readings: [], doses: [], changes: [], bp: [], medications: [], medDoses: [], appointments: [], notes: [], labs: [], meals: [], diet: null, advice: null };
+const EMPTY = { settings: null, readings: [], doses: [], changes: [], bp: [], medications: [], medDoses: [], appointments: [], notes: [], labs: [], meals: [], diet: null, advice: null, doctorNotes: [] };
 const PATIENT_KEY = "wad_patient";
 
 const savedPatient = () => { try { return Number(localStorage.getItem(PATIENT_KEY)) || null; } catch { return null; } };
@@ -199,6 +201,7 @@ export default function App() {
         {page === "labs" && <Labs {...props} />}
         {page === "help" && <Help go={go} />}
         {page === "learn" && <Learn me={me} />}
+        {page === "doctor" && <DoctorNotes {...props} me={me} />}
         {page === "record" && <Readings {...props} />}
         {page === "notifications" && <Notifications settings={data.settings} onChanged={reload} />}
         {page === "settings" && <Settings settings={data.settings} onSaved={async () => { await reload(); await loadMe(); }} />}
