@@ -1,3 +1,4 @@
+import { dateLocale } from "./i18n";
 import { brandColor } from "./theme";
 import { useMemo, useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceArea, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -95,7 +96,7 @@ export default function Readings({ settings, readings, doses, changes, bp, notes
               <CartesianGrid stroke="#e2e8f0" vertical={false} />
               <ReferenceArea y1={settings.fasting_low} y2={settings.fasting_high} fill="#10b981" fillOpacity={0.1} />
               <XAxis dataKey="t" type="number" scale="time" domain={["dataMin", "dataMax"]} reversed fontSize={11}
-                tickFormatter={(t) => new Date(t).toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { day: "numeric", month: "numeric" })} />
+                tickFormatter={(t) => new Date(t).toLocaleDateString(dateLocale(), { day: "numeric", month: "numeric" })} />
               <YAxis fontSize={11} orientation="right" />
               <Tooltip labelFormatter={(t) => `${fmtDate(t)} — ${fmtTime(t)}`} formatter={(v) => [v, "الصيام"]} />
               <Line dataKey="glucose" stroke={brandColor()} strokeWidth={2} dot={{ r: 3 }} />

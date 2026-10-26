@@ -10,16 +10,20 @@ import "@fontsource/amiri-quran/arabic-400.css";
 import "./styles.css";
 import { applyFontSize } from "./fontSize";
 import { applyTheme } from "./theme";
+import { startI18n } from "./i18n";
 
 // حجم الخط المحفوظ في هالجوال
 applyFontSize();
 applyTheme();
 
-ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+// اللغة أول (القاموس ينحمّل لو مو عربي)، بعدين التطبيق
+startI18n().catch((e) => console.error("i18n:", e)).finally(() => {
+  ReactDOM.createRoot(document.getElementById("root")).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+});
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch((e) => console.error("service worker:", e));

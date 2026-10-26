@@ -4,6 +4,7 @@ import PatientForm from "./PatientForm";
 import InstallCard from "./InstallCard";
 import { SIZES, getFontSize, setFontSize } from "./fontSize";
 import { THEMES, getTheme, setTheme } from "./theme";
+import { LANGS, getLang, setLang } from "./i18n";
 
 // العائلة: المرضى، وأفراد العائلة، والحساب، ولوحة المدير
 export default function Account({ me, currentPatient, onPatientsChanged, onSelectPatient, onLogout, onHelp }) {
@@ -95,6 +96,7 @@ export default function Account({ me, currentPatient, onPatientsChanged, onSelec
       <ShareDoctorCard owner={me.user.role === "owner"} />
       </>}
 
+      <LangCard />
       <FontSizeCard />
       <ThemeCard />
 
@@ -241,6 +243,28 @@ function EduImagesCard() {
         {busy ? `جاري التوليد… ${done}/${list.length}` : done === list.length ? "كل الصور جاهزة ✓" : "ولّد الصور"}
       </button>
     </details>
+  );
+}
+
+// لغة التطبيق: تنحفظ في هالجوال بس
+export function LangPick() {
+  const lang = getLang();
+  return (
+    <div className="segmented lang-pick">
+      {Object.entries(LANGS).map(([k, l]) => (
+        <button key={k} className={lang === k ? "on" : ""} onClick={() => lang !== k && setLang(k)}>{l.name}</button>
+      ))}
+    </div>
+  );
+}
+
+function LangCard() {
+  return (
+    <div className="card">
+      <h3>🌐 اللغة</h3>
+      <LangPick />
+      <p className="hint">اللغة تتغير في هالجوال بس.</p>
+    </div>
   );
 }
 

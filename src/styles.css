@@ -638,3 +638,7 @@ body.doc-open { overflow: hidden; }
 .theme-pick button { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 14px; border: 2px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: 14px; font-weight: 600; text-align: start; }
 .theme-pick button.on { border-color: var(--brand); }
 .theme-pick span { width: 26px; height: 26px; border-radius: 50%; flex: none; }
+
+/* اختيار اللغة */
+.lang-pick button { font-weight: 600; }
+.login > .lang-pick { margin: 14px 16px 24px; }

@@ -1,3 +1,4 @@
+import { dateLocale } from "./i18n";
 // منطق خطة الدكتور: جرعات Humalog ثابتة، وتعديل Tresiba حسب قراءات الصيام.
 
 // نفس أعمدة ورقة "جدول متابعة السكر في الدم"
@@ -80,11 +81,11 @@ export function tresibaSuggestion(readings, s, lastChange) {
 
 const tz = "Asia/Riyadh";
 export const fmtDate = (d) =>
-  new Date(d).toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { timeZone: tz, weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  new Date(d).toLocaleDateString(dateLocale(), { timeZone: tz, weekday: "long", day: "numeric", month: "long", year: "numeric" });
 export const fmtShortDate = (d) =>
-  new Date(d).toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { timeZone: tz, weekday: "short", day: "numeric", month: "numeric" });
+  new Date(d).toLocaleDateString(dateLocale(), { timeZone: tz, weekday: "short", day: "numeric", month: "numeric" });
 export const fmtTime = (d) =>
-  new Date(d).toLocaleTimeString("ar-SA-u-nu-latn", { timeZone: tz, hour: "numeric", minute: "2-digit" });
+  new Date(d).toLocaleTimeString(dateLocale(), { timeZone: tz, hour: "numeric", minute: "2-digit", hour12: true });
 export const dayKey = (d) => new Date(d).toLocaleDateString("en-CA", { timeZone: tz });
 export const riyadhHour = (d = new Date()) =>
   Number(d.toLocaleString("en-US", { timeZone: tz, hour: "numeric", hour12: false })) % 24;

@@ -1,3 +1,4 @@
+import { dateLocale } from "./i18n";
 import { useEffect, useMemo } from "react";
 import { Printer, X } from "lucide-react";
 import { CONDITIONS } from "./PatientForm";
@@ -16,7 +17,7 @@ const SLOT = { ...MEALS, bedtime: "قبل النوم" };
 const doseDay = (d) => dayKey(new Date(new Date(d).getTime() - 4 * 3600e3));
 
 const avg = (a) => (a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length) : null);
-const shortDate = (d) => new Date(`${d}T12:00:00+03:00`).toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { weekday: "short", day: "numeric", month: "numeric" });
+const shortDate = (d) => new Date(`${d}T12:00:00+03:00`).toLocaleDateString(dateLocale(), { weekday: "short", day: "numeric", month: "numeric" });
 
 // تقرير للدكتور: صفحة A4 تنطبع أو تنحفظ PDF
 export default function DoctorReport({ patient, readings, doses, bp, notes, labs, days, onClose }) {

@@ -1,3 +1,4 @@
+import { LangPick } from "./Account";
 import { useState } from "react";
 import { api } from "./api";
 import { Verse } from "./Verse";
@@ -39,6 +40,7 @@ export default function Login({ onDone }) {
         <button className="primary" disabled={busy || !username || !password}>{busy ? "جاري الدخول..." : "دخول"}</button>
         <p className="hint center">ما عندك حساب؟ اطلبه من مدير الموقع.</p>
       </form>
+      <LangPick />
     </div>
   );
 }

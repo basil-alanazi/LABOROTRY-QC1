@@ -1,3 +1,4 @@
+import { dateLocale } from "./i18n";
 import { useState } from "react";
 import { api } from "./api";
 import { dayKey, relativeDays } from "./dose";
@@ -14,7 +15,7 @@ export function a1cLevel(v) {
 }
 
 const fmtDay = (d) =>
-  new Date(`${d}T12:00:00+03:00`).toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { day: "numeric", month: "long", year: "numeric" });
+  new Date(`${d}T12:00:00+03:00`).toLocaleDateString(dateLocale(), { day: "numeric", month: "long", year: "numeric" });
 
 function addMonths(day, n) {
   const d = new Date(`${day}T12:00:00+03:00`);

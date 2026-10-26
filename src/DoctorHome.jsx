@@ -1,3 +1,4 @@
+import { dateLocale } from "./i18n";
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import { CONDITIONS } from "./PatientForm";
@@ -5,7 +6,7 @@ import { fmtDate, fmtTime } from "./dose";
 
 const SLOT = { breakfast: "فطور", lunch: "غداء", dinner: "عشاء", bedtime: "تريسيبا" };
 const NEW = { name: "", sex: "", birth_year: "", conditions: ["diabetes2"], uses_insulin: false, humalog_breakfast: "", humalog_lunch: "", humalog_dinner: "", tresiba_dose: "", username: "", password: "" };
-const short = (d) => new Date(`${d}T12:00:00+03:00`).toLocaleDateString("ar-SA-u-ca-gregory-nu-latn", { weekday: "short", day: "numeric", month: "numeric" });
+const short = (d) => new Date(`${d}T12:00:00+03:00`).toLocaleDateString(dateLocale(), { weekday: "short", day: "numeric", month: "numeric" });
 // لون النسبة: أخضر 80 وفوق، برتقالي 60–79، أحمر أقل
 const tone = (n) => (n === null || n === undefined ? "" : n >= 80 ? "ok" : n >= 60 ? "warn" : "bad");
 
