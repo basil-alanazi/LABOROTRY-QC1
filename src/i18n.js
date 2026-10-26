@@ -30,7 +30,7 @@ function build(dict) {
   for (const [ar, tr] of Object.entries(dict)) {
     if (!tr) continue;
     if (/\{\d\}/.test(ar)) {
-      const re = new RegExp("^" + ar.replace(/[.*+?^$()|[\]\\]/g, "\\$&").replace(/\\?\{(\d)\\?\}/g, "(.+?)") + "$", "s");
+      const re = new RegExp("^" + ar.replace(/[.*+?^$()|[\]\\]/g, "\\$&").replace(/\\?\{(\d)\\?\}/g, "([^·\\n]+?)") + "$", "s");
       const order = [...ar.matchAll(/\{(\d)\}/g)].map((m) => Number(m[1]));
       patterns.push({ re, tr, order, len: ar.length });
     } else exact.set(ar, tr);

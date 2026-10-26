@@ -143,7 +143,7 @@ export function relativeDays(date) {
 
 export const fmtSlot = (hhmm) => {
   const [h, m] = hhmm.split(":").map(Number);
-  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "ص" : "م"}`;
+  return new Date(Date.UTC(2000, 0, 1, h, m)).toLocaleTimeString(dateLocale(), { timeZone: "UTC", hour: "numeric", minute: "2-digit", hour12: true });
 };
 
 // قيمة datetime-local (بتوقيت الرياض) ← ISO
@@ -159,7 +159,7 @@ export function sinceMeal(reading) {
   const meal = new Date(`${dayKey(at)}T${reading.last_meal_at}:00+03:00`);
   if (meal > at) meal.setDate(meal.getDate() - 1);
   const mins = Math.round((at - meal) / 6e4);
-  const label = `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "ص" : "م"}`;
+  const label = fmtSlot(`${h}:${m}`);
   const ago = mins < 60 ? `${mins} دقيقة` : `${Math.floor(mins / 60)} ساعة${mins % 60 ? ` و${mins % 60} د` : ""}`;
   return `آخر وجبة ${label} (قبل ${ago})`;
 }
