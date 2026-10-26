@@ -39,7 +39,8 @@ export default function Settings({ settings, onSaved }) {
   const [form, setForm] = useState(null);
   const [message, setMessage] = useState("");
 
-  useEffect(() => { if (settings) setForm({ ...settings }); }, [settings]);
+  // التحديث التلقائي كل 20 ثانية ما يمسح اللي تكتبه: نعبّي النموذج بس أول مرة أو لما يتغير المريض
+  useEffect(() => { if (settings && (!form || form.id !== settings.id)) setForm({ ...settings }); }, [settings]);
   if (!form) return <p className="empty">جاري التحميل...</p>;
 
   const set = (k, v) => setForm({ ...form, [k]: v });
