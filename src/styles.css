@@ -656,11 +656,3 @@ body.doc-open { overflow: hidden; }
 
 /* أقسام لوحة المدير المطوية */
 .edu-gen { margin-top: 12px; }
-
-/* الدخول بالبصمة */
-.bio-btn { width: 100%; font-size: 17px; margin-bottom: 4px; }
-.or-line { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; margin: 12px 0 4px; }
-.or-line::before, .or-line::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-.bio-offer { border: 2px solid var(--brand); }
-.bio-offer p { margin: 6px 0 10px; }
-.bio-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

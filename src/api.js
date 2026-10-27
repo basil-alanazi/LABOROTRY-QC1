@@ -20,7 +20,7 @@ async function call(path, method = "GET", body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401 && !path.startsWith("auth/login") && !path.startsWith("auth/passkey/login")) onUnauthorized();
+  if (res.status === 401 && !path.startsWith("auth/login")) onUnauthorized();
   // الطلبات الطويلة ترجع 200 دايمًا، والخطأ يكون داخل الرد
   if (!res.ok || data.error) throw new Error(data.error || `خطأ ${res.status}`);
   return data;
@@ -50,12 +50,6 @@ export const api = {
   logout: () => call("auth/logout", "POST", {}),
   me: () => call("auth/me"),
   changePassword: (old, next) => call("auth/password", "POST", { old, new: next }),
-  passkeyLoginOptions: () => call("auth/passkey/login-options", "POST", {}),
-  passkeyLogin: (b) => call("auth/passkey/login", "POST", b),
-  passkeyRegisterOptions: () => call("auth/passkey/register-options", "POST", {}),
-  passkeyRegister: (b) => call("auth/passkey/register", "POST", b),
-  passkeys: () => call("auth/passkeys"),
-  removePasskey: (id) => call(`auth/passkeys/${id}`, "DELETE"),
   members: () => call("family/members"),
   addMember: (m) => call("family/members", "POST", m),
   removeMember: (id) => call(`family/members/${id}`, "DELETE"),
