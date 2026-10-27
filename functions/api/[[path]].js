@@ -9,7 +9,6 @@ import {
 } from "../../server/auth.js";
 import { CONDITIONS, computeTargets, generateDiet } from "../../server/diet.js";
 import { analyzeMeal, generateAdvice, mealImage, scanMedicine } from "../../server/health.js";
-import { eduImage, eduStatus } from "../../server/edu.js";
 import { access, patientSummary } from "../../server/doctor.js";
 
 const json = (data, status = 200, headers = {}) =>
@@ -433,9 +432,6 @@ export async function onRequest({ request, env, params, waitUntil }) {
           .bind(fam.id, username, name, h.salt, h.hash, me.id).run();
         return json({ username, display_name: name });
       }
-      // صور الفيديوهات التعليمية: الحالة، وتوليد صورة وحدة كل طلب
-      if (b === "edu-images" && method === "GET") return json(await eduStatus(db));
-      if (b === "edu-images" && c && method === "POST") return json(await eduImage(env, db, c));
     }
 
     // ===== المرضى =====

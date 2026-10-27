@@ -587,10 +587,6 @@ body.doc-open { overflow: hidden; }
 .med-times.not-today { opacity: .45; }
 .chips.weekdays { margin-top: 6px; }
 
-/* توليد صور الفيديوهات التعليمية */
-.edu-gen { margin-top: 12px; }
-.edu-bar { height: 10px; background: var(--cream); border-radius: 999px; overflow: hidden; margin: 10px 0; }
-.edu-bar span { display: block; height: 100%; background: var(--brand); transition: width .3s; }
 
 /* حساب الدكتور */
 .dh-head { display: flex; align-items: center; gap: 12px; padding: 18px 4px 10px; }
@@ -657,3 +653,6 @@ body.doc-open { overflow: hidden; }
 .fb-msg { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .fb-msg.unread b::after { content: " •"; color: var(--danger); }
 .fb-msg p { margin: 4px 0; white-space: pre-wrap; }
+
+/* أقسام لوحة المدير المطوية */
+.edu-gen { margin-top: 12px; }
