@@ -1,5 +1,6 @@
 import { LangPick } from "./Account";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { biometricName, cancelled, getOffer, hasBiometrics, loginWithPasskey } from "./passkey";
 import { api } from "./api";
 import { Verse } from "./Verse";
 
@@ -8,6 +9,21 @@ export default function Login({ onDone }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [bio, setBio] = useState(false);
+  useEffect(() => { hasBiometrics().then(setBio); }, []);
+
+  async function quick() {
+    setBusy(true);
+    setError("");
+    try {
+      await loginWithPasskey();
+      onDone();
+    } catch (err) {
+      if (!cancelled(err)) setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function submit(e) {
     e.preventDefault();
@@ -32,6 +48,14 @@ export default function Login({ onDone }) {
       </div>
       <form className="card login-card" onSubmit={submit}>
         <h2>تسجيل الدخول</h2>
+        {bio && (
+          <>
+            <button type="button" className={getOffer() === "done" ? "primary bio-btn" : "secondary bio-btn"} disabled={busy} onClick={quick}>
+              🔐 دخول بـ{biometricName()}
+            </button>
+            <p className="or-line"><span>أو باليوزر والباسوورد</span></p>
+          </>
+        )}
         <label>اليوزر</label>
         <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" autoCapitalize="none" dir="ltr" />
         <label>الباسوورد</label>

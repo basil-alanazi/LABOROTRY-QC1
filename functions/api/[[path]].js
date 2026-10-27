@@ -10,6 +10,7 @@ import {
 import { CONDITIONS, computeTargets, generateDiet } from "../../server/diet.js";
 import { analyzeMeal, generateAdvice, mealImage, scanMedicine } from "../../server/health.js";
 import { access, patientSummary } from "../../server/doctor.js";
+import * as passkey from "../../server/passkey.js";
 
 const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", ...headers } });
@@ -206,6 +207,20 @@ export async function onRequest({ request, env, params, waitUntil }) {
       return json({ ok: true }, 200, { "set-cookie": sessionCookie(token, expires, secure) });
     }
 
+    // الدخول بالبصمة أو الوجه: الجوال يختار المفتاح، والسيرفر يتأكد من التوقيع
+    const site = new URL(request.url);
+    if (a === "auth" && b === "passkey" && c === "login-options" && method === "POST") {
+      return json(await passkey.loginOptions(db, site.hostname));
+    }
+    if (a === "auth" && b === "passkey" && c === "login" && method === "POST") {
+      const key = `passkey|${request.headers.get("cf-connecting-ip") || "local"}`;
+      if (await tooManyAttempts(db, key)) bad("محاولات كثيرة غلط. جرّب بعد ربع ساعة.", 429);
+      let userId;
+      try { userId = await passkey.login(db, body, site.hostname, site.origin); } catch (e) { await recordFailure(db, key); bad(e.message, 401); }
+      const { token, expires } = await createSession(db, userId);
+      return json({ ok: true }, 200, { "set-cookie": sessionCookie(token, expires, secure) });
+    }
+
     if (a === "push" && b === "key" && method === "GET") {
       const row = await db.prepare("SELECT v FROM secrets WHERE k = 'vapid_public'").first();
       return json({ key: row?.v || null });
@@ -234,6 +249,21 @@ export async function onRequest({ request, env, params, waitUntil }) {
          WHERE p.archived = 0 AND ${access("p.")} ORDER BY p.id`,
       ).bind(me.family_id, me.id).all()).results;
       return json({ user: publicUser(me), family: { id: me.family_id, name: me.family_name }, patients });
+    }
+
+    // مفاتيح البصمة لحسابي: إضافة وعرض وحذف
+    if (a === "auth" && b === "passkey" && c === "register-options" && method === "POST") {
+      return json(await passkey.registerOptions(db, me, site.hostname));
+    }
+    if (a === "auth" && b === "passkey" && c === "register" && method === "POST") {
+      try { return json(await passkey.register(db, me, body, site.hostname, site.origin, text(body.name, 40) || "جوال")); } catch (e) { bad(e.message); }
+    }
+    if (a === "auth" && b === "passkeys" && method === "GET") {
+      return json((await db.prepare("SELECT id, name, created_at, last_used FROM passkeys WHERE user_id = ? ORDER BY created_at").bind(me.id).all()).results);
+    }
+    if (a === "auth" && b === "passkeys" && c && method === "DELETE") {
+      await db.prepare("DELETE FROM passkeys WHERE id = ? AND user_id = ?").bind(c, me.id).run();
+      return json({ ok: true });
     }
 
     if (a === "auth" && b === "password" && method === "POST") {

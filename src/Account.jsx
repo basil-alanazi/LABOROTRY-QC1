@@ -6,6 +6,7 @@ import InstallCard from "./InstallCard";
 import { SIZES, getFontSize, setFontSize } from "./fontSize";
 import { THEMES, getTheme, setTheme } from "./theme";
 import { LANGS, getLang, setLang } from "./i18n";
+import { PasskeysCard } from "./PasskeyOffer";
 
 // العائلة: المرضى، وأفراد العائلة، والحساب، ولوحة المدير
 export default function Account({ me, currentPatient, onPatientsChanged, onSelectPatient, onLogout, onHelp }) {
@@ -97,6 +98,7 @@ export default function Account({ me, currentPatient, onPatientsChanged, onSelec
       <ShareDoctorCard owner={me.user.role === "owner"} />
       </>}
 
+      <PasskeysCard />
       <LangCard />
       <FontSizeCard />
       <ThemeCard />

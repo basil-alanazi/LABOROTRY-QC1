@@ -12,6 +12,7 @@ import Advice from "./Advice";
 import Help from "./Help";
 import Learn from "./Learn";
 import DoctorNotes from "./DoctorNotes";
+import { PasskeyOffer } from "./PasskeyOffer";
 import Labs from "./Labs";
 import Readings from "./Readings";
 import Settings from "./Settings";
@@ -155,7 +156,7 @@ export default function App() {
   if (doctor && (page === "home" || (!patient && page !== "account"))) {
     return (
       <div className="app">
-        <main><DoctorHome me={me} open={openPatient} go={go} onPatientsChanged={loadMe} /></main>
+        <main><PasskeyOffer /><DoctorHome me={me} open={openPatient} go={go} onPatientsChanged={loadMe} /></main>
         <BottomNav page="home" go={go} patient={patient} doctor />
       </div>
     );
@@ -190,6 +191,7 @@ export default function App() {
       {error && <div className="alert danger">{error}</div>}
 
       <main>
+        {page === "home" && <PasskeyOffer />}
         {(page === "home" || page === "patient") && <HomeNew {...data} me={me} patient={patient} go={go} />}
         {page === "sugar" && <Today {...props} />}
         {page === "vitals" && <Vitals {...props} />}
