@@ -656,6 +656,7 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, onAddPatient, onUpdat
 }
 
 function IcuRow({ p, icuTypes, onFieldChange, onFieldBlurSave, onSpecimenFieldChange, onSpecimenMdroToggle, onHaiDetectedToggle, onEventTypeToggle, onRemove }) {
+  const unitBeforeHospital = !!(p.hospital_admission_date && p.unit_admission_date && p.unit_admission_date < p.hospital_admission_date);
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50">
       <td className="px-2 py-1"><GridText value={p.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} /></td>
@@ -679,7 +680,15 @@ function IcuRow({ p, icuTypes, onFieldChange, onFieldBlurSave, onSpecimenFieldCh
           ))}
         </select>
       </td>
-      <td className="px-2 py-1"><GridDate value={p.unit_admission_date} onChange={(e) => onFieldChange({ unit_admission_date: e.target.value })} onBlur={onFieldBlurSave} /></td>
+      <td className="px-2 py-1">
+        <GridDate
+          value={p.unit_admission_date}
+          onChange={(e) => onFieldChange({ unit_admission_date: e.target.value })}
+          onBlur={onFieldBlurSave}
+          className={unitBeforeHospital ? "border-red-400 bg-red-50" : ""}
+        />
+        {unitBeforeHospital && <p className="mt-0.5 whitespace-nowrap text-[10px] font-medium text-red-600">Before hospital admission</p>}
+      </td>
       <td className="px-2 py-1"><GridText value={p.admission_diagnosis} onChange={(e) => onFieldChange({ admission_diagnosis: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[10rem]" /></td>
 
       <td className="px-2 py-1"><GridDate value={p.central_line_insertion} onChange={(e) => onFieldChange({ central_line_insertion: e.target.value })} onBlur={onFieldBlurSave} /></td>
