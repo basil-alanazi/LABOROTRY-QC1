@@ -45,6 +45,7 @@ const NURSING_ROUND_DEPARTMENTS = ["Male Ward", "Female Ward", "ICU", "NICU", "S
 const QUALITY_ROUND_DEPARTMENTS = ["Male Ward", "Female Ward", "ICU", "NICU", "Surgery", "OB/GYN", "Emergency", "OPD"];
 const CULTURE_TRACKER_ITEMS = ["Dental 1", "Dental 2", "Hospital 6 Month CS", "Hospital 12 Month CS"];
 const AGREEMENT_TRACKER_ENTITIES = ["SEPCO", "Pest Control", "Intra Department"];
+const HAI_ICU_TYPES = ["Adult ICU", "NICU", "PICU"];
 
 export const app_config = {
   id: 1,
@@ -55,10 +56,45 @@ export const app_config = {
   quality_round_departments: QUALITY_ROUND_DEPARTMENTS,
   culture_tracker_items: CULTURE_TRACKER_ITEMS,
   agreement_tracker_entities: AGREEMENT_TRACKER_ENTITIES,
+  hai_icu_types: HAI_ICU_TYPES,
 };
 
 export const nursing_rounds = [];
 export const quality_rounds = [];
+
+export const hai_icu_surveillance = [
+  {
+    id: "hai-icu-1",
+    patient_name: "Khalid Al-Dossary",
+    mrn: "M-5521",
+    age: "54",
+    gender: "M",
+    bed_no: "3",
+    hospital_admission_date: "2026-10-28",
+    icu_type: "Adult ICU",
+    unit_admission_date: "2026-10-29",
+    admission_diagnosis: "Septic shock",
+    central_line_insertion: "2026-10-29",
+    central_line_removed: null,
+    urinary_catheter_insertion: "2026-10-29",
+    urinary_catheter_removed: null,
+    ventilator_insertion: "2026-10-30",
+    ventilator_removed: null,
+    device_reinsertion_note: "",
+    signs_symptoms: "",
+    date_onset_symptoms: null,
+    specimens: [],
+    other_specimens: "",
+    hai_detected: false,
+    hai_event_types: [],
+    current_status: "admitted",
+    comments: "",
+    done_by: "ic",
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+];
+export const hai_vae_monitoring = [];
 
 export const ic_rounds = [
   {

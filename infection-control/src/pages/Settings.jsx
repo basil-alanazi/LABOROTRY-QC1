@@ -16,6 +16,7 @@ const emptyNewUser = {
   can_view_employee_health: false,
   can_view_nursing_rounds: false,
   can_view_quality_rounds: false,
+  can_view_hai_surveillance: false,
 };
 const emptyNewStockItem = { department: "", name: "", unit: "unit", min_qty: "", max_qty: "", current_qty: "" };
 const emptyNewHealthItem = { name: "", category: "vaccine", recurrence_months: "", dose_schedule: "0", kitchen_only: false };
@@ -47,6 +48,8 @@ export default function Settings() {
   const [newCultureTrackerItem, setNewCultureTrackerItem] = useState("");
   const [agreementTrackerEntities, setAgreementTrackerEntities] = useState([]);
   const [newAgreementTrackerEntity, setNewAgreementTrackerEntity] = useState("");
+  const [haiIcuTypes, setHaiIcuTypes] = useState([]);
+  const [newHaiIcuType, setNewHaiIcuType] = useState("");
   const [healthItemTypes, setHealthItemTypes] = useState([]);
   const [newHealthItem, setNewHealthItem] = useState(emptyNewHealthItem);
   const [diseaseTypes, setDiseaseTypes] = useState([]);
@@ -64,6 +67,7 @@ export default function Settings() {
       setQualityRoundDepartments(config.quality_round_departments ?? []);
       setCultureTrackerItems(config.culture_tracker_items ?? []);
       setAgreementTrackerEntities(config.agreement_tracker_entities ?? []);
+      setHaiIcuTypes(config.hai_icu_types ?? []);
     }
   }, [config]);
 
@@ -234,6 +238,24 @@ export default function Settings() {
     saveIcRoundDepartments(icRoundDepartments.filter((d) => d !== name));
   }
 
+  async function saveHaiIcuTypes(next) {
+    setHaiIcuTypes(next);
+    await supabase.from("app_config").update({ hai_icu_types: next }).eq("id", 1);
+    reloadConfig();
+    flash("HAI Surveillance ICU types saved");
+  }
+
+  function addHaiIcuType() {
+    const name = newHaiIcuType.trim();
+    if (!name || haiIcuTypes.includes(name)) return;
+    saveHaiIcuTypes([...haiIcuTypes, name]);
+    setNewHaiIcuType("");
+  }
+
+  function removeHaiIcuType(name) {
+    saveHaiIcuTypes(haiIcuTypes.filter((d) => d !== name));
+  }
+
   async function saveNursingRoundDepartments(next) {
     setNursingRoundDepartments(next);
     await supabase.from("app_config").update({ nursing_round_departments: next }).eq("id", 1);
@@ -384,6 +406,7 @@ export default function Settings() {
       can_view_employee_health: newUser.role === "staff" && newUser.can_view_employee_health,
       can_view_nursing_rounds: newUser.role === "staff" && newUser.can_view_nursing_rounds,
       can_view_quality_rounds: newUser.role === "staff" && newUser.can_view_quality_rounds,
+      can_view_hai_surveillance: newUser.role === "staff" && newUser.can_view_hai_surveillance,
       created_by: session?.username,
     });
     if (error) {
@@ -411,6 +434,7 @@ export default function Settings() {
         can_view_employee_health: user.role === "staff" && !!user.can_view_employee_health,
         can_view_nursing_rounds: user.role === "staff" && !!user.can_view_nursing_rounds,
         can_view_quality_rounds: user.role === "staff" && !!user.can_view_quality_rounds,
+        can_view_hai_surveillance: user.role === "staff" && !!user.can_view_hai_surveillance,
         active: user.active,
       })
       .eq("id", user.id);
@@ -464,6 +488,28 @@ export default function Settings() {
         <div className="flex gap-2">
           <input className="input" value={newIcRoundDept} onChange={(e) => setNewIcRoundDept(e.target.value)} placeholder="New department name" />
           <button onClick={addIcRoundDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+            <Plus className="h-4 w-4" />
+            Add
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">HAI Surveillance — ICU Types</h2>
+        <p className="mb-4 text-xs text-slate-500">The list of ICU/NICU types offered in the HAI Surveillance module.</p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {haiIcuTypes.map((d) => (
+            <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
+              {d}
+              <button onClick={() => removeHaiIcuType(d)} className="text-teal-400 hover:text-red-500">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input className="input" value={newHaiIcuType} onChange={(e) => setNewHaiIcuType(e.target.value)} placeholder="New ICU type name" />
+          <button onClick={addHaiIcuType} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
             Add
           </button>
@@ -1000,6 +1046,16 @@ export default function Settings() {
                     Quality Daily Rounds access only — sees only the Quality Daily Rounds page instead of Stock Requests
                   </label>
                 )}
+                {u.role === "staff" && (
+                  <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-5">
+                    <input
+                      type="checkbox"
+                      checked={!!u.can_view_hai_surveillance}
+                      onChange={(e) => updateUserField(u.id, { can_view_hai_surveillance: e.target.checked })}
+                    />
+                    HAI Surveillance access — also sees the HAI Surveillance page (in addition to whatever else this account can see)
+                  </label>
+                )}
               </div>
             ))}
           </div>
@@ -1099,6 +1155,16 @@ export default function Settings() {
                   onChange={(e) => setNewUser({ ...newUser, can_view_quality_rounds: e.target.checked })}
                 />
                 Quality Daily Rounds access only — sees only the Quality Daily Rounds page instead of Stock Requests
+              </label>
+            )}
+            {newUser.role === "staff" && (
+              <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-4">
+                <input
+                  type="checkbox"
+                  checked={newUser.can_view_hai_surveillance}
+                  onChange={(e) => setNewUser({ ...newUser, can_view_hai_surveillance: e.target.checked })}
+                />
+                HAI Surveillance access — also sees the HAI Surveillance page (in addition to whatever else this account can see)
               </label>
             )}
             <button

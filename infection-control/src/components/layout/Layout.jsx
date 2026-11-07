@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
+  Activity,
   ClipboardCheck,
   FolderClock,
   HeartPulse,
@@ -25,7 +26,7 @@ const linkClass = ({ isActive }) =>
   }`;
 
 export default function Layout({ children }) {
-  const { session, logout, isAdmin, canViewEmployeeHealth, canViewNursingRounds, canViewQualityRounds } = useAuth();
+  const { session, logout, isAdmin, canViewEmployeeHealth, canViewNursingRounds, canViewQualityRounds, canViewHaiSurveillance } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -93,6 +94,12 @@ export default function Layout({ children }) {
         <NavLink to="/trackers" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <FolderClock className="h-4 w-4" />
           Trackers
+        </NavLink>
+      )}
+      {canViewHaiSurveillance && (
+        <NavLink to="/hai-surveillance" className={linkClass} onClick={() => setSidebarOpen(false)}>
+          <Activity className="h-4 w-4" />
+          HAI Surveillance
         </NavLink>
       )}
       {(isAdmin || !(session?.canViewEmployeeHealth || session?.canViewNursingRounds || session?.canViewQualityRounds)) && (

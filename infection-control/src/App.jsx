@@ -13,6 +13,7 @@ import ICRounds from "./pages/ic-rounds/ICRounds.jsx";
 import NursingRounds from "./pages/nursing-rounds/NursingRounds.jsx";
 import QualityRounds from "./pages/quality-rounds/QualityRounds.jsx";
 import Trackers from "./pages/trackers/Trackers.jsx";
+import HaiSurveillance from "./pages/hai/HaiSurveillance.jsx";
 
 export default function App() {
   return (
@@ -103,6 +104,16 @@ export default function App() {
             <ProtectedRoute adminOnly>
               <Layout>
                 <Trackers />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hai-surveillance"
+          element={
+            <ProtectedRoute haiSurveillanceAccess>
+              <Layout>
+                <HaiSurveillance />
               </Layout>
             </ProtectedRoute>
           }
