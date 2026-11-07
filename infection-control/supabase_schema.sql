@@ -716,6 +716,7 @@ alter table users add column if not exists can_view_hai_surveillance boolean not
 
 create table if not exists hai_icu_surveillance (
   id uuid primary key default gen_random_uuid(),
+  month text not null default '',
   patient_name text not null,
   mrn text not null default '',
   age text not null default '',
@@ -788,6 +789,7 @@ create policy "allow all hai_vae_monitoring" on hai_vae_monitoring for all using
 -- jsonb-array convention used by hai_icu_surveillance.
 create table if not exists hai_ssi_surveillance (
   id uuid primary key default gen_random_uuid(),
+  month text not null default '',
   patient_name text not null,
   mrn text not null default '',
   unit text not null default '',
@@ -817,6 +819,11 @@ create table if not exists hai_ssi_surveillance (
 );
 alter table hai_ssi_surveillance enable row level security;
 create policy "allow all hai_ssi_surveillance" on hai_ssi_surveillance for all using (true) with check (true);
+
+-- ICU/NICU and SSI Surveillance each show a "Month" column matching the
+-- official sheet (free text, e.g. "November").
+alter table hai_icu_surveillance add column if not exists month text not null default '';
+alter table hai_ssi_surveillance add column if not exists month text not null default '';
 
 -- OB/Delivery Surveillance — a 4th HAI Surveillance tab, independent of
 -- the ICU/NICU and SSI tabs above. One row per maternity patient, moving
