@@ -38,7 +38,23 @@ const emptySpecimen = { type: "", date_collected: "", date_result: "", organism:
 const TABS = [
   { key: "icu", label: "ICU/NICU Surveillance" },
   { key: "vae", label: "VAE Monitoring" },
+  { key: "ssi", label: "SSI Surveillance" },
 ];
+
+const emptySsiForm = {
+  patient_name: "",
+  mrn: "",
+  unit: "",
+  age: "",
+  gender: "",
+  admission_diagnosis: "",
+  surgical_procedure_type: "",
+  date_of_procedure: todayStr(),
+  elective_emergency: "elective",
+};
+
+const emptyFollowUp = { type: "", date: "", signs_symptoms: "", wound_status: "" };
+const emptySsiSpecimen = { type: "", date_collected: "", organism: "", mdro: false };
 
 export default function HaiSurveillance() {
   const { session, config } = useAuth();
@@ -51,17 +67,23 @@ export default function HaiSurveillance() {
   const [expanded, setExpanded] = useState(null);
   const [showPatientForm, setShowPatientForm] = useState(false);
   const [patientForm, setPatientForm] = useState(emptyPatientForm);
+  const [ssiCases, setSsiCases] = useState([]);
+  const [showSsiForm, setShowSsiForm] = useState(false);
+  const [ssiForm, setSsiForm] = useState(emptySsiForm);
 
   const icuTypes = config?.hai_icu_types ?? [];
+  const units = config?.employee_departments ?? [];
 
   async function loadAll() {
     setLoading(true);
-    const [{ data: pts }, { data: vae }] = await Promise.all([
+    const [{ data: pts }, { data: vae }, { data: ssi }] = await Promise.all([
       fetchAllRows((from, to) => supabase.from("hai_icu_surveillance").select("*").eq("deleted", false).order("unit_admission_date", { ascending: false }).range(from, to)),
       fetchAllRows((from, to) => supabase.from("hai_vae_monitoring").select("*").order("date", { ascending: false }).range(from, to)),
+      fetchAllRows((from, to) => supabase.from("hai_ssi_surveillance").select("*").eq("deleted", false).order("date_of_procedure", { ascending: false }).range(from, to)),
     ]);
     setPatients(pts ?? []);
     setVaeRows(vae ?? []);
+    setSsiCases(ssi ?? []);
     setLoading(false);
   }
 
@@ -78,8 +100,13 @@ export default function HaiSurveillance() {
     () => (statusFilter === "all" ? patients : patients.filter((p) => p.current_status === statusFilter)),
     [patients, statusFilter]
   );
+  const visibleSsiCases = useMemo(
+    () => (statusFilter === "all" ? ssiCases : ssiCases.filter((c) => c.current_status === statusFilter)),
+    [ssiCases, statusFilter]
+  );
 
   const haiCount = useMemo(() => patients.filter((p) => p.current_status === "admitted" && p.hai_detected).length, [patients]);
+  const ssiCount = useMemo(() => ssiCases.filter((c) => c.current_status === "admitted" && c.ssi_detected).length, [ssiCases]);
 
   function updatePatientField(id, patch) {
     setPatients((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -163,6 +190,117 @@ export default function HaiSurveillance() {
     updatePatientField(p.id, { hai_event_types: next });
   }
 
+  function updateSsiField(id, patch) {
+    setSsiCases((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  }
+
+  async function addSsiCase(e) {
+    e.preventDefault();
+    const name = ssiForm.patient_name.trim();
+    if (!name) return flash({ type: "error", text: "Patient name is required" });
+    const { error } = await supabase.from("hai_ssi_surveillance").insert({
+      patient_name: name,
+      mrn: ssiForm.mrn.trim(),
+      unit: ssiForm.unit,
+      age: ssiForm.age.trim(),
+      gender: ssiForm.gender,
+      admission_diagnosis: ssiForm.admission_diagnosis.trim(),
+      surgical_procedure_type: ssiForm.surgical_procedure_type.trim(),
+      date_of_procedure: ssiForm.date_of_procedure || null,
+      elective_emergency: ssiForm.elective_emergency,
+      done_by: session?.username,
+    });
+    if (error) return flash({ type: "error", text: "Could not add: " + error.message });
+    setSsiForm(emptySsiForm);
+    setShowSsiForm(false);
+    loadAll();
+    flash({ type: "success", text: "Case added" });
+  }
+
+  async function saveSsiCase(c) {
+    await supabase
+      .from("hai_ssi_surveillance")
+      .update({
+        patient_name: c.patient_name,
+        mrn: c.mrn,
+        unit: c.unit,
+        age: c.age,
+        gender: c.gender,
+        admission_diagnosis: c.admission_diagnosis,
+        surgical_procedure_type: c.surgical_procedure_type,
+        date_of_procedure: c.date_of_procedure || null,
+        elective_emergency: c.elective_emergency,
+        asa_score: c.asa_score,
+        wound_class: c.wound_class,
+        duration_of_surgery: c.duration_of_surgery,
+        patos: !!c.patos,
+        follow_up_duration: c.follow_up_duration,
+        follow_ups: c.follow_ups ?? [],
+        specimens: c.specimens ?? [],
+        other_specimens: c.other_specimens,
+        ssi_detected: !!c.ssi_detected,
+        type_of_ssi: c.type_of_ssi,
+        current_status: c.current_status,
+        comments: c.comments,
+      })
+      .eq("id", c.id);
+    flash({ type: "success", text: "Saved" });
+  }
+
+  async function removeSsiCase(c) {
+    if (!confirm(`Remove "${c.patient_name}" from SSI Surveillance?`)) return;
+    await supabase.from("hai_ssi_surveillance").update({ deleted: true, deleted_by: session?.username, deleted_at: new Date().toISOString() }).eq("id", c.id);
+    loadAll();
+  }
+
+  function addFollowUp(c) {
+    updateSsiField(c.id, { follow_ups: [...(c.follow_ups ?? []), { ...emptyFollowUp }] });
+  }
+  function updateFollowUp(c, index, patch) {
+    const next = (c.follow_ups ?? []).map((f, i) => (i === index ? { ...f, ...patch } : f));
+    updateSsiField(c.id, { follow_ups: next });
+  }
+  function removeFollowUp(c, index) {
+    updateSsiField(c.id, { follow_ups: (c.follow_ups ?? []).filter((_, i) => i !== index) });
+  }
+
+  function addSsiSpecimen(c) {
+    updateSsiField(c.id, { specimens: [...(c.specimens ?? []), { ...emptySsiSpecimen }] });
+  }
+  function updateSsiSpecimen(c, index, patch) {
+    const next = (c.specimens ?? []).map((s, i) => (i === index ? { ...s, ...patch } : s));
+    updateSsiField(c.id, { specimens: next });
+  }
+  function removeSsiSpecimen(c, index) {
+    updateSsiField(c.id, { specimens: (c.specimens ?? []).filter((_, i) => i !== index) });
+  }
+
+  function exportSsiExcel() {
+    downloadExcel(`infection-control-hai-ssi-${todayStr()}`, [
+      {
+        name: "SSI Surveillance",
+        headers: [
+          "Patient Name", "MRN", "Unit", "Age", "Gender", "Admission Diagnosis", "Surgical Procedure", "Date of Procedure", "Elective/Emergency",
+          "ASA Score", "Wound Class", "Duration of Surgery", "PATOS", "Follow-up Duration", "SSI Detected", "Type of SSI", "Current Status", "Comments", "Recorded By",
+        ],
+        rows: visibleSsiCases.map((c) => [
+          c.patient_name, c.mrn, c.unit, c.age, c.gender, c.admission_diagnosis, c.surgical_procedure_type, c.date_of_procedure || "", c.elective_emergency,
+          c.asa_score, c.wound_class, c.duration_of_surgery, c.patos ? "Yes" : "No", `${c.follow_up_duration} days`,
+          c.ssi_detected ? "Yes" : "No", c.type_of_ssi, statusLabel(c.current_status), c.comments, c.done_by,
+        ]),
+      },
+    ]);
+  }
+
+  function exportSsiPdf() {
+    downloadPdf(`infection-control-hai-ssi-${todayStr()}`, "HAI Surveillance — SSI", [
+      {
+        headers: ["Patient", "MRN", "Procedure", "Date of Procedure", "Status", "SSI Detected", "Type of SSI"],
+        rows: visibleSsiCases.map((c) => [c.patient_name, c.mrn, c.surgical_procedure_type, c.date_of_procedure || "", statusLabel(c.current_status), c.ssi_detected ? "Yes" : "No", c.type_of_ssi]),
+      },
+    ]);
+  }
+
   function exportIcuExcel() {
     downloadExcel(`infection-control-hai-icu-${todayStr()}`, [
       {
@@ -210,12 +348,30 @@ export default function HaiSurveillance() {
             </button>
           </div>
         )}
+        {tab === "ssi" && (
+          <div className="flex gap-2">
+            <button onClick={exportSsiExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Export Excel
+            </button>
+            <button onClick={exportSsiPdf} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+              <FileText className="h-3.5 w-3.5" />
+              Export PDF
+            </button>
+          </div>
+        )}
       </div>
 
-      {haiCount > 0 && (
+      {tab === "icu" && haiCount > 0 && (
         <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
           <AlertTriangle className="h-4 w-4" />
           {haiCount} admitted patient{haiCount > 1 ? "s" : ""} with a detected HAI event
+        </div>
+      )}
+      {tab === "ssi" && ssiCount > 0 && (
+        <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+          <AlertTriangle className="h-4 w-4" />
+          {ssiCount} admitted patient{ssiCount > 1 ? "s" : ""} with a detected SSI
         </div>
       )}
 
@@ -273,6 +429,30 @@ export default function HaiSurveillance() {
           session={session}
           flash={flash}
           reload={loadAll}
+        />
+      )}
+
+      {tab === "ssi" && (
+        <SsiSurveillanceTab
+          cases={visibleSsiCases}
+          loading={loading}
+          units={units}
+          showForm={showSsiForm}
+          setShowForm={setShowSsiForm}
+          form={ssiForm}
+          setForm={setSsiForm}
+          onAddCase={addSsiCase}
+          expanded={expanded}
+          setExpanded={setExpanded}
+          onUpdateField={updateSsiField}
+          onSave={saveSsiCase}
+          onRemove={removeSsiCase}
+          onAddFollowUp={addFollowUp}
+          onUpdateFollowUp={updateFollowUp}
+          onRemoveFollowUp={removeFollowUp}
+          onAddSpecimen={addSsiSpecimen}
+          onUpdateSpecimen={updateSsiSpecimen}
+          onRemoveSpecimen={removeSsiSpecimen}
         />
       )}
     </div>
@@ -708,6 +888,273 @@ function VaeMonitoringTab({ patients, vaeRows, session, flash, reload }) {
         </>
       )}
     </div>
+  );
+}
+
+function SsiSurveillanceTab({
+  cases, loading, units, showForm, setShowForm, form, setForm, onAddCase,
+  expanded, setExpanded, onUpdateField, onSave, onRemove, onAddFollowUp, onUpdateFollowUp, onRemoveFollowUp, onAddSpecimen, onUpdateSpecimen, onRemoveSpecimen,
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <button
+          onClick={() => setShowForm((v) => !v)}
+          className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700"
+        >
+          <UserPlus className="h-3.5 w-3.5" />
+          Add Patient
+        </button>
+      </div>
+      {showForm && (
+        <form onSubmit={onAddCase} className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-4">
+          <input className="input" placeholder="Patient Name" value={form.patient_name} onChange={(e) => setForm({ ...form, patient_name: e.target.value })} required />
+          <input className="input" placeholder="MRN / ID" value={form.mrn} onChange={(e) => setForm({ ...form, mrn: e.target.value })} />
+          <select className="input" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}>
+            <option value="">Unit</option>
+            {units.map((u) => (
+              <option key={u} value={u}>{u}</option>
+            ))}
+          </select>
+          <input className="input" placeholder="Age" value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} />
+          <select className="input" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
+            <option value="">Gender</option>
+            <option value="M">Male</option>
+            <option value="F">Female</option>
+          </select>
+          <input className="input" placeholder="Surgical Procedure Type" value={form.surgical_procedure_type} onChange={(e) => setForm({ ...form, surgical_procedure_type: e.target.value })} />
+          <label className="flex flex-col gap-1 text-xs text-slate-500">
+            Date of Procedure
+            <input type="date" className="input" value={form.date_of_procedure} onChange={(e) => setForm({ ...form, date_of_procedure: e.target.value })} />
+          </label>
+          <select className="input" value={form.elective_emergency} onChange={(e) => setForm({ ...form, elective_emergency: e.target.value })}>
+            <option value="elective">Elective</option>
+            <option value="emergency">Emergency</option>
+          </select>
+          <input
+            className="input sm:col-span-4"
+            placeholder="Admission Diagnosis"
+            value={form.admission_diagnosis}
+            onChange={(e) => setForm({ ...form, admission_diagnosis: e.target.value })}
+          />
+          <button type="submit" className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+            <Plus className="h-4 w-4" />
+            Save
+          </button>
+        </form>
+      )}
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-left text-xs text-slate-500">
+            <tr>
+              <th className="px-3 py-2 font-medium">Patient</th>
+              <th className="px-3 py-2 font-medium">Procedure</th>
+              <th className="px-3 py-2 font-medium">Date of Procedure</th>
+              <th className="px-3 py-2 font-medium">Status</th>
+              <th className="px-3 py-2 font-medium">SSI</th>
+              <th className="px-3 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {cases.map((c) => (
+              <SsiCaseRow
+                key={c.id}
+                c={c}
+                units={units}
+                expanded={expanded === c.id}
+                onToggle={() => setExpanded(expanded === c.id ? null : c.id)}
+                onUpdateField={(patch) => onUpdateField(c.id, patch)}
+                onSave={() => onSave(c)}
+                onRemove={() => onRemove(c)}
+                onAddFollowUp={() => onAddFollowUp(c)}
+                onUpdateFollowUp={(i, patch) => onUpdateFollowUp(c, i, patch)}
+                onRemoveFollowUp={(i) => onRemoveFollowUp(c, i)}
+                onAddSpecimen={() => onAddSpecimen(c)}
+                onUpdateSpecimen={(i, patch) => onUpdateSpecimen(c, i, patch)}
+                onRemoveSpecimen={(i) => onRemoveSpecimen(c, i)}
+              />
+            ))}
+          </tbody>
+        </table>
+        {!loading && cases.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No patients in this list.</p>}
+      </div>
+    </div>
+  );
+}
+
+function SsiCaseRow({ c, units, expanded, onToggle, onUpdateField, onSave, onRemove, onAddFollowUp, onUpdateFollowUp, onRemoveFollowUp, onAddSpecimen, onUpdateSpecimen, onRemoveSpecimen }) {
+  return (
+    <>
+      <tr className="border-t border-slate-100 hover:bg-slate-50">
+        <td className="px-3 py-2">
+          <div className="font-medium text-slate-700">{c.patient_name}</div>
+          <div className="text-xs text-slate-400">{c.mrn}</div>
+        </td>
+        <td className="px-3 py-2">{c.surgical_procedure_type}</td>
+        <td className="px-3 py-2">{c.date_of_procedure}</td>
+        <td className="px-3 py-2">
+          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass(c.current_status)}`}>{statusLabel(c.current_status)}</span>
+        </td>
+        <td className="px-3 py-2">
+          {c.ssi_detected ? (
+            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">{c.type_of_ssi || "Yes"}</span>
+          ) : (
+            <span className="text-xs text-slate-400">—</span>
+          )}
+        </td>
+        <td className="flex items-center justify-end gap-1 px-3 py-2">
+          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+            <Trash2 className="h-4 w-4" />
+          </button>
+          <button onClick={onToggle} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="border-t border-slate-100 bg-slate-50/60">
+          <td colSpan={6} className="px-4 py-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Field label="Patient Name">
+                <input className="input" value={c.patient_name} onChange={(e) => onUpdateField({ patient_name: e.target.value })} />
+              </Field>
+              <Field label="MRN / ID">
+                <input className="input" value={c.mrn} onChange={(e) => onUpdateField({ mrn: e.target.value })} />
+              </Field>
+              <Field label="Unit">
+                <select className="input" value={c.unit} onChange={(e) => onUpdateField({ unit: e.target.value })}>
+                  <option value="">—</option>
+                  {units.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Age">
+                <input className="input" value={c.age} onChange={(e) => onUpdateField({ age: e.target.value })} />
+              </Field>
+              <Field label="Gender">
+                <select className="input" value={c.gender} onChange={(e) => onUpdateField({ gender: e.target.value })}>
+                  <option value="">—</option>
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                </select>
+              </Field>
+              <Field label="Current Status">
+                <select className="input" value={c.current_status} onChange={(e) => onUpdateField({ current_status: e.target.value })}>
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>{statusLabel(s)}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Admission Diagnosis">
+                <input className="input" value={c.admission_diagnosis} onChange={(e) => onUpdateField({ admission_diagnosis: e.target.value })} />
+              </Field>
+              <Field label="Surgical Procedure Type">
+                <input className="input" value={c.surgical_procedure_type} onChange={(e) => onUpdateField({ surgical_procedure_type: e.target.value })} />
+              </Field>
+              <Field label="Date of Procedure">
+                <input type="date" className="input" value={c.date_of_procedure || ""} onChange={(e) => onUpdateField({ date_of_procedure: e.target.value })} />
+              </Field>
+              <Field label="Elective / Emergency">
+                <select className="input" value={c.elective_emergency} onChange={(e) => onUpdateField({ elective_emergency: e.target.value })}>
+                  <option value="elective">Elective</option>
+                  <option value="emergency">Emergency</option>
+                </select>
+              </Field>
+            </div>
+
+            <h3 className="mt-4 mb-2 text-xs font-semibold uppercase text-slate-500">Risk Category Index</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field label="ASA Score">
+                <input className="input" value={c.asa_score} onChange={(e) => onUpdateField({ asa_score: e.target.value })} />
+              </Field>
+              <Field label="Wound Class">
+                <input className="input" value={c.wound_class} onChange={(e) => onUpdateField({ wound_class: e.target.value })} />
+              </Field>
+              <Field label="Duration of Surgery">
+                <input className="input" value={c.duration_of_surgery} onChange={(e) => onUpdateField({ duration_of_surgery: e.target.value })} />
+              </Field>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-4">
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                <input type="checkbox" checked={!!c.patos} onChange={(e) => onUpdateField({ patos: e.target.checked })} />
+                PATOS — pre-existing infection/abscess at time of surgery
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                Follow-up duration
+                <select className="input" value={c.follow_up_duration} onChange={(e) => onUpdateField({ follow_up_duration: Number(e.target.value) })}>
+                  <option value={30}>30 days</option>
+                  <option value={90}>90 days</option>
+                </select>
+              </label>
+            </div>
+
+            <h3 className="mt-4 mb-2 text-xs font-semibold uppercase text-slate-500">Post-Discharge Follow-ups</h3>
+            <div className="flex flex-col gap-2">
+              {(c.follow_ups ?? []).map((f, i) => (
+                <div key={i} className="grid grid-cols-1 gap-2 rounded-lg bg-white p-2 sm:grid-cols-5 sm:items-center">
+                  <input className="input-cell" placeholder="Type (OPD/ER/Phone/Virtual)" value={f.type} onChange={(e) => onUpdateFollowUp(i, { type: e.target.value })} />
+                  <input type="date" className="input-cell" value={f.date} onChange={(e) => onUpdateFollowUp(i, { date: e.target.value })} />
+                  <input className="input-cell" placeholder="Signs & Symptoms" value={f.signs_symptoms} onChange={(e) => onUpdateFollowUp(i, { signs_symptoms: e.target.value })} />
+                  <input className="input-cell" placeholder="Wound Status" value={f.wound_status} onChange={(e) => onUpdateFollowUp(i, { wound_status: e.target.value })} />
+                  <button onClick={() => onRemoveFollowUp(i)} className="justify-self-end rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              <button onClick={onAddFollowUp} className="flex w-fit items-center gap-1 text-xs font-medium text-teal-600 hover:underline">
+                <Plus className="h-3.5 w-3.5" />
+                Add follow-up
+              </button>
+            </div>
+
+            <h3 className="mt-4 mb-2 text-xs font-semibold uppercase text-slate-500">Specimens</h3>
+            <div className="flex flex-col gap-2">
+              {(c.specimens ?? []).map((s, i) => (
+                <div key={i} className="grid grid-cols-1 gap-2 rounded-lg bg-white p-2 sm:grid-cols-5 sm:items-center">
+                  <input className="input-cell" placeholder="Type of specimen" value={s.type} onChange={(e) => onUpdateSpecimen(i, { type: e.target.value })} />
+                  <input type="date" className="input-cell" value={s.date_collected} onChange={(e) => onUpdateSpecimen(i, { date_collected: e.target.value })} />
+                  <input className="input-cell" placeholder="Organism" value={s.organism} onChange={(e) => onUpdateSpecimen(i, { organism: e.target.value })} />
+                  <label className="flex items-center gap-1 text-xs text-slate-500">
+                    <input type="checkbox" checked={!!s.mdro} onChange={(e) => onUpdateSpecimen(i, { mdro: e.target.checked })} />
+                    MDRO
+                  </label>
+                  <button onClick={() => onRemoveSpecimen(i)} className="justify-self-end rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              <button onClick={onAddSpecimen} className="flex w-fit items-center gap-1 text-xs font-medium text-teal-600 hover:underline">
+                <Plus className="h-3.5 w-3.5" />
+                Add specimen
+              </button>
+            </div>
+            <Field label="Other Specimens (if any)">
+              <input className="input mt-2" value={c.other_specimens} onChange={(e) => onUpdateField({ other_specimens: e.target.value })} />
+            </Field>
+
+            <h3 className="mt-4 mb-2 text-xs font-semibold uppercase text-slate-500">SSI</h3>
+            <label className="mb-2 flex items-center gap-2 text-sm text-slate-600">
+              <input type="checkbox" checked={!!c.ssi_detected} onChange={(e) => onUpdateField({ ssi_detected: e.target.checked })} />
+              SSI Detected
+            </label>
+            {c.ssi_detected && (
+              <Field label="Type of SSI">
+                <input className="input mb-2" value={c.type_of_ssi} onChange={(e) => onUpdateField({ type_of_ssi: e.target.value })} />
+              </Field>
+            )}
+            <Field label="Comments">
+              <textarea className="input min-h-[60px]" value={c.comments} onChange={(e) => onUpdateField({ comments: e.target.value })} />
+            </Field>
+
+            <button onClick={onSave} className="mt-3 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+              Save
+            </button>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 

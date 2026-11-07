@@ -778,3 +778,42 @@ create table if not exists hai_vae_monitoring (
 );
 alter table hai_vae_monitoring enable row level security;
 create policy "allow all hai_vae_monitoring" on hai_vae_monitoring for all using (true) with check (true);
+
+-- SSI (Surgical Site Infection) Surveillance — same HAI Surveillance
+-- module, third tab. One row per surgical patient: procedure info,
+-- ASA/wound-class/surgery-duration risk index, PATOS, any number of
+-- post-discharge follow-ups (Type/Date/Signs/Wound status, mirroring
+-- the official sheet's 1st/2nd/3rd Follow Up blocks but open-ended
+-- instead of capped at 3), and specimens, consistent with the same
+-- jsonb-array convention used by hai_icu_surveillance.
+create table if not exists hai_ssi_surveillance (
+  id uuid primary key default gen_random_uuid(),
+  patient_name text not null,
+  mrn text not null default '',
+  unit text not null default '',
+  age text not null default '',
+  gender text not null default '',
+  admission_diagnosis text not null default '',
+  surgical_procedure_type text not null default '',
+  date_of_procedure date,
+  elective_emergency text not null default 'elective', -- elective | emergency
+  asa_score text not null default '',
+  wound_class text not null default '',
+  duration_of_surgery text not null default '',
+  patos boolean not null default false, -- pre-existing infection/abscess at time of surgery
+  follow_up_duration int not null default 30, -- 30 | 90 days
+  follow_ups jsonb not null default '[]'::jsonb, -- [{ type, date, signs_symptoms, wound_status }, ...]
+  specimens jsonb not null default '[]'::jsonb, -- [{ type, date_collected, organism, mdro }, ...]
+  other_specimens text not null default '',
+  ssi_detected boolean not null default false,
+  type_of_ssi text not null default '',
+  current_status text not null default 'admitted', -- admitted | discharged | transferred | referred | expired
+  comments text not null default '',
+  done_by text not null default '',
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+alter table hai_ssi_surveillance enable row level security;
+create policy "allow all hai_ssi_surveillance" on hai_ssi_surveillance for all using (true) with check (true);

@@ -96,6 +96,36 @@ export const hai_icu_surveillance = [
 ];
 export const hai_vae_monitoring = [];
 
+export const hai_ssi_surveillance = [
+  {
+    id: "hai-ssi-1",
+    patient_name: "Fatimah Al-Zahrani",
+    mrn: "M-6102",
+    unit: "Surgery",
+    age: "38",
+    gender: "F",
+    admission_diagnosis: "Acute appendicitis",
+    surgical_procedure_type: "Appendectomy",
+    date_of_procedure: "2026-10-20",
+    elective_emergency: "emergency",
+    asa_score: "II",
+    wound_class: "Clean-Contaminated",
+    duration_of_surgery: "45 min",
+    patos: false,
+    follow_up_duration: 30,
+    follow_ups: [],
+    specimens: [],
+    other_specimens: "",
+    ssi_detected: false,
+    type_of_ssi: "",
+    current_status: "discharged",
+    comments: "",
+    done_by: "ic",
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+];
+
 export const ic_rounds = [
   {
     id: "icr-1",
