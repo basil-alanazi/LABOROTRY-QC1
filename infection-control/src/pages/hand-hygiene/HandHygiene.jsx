@@ -17,32 +17,53 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 
 const OBSERVER_SUGGESTIONS = ["Doctor", "Nurse", "Housekeeping", "Other"];
 
-const emptyForm = {
-  date: todayStr(),
-  department: "",
-  observer: "",
-  time_from: "",
-  time_to: "",
-  before_touching_patient: "",
-  before_clean_procedure: "",
-  after_body_fluid_risk: "",
-  after_touching_patient: "",
-  after_touching_surroundings: "",
-  hand_rub: "",
-  hand_wash: "",
-  missed: "",
-  wearing_glove: "",
-};
+// Matches the official WHO Hand Hygiene Observation Form exactly: one page
+// holds up to 4 Prof.cat columns (one observed worker each), each with 8
+// numbered opportunities — every opportunity is a real checkmark (Indication
+// + HH Action), never a pre-counted number, mirroring how the paper form is
+// actually filled in.
+const INDICATIONS = [
+  { key: "bef_pat", label: "bef-pat." },
+  { key: "bef_asept", label: "bef-asept." },
+  { key: "aft_bf", label: "aft-b.f." },
+  { key: "aft_pat", label: "aft-pat." },
+  { key: "aft_surr", label: "aft.p.surr." },
+];
+const OPP_ROWS = 8;
+const PROF_COLUMNS = 4;
 
-function num(v) {
-  return v === "" || v == null ? 0 : Number(v) || 0;
+function emptyOpp() {
+  return { bef_pat: false, bef_asept: false, aft_bf: false, aft_pat: false, aft_surr: false, hr: false, hw: false, missed: false, gloves: false };
+}
+function emptyColumn() {
+  return { prof_cat: "", code: "", no: "", opps: Array.from({ length: OPP_ROWS }, emptyOpp) };
+}
+function emptySessionForm() {
+  return { date: todayStr(), department: "", time_from: "", time_to: "", columns: Array.from({ length: PROF_COLUMNS }, emptyColumn) };
 }
 
-function computeTotals(f) {
-  const total = num(f.hand_rub) + num(f.hand_wash) + num(f.missed);
-  const compliant = num(f.hand_rub) + num(f.hand_wash);
-  const pct = total > 0 ? Number(((compliant / total) * 100).toFixed(1)) : null;
-  return { total, compliant, pct };
+function columnHasData(col) {
+  return !!col.prof_cat.trim() || col.opps.some((o) => Object.values(o).some(Boolean));
+}
+
+function computeColumnTotals(col) {
+  const count = (key) => col.opps.filter((o) => o[key]).length;
+  const before_touching_patient = count("bef_pat");
+  const before_clean_procedure = count("bef_asept");
+  const after_body_fluid_risk = count("aft_bf");
+  const after_touching_patient = count("aft_pat");
+  const after_touching_surroundings = count("aft_surr");
+  const hand_rub = count("hr");
+  const hand_wash = count("hw");
+  const missed = count("missed");
+  const wearing_glove = count("gloves");
+  const total_opportunities = hand_rub + hand_wash + missed;
+  const compliant = hand_rub + hand_wash;
+  const compliance_pct = total_opportunities > 0 ? Number(((compliant / total_opportunities) * 100).toFixed(1)) : null;
+  return {
+    before_touching_patient, before_clean_procedure, after_body_fluid_risk, after_touching_patient, after_touching_surroundings,
+    hand_rub, hand_wash, missed, wearing_glove, total_opportunities, compliant, compliance_pct,
+  };
 }
 
 const REPORT_HEADERS = [
@@ -63,13 +84,12 @@ export default function HandHygiene() {
   const { session, config } = useAuth();
   const [observations, setObservations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(emptySessionForm);
   const [newAttachment, setNewAttachment] = useState(null);
   const [message, setMessage] = useState(null);
   const [filterDept, setFilterDept] = useState("");
 
   const departments = config?.ic_round_departments ?? [];
-  const { total, compliant, pct } = computeTotals(form);
 
   async function loadAll() {
     setLoading(true);
@@ -108,14 +128,32 @@ export default function HandHygiene() {
     return { path, name: file.name };
   }
 
+  function toggleOpp(colIndex, oppIndex, field) {
+    setForm((f) => ({
+      ...f,
+      columns: f.columns.map((col, ci) =>
+        ci !== colIndex ? col : { ...col, opps: col.opps.map((o, oi) => (oi !== oppIndex ? o : { ...o, [field]: !o[field] })) }
+      ),
+    }));
+  }
+
+  function updateColumnField(colIndex, patch) {
+    setForm((f) => ({ ...f, columns: f.columns.map((col, ci) => (ci === colIndex ? { ...col, ...patch } : col)) }));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.department) {
       flash({ type: "error", text: "Department is required" });
       return;
     }
-    if (!form.observer.trim()) {
-      flash({ type: "error", text: "Observer / profession category is required" });
+    const activeColumns = form.columns.filter(columnHasData);
+    if (activeColumns.length === 0) {
+      flash({ type: "error", text: "Check at least one opportunity in a Prof.cat column first" });
+      return;
+    }
+    if (activeColumns.some((col) => !col.prof_cat.trim())) {
+      flash({ type: "error", text: "Every column with a checkmark needs a Prof.cat name" });
       return;
     }
 
@@ -129,34 +167,31 @@ export default function HandHygiene() {
       }
     }
 
-    const { error } = await supabase.from("hh_observations").insert({
-      date: form.date,
-      department: form.department,
-      observer: form.observer.trim(),
-      time_from: form.time_from || null,
-      time_to: form.time_to || null,
-      attachment_path: attachment?.path ?? null,
-      attachment_name: attachment?.name ?? null,
-      before_touching_patient: form.before_touching_patient === "" ? null : num(form.before_touching_patient),
-      before_clean_procedure: form.before_clean_procedure === "" ? null : num(form.before_clean_procedure),
-      after_body_fluid_risk: form.after_body_fluid_risk === "" ? null : num(form.after_body_fluid_risk),
-      after_touching_patient: form.after_touching_patient === "" ? null : num(form.after_touching_patient),
-      after_touching_surroundings: form.after_touching_surroundings === "" ? null : num(form.after_touching_surroundings),
-      hand_rub: form.hand_rub === "" ? null : num(form.hand_rub),
-      hand_wash: form.hand_wash === "" ? null : num(form.hand_wash),
-      missed: form.missed === "" ? null : num(form.missed),
-      wearing_glove: form.wearing_glove === "" ? null : num(form.wearing_glove),
-      total_opportunities: total,
-      compliant,
-      compliance_pct: pct,
-      done_by: session?.username,
+    const rows = activeColumns.map((col) => {
+      const t = computeColumnTotals(col);
+      const observer = [col.prof_cat.trim(), col.code.trim() && `Code: ${col.code.trim()}`, col.no.trim() && `N°: ${col.no.trim()}`]
+        .filter(Boolean)
+        .join(" · ");
+      return {
+        date: form.date,
+        department: form.department,
+        observer,
+        time_from: form.time_from || null,
+        time_to: form.time_to || null,
+        attachment_path: attachment?.path ?? null,
+        attachment_name: attachment?.name ?? null,
+        ...t,
+        done_by: session?.username,
+      };
     });
+
+    const { error } = await supabase.from("hh_observations").insert(rows);
 
     if (error) {
       flash({ type: "error", text: "Could not save: " + error.message });
     } else {
-      flash({ type: "success", text: "Observation saved" });
-      setForm({ ...emptyForm, date: form.date, department: form.department });
+      flash({ type: "success", text: `${rows.length} observation${rows.length > 1 ? "s" : ""} saved` });
+      setForm({ ...emptySessionForm(), date: form.date, department: form.department });
       setNewAttachment(null);
       loadAll();
     }
@@ -206,8 +241,13 @@ export default function HandHygiene() {
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <datalist id="hh-observer-suggestions">
+          {OBSERVER_SUGGESTIONS.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
         <h2 className="text-sm font-semibold text-slate-700">New Observation</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="Date">
             <input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
           </Field>
@@ -219,51 +259,23 @@ export default function HandHygiene() {
               ))}
             </select>
           </Field>
-          <Field label="Observer / Prof. Category">
-            <input className="input" list="hh-observer-suggestions" value={form.observer} onChange={(e) => setForm({ ...form, observer: e.target.value })} placeholder="Doctor, Nurse, ..." required />
-            <datalist id="hh-observer-suggestions">
-              {OBSERVER_SUGGESTIONS.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
-          </Field>
-          <Field label="Time From">
+          <Field label="Start Time">
             <input type="time" className="input" value={form.time_from} onChange={(e) => setForm({ ...form, time_from: e.target.value })} />
           </Field>
-          <Field label="Time To">
+          <Field label="End Time">
             <input type="time" className="input" value={form.time_to} onChange={(e) => setForm({ ...form, time_to: e.target.value })} />
           </Field>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="overflow-hidden rounded-xl border border-teal-200">
-            <div className="bg-teal-600 px-3 py-1.5 text-center text-xs font-semibold text-white">Indication</div>
-            <div className="grid grid-cols-1 gap-3 bg-teal-50/40 p-3 sm:grid-cols-2">
-              <CountField label="Before Patient Contact" value={form.before_touching_patient} onChange={(v) => setForm({ ...form, before_touching_patient: v })} />
-              <CountField label="Before Aseptic Procedure" value={form.before_clean_procedure} onChange={(v) => setForm({ ...form, before_clean_procedure: v })} />
-              <CountField label="After Body Fluid Exposure Risk" value={form.after_body_fluid_risk} onChange={(v) => setForm({ ...form, after_body_fluid_risk: v })} />
-              <CountField label="After Patient Contact" value={form.after_touching_patient} onChange={(v) => setForm({ ...form, after_touching_patient: v })} />
-              <CountField label="After Touching Surroundings" value={form.after_touching_surroundings} onChange={(v) => setForm({ ...form, after_touching_surroundings: v })} />
-            </div>
-          </div>
+        <p className="text-xs text-slate-500">
+          Fill in a Prof.cat column for each worker observed this session, then check off each numbered opportunity exactly like the paper form —
+          Total Opportunities/Compliant/Compliance% are tallied automatically from your checkmarks when you save.
+        </p>
 
-          <div className="overflow-hidden rounded-xl border border-teal-200">
-            <div className="bg-teal-600 px-3 py-1.5 text-center text-xs font-semibold text-white">HH Action</div>
-            <div className="grid grid-cols-1 gap-3 bg-teal-50/40 p-3 sm:grid-cols-2">
-              <CountField label="Hand Rub (HR)" value={form.hand_rub} onChange={(v) => setForm({ ...form, hand_rub: v })} />
-              <CountField label="Hand Wash (HW)" value={form.hand_wash} onChange={(v) => setForm({ ...form, hand_wash: v })} />
-              <CountField label="Missed" value={form.missed} onChange={(v) => setForm({ ...form, missed: v })} />
-              <CountField label="Wearing Glove" value={form.wearing_glove} onChange={(v) => setForm({ ...form, wearing_glove: v })} />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4 rounded-xl bg-slate-50 px-4 py-3 text-sm">
-          <span className="font-medium text-slate-600">Total Opportunities: <span className="font-semibold text-slate-800">{total}</span></span>
-          <span className="font-medium text-slate-600">Compliant (HR+HW): <span className="font-semibold text-slate-800">{compliant}</span></span>
-          <span className="font-medium text-slate-600">
-            Compliance: <span className={`font-semibold ${pct != null && pct < 80 ? "text-red-600" : "text-emerald-600"}`}>{pct != null ? `${pct}%` : "—"}</span>
-          </span>
+        <div className="grid grid-cols-1 gap-3 overflow-x-auto sm:grid-cols-2 xl:grid-cols-4">
+          {form.columns.map((col, ci) => (
+            <ProfCatColumn key={ci} col={col} onFieldChange={(patch) => updateColumnField(ci, patch)} onToggleOpp={(oi, field) => toggleOpp(ci, oi, field)} />
+          ))}
         </div>
 
         <Field label="Attachment (optional — photo of the paper form)">
@@ -357,12 +369,87 @@ export default function HandHygiene() {
   );
 }
 
-function CountField({ label, value, onChange }) {
+function ProfCatColumn({ col, onFieldChange, onToggleOpp }) {
+  const t = computeColumnTotals(col);
+  const active = columnHasData(col);
   return (
-    <label className="flex flex-col gap-1 text-xs">
-      <span className="font-medium text-slate-600">{label}</span>
-      <input type="number" min="0" className="input" value={value} onChange={(e) => onChange(e.target.value)} />
-    </label>
+    <div className={`flex flex-col overflow-hidden rounded-xl border ${active ? "border-teal-400" : "border-slate-200"}`}>
+      <div className="grid grid-cols-3 gap-px bg-slate-200 text-xs">
+        <label className="flex flex-col gap-0.5 bg-slate-100 px-2 py-1">
+          <span className="font-semibold text-slate-600">Prof.cat</span>
+          <input
+            className="w-full border-0 bg-transparent p-0 text-xs focus:outline-none focus:ring-0"
+            list="hh-observer-suggestions"
+            value={col.prof_cat}
+            onChange={(e) => onFieldChange({ prof_cat: e.target.value })}
+            placeholder="Nurse..."
+          />
+        </label>
+        <label className="flex flex-col gap-0.5 bg-slate-100 px-2 py-1">
+          <span className="font-semibold text-slate-600">Code</span>
+          <input className="w-full border-0 bg-transparent p-0 text-xs focus:outline-none focus:ring-0" value={col.code} onChange={(e) => onFieldChange({ code: e.target.value })} />
+        </label>
+        <label className="flex flex-col gap-0.5 bg-slate-100 px-2 py-1">
+          <span className="font-semibold text-slate-600">N°</span>
+          <input className="w-full border-0 bg-transparent p-0 text-xs focus:outline-none focus:ring-0" value={col.no} onChange={(e) => onFieldChange({ no: e.target.value })} />
+        </label>
+      </div>
+
+      <table className="w-full border-collapse text-[11px]">
+        <thead>
+          <tr className="bg-slate-50 text-slate-500">
+            <th className="border-b border-slate-200 px-1 py-1 font-medium">Opp.</th>
+            <th className="border-b border-slate-200 px-1 py-1 font-medium">Indication</th>
+            <th className="border-b border-slate-200 px-1 py-1 font-medium">HH Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {col.opps.map((o, oi) => (
+            <tr key={oi} className="border-b border-slate-100 align-top">
+              <td className="px-1 py-1.5 text-center font-semibold text-slate-500">{oi + 1}</td>
+              <td className="px-1 py-1.5">
+                <div className="flex flex-col gap-0.5">
+                  {INDICATIONS.map((ind) => (
+                    <label key={ind.key} className="flex items-center gap-1 whitespace-nowrap">
+                      <input type="checkbox" className="h-3 w-3 rounded-sm" checked={o[ind.key]} onChange={() => onToggleOpp(oi, ind.key)} />
+                      {ind.label}
+                    </label>
+                  ))}
+                </div>
+              </td>
+              <td className="px-1 py-1.5">
+                <div className="flex flex-col gap-0.5">
+                  <label className="flex items-center gap-1 whitespace-nowrap">
+                    <input type="checkbox" className="h-3 w-3 rounded-sm" checked={o.hr} onChange={() => onToggleOpp(oi, "hr")} />
+                    HR
+                  </label>
+                  <label className="flex items-center gap-1 whitespace-nowrap">
+                    <input type="checkbox" className="h-3 w-3 rounded-sm" checked={o.hw} onChange={() => onToggleOpp(oi, "hw")} />
+                    HW
+                  </label>
+                  <label className="flex items-center gap-1 whitespace-nowrap">
+                    <input type="checkbox" className="h-3 w-3 rounded-full" checked={o.missed} onChange={() => onToggleOpp(oi, "missed")} />
+                    missed
+                  </label>
+                  <label className="flex items-center gap-1 whitespace-nowrap">
+                    <input type="checkbox" className="h-3 w-3 rounded-full" checked={o.gloves} onChange={() => onToggleOpp(oi, "gloves")} />
+                    gloves
+                  </label>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {active && (
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 bg-teal-50/60 px-2 py-1.5 text-[11px] text-teal-700">
+          <span>Total: <b>{t.total_opportunities}</b></span>
+          <span>Compliant: <b>{t.compliant}</b></span>
+          <span>Compliance: <b>{t.compliance_pct != null ? `${t.compliance_pct}%` : "—"}</b></span>
+        </div>
+      )}
+    </div>
   );
 }
 
