@@ -36,4 +36,7 @@ export const supabase =
         policy_tracker: seed.policy_tracker,
         culture_tracker: seed.culture_tracker,
         agreement_tracker: seed.agreement_tracker,
+        hai_icu_surveillance: seed.hai_icu_surveillance,
+        hai_vae_monitoring: seed.hai_vae_monitoring,
+        hai_ssi_surveillance: seed.hai_ssi_surveillance,
       });

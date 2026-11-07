@@ -703,3 +703,117 @@ create policy "allow all read tracker-attachments" on storage.objects for select
 create policy "allow all insert tracker-attachments" on storage.objects for insert with check (bucket_id = 'tracker-attachments');
 create policy "allow all update tracker-attachments" on storage.objects for update using (bucket_id = 'tracker-attachments') with check (bucket_id = 'tracker-attachments');
 create policy "allow all delete tracker-attachments" on storage.objects for delete using (bucket_id = 'tracker-attachments');
+
+-- HAI Surveillance (device-associated events): mirrors the hospital's
+-- official "AICUs - NICUs" line list — one row per ICU/NICU patient,
+-- tracking device dates (central line/urinary catheter/ventilator),
+-- specimens, and which device-associated event(s) were detected
+-- (CLABSI/CAUTI/VAE/Secondary BSI). Granted to Owner/IC plus whichever
+-- staff accounts are flagged can_view_hai_surveillance from Settings —
+-- additive (it doesn't replace their Stock Requests access).
+alter table app_config add column if not exists hai_icu_types jsonb not null default '["Adult ICU","NICU","PICU"]'::jsonb;
+alter table users add column if not exists can_view_hai_surveillance boolean not null default false;
+
+create table if not exists hai_icu_surveillance (
+  id uuid primary key default gen_random_uuid(),
+  patient_name text not null,
+  mrn text not null default '',
+  age text not null default '',
+  gender text not null default '',
+  bed_no text not null default '',
+  hospital_admission_date date,
+  icu_type text not null default '',
+  unit_admission_date date,
+  admission_diagnosis text not null default '',
+  central_line_insertion date,
+  central_line_removed date,
+  urinary_catheter_insertion date,
+  urinary_catheter_removed date,
+  ventilator_insertion date,
+  ventilator_removed date,
+  device_reinsertion_note text not null default '',
+  signs_symptoms text not null default '',
+  date_onset_symptoms date,
+  specimens jsonb not null default '[]'::jsonb, -- [{ type, date_collected, date_result, organism, mdro }, ...]
+  other_specimens text not null default '',
+  hai_detected boolean not null default false,
+  hai_event_types jsonb not null default '[]'::jsonb, -- ["CLABSI","CAUTI","VAE","Secondary BSI"]
+  current_status text not null default 'admitted', -- admitted | discharged | transferred | referred | expired
+  comments text not null default '',
+  done_by text not null default '',
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+alter table hai_icu_surveillance enable row level security;
+create policy "allow all hai_icu_surveillance" on hai_icu_surveillance for all using (true) with check (true);
+
+-- Daily VAE (Ventilator-Associated Event) monitoring — mirrors the
+-- "Adult/Ped VAE Monitoring" forms, one row per ventilator-day for a
+-- patient. Always linked to its hai_icu_surveillance patient row (never
+-- a separate copy of their info), so patient name/unit/status shown here
+-- always reflect that row live, and Adult vs Ped is read from the
+-- linked patient's icu_type rather than stored twice.
+create table if not exists hai_vae_monitoring (
+  id uuid primary key default gen_random_uuid(),
+  icu_surveillance_id uuid not null references hai_icu_surveillance(id) on delete cascade,
+  date date not null default current_date,
+  mv_day int not null default 1,
+  daily_min_peep numeric,
+  daily_min_fio2 numeric,
+  vac boolean not null default false,
+  temp_abnormal boolean not null default false, -- Temp <36°C or >38°C
+  wbc_abnormal boolean not null default false,  -- WBC <=4,000 or >=12,000
+  new_antimicrobial boolean not null default false,
+  qad int, -- Qualifying Antimicrobial Days
+  ivac boolean not null default false,
+  positive_culture boolean not null default false,
+  purulent_resp_secretions boolean not null default false,
+  pvap boolean not null default false,
+  date_of_event date,
+  recorded_by text not null default '',
+  created_at timestamptz not null default now(),
+  unique (icu_surveillance_id, date)
+);
+alter table hai_vae_monitoring enable row level security;
+create policy "allow all hai_vae_monitoring" on hai_vae_monitoring for all using (true) with check (true);
+
+-- SSI (Surgical Site Infection) Surveillance — same HAI Surveillance
+-- module, third tab. One row per surgical patient: procedure info,
+-- ASA/wound-class/surgery-duration risk index, PATOS, any number of
+-- post-discharge follow-ups (Type/Date/Signs/Wound status, mirroring
+-- the official sheet's 1st/2nd/3rd Follow Up blocks but open-ended
+-- instead of capped at 3), and specimens, consistent with the same
+-- jsonb-array convention used by hai_icu_surveillance.
+create table if not exists hai_ssi_surveillance (
+  id uuid primary key default gen_random_uuid(),
+  patient_name text not null,
+  mrn text not null default '',
+  unit text not null default '',
+  age text not null default '',
+  gender text not null default '',
+  admission_diagnosis text not null default '',
+  surgical_procedure_type text not null default '',
+  date_of_procedure date,
+  elective_emergency text not null default 'elective', -- elective | emergency
+  asa_score text not null default '',
+  wound_class text not null default '',
+  duration_of_surgery text not null default '',
+  patos boolean not null default false, -- pre-existing infection/abscess at time of surgery
+  follow_up_duration int not null default 30, -- 30 | 90 days
+  follow_ups jsonb not null default '[]'::jsonb, -- [{ type, date, signs_symptoms, wound_status }, ...]
+  specimens jsonb not null default '[]'::jsonb, -- [{ type, date_collected, organism, mdro }, ...]
+  other_specimens text not null default '',
+  ssi_detected boolean not null default false,
+  type_of_ssi text not null default '',
+  current_status text not null default 'admitted', -- admitted | discharged | transferred | referred | expired
+  comments text not null default '',
+  done_by text not null default '',
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+alter table hai_ssi_surveillance enable row level security;
+create policy "allow all hai_ssi_surveillance" on hai_ssi_surveillance for all using (true) with check (true);

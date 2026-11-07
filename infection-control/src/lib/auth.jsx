@@ -45,6 +45,7 @@ export function AuthProvider({ children }) {
       canViewEmployeeHealth: !!user.can_view_employee_health,
       canViewNursingRounds: !!user.can_view_nursing_rounds,
       canViewQualityRounds: !!user.can_view_quality_rounds,
+      canViewHaiSurveillance: !!user.can_view_hai_surveillance,
       mustChangePassword: !!user.must_change_password,
     };
   }
@@ -95,6 +96,9 @@ export function AuthProvider({ children }) {
   // and manage every department's stock (not just their own) without full
   // Owner/IC access elsewhere.
   const canAdminStock = isAdmin || !!session?.canAdminStock;
+  // Additive — on top of whatever else the account can already see (Stock
+  // Requests, or a restricted "access only" page), not instead of it.
+  const canViewHaiSurveillance = isAdmin || !!session?.canViewHaiSurveillance;
 
   return (
     <AuthContext.Provider
@@ -111,6 +115,7 @@ export function AuthProvider({ children }) {
         canViewNursingRounds,
         canViewQualityRounds,
         canAdminStock,
+        canViewHaiSurveillance,
         reloadConfig: loadConfig,
       }}
     >
