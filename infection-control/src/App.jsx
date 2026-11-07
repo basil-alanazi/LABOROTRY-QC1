@@ -10,6 +10,7 @@ import StockRequests from "./pages/stock/StockRequests.jsx";
 import EmployeeHealth from "./pages/health/EmployeeHealth.jsx";
 import CommunicableCases from "./pages/cases/CommunicableCases.jsx";
 import ICRounds from "./pages/ic-rounds/ICRounds.jsx";
+import HandHygiene from "./pages/hand-hygiene/HandHygiene.jsx";
 import NursingRounds from "./pages/nursing-rounds/NursingRounds.jsx";
 import QualityRounds from "./pages/quality-rounds/QualityRounds.jsx";
 import Trackers from "./pages/trackers/Trackers.jsx";
@@ -74,6 +75,16 @@ export default function App() {
             <ProtectedRoute adminOnly>
               <Layout>
                 <ICRounds />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hand-hygiene"
+          element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <HandHygiene />
               </Layout>
             </ProtectedRoute>
           }

@@ -167,6 +167,34 @@ export const hai_ob_surveillance = [
   },
 ];
 
+export const hh_observations = [
+  {
+    id: "hh-1",
+    date: today,
+    department: "ICU",
+    observer: "Nurse",
+    time_from: "10:00",
+    time_to: "10:20",
+    attachment_path: null,
+    attachment_name: null,
+    before_touching_patient: 3,
+    before_clean_procedure: 1,
+    after_body_fluid_risk: 0,
+    after_touching_patient: 2,
+    after_touching_surroundings: 1,
+    wearing_glove: 2,
+    missed: 1,
+    hand_wash: 2,
+    hand_rub: 4,
+    total_opportunities: 7,
+    compliant: 6,
+    compliance_pct: "85.7",
+    done_by: "owner",
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+];
+
 export const ic_rounds = [
   {
     id: "icr-1",

@@ -40,4 +40,5 @@ export const supabase =
         hai_vae_monitoring: seed.hai_vae_monitoring,
         hai_ssi_surveillance: seed.hai_ssi_surveillance,
         hai_ob_surveillance: seed.hai_ob_surveillance,
+        hh_observations: seed.hh_observations,
       });
