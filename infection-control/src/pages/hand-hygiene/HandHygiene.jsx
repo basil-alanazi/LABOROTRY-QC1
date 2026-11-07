@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Droplets, FileSpreadsheet, FileText, Paperclip, Plus, Trash2 } from "lucide-react";
+import { Droplets, FileSpreadsheet, FileText, Paperclip, Plus, Trash2, TrendingDown, TrendingUp } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
@@ -88,6 +88,7 @@ export default function HandHygiene() {
   const [newAttachment, setNewAttachment] = useState(null);
   const [message, setMessage] = useState(null);
   const [filterDept, setFilterDept] = useState("");
+  const [reportMonth, setReportMonth] = useState(() => todayStr().slice(0, 7));
 
   const departments = config?.ic_round_departments ?? [];
 
@@ -119,6 +120,52 @@ export default function HandHygiene() {
     if (withPct.length === 0) return null;
     return (withPct.reduce((sum, o) => sum + Number(o.compliance_pct), 0) / withPct.length).toFixed(1);
   }, [visibleObservations]);
+
+  const monthlyReport = useMemo(() => {
+    const rows = observations.filter((o) => o.date?.slice(0, 7) === reportMonth);
+    const totalObservations = rows.length;
+    const totalOpportunities = rows.reduce((s, o) => s + (o.total_opportunities || 0), 0);
+    const totalCompliant = rows.reduce((s, o) => s + (o.compliant || 0), 0);
+    const totalMissed = rows.reduce((s, o) => s + (o.missed || 0), 0);
+    const overallPct = totalOpportunities > 0 ? Number(((totalCompliant / totalOpportunities) * 100).toFixed(1)) : null;
+
+    const byDept = {};
+    rows.forEach((o) => {
+      const d = o.department || "—";
+      if (!byDept[d]) byDept[d] = { department: d, observations: 0, opportunities: 0, compliant: 0, missed: 0 };
+      byDept[d].observations += 1;
+      byDept[d].opportunities += o.total_opportunities || 0;
+      byDept[d].compliant += o.compliant || 0;
+      byDept[d].missed += o.missed || 0;
+    });
+    const deptStats = Object.values(byDept)
+      .map((d) => ({ ...d, compliance_pct: d.opportunities > 0 ? Number(((d.compliant / d.opportunities) * 100).toFixed(1)) : null }))
+      .sort((a, b) => (b.compliance_pct ?? -1) - (a.compliance_pct ?? -1));
+    const withData = deptStats.filter((d) => d.opportunities > 0);
+    const best = withData[0] ?? null;
+    const worst = withData.length > 1 ? withData[withData.length - 1] : null;
+
+    return { totalObservations, totalOpportunities, totalCompliant, totalMissed, overallPct, deptStats, best, worst };
+  }, [observations, reportMonth]);
+
+  function exportMonthlyExcel() {
+    downloadExcel(`infection-control-hand-hygiene-report-${reportMonth}`, [
+      {
+        name: "Monthly Report",
+        headers: ["Department", "Observations", "Opportunities", "Compliant", "Missed", "Compliance %"],
+        rows: monthlyReport.deptStats.map((d) => [d.department, d.observations, d.opportunities, d.compliant, d.missed, d.compliance_pct ?? ""]),
+      },
+    ]);
+  }
+
+  function exportMonthlyPdf() {
+    downloadPdf(`infection-control-hand-hygiene-report-${reportMonth}`, `Infection Control — Hand Hygiene Monthly Report (${reportMonth})`, [
+      {
+        headers: ["Department", "Observations", "Opportunities", "Compliant", "Missed", "Compliance %"],
+        rows: monthlyReport.deptStats.map((d) => [d.department, d.observations, d.opportunities, d.compliant, d.missed, d.compliance_pct ?? ""]),
+      },
+    ]);
+  }
 
   async function uploadFile(file, department) {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -238,6 +285,102 @@ export default function HandHygiene() {
             Export PDF
           </button>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-slate-700">Monthly Report</h2>
+          <div className="flex items-center gap-2">
+            <input type="month" className="input w-40" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} />
+            <button
+              onClick={exportMonthlyExcel}
+              disabled={monthlyReport.totalObservations === 0}
+              className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Excel
+            </button>
+            <button
+              onClick={exportMonthlyPdf}
+              disabled={monthlyReport.totalObservations === 0}
+              className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              PDF
+            </button>
+          </div>
+        </div>
+
+        {monthlyReport.totalObservations === 0 ? (
+          <p className="text-sm text-slate-400">No observations recorded for this month.</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatTile label="Observations" value={monthlyReport.totalObservations} />
+              <StatTile label="Opportunities" value={monthlyReport.totalOpportunities} />
+              <StatTile
+                label="Compliant (Success)"
+                value={`${monthlyReport.totalCompliant}${monthlyReport.overallPct != null ? ` (${monthlyReport.overallPct}%)` : ""}`}
+                tone="good"
+              />
+              <StatTile label="Missed (Failed)" value={monthlyReport.totalMissed} tone="bad" />
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {monthlyReport.best && (
+                <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm">
+                  <TrendingUp className="h-4 w-4 text-emerald-600" />
+                  <span className="font-medium text-emerald-800">
+                    Best department: <b>{monthlyReport.best.department}</b> ({monthlyReport.best.compliance_pct}%)
+                  </span>
+                </div>
+              )}
+              {monthlyReport.worst && (
+                <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm">
+                  <TrendingDown className="h-4 w-4 text-red-600" />
+                  <span className="font-medium text-red-800">
+                    Worst department: <b>{monthlyReport.worst.department}</b> ({monthlyReport.worst.compliance_pct}%)
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-left text-xs text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">Department</th>
+                    <th className="px-3 py-2 font-medium">Observations</th>
+                    <th className="px-3 py-2 font-medium">Opportunities</th>
+                    <th className="px-3 py-2 font-medium">Compliant</th>
+                    <th className="px-3 py-2 font-medium">Missed</th>
+                    <th className="px-3 py-2 font-medium">Compliance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthlyReport.deptStats.map((d) => (
+                    <tr key={d.department} className="border-t border-slate-100">
+                      <td className="px-3 py-1.5">{d.department}</td>
+                      <td className="px-3 py-1.5">{d.observations}</td>
+                      <td className="px-3 py-1.5">{d.opportunities}</td>
+                      <td className="px-3 py-1.5">{d.compliant}</td>
+                      <td className="px-3 py-1.5">{d.missed}</td>
+                      <td className="px-3 py-1.5">
+                        {d.compliance_pct != null ? (
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${d.compliance_pct < 80 ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
+                            {d.compliance_pct}%
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -449,6 +592,16 @@ function ProfCatColumn({ col, onFieldChange, onToggleOpp }) {
           <span>Compliance: <b>{t.compliance_pct != null ? `${t.compliance_pct}%` : "—"}</b></span>
         </div>
       )}
+    </div>
+  );
+}
+
+function StatTile({ label, value, tone }) {
+  const toneClass = tone === "good" ? "text-emerald-700" : tone === "bad" ? "text-red-700" : "text-slate-800";
+  return (
+    <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className={`text-lg font-semibold ${toneClass}`}>{value}</p>
     </div>
   );
 }
