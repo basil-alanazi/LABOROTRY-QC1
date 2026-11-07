@@ -46,6 +46,8 @@ const QUALITY_ROUND_DEPARTMENTS = ["Male Ward", "Female Ward", "ICU", "NICU", "S
 const CULTURE_TRACKER_ITEMS = ["Dental 1", "Dental 2", "Hospital 6 Month CS", "Hospital 12 Month CS"];
 const AGREEMENT_TRACKER_ENTITIES = ["SEPCO", "Pest Control", "Intra Department"];
 const HAI_ICU_TYPES = ["Adult ICU", "NICU", "PICU"];
+const HAI_ICU_TYPES_ADULT = ["Adult ICU"];
+const HAI_ICU_TYPES_PEDIATRIC = ["NICU", "PICU"];
 
 export const app_config = {
   id: 1,
@@ -57,6 +59,8 @@ export const app_config = {
   culture_tracker_items: CULTURE_TRACKER_ITEMS,
   agreement_tracker_entities: AGREEMENT_TRACKER_ENTITIES,
   hai_icu_types: HAI_ICU_TYPES,
+  hai_icu_types_adult: HAI_ICU_TYPES_ADULT,
+  hai_icu_types_pediatric: HAI_ICU_TYPES_PEDIATRIC,
 };
 
 export const nursing_rounds = [];

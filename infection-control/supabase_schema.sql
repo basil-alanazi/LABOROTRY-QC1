@@ -714,6 +714,12 @@ create policy "allow all delete tracker-attachments" on storage.objects for dele
 alter table app_config add column if not exists hai_icu_types jsonb not null default '["Adult ICU","NICU","PICU"]'::jsonb;
 alter table users add column if not exists can_view_hai_surveillance boolean not null default false;
 
+-- ICU/NICU Surveillance is split into two independent sub-tabs (Adult ICU
+-- vs Pediatric/NICU), each its own patient list — not one combined table
+-- with a type dropdown — so each unit's own types are configured separately.
+alter table app_config add column if not exists hai_icu_types_adult jsonb not null default '["Adult ICU"]'::jsonb;
+alter table app_config add column if not exists hai_icu_types_pediatric jsonb not null default '["NICU","PICU"]'::jsonb;
+
 create table if not exists hai_icu_surveillance (
   id uuid primary key default gen_random_uuid(),
   month text not null default '',

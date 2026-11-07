@@ -61,8 +61,11 @@ export default function HaiSurveillance() {
   const [obCases, setObCases] = useState([]);
   const [showObForm, setShowObForm] = useState(false);
   const [obForm, setObForm] = useState(emptyObForm);
+  const [icuUnit, setIcuUnit] = useState("adult"); // "adult" | "pediatric" — separate patient lists, not a shared type dropdown
 
-  const icuTypes = config?.hai_icu_types ?? [];
+  const adultIcuTypes = config?.hai_icu_types_adult ?? [];
+  const pediatricIcuTypes = config?.hai_icu_types_pediatric ?? [];
+  const activeIcuTypes = icuUnit === "adult" ? adultIcuTypes : pediatricIcuTypes;
   const units = config?.employee_departments ?? [];
 
   async function loadAll() {
@@ -99,6 +102,10 @@ export default function HaiSurveillance() {
     () => (statusFilter === "all" ? patients : patients.filter((p) => p.current_status === statusFilter)),
     [patients, statusFilter]
   );
+  const visibleIcuUnitPatients = useMemo(
+    () => visiblePatients.filter((p) => activeIcuTypes.includes(p.icu_type)),
+    [visiblePatients, activeIcuTypes]
+  );
   const visibleSsiCases = useMemo(
     () => (statusFilter === "all" ? ssiCases : ssiCases.filter((c) => c.current_status === statusFilter)),
     [ssiCases, statusFilter]
@@ -108,7 +115,10 @@ export default function HaiSurveillance() {
     [obCases, statusFilter]
   );
 
-  const haiCount = useMemo(() => patients.filter((p) => p.current_status === "admitted" && p.hai_detected).length, [patients]);
+  const haiCount = useMemo(
+    () => patients.filter((p) => activeIcuTypes.includes(p.icu_type) && p.current_status === "admitted" && p.hai_detected).length,
+    [patients, activeIcuTypes]
+  );
   const ssiCount = useMemo(() => ssiCases.filter((c) => c.current_status === "admitted" && c.ssi_detected).length, [ssiCases]);
 
   function updatePatientField(id, patch) {
@@ -118,6 +128,7 @@ export default function HaiSurveillance() {
   async function addPatient() {
     const { error } = await supabase.from("hai_icu_surveillance").insert({
       patient_name: "",
+      icu_type: activeIcuTypes[0] ?? "",
       specimens: padArray([], ICU_SPECIMEN_SLOTS, emptySpecimen),
       hai_event_types: [],
       done_by: session?.username,
@@ -384,15 +395,16 @@ export default function HaiSurveillance() {
   }
 
   function exportIcuExcel() {
-    downloadExcel(`infection-control-hai-icu-${todayStr()}`, [
+    const unitLabel = icuUnit === "adult" ? "Adult ICU" : "Pediatric ICU";
+    downloadExcel(`infection-control-hai-icu-${icuUnit}-${todayStr()}`, [
       {
-        name: "ICU-NICU Surveillance",
+        name: `${unitLabel} Surveillance`,
         headers: [
           "Month", "Patient Name", "MRN", "Age", "Gender", "Bed", "ICU Type", "Hospital Admission", "Unit Admission", "Admission Diagnosis",
           "Central Line Insertion", "Central Line Removed", "Urinary Catheter Insertion", "Urinary Catheter Removed",
           "Ventilator Insertion", "Ventilator Removed", "Signs & Symptoms", "Onset Date", "HAI Detected", "Event Types", "Current Status", "Comments", "Recorded By",
         ],
-        rows: visiblePatients.map((p) => [
+        rows: visibleIcuUnitPatients.map((p) => [
           p.month, p.patient_name, p.mrn, p.age, p.gender, p.bed_no, p.icu_type, p.hospital_admission_date || "", p.unit_admission_date || "", p.admission_diagnosis,
           p.central_line_insertion || "", p.central_line_removed || "", p.urinary_catheter_insertion || "", p.urinary_catheter_removed || "",
           p.ventilator_insertion || "", p.ventilator_removed || "", p.signs_symptoms, p.date_onset_symptoms || "",
@@ -403,10 +415,11 @@ export default function HaiSurveillance() {
   }
 
   function exportIcuPdf() {
-    downloadPdf(`infection-control-hai-icu-${todayStr()}`, "HAI Surveillance — ICU/NICU", [
+    const unitLabel = icuUnit === "adult" ? "Adult ICU" : "Pediatric ICU";
+    downloadPdf(`infection-control-hai-icu-${icuUnit}-${todayStr()}`, `HAI Surveillance — ${unitLabel}`, [
       {
         headers: ["Patient", "MRN", "ICU Type", "Unit Admission", "Status", "HAI Detected", "Event Types"],
-        rows: visiblePatients.map((p) => [p.patient_name, p.mrn, p.icu_type, p.unit_admission_date || "", statusLabel(p.current_status), p.hai_detected ? "Yes" : "No", (p.hai_event_types ?? []).join(", ")]),
+        rows: visibleIcuUnitPatients.map((p) => [p.patient_name, p.mrn, p.icu_type, p.unit_admission_date || "", statusLabel(p.current_status), p.hai_detected ? "Yes" : "No", (p.hai_event_types ?? []).join(", ")]),
       },
     ]);
   }
@@ -479,6 +492,23 @@ export default function HaiSurveillance() {
         ))}
       </div>
 
+      {tab === "icu" && (
+        <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+          {[
+            { key: "adult", label: "Adult ICU" },
+            { key: "pediatric", label: "Pediatric ICU (NICU/PICU)" },
+          ].map((u) => (
+            <button
+              key={u.key}
+              onClick={() => setIcuUnit(u.key)}
+              className={`rounded-md px-3 py-1 font-medium ${icuUnit === u.key ? "bg-teal-600 text-white" : "text-slate-500"}`}
+            >
+              {u.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-slate-500">Status:</span>
         {["admitted", "discharged", "all"].map((s) => (
@@ -496,9 +526,9 @@ export default function HaiSurveillance() {
 
       {tab === "icu" && (
         <IcuSurveillanceTab
-          patients={visiblePatients}
+          patients={visibleIcuUnitPatients}
           loading={loading}
-          icuTypes={icuTypes}
+          icuTypes={activeIcuTypes}
           onAddPatient={addPatient}
           onUpdateField={updatePatientField}
           onSave={savePatient}

@@ -48,8 +48,10 @@ export default function Settings() {
   const [newCultureTrackerItem, setNewCultureTrackerItem] = useState("");
   const [agreementTrackerEntities, setAgreementTrackerEntities] = useState([]);
   const [newAgreementTrackerEntity, setNewAgreementTrackerEntity] = useState("");
-  const [haiIcuTypes, setHaiIcuTypes] = useState([]);
-  const [newHaiIcuType, setNewHaiIcuType] = useState("");
+  const [haiIcuTypesAdult, setHaiIcuTypesAdult] = useState([]);
+  const [newHaiIcuTypeAdult, setNewHaiIcuTypeAdult] = useState("");
+  const [haiIcuTypesPediatric, setHaiIcuTypesPediatric] = useState([]);
+  const [newHaiIcuTypePediatric, setNewHaiIcuTypePediatric] = useState("");
   const [healthItemTypes, setHealthItemTypes] = useState([]);
   const [newHealthItem, setNewHealthItem] = useState(emptyNewHealthItem);
   const [diseaseTypes, setDiseaseTypes] = useState([]);
@@ -67,7 +69,8 @@ export default function Settings() {
       setQualityRoundDepartments(config.quality_round_departments ?? []);
       setCultureTrackerItems(config.culture_tracker_items ?? []);
       setAgreementTrackerEntities(config.agreement_tracker_entities ?? []);
-      setHaiIcuTypes(config.hai_icu_types ?? []);
+      setHaiIcuTypesAdult(config.hai_icu_types_adult ?? []);
+      setHaiIcuTypesPediatric(config.hai_icu_types_pediatric ?? []);
     }
   }, [config]);
 
@@ -238,22 +241,40 @@ export default function Settings() {
     saveIcRoundDepartments(icRoundDepartments.filter((d) => d !== name));
   }
 
-  async function saveHaiIcuTypes(next) {
-    setHaiIcuTypes(next);
-    await supabase.from("app_config").update({ hai_icu_types: next }).eq("id", 1);
+  async function saveHaiIcuTypesAdult(next) {
+    setHaiIcuTypesAdult(next);
+    await supabase.from("app_config").update({ hai_icu_types_adult: next }).eq("id", 1);
     reloadConfig();
-    flash("HAI Surveillance ICU types saved");
+    flash("Adult ICU types saved");
   }
 
-  function addHaiIcuType() {
-    const name = newHaiIcuType.trim();
-    if (!name || haiIcuTypes.includes(name)) return;
-    saveHaiIcuTypes([...haiIcuTypes, name]);
-    setNewHaiIcuType("");
+  function addHaiIcuTypeAdult() {
+    const name = newHaiIcuTypeAdult.trim();
+    if (!name || haiIcuTypesAdult.includes(name)) return;
+    saveHaiIcuTypesAdult([...haiIcuTypesAdult, name]);
+    setNewHaiIcuTypeAdult("");
   }
 
-  function removeHaiIcuType(name) {
-    saveHaiIcuTypes(haiIcuTypes.filter((d) => d !== name));
+  function removeHaiIcuTypeAdult(name) {
+    saveHaiIcuTypesAdult(haiIcuTypesAdult.filter((d) => d !== name));
+  }
+
+  async function saveHaiIcuTypesPediatric(next) {
+    setHaiIcuTypesPediatric(next);
+    await supabase.from("app_config").update({ hai_icu_types_pediatric: next }).eq("id", 1);
+    reloadConfig();
+    flash("Pediatric ICU types saved");
+  }
+
+  function addHaiIcuTypePediatric() {
+    const name = newHaiIcuTypePediatric.trim();
+    if (!name || haiIcuTypesPediatric.includes(name)) return;
+    saveHaiIcuTypesPediatric([...haiIcuTypesPediatric, name]);
+    setNewHaiIcuTypePediatric("");
+  }
+
+  function removeHaiIcuTypePediatric(name) {
+    saveHaiIcuTypesPediatric(haiIcuTypesPediatric.filter((d) => d !== name));
   }
 
   async function saveNursingRoundDepartments(next) {
@@ -495,21 +516,43 @@ export default function Settings() {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">HAI Surveillance — ICU Types</h2>
-        <p className="mb-4 text-xs text-slate-500">The list of ICU/NICU types offered in the HAI Surveillance module.</p>
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">HAI Surveillance — Adult ICU Types</h2>
+        <p className="mb-4 text-xs text-slate-500">ICU types offered on the Adult ICU sub-tab of HAI Surveillance.</p>
         <div className="mb-4 flex flex-wrap gap-2">
-          {haiIcuTypes.map((d) => (
+          {haiIcuTypesAdult.map((d) => (
             <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
               {d}
-              <button onClick={() => removeHaiIcuType(d)} className="text-teal-400 hover:text-red-500">
+              <button onClick={() => removeHaiIcuTypeAdult(d)} className="text-teal-400 hover:text-red-500">
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </span>
           ))}
         </div>
         <div className="flex gap-2">
-          <input className="input" value={newHaiIcuType} onChange={(e) => setNewHaiIcuType(e.target.value)} placeholder="New ICU type name" />
-          <button onClick={addHaiIcuType} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+          <input className="input" value={newHaiIcuTypeAdult} onChange={(e) => setNewHaiIcuTypeAdult(e.target.value)} placeholder="New adult ICU type name" />
+          <button onClick={addHaiIcuTypeAdult} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+            <Plus className="h-4 w-4" />
+            Add
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">HAI Surveillance — Pediatric ICU Types</h2>
+        <p className="mb-4 text-xs text-slate-500">ICU types offered on the Pediatric ICU (NICU/PICU) sub-tab of HAI Surveillance.</p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {haiIcuTypesPediatric.map((d) => (
+            <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
+              {d}
+              <button onClick={() => removeHaiIcuTypePediatric(d)} className="text-teal-400 hover:text-red-500">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input className="input" value={newHaiIcuTypePediatric} onChange={(e) => setNewHaiIcuTypePediatric(e.target.value)} placeholder="New pediatric ICU type name" />
+          <button onClick={addHaiIcuTypePediatric} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
             Add
           </button>
