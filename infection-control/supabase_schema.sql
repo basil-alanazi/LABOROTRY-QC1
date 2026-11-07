@@ -817,3 +817,52 @@ create table if not exists hai_ssi_surveillance (
 );
 alter table hai_ssi_surveillance enable row level security;
 create policy "allow all hai_ssi_surveillance" on hai_ssi_surveillance for all using (true) with check (true);
+
+-- OB/Delivery Surveillance — a 4th HAI Surveillance tab, independent of
+-- the ICU/NICU and SSI tabs above. One row per maternity patient, moving
+-- through a fixed 3-stage pipeline (OR -> Delivery -> Female Ward): each
+-- stage's own dedicated staff account (users.department = 'OR' |
+-- 'Delivery' | 'Female Ward') fills in only its own section, which opens
+-- up once the previous stage is marked complete — the previous stage's
+-- fields stay visible (never hidden/cleared) once a later stage opens.
+create table if not exists hai_ob_surveillance (
+  id uuid primary key default gen_random_uuid(),
+  patient_name text not null,
+  mrn text not null default '',
+  age text not null default '',
+  admission_diagnosis text not null default '',
+  -- Stage 1: OR
+  date_of_procedure date,
+  surgical_procedure_type text not null default '',
+  asa_score text not null default '',
+  wound_class text not null default '',
+  duration_of_surgery text not null default '',
+  or_notes text not null default '',
+  or_completed_by text,
+  or_completed_at timestamptz,
+  -- Stage 2: Delivery (opens once Stage 1 is complete)
+  delivery_date date,
+  delivery_notes text not null default '',
+  delivery_signs_symptoms text not null default '',
+  delivery_completed_by text,
+  delivery_completed_at timestamptz,
+  -- Stage 3: Female Ward (opens once Stage 2 is complete)
+  fw_date date,
+  fw_notes text not null default '',
+  fw_wound_status text not null default '',
+  fw_signs_symptoms text not null default '',
+  specimens jsonb not null default '[]'::jsonb, -- [{ type, date_collected, organism, mdro }, ...]
+  ssi_detected boolean not null default false,
+  type_of_ssi text not null default '',
+  fw_completed_by text,
+  fw_completed_at timestamptz,
+  current_status text not null default 'admitted', -- admitted | discharged | transferred | referred | expired
+  comments text not null default '',
+  done_by text not null default '',
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+alter table hai_ob_surveillance enable row level security;
+create policy "allow all hai_ob_surveillance" on hai_ob_surveillance for all using (true) with check (true);

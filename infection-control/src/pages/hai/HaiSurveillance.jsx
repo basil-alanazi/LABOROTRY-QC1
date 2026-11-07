@@ -39,7 +39,16 @@ const TABS = [
   { key: "icu", label: "ICU/NICU Surveillance" },
   { key: "vae", label: "VAE Monitoring" },
   { key: "ssi", label: "SSI Surveillance" },
+  { key: "ob", label: "OB/Delivery Surveillance" },
 ];
+
+// Fixed 3-stage pipeline — each stage's section is only editable by an
+// account whose department matches, and only once the previous stage
+// has been marked complete.
+const OB_STAGES = ["OR", "Delivery", "Female Ward"];
+
+const emptyObForm = { patient_name: "", mrn: "", age: "", admission_diagnosis: "" };
+const emptyObSpecimen = { type: "", date_collected: "", organism: "", mdro: false };
 
 const emptySsiForm = {
   patient_name: "",
@@ -57,7 +66,7 @@ const emptyFollowUp = { type: "", date: "", signs_symptoms: "", wound_status: ""
 const emptySsiSpecimen = { type: "", date_collected: "", organism: "", mdro: false };
 
 export default function HaiSurveillance() {
-  const { session, config } = useAuth();
+  const { session, config, isAdmin } = useAuth();
   const [tab, setTab] = useState("icu");
   const [patients, setPatients] = useState([]);
   const [vaeRows, setVaeRows] = useState([]);
@@ -70,20 +79,25 @@ export default function HaiSurveillance() {
   const [ssiCases, setSsiCases] = useState([]);
   const [showSsiForm, setShowSsiForm] = useState(false);
   const [ssiForm, setSsiForm] = useState(emptySsiForm);
+  const [obCases, setObCases] = useState([]);
+  const [showObForm, setShowObForm] = useState(false);
+  const [obForm, setObForm] = useState(emptyObForm);
 
   const icuTypes = config?.hai_icu_types ?? [];
   const units = config?.employee_departments ?? [];
 
   async function loadAll() {
     setLoading(true);
-    const [{ data: pts }, { data: vae }, { data: ssi }] = await Promise.all([
+    const [{ data: pts }, { data: vae }, { data: ssi }, { data: ob }] = await Promise.all([
       fetchAllRows((from, to) => supabase.from("hai_icu_surveillance").select("*").eq("deleted", false).order("unit_admission_date", { ascending: false }).range(from, to)),
       fetchAllRows((from, to) => supabase.from("hai_vae_monitoring").select("*").order("date", { ascending: false }).range(from, to)),
       fetchAllRows((from, to) => supabase.from("hai_ssi_surveillance").select("*").eq("deleted", false).order("date_of_procedure", { ascending: false }).range(from, to)),
+      fetchAllRows((from, to) => supabase.from("hai_ob_surveillance").select("*").eq("deleted", false).order("created_at", { ascending: false }).range(from, to)),
     ]);
     setPatients(pts ?? []);
     setVaeRows(vae ?? []);
     setSsiCases(ssi ?? []);
+    setObCases(ob ?? []);
     setLoading(false);
   }
 
@@ -103,6 +117,10 @@ export default function HaiSurveillance() {
   const visibleSsiCases = useMemo(
     () => (statusFilter === "all" ? ssiCases : ssiCases.filter((c) => c.current_status === statusFilter)),
     [ssiCases, statusFilter]
+  );
+  const visibleObCases = useMemo(
+    () => (statusFilter === "all" ? obCases : obCases.filter((c) => c.current_status === statusFilter)),
+    [obCases, statusFilter]
   );
 
   const haiCount = useMemo(() => patients.filter((p) => p.current_status === "admitted" && p.hai_detected).length, [patients]);
@@ -301,6 +319,121 @@ export default function HaiSurveillance() {
     ]);
   }
 
+  function updateObField(id, patch) {
+    setObCases((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  }
+
+  async function addObCase(e) {
+    e.preventDefault();
+    const name = obForm.patient_name.trim();
+    if (!name) return flash({ type: "error", text: "Patient name is required" });
+    const { error } = await supabase.from("hai_ob_surveillance").insert({
+      patient_name: name,
+      mrn: obForm.mrn.trim(),
+      age: obForm.age.trim(),
+      admission_diagnosis: obForm.admission_diagnosis.trim(),
+      done_by: session?.username,
+    });
+    if (error) return flash({ type: "error", text: "Could not add: " + error.message });
+    setObForm(emptyObForm);
+    setShowObForm(false);
+    loadAll();
+    flash({ type: "success", text: "Patient added" });
+  }
+
+  async function saveObCase(c) {
+    await supabase
+      .from("hai_ob_surveillance")
+      .update({
+        patient_name: c.patient_name,
+        mrn: c.mrn,
+        age: c.age,
+        admission_diagnosis: c.admission_diagnosis,
+        date_of_procedure: c.date_of_procedure || null,
+        surgical_procedure_type: c.surgical_procedure_type,
+        asa_score: c.asa_score,
+        wound_class: c.wound_class,
+        duration_of_surgery: c.duration_of_surgery,
+        or_notes: c.or_notes,
+        delivery_date: c.delivery_date || null,
+        delivery_notes: c.delivery_notes,
+        delivery_signs_symptoms: c.delivery_signs_symptoms,
+        fw_date: c.fw_date || null,
+        fw_notes: c.fw_notes,
+        fw_wound_status: c.fw_wound_status,
+        fw_signs_symptoms: c.fw_signs_symptoms,
+        specimens: c.specimens ?? [],
+        ssi_detected: !!c.ssi_detected,
+        type_of_ssi: c.type_of_ssi,
+        current_status: c.current_status,
+        comments: c.comments,
+      })
+      .eq("id", c.id);
+    flash({ type: "success", text: "Saved" });
+  }
+
+  async function removeObCase(c) {
+    if (!confirm(`Remove "${c.patient_name}" from OB/Delivery Surveillance?`)) return;
+    await supabase.from("hai_ob_surveillance").update({ deleted: true, deleted_by: session?.username, deleted_at: new Date().toISOString() }).eq("id", c.id);
+    loadAll();
+  }
+
+  async function markStageComplete(c, prefix) {
+    const patch = { [`${prefix}_completed_by`]: session?.username, [`${prefix}_completed_at`]: new Date().toISOString() };
+    updateObField(c.id, patch);
+    await supabase.from("hai_ob_surveillance").update(patch).eq("id", c.id);
+    flash({ type: "success", text: "Stage marked complete" });
+  }
+
+  async function reopenStage(c, prefix) {
+    if (!confirm("Reopen this stage for editing?")) return;
+    const patch = { [`${prefix}_completed_by`]: null, [`${prefix}_completed_at`]: null };
+    updateObField(c.id, patch);
+    await supabase.from("hai_ob_surveillance").update(patch).eq("id", c.id);
+  }
+
+  function addObSpecimen(c) {
+    updateObField(c.id, { specimens: [...(c.specimens ?? []), { ...emptyObSpecimen }] });
+  }
+  function updateObSpecimen(c, index, patch) {
+    const next = (c.specimens ?? []).map((s, i) => (i === index ? { ...s, ...patch } : s));
+    updateObField(c.id, { specimens: next });
+  }
+  function removeObSpecimen(c, index) {
+    updateObField(c.id, { specimens: (c.specimens ?? []).filter((_, i) => i !== index) });
+  }
+
+  function exportObExcel() {
+    downloadExcel(`infection-control-hai-ob-${todayStr()}`, [
+      {
+        name: "OB-Delivery Surveillance",
+        headers: [
+          "Patient Name", "MRN", "Age", "Admission Diagnosis", "Date of Procedure", "Surgical Procedure", "OR Notes", "OR Completed By",
+          "Delivery Date", "Delivery Notes", "Delivery Completed By", "Female Ward Notes", "Wound Status", "SSI Detected", "Type of SSI", "Female Ward Completed By",
+          "Current Status", "Comments", "Recorded By",
+        ],
+        rows: visibleObCases.map((c) => [
+          c.patient_name, c.mrn, c.age, c.admission_diagnosis, c.date_of_procedure || "", c.surgical_procedure_type, c.or_notes, c.or_completed_by || "",
+          c.delivery_date || "", c.delivery_notes, c.delivery_completed_by || "", c.fw_notes, c.fw_wound_status, c.ssi_detected ? "Yes" : "No", c.type_of_ssi, c.fw_completed_by || "",
+          statusLabel(c.current_status), c.comments, c.done_by,
+        ]),
+      },
+    ]);
+  }
+
+  function exportObPdf() {
+    downloadPdf(`infection-control-hai-ob-${todayStr()}`, "HAI Surveillance — OB/Delivery", [
+      {
+        headers: ["Patient", "MRN", "Procedure", "Status", "OR", "Delivery", "Female Ward", "SSI Detected"],
+        rows: visibleObCases.map((c) => [
+          c.patient_name, c.mrn, c.surgical_procedure_type, statusLabel(c.current_status),
+          c.or_completed_at ? "Done" : "Open", c.delivery_completed_at ? "Done" : c.or_completed_at ? "Open" : "—", c.fw_completed_at ? "Done" : c.delivery_completed_at ? "Open" : "—",
+          c.ssi_detected ? "Yes" : "No",
+        ]),
+      },
+    ]);
+  }
+
   function exportIcuExcel() {
     downloadExcel(`infection-control-hai-icu-${todayStr()}`, [
       {
@@ -355,6 +488,18 @@ export default function HaiSurveillance() {
               Export Excel
             </button>
             <button onClick={exportSsiPdf} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+              <FileText className="h-3.5 w-3.5" />
+              Export PDF
+            </button>
+          </div>
+        )}
+        {tab === "ob" && (
+          <div className="flex gap-2">
+            <button onClick={exportObExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              Export Excel
+            </button>
+            <button onClick={exportObPdf} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
               <FileText className="h-3.5 w-3.5" />
               Export PDF
             </button>
@@ -453,6 +598,30 @@ export default function HaiSurveillance() {
           onAddSpecimen={addSsiSpecimen}
           onUpdateSpecimen={updateSsiSpecimen}
           onRemoveSpecimen={removeSsiSpecimen}
+        />
+      )}
+
+      {tab === "ob" && (
+        <ObSurveillanceTab
+          cases={visibleObCases}
+          loading={loading}
+          session={session}
+          isAdmin={isAdmin}
+          showForm={showObForm}
+          setShowForm={setShowObForm}
+          form={obForm}
+          setForm={setObForm}
+          onAddCase={addObCase}
+          expanded={expanded}
+          setExpanded={setExpanded}
+          onUpdateField={updateObField}
+          onSave={saveObCase}
+          onRemove={removeObCase}
+          onMarkComplete={markStageComplete}
+          onReopen={reopenStage}
+          onAddSpecimen={addObSpecimen}
+          onUpdateSpecimen={updateObSpecimen}
+          onRemoveSpecimen={removeObSpecimen}
         />
       )}
     </div>
@@ -1155,6 +1324,298 @@ function SsiCaseRow({ c, units, expanded, onToggle, onUpdateField, onSave, onRem
         </tr>
       )}
     </>
+  );
+}
+
+function ObSurveillanceTab({
+  cases, loading, session, isAdmin, showForm, setShowForm, form, setForm, onAddCase,
+  expanded, setExpanded, onUpdateField, onSave, onRemove, onMarkComplete, onReopen, onAddSpecimen, onUpdateSpecimen, onRemoveSpecimen,
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-xs text-slate-500">
+        A fixed 3-stage pipeline — <strong>OR → Delivery → Female Ward</strong>. Each stage's dedicated account (Settings → User Accounts,
+        department = "OR" / "Delivery" / "Female Ward") fills in only its own section, which opens once the previous stage is marked complete.
+      </p>
+      <div>
+        <button
+          onClick={() => setShowForm((v) => !v)}
+          className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700"
+        >
+          <UserPlus className="h-3.5 w-3.5" />
+          Add Patient
+        </button>
+      </div>
+      {showForm && (
+        <form onSubmit={onAddCase} className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-4">
+          <input className="input" placeholder="Patient Name" value={form.patient_name} onChange={(e) => setForm({ ...form, patient_name: e.target.value })} required />
+          <input className="input" placeholder="MRN / ID" value={form.mrn} onChange={(e) => setForm({ ...form, mrn: e.target.value })} />
+          <input className="input" placeholder="Age" value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} />
+          <input className="input" placeholder="Admission Diagnosis" value={form.admission_diagnosis} onChange={(e) => setForm({ ...form, admission_diagnosis: e.target.value })} />
+          <button type="submit" className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+            <Plus className="h-4 w-4" />
+            Save
+          </button>
+        </form>
+      )}
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-left text-xs text-slate-500">
+            <tr>
+              <th className="px-3 py-2 font-medium">Patient</th>
+              <th className="px-3 py-2 font-medium">Procedure</th>
+              <th className="px-3 py-2 font-medium">OR</th>
+              <th className="px-3 py-2 font-medium">Delivery</th>
+              <th className="px-3 py-2 font-medium">Female Ward</th>
+              <th className="px-3 py-2 font-medium">Status</th>
+              <th className="px-3 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {cases.map((c) => (
+              <ObCaseRow
+                key={c.id}
+                c={c}
+                session={session}
+                isAdmin={isAdmin}
+                expanded={expanded === c.id}
+                onToggle={() => setExpanded(expanded === c.id ? null : c.id)}
+                onUpdateField={(patch) => onUpdateField(c.id, patch)}
+                onSave={() => onSave(c)}
+                onRemove={() => onRemove(c)}
+                onMarkComplete={(prefix) => onMarkComplete(c, prefix)}
+                onReopen={(prefix) => onReopen(c, prefix)}
+                onAddSpecimen={() => onAddSpecimen(c)}
+                onUpdateSpecimen={(i, patch) => onUpdateSpecimen(c, i, patch)}
+                onRemoveSpecimen={(i) => onRemoveSpecimen(c, i)}
+              />
+            ))}
+          </tbody>
+        </table>
+        {!loading && cases.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No patients in this list.</p>}
+      </div>
+    </div>
+  );
+}
+
+function stageBadge(label, done, open) {
+  const cls = done ? "bg-emerald-50 text-emerald-700" : open ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-400";
+  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{done ? "Done" : open ? "Open" : "Locked"}</span>;
+}
+
+function ObCaseRow({ c, session, isAdmin, expanded, onToggle, onUpdateField, onSave, onRemove, onMarkComplete, onReopen, onAddSpecimen, onUpdateSpecimen, onRemoveSpecimen }) {
+  const orDone = !!c.or_completed_at;
+  const deliveryDone = !!c.delivery_completed_at;
+  const fwDone = !!c.fw_completed_at;
+  const deliveryOpen = orDone;
+  const fwOpen = deliveryDone;
+
+  function canEdit(dept) {
+    return isAdmin || session?.department === dept;
+  }
+
+  return (
+    <>
+      <tr className="border-t border-slate-100 hover:bg-slate-50">
+        <td className="px-3 py-2">
+          <div className="font-medium text-slate-700">{c.patient_name}</div>
+          <div className="text-xs text-slate-400">{c.mrn}</div>
+        </td>
+        <td className="px-3 py-2">{c.surgical_procedure_type}</td>
+        <td className="px-3 py-2">{stageBadge("OR", orDone, true)}</td>
+        <td className="px-3 py-2">{stageBadge("Delivery", deliveryDone, deliveryOpen)}</td>
+        <td className="px-3 py-2">{stageBadge("Female Ward", fwDone, fwOpen)}</td>
+        <td className="px-3 py-2">
+          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass(c.current_status)}`}>{statusLabel(c.current_status)}</span>
+        </td>
+        <td className="flex items-center justify-end gap-1 px-3 py-2">
+          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+            <Trash2 className="h-4 w-4" />
+          </button>
+          <button onClick={onToggle} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="border-t border-slate-100 bg-slate-50/60">
+          <td colSpan={7} className="px-4 py-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Field label="Patient Name">
+                <input className="input" value={c.patient_name} onChange={(e) => onUpdateField({ patient_name: e.target.value })} />
+              </Field>
+              <Field label="MRN / ID">
+                <input className="input" value={c.mrn} onChange={(e) => onUpdateField({ mrn: e.target.value })} />
+              </Field>
+              <Field label="Age">
+                <input className="input" value={c.age} onChange={(e) => onUpdateField({ age: e.target.value })} />
+              </Field>
+              <Field label="Current Status">
+                <select className="input" value={c.current_status} onChange={(e) => onUpdateField({ current_status: e.target.value })}>
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>{statusLabel(s)}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Admission Diagnosis">
+                <input className="input sm:col-span-2" value={c.admission_diagnosis} onChange={(e) => onUpdateField({ admission_diagnosis: e.target.value })} />
+              </Field>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <StageSection
+                title="OR"
+                done={orDone}
+                open={true}
+                canEdit={canEdit("OR")}
+                canReopen={isAdmin}
+                completedBy={c.or_completed_by}
+                onMarkComplete={() => onMarkComplete("or")}
+                onReopen={() => onReopen("or")}
+              >
+                <Field label="Date of Procedure">
+                  <input type="date" className="input" disabled={orDone || !canEdit("OR")} value={c.date_of_procedure || ""} onChange={(e) => onUpdateField({ date_of_procedure: e.target.value })} />
+                </Field>
+                <Field label="Surgical Procedure Type">
+                  <input className="input" disabled={orDone || !canEdit("OR")} value={c.surgical_procedure_type} onChange={(e) => onUpdateField({ surgical_procedure_type: e.target.value })} />
+                </Field>
+                <Field label="ASA Score">
+                  <input className="input" disabled={orDone || !canEdit("OR")} value={c.asa_score} onChange={(e) => onUpdateField({ asa_score: e.target.value })} />
+                </Field>
+                <Field label="Wound Class">
+                  <input className="input" disabled={orDone || !canEdit("OR")} value={c.wound_class} onChange={(e) => onUpdateField({ wound_class: e.target.value })} />
+                </Field>
+                <Field label="Duration of Surgery">
+                  <input className="input" disabled={orDone || !canEdit("OR")} value={c.duration_of_surgery} onChange={(e) => onUpdateField({ duration_of_surgery: e.target.value })} />
+                </Field>
+                <Field label="OR Notes">
+                  <textarea className="input min-h-[50px]" disabled={orDone || !canEdit("OR")} value={c.or_notes} onChange={(e) => onUpdateField({ or_notes: e.target.value })} />
+                </Field>
+              </StageSection>
+
+              <StageSection
+                title="Delivery"
+                done={deliveryDone}
+                open={deliveryOpen}
+                canEdit={canEdit("Delivery")}
+                canReopen={isAdmin}
+                completedBy={c.delivery_completed_by}
+                onMarkComplete={() => onMarkComplete("delivery")}
+                onReopen={() => onReopen("delivery")}
+              >
+                <Field label="Delivery Date">
+                  <input type="date" className="input" disabled={!deliveryOpen || deliveryDone || !canEdit("Delivery")} value={c.delivery_date || ""} onChange={(e) => onUpdateField({ delivery_date: e.target.value })} />
+                </Field>
+                <Field label="Signs & Symptoms">
+                  <input className="input" disabled={!deliveryOpen || deliveryDone || !canEdit("Delivery")} value={c.delivery_signs_symptoms} onChange={(e) => onUpdateField({ delivery_signs_symptoms: e.target.value })} />
+                </Field>
+                <Field label="Delivery Notes">
+                  <textarea className="input min-h-[50px]" disabled={!deliveryOpen || deliveryDone || !canEdit("Delivery")} value={c.delivery_notes} onChange={(e) => onUpdateField({ delivery_notes: e.target.value })} />
+                </Field>
+              </StageSection>
+
+              <StageSection
+                title="Female Ward"
+                done={fwDone}
+                open={fwOpen}
+                canEdit={canEdit("Female Ward")}
+                canReopen={isAdmin}
+                completedBy={c.fw_completed_by}
+                onMarkComplete={() => onMarkComplete("fw")}
+                onReopen={() => onReopen("fw")}
+              >
+                <Field label="Date">
+                  <input type="date" className="input" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} value={c.fw_date || ""} onChange={(e) => onUpdateField({ fw_date: e.target.value })} />
+                </Field>
+                <Field label="Signs & Symptoms">
+                  <input className="input" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} value={c.fw_signs_symptoms} onChange={(e) => onUpdateField({ fw_signs_symptoms: e.target.value })} />
+                </Field>
+                <Field label="Wound Status">
+                  <input className="input" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} value={c.fw_wound_status} onChange={(e) => onUpdateField({ fw_wound_status: e.target.value })} />
+                </Field>
+                <Field label="Female Ward Notes">
+                  <textarea className="input min-h-[50px]" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} value={c.fw_notes} onChange={(e) => onUpdateField({ fw_notes: e.target.value })} />
+                </Field>
+
+                <div className="flex flex-col gap-2">
+                  {(c.specimens ?? []).map((s, i) => (
+                    <div key={i} className="grid grid-cols-1 gap-2 rounded-lg bg-white p-2 sm:grid-cols-5 sm:items-center">
+                      <input className="input-cell" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} placeholder="Type of specimen" value={s.type} onChange={(e) => onUpdateSpecimen(i, { type: e.target.value })} />
+                      <input type="date" className="input-cell" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} value={s.date_collected} onChange={(e) => onUpdateSpecimen(i, { date_collected: e.target.value })} />
+                      <input className="input-cell" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} placeholder="Organism" value={s.organism} onChange={(e) => onUpdateSpecimen(i, { organism: e.target.value })} />
+                      <label className="flex items-center gap-1 text-xs text-slate-500">
+                        <input type="checkbox" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} checked={!!s.mdro} onChange={(e) => onUpdateSpecimen(i, { mdro: e.target.checked })} />
+                        MDRO
+                      </label>
+                      <button onClick={() => onRemoveSpecimen(i)} disabled={!fwOpen || fwDone || !canEdit("Female Ward")} className="justify-self-end rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                  {(fwOpen && !fwDone && canEdit("Female Ward")) && (
+                    <button onClick={onAddSpecimen} className="flex w-fit items-center gap-1 text-xs font-medium text-teal-600 hover:underline">
+                      <Plus className="h-3.5 w-3.5" />
+                      Add specimen
+                    </button>
+                  )}
+                </div>
+
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input type="checkbox" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} checked={!!c.ssi_detected} onChange={(e) => onUpdateField({ ssi_detected: e.target.checked })} />
+                  SSI Detected
+                </label>
+                {c.ssi_detected && (
+                  <Field label="Type of SSI">
+                    <input className="input" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} value={c.type_of_ssi} onChange={(e) => onUpdateField({ type_of_ssi: e.target.value })} />
+                  </Field>
+                )}
+              </StageSection>
+            </div>
+
+            <Field label="Comments">
+              <textarea className="input mt-4 min-h-[60px]" value={c.comments} onChange={(e) => onUpdateField({ comments: e.target.value })} />
+            </Field>
+
+            <button onClick={onSave} className="mt-3 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+              Save
+            </button>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function StageSection({ title, done, open, canEdit, canReopen, completedBy, onMarkComplete, onReopen, children }) {
+  return (
+    <div className={`flex flex-col gap-2 rounded-xl border p-3 ${open ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-100/60"}`}>
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold uppercase text-slate-500">{title}</h3>
+        {stageBadge(title, done, open)}
+      </div>
+      {!open && <p className="text-xs text-slate-400">Locked until the previous stage is marked complete.</p>}
+      {open && (
+        <>
+          <div className="flex flex-col gap-2">{children}</div>
+          {canEdit && !done && (
+            <button onClick={onMarkComplete} className="mt-1 w-fit rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700">
+              Mark {title} complete
+            </button>
+          )}
+          {done && (
+            <div className="mt-1 flex items-center justify-between text-xs text-slate-400">
+              <span>Completed by {completedBy || "—"}</span>
+              {canReopen && (
+                <button onClick={onReopen} className="text-teal-600 hover:underline">
+                  Reopen
+                </button>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
