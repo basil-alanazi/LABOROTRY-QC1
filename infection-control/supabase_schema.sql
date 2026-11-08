@@ -762,6 +762,7 @@ create table if not exists hai_icu_surveillance (
   hai_detected boolean not null default false,
   hai_event_types jsonb not null default '[]'::jsonb, -- ["CLABSI","CAUTI","VAE","Secondary BSI"]
   current_status text not null default 'admitted', -- admitted | discharged | transferred | referred | expired
+  date_of_discharge date,
   comments text not null default '',
   updated_in_seha boolean not null default false, -- Owner/IC only; drives the row's green/amber highlight below
   done_by text not null default '',
