@@ -25,6 +25,8 @@ const HAI_SCOPE_OPTIONS = [
   { value: "adult_icu", label: "Adult ICU only" },
   { value: "pediatric_icu", label: "Pediatric ICU only" },
   { value: "ssi", label: "SSI Surveillance only" },
+  { value: "ob", label: "OB/Delivery Surveillance only" },
+  { value: "ob,ssi", label: "OB/Delivery + SSI only" },
 ];
 const emptyNewStockItem = { department: "", name: "", unit: "unit", min_qty: "", max_qty: "", current_qty: "" };
 const emptyNewHealthItem = { name: "", category: "vaccine", recurrence_months: "", dose_schedule: "0", kitchen_only: false };

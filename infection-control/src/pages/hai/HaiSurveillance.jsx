@@ -50,11 +50,16 @@ const SSI_SPECIMEN_SLOTS = 1;
 
 export default function HaiSurveillance() {
   const { session, config, isAdmin } = useAuth();
-  // A staff account can be scoped to just one tab/unit of this module
-  // ('adult_icu' | 'pediatric_icu' | 'ssi') from Settings — Owner/IC always
-  // see everything, and a scoped account never sees the tab/unit switchers.
-  const scope = isAdmin ? null : session?.haiScope || null;
-  const [tab, setTab] = useState(() => (scope === "ssi" ? "ssi" : "icu"));
+  // A staff account can be scoped (Settings) to just one or a few tabs/units
+  // of this module — stored as a comma-separated list of tokens among
+  // 'adult_icu' | 'pediatric_icu' | 'ssi' | 'ob'. Owner/IC always see
+  // everything; a scoped account only sees the switchers it needs (none at
+  // all when exactly one tab/unit is allowed).
+  const scopeTokens = isAdmin || !session?.haiScope ? null : session.haiScope.split(",").map((s) => s.trim()).filter(Boolean);
+  const SCOPE_TO_TAB = { adult_icu: "icu", pediatric_icu: "icu", ssi: "ssi", ob: "ob" };
+  const allowedTabs = scopeTokens ? [...new Set(scopeTokens.map((t) => SCOPE_TO_TAB[t]).filter(Boolean))] : null;
+  const icuUnitsAllowed = scopeTokens ? scopeTokens.filter((t) => t === "adult_icu" || t === "pediatric_icu") : null;
+  const [tab, setTab] = useState(() => allowedTabs?.[0] ?? "icu");
   const [patients, setPatients] = useState([]);
   const [vaeRows, setVaeRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +70,7 @@ export default function HaiSurveillance() {
   const [obCases, setObCases] = useState([]);
   const [showObForm, setShowObForm] = useState(false);
   const [obForm, setObForm] = useState(emptyObForm);
-  const [icuUnit, setIcuUnit] = useState(() => (scope === "pediatric_icu" ? "pediatric" : "adult")); // "adult" | "pediatric" — separate patient lists, not a shared type dropdown
+  const [icuUnit, setIcuUnit] = useState(() => (icuUnitsAllowed?.length === 1 && icuUnitsAllowed[0] === "pediatric_icu" ? "pediatric" : "adult")); // "adult" | "pediatric" — separate patient lists, not a shared type dropdown
 
   const adultIcuTypes = config?.hai_icu_types_adult ?? [];
   const pediatricIcuTypes = config?.hai_icu_types_pediatric ?? [];
@@ -488,9 +493,9 @@ export default function HaiSurveillance() {
 
       {message && <p className={`rounded-lg px-3 py-2 text-sm ${message.type === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{message.text}</p>}
 
-      {!scope && (
+      {(!scopeTokens || allowedTabs.length > 1) && (
         <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
-          {TABS.map((t) => (
+          {TABS.filter((t) => !scopeTokens || allowedTabs.includes(t.key)).map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)} className={`rounded-md px-3 py-1 font-medium ${tab === t.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
               {t.label}
             </button>
@@ -498,7 +503,7 @@ export default function HaiSurveillance() {
         </div>
       )}
 
-      {tab === "icu" && scope !== "adult_icu" && scope !== "pediatric_icu" && (
+      {tab === "icu" && (!scopeTokens || !icuUnitsAllowed || icuUnitsAllowed.length > 1) && (
         <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
           {[
             { key: "adult", label: "Adult ICU" },
