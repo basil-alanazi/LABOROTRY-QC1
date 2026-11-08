@@ -714,8 +714,15 @@ create policy "allow all delete tracker-attachments" on storage.objects for dele
 alter table app_config add column if not exists hai_icu_types jsonb not null default '["Adult ICU","NICU","PICU"]'::jsonb;
 alter table users add column if not exists can_view_hai_surveillance boolean not null default false;
 
+-- ICU/NICU Surveillance is split into two independent sub-tabs (Adult ICU
+-- vs Pediatric/NICU), each its own patient list — not one combined table
+-- with a type dropdown — so each unit's own types are configured separately.
+alter table app_config add column if not exists hai_icu_types_adult jsonb not null default '["Adult ICU"]'::jsonb;
+alter table app_config add column if not exists hai_icu_types_pediatric jsonb not null default '["NICU","PICU"]'::jsonb;
+
 create table if not exists hai_icu_surveillance (
   id uuid primary key default gen_random_uuid(),
+  month text not null default '',
   patient_name text not null,
   mrn text not null default '',
   age text not null default '',
@@ -788,6 +795,7 @@ create policy "allow all hai_vae_monitoring" on hai_vae_monitoring for all using
 -- jsonb-array convention used by hai_icu_surveillance.
 create table if not exists hai_ssi_surveillance (
   id uuid primary key default gen_random_uuid(),
+  month text not null default '',
   patient_name text not null,
   mrn text not null default '',
   unit text not null default '',
@@ -817,3 +825,57 @@ create table if not exists hai_ssi_surveillance (
 );
 alter table hai_ssi_surveillance enable row level security;
 create policy "allow all hai_ssi_surveillance" on hai_ssi_surveillance for all using (true) with check (true);
+
+-- ICU/NICU and SSI Surveillance each show a "Month" column matching the
+-- official sheet (free text, e.g. "November").
+alter table hai_icu_surveillance add column if not exists month text not null default '';
+alter table hai_ssi_surveillance add column if not exists month text not null default '';
+
+-- OB/Delivery Surveillance — a 4th HAI Surveillance tab, independent of
+-- the ICU/NICU and SSI tabs above. One row per maternity patient, moving
+-- through a fixed 3-stage pipeline (OR -> Delivery -> Female Ward): each
+-- stage's own dedicated staff account (users.department = 'OR' |
+-- 'Delivery' | 'Female Ward') fills in only its own section, which opens
+-- up once the previous stage is marked complete — the previous stage's
+-- fields stay visible (never hidden/cleared) once a later stage opens.
+create table if not exists hai_ob_surveillance (
+  id uuid primary key default gen_random_uuid(),
+  patient_name text not null,
+  mrn text not null default '',
+  age text not null default '',
+  admission_diagnosis text not null default '',
+  -- Stage 1: OR
+  date_of_procedure date,
+  surgical_procedure_type text not null default '',
+  asa_score text not null default '',
+  wound_class text not null default '',
+  duration_of_surgery text not null default '',
+  or_notes text not null default '',
+  or_completed_by text,
+  or_completed_at timestamptz,
+  -- Stage 2: Delivery (opens once Stage 1 is complete)
+  delivery_date date,
+  delivery_notes text not null default '',
+  delivery_signs_symptoms text not null default '',
+  delivery_completed_by text,
+  delivery_completed_at timestamptz,
+  -- Stage 3: Female Ward (opens once Stage 2 is complete)
+  fw_date date,
+  fw_notes text not null default '',
+  fw_wound_status text not null default '',
+  fw_signs_symptoms text not null default '',
+  specimens jsonb not null default '[]'::jsonb, -- [{ type, date_collected, organism, mdro }, ...]
+  ssi_detected boolean not null default false,
+  type_of_ssi text not null default '',
+  fw_completed_by text,
+  fw_completed_at timestamptz,
+  current_status text not null default 'admitted', -- admitted | discharged | transferred | referred | expired
+  comments text not null default '',
+  done_by text not null default '',
+  deleted boolean not null default false,
+  deleted_by text,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+);
+alter table hai_ob_surveillance enable row level security;
+create policy "allow all hai_ob_surveillance" on hai_ob_surveillance for all using (true) with check (true);
