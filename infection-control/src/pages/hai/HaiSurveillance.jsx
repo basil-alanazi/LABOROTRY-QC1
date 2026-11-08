@@ -58,6 +58,17 @@ function riskClass(value, goodValues) {
   return goodValues.includes(value) ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-red-50 text-red-800 border-red-300";
 }
 
+// "Updated in Seha" highlight: discharged + synced -> whole row green;
+// discharged + not yet synced -> whole row amber (IC still needs to update
+// Seha); still admitted + synced -> just the Patient Name/MRN cells green.
+function sehaRowClass(currentStatus, updatedInSeha) {
+  if (currentStatus !== "discharged") return "";
+  return updatedInSeha ? "bg-emerald-50" : "bg-amber-50";
+}
+function sehaNameCellClass(currentStatus, updatedInSeha) {
+  return currentStatus !== "discharged" && updatedInSeha ? "bg-emerald-50" : "";
+}
+
 function SignSelect({ value, onChange, onBlur, disabled }) {
   return (
     <select className={`input-cell w-full ${riskClass(value, ["NO"])}`} disabled={disabled} value={value ?? ""} onChange={onChange} onBlur={onBlur}>
@@ -229,6 +240,7 @@ export default function HaiSurveillance() {
         hai_event_types: p.hai_event_types ?? [],
         current_status: p.current_status,
         comments: p.comments,
+        updated_in_seha: !!p.updated_in_seha,
       })
       .eq("id", p.id);
   }
@@ -621,6 +633,7 @@ export default function HaiSurveillance() {
           patients={visibleIcuUnitPatients}
           loading={loading}
           icuTypes={activeIcuTypes}
+          isAdmin={isAdmin}
           onAddPatient={addPatient}
           onUpdateField={updatePatientField}
           onSave={savePatient}
@@ -789,7 +802,7 @@ function GridDate({ value, onChange, onBlur, disabled, className = "" }) {
   return <input type="date" className={`input-cell w-full min-w-[8.5rem] ${className}`} value={value ?? ""} onChange={onChange} onBlur={onBlur} disabled={disabled} />;
 }
 
-function IcuSurveillanceTab({ patients, loading, icuTypes, onAddPatient, onUpdateField, onSave, onRemove, onUpdateSpecimen, onToggleEventType }) {
+function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient, onUpdateField, onSave, onRemove, onUpdateSpecimen, onToggleEventType }) {
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -803,6 +816,7 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, onAddPatient, onUpdat
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
+              <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-2 py-2 font-medium align-bottom">Updated in Seha</th>
               {["Month", "Patient Name", "MRN/ID", "Age", "Gender", "Bed #", "Hospital Admission", "ICU Type", "Unit Admission", "Admission Diagnosis"].map((h) => (
                 <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-2 py-2 font-medium align-bottom">{h}</th>
               ))}
@@ -846,6 +860,7 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, onAddPatient, onUpdat
                 key={p.id}
                 p={p}
                 icuTypes={icuTypes}
+                isAdmin={isAdmin}
                 onFieldChange={(patch) => onUpdateField(p.id, patch)}
                 onFieldBlurSave={() => onSave(p)}
                 onSpecimenFieldChange={(i, patch) => onUpdateSpecimen(p, i, patch)}
@@ -855,6 +870,10 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, onAddPatient, onUpdat
                   onSave({ ...p, hai_detected: checked });
                 }}
                 onEventTypeToggle={(type) => onSave(onToggleEventType(p, type))}
+                onUpdatedInSehaToggle={(checked) => {
+                  onUpdateField(p.id, { updated_in_seha: checked });
+                  onSave({ ...p, updated_in_seha: checked });
+                }}
                 onRemove={() => onRemove(p)}
               />
             ))}
@@ -866,13 +885,17 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, onAddPatient, onUpdat
   );
 }
 
-function IcuRow({ p, icuTypes, onFieldChange, onFieldBlurSave, onSpecimenFieldChange, onSpecimenMdroToggle, onHaiDetectedToggle, onEventTypeToggle, onRemove }) {
+function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecimenFieldChange, onSpecimenMdroToggle, onHaiDetectedToggle, onEventTypeToggle, onUpdatedInSehaToggle, onRemove }) {
   const unitBeforeHospital = !!(p.hospital_admission_date && p.unit_admission_date && p.unit_admission_date < p.hospital_admission_date);
+  const nameCellClass = sehaNameCellClass(p.current_status, p.updated_in_seha);
   return (
-    <tr className="border-t border-slate-100 hover:bg-slate-50">
+    <tr className={`border-t border-slate-100 hover:bg-slate-50 ${sehaRowClass(p.current_status, p.updated_in_seha)}`}>
+      <td className="px-2 py-1 text-center">
+        <input type="checkbox" disabled={!isAdmin} checked={!!p.updated_in_seha} onChange={(e) => onUpdatedInSehaToggle(e.target.checked)} />
+      </td>
       <td className="px-2 py-1"><GridText value={p.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} /></td>
-      <td className="px-2 py-1"><GridText value={p.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[10rem]" /></td>
-      <td className="px-2 py-1"><GridText value={p.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[6rem]" /></td>
+      <td className={`px-2 py-1 ${nameCellClass}`}><GridText value={p.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[10rem]" /></td>
+      <td className={`px-2 py-1 ${nameCellClass}`}><GridText value={p.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[6rem]" /></td>
       <td className="px-2 py-1"><GridText value={p.age} onChange={(e) => onFieldChange({ age: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[4rem]" /></td>
       <td className="px-2 py-1">
         <select className="input-cell w-full" value={p.gender} onChange={(e) => onFieldChange({ gender: e.target.value })} onBlur={onFieldBlurSave}>
@@ -1247,16 +1270,17 @@ function SsiRow({
   const drDisabled = drDone || !canEditSsi("DR");
   const orDisabled = !orOpen || orDone || !canEditSsi("OR");
   const drFwDisabled = !drFwOpen || drFwDone || !canEditSsi("DR_FW");
+  const nameCellClass = sehaNameCellClass(c.current_status, c.updated_in_seha);
 
   return (
-    <tr className="border-t border-slate-100 hover:bg-slate-50">
+    <tr className={`border-t border-slate-100 hover:bg-slate-50 ${sehaRowClass(c.current_status, c.updated_in_seha)}`}>
       <td className="px-2 py-1 text-center">
         <input type="checkbox" disabled={!isAdmin} checked={!!c.updated_in_seha} onChange={(e) => onUpdatedInSehaToggle(e.target.checked)} />
       </td>
 
       <td className="px-2 py-1"><GridText value={c.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} /></td>
-      <td className="px-2 py-1"><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[10rem]" /></td>
-      <td className="px-2 py-1"><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[6rem]" /></td>
+      <td className={`px-2 py-1 ${nameCellClass}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[10rem]" /></td>
+      <td className={`px-2 py-1 ${nameCellClass}`}><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[6rem]" /></td>
       <td className="px-2 py-1">
         <select className="input-cell w-full min-w-[7rem]" disabled={drDisabled} value={c.unit} onChange={(e) => onFieldChange({ unit: e.target.value })} onBlur={onFieldBlurSave}>
           <option value="">—</option>
