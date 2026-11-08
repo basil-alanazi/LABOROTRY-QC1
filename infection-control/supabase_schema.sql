@@ -743,6 +743,11 @@ create table if not exists hai_icu_surveillance (
   mrn text not null default '',
   age text not null default '',
   gender text not null default '',
+  -- Patient identity — Infection Control's own fields, admin-only (Owner/IC); never shown or editable on department-scoped accounts
+  date_of_birth date,
+  national_id text not null default '',
+  mobile text not null default '',
+  nationality text not null default '',
   bed_no text not null default '',
   hospital_admission_date date,
   icu_type text not null default '',
@@ -819,6 +824,11 @@ create table if not exists hai_ssi_surveillance (
   unit text not null default '',
   age text not null default '',
   gender text not null default '',
+  -- Patient identity — Infection Control's own fields, admin-only (Owner/IC); never shown or editable on department-scoped accounts
+  date_of_birth date,
+  national_id text not null default '',
+  mobile text not null default '',
+  nationality text not null default '',
   admission_diagnosis text not null default '',
   treating_doctor text not null default '',
   surgical_procedure_type text not null default '',
@@ -873,6 +883,11 @@ create table if not exists hai_ob_surveillance (
   id uuid primary key default gen_random_uuid(),
   patient_name text not null,
   mrn text not null default '',
+  -- Patient identity — Infection Control's own fields, admin-only (Owner/IC); never shown or editable on department-scoped accounts
+  date_of_birth date,
+  national_id text not null default '',
+  mobile text not null default '',
+  nationality text not null default '',
   age text not null default '',
   admission_diagnosis text not null default '',
   -- Stage 1: OR
@@ -902,6 +917,7 @@ create table if not exists hai_ob_surveillance (
   fw_completed_at timestamptz,
   current_status text not null default 'admitted', -- admitted | discharged | transferred | referred | expired
   comments text not null default '',
+  updated_in_seha boolean not null default false, -- Owner/IC only; drives the row's green/amber highlight, same as ICU/NICU and SSI
   done_by text not null default '',
   deleted boolean not null default false,
   deleted_by text,
