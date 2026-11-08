@@ -29,6 +29,11 @@ const HAI_SCOPE_OPTIONS = [
   { value: "ob,ssi", label: "OB/Delivery + SSI only" },
 ];
 const OB_STAGE_OPTIONS = ["OR", "Delivery", "Female Ward"];
+const SSI_STAGE_OPTIONS = [
+  { value: "DR", label: "DR (patient/procedure info)" },
+  { value: "OR", label: "OR (risk category index)" },
+  { value: "DR_FW", label: "DR & FW (current status + date of discharge)" },
+];
 const emptyNewStockItem = { department: "", name: "", unit: "unit", min_qty: "", max_qty: "", current_qty: "" };
 const emptyNewHealthItem = { name: "", category: "vaccine", recurrence_months: "", dose_schedule: "0", kitchen_only: false };
 
@@ -470,6 +475,7 @@ export default function Settings() {
         can_view_hai_surveillance: user.role === "staff" && !!user.can_view_hai_surveillance,
         hai_scope: user.role === "staff" && user.can_view_hai_surveillance ? user.hai_scope || null : null,
         ob_stages: user.role === "staff" && user.can_view_hai_surveillance ? user.ob_stages || null : null,
+        ssi_stages: user.role === "staff" && user.can_view_hai_surveillance ? user.ssi_stages || null : null,
         active: user.active,
       })
       .eq("id", user.id);
@@ -1140,6 +1146,28 @@ export default function Settings() {
                             }}
                           />
                           {stage}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {u.role === "staff" && u.can_view_hai_surveillance && (u.hai_scope || "").includes("ssi") && (
+                  <div className="flex items-center gap-3 text-xs text-slate-500 sm:col-span-5 sm:pl-5">
+                    SSI column groups this account can edit (independent of its Department above):
+                    {SSI_STAGE_OPTIONS.map((opt) => {
+                      const current = (u.ssi_stages || "").split(",").map((s) => s.trim()).filter(Boolean);
+                      const checked = current.includes(opt.value);
+                      return (
+                        <label key={opt.value} className="flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              const next = e.target.checked ? [...current, opt.value] : current.filter((s) => s !== opt.value);
+                              updateUserField(u.id, { ssi_stages: next.join(",") });
+                            }}
+                          />
+                          {opt.label}
                         </label>
                       );
                     })}
