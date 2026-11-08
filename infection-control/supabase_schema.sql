@@ -818,6 +818,7 @@ create table if not exists hai_ssi_surveillance (
   age text not null default '',
   gender text not null default '',
   admission_diagnosis text not null default '',
+  treating_doctor text not null default '',
   surgical_procedure_type text not null default '',
   date_of_procedure date,
   elective_emergency text not null default 'elective', -- elective | emergency
@@ -826,7 +827,9 @@ create table if not exists hai_ssi_surveillance (
   duration_of_surgery text not null default '',
   patos boolean not null default false, -- pre-existing infection/abscess at time of surgery
   follow_up_duration int not null default 30, -- 30 | 90 days
-  follow_ups jsonb not null default '[]'::jsonb, -- [{ type, date, signs_symptoms, wound_status }, ...]
+  -- [{ type, date, fever, pain_tenderness, redness, swelling, purulent_discharge, wound_dehiscence, surgical_site_swab_sent, wound_status }, ...]
+  -- fever/pain_tenderness/redness/swelling/purulent_discharge/wound_dehiscence are "" | "YES" | "NO"; surgical_site_swab_sent is "" | "N/A" | "Yes" | "No"
+  follow_ups jsonb not null default '[]'::jsonb,
   specimens jsonb not null default '[]'::jsonb, -- [{ type, date_collected, organism, mdro }, ...]
   other_specimens text not null default '',
   ssi_detected boolean not null default false,
@@ -834,6 +837,15 @@ create table if not exists hai_ssi_surveillance (
   current_status text not null default 'admitted', -- admitted | discharged | transferred | referred | expired
   date_of_discharge date,
   comments text not null default '',
+  updated_in_seha boolean not null default false, -- Owner/IC only — never editable by DR/OR/DR&FW accounts
+  -- Column-group edit permissions (Settings → User Accounts, ssi_stages): DR -> OR -> DR&FW,
+  -- each locked until the previous group is marked complete, mirroring OB/Delivery's stage gating.
+  dr_completed_by text,
+  dr_completed_at timestamptz,
+  or_completed_by text,
+  or_completed_at timestamptz,
+  dr_fw_completed_by text,
+  dr_fw_completed_at timestamptz,
   done_by text not null default '',
   deleted boolean not null default false,
   deleted_by text,
