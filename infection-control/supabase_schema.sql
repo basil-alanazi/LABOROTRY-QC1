@@ -723,6 +723,12 @@ alter table users add column if not exists hai_scope text;
 -- this comma-separated list, independent of its single `department` value
 -- (which stays whatever Stock Requests etc. use it for).
 alter table users add column if not exists ob_stages text;
+-- Same idea for SSI Surveillance's own column groups (matching the official
+-- sheet's color-coded ownership): 'DR' (patient/procedure info), 'OR' (risk
+-- category index), 'DR_FW' (current status + date of discharge). The
+-- post-discharge follow-up/specimen section stays open to any SSI-scoped
+-- account, so it has no group of its own.
+alter table users add column if not exists ssi_stages text;
 
 -- ICU/NICU Surveillance is split into two independent sub-tabs (Adult ICU
 -- vs Pediatric/NICU), each its own patient list — not one combined table
@@ -826,6 +832,7 @@ create table if not exists hai_ssi_surveillance (
   ssi_detected boolean not null default false,
   type_of_ssi text not null default '',
   current_status text not null default 'admitted', -- admitted | discharged | transferred | referred | expired
+  date_of_discharge date,
   comments text not null default '',
   done_by text not null default '',
   deleted boolean not null default false,

@@ -236,6 +236,7 @@ export default function HaiSurveillance() {
         ssi_detected: !!c.ssi_detected,
         type_of_ssi: c.type_of_ssi,
         current_status: c.current_status,
+        date_of_discharge: c.date_of_discharge || null,
         comments: c.comments,
       })
       .eq("id", c.id);
@@ -265,12 +266,12 @@ export default function HaiSurveillance() {
         name: "SSI Surveillance",
         headers: [
           "Month", "Patient Name", "MRN", "Unit", "Age", "Gender", "Admission Diagnosis", "Surgical Procedure", "Date of Procedure", "Elective/Emergency",
-          "ASA Score", "Wound Class", "Duration of Surgery", "PATOS", "Follow-up Duration", "SSI Detected", "Type of SSI", "Current Status", "Comments", "Recorded By",
+          "ASA Score", "Wound Class", "Duration of Surgery", "PATOS", "Follow-up Duration", "SSI Detected", "Type of SSI", "Current Status", "Date of Discharge", "Comments", "Recorded By",
         ],
         rows: visibleSsiCases.map((c) => [
           c.month, c.patient_name, c.mrn, c.unit, c.age, c.gender, c.admission_diagnosis, c.surgical_procedure_type, c.date_of_procedure || "", c.elective_emergency,
           c.asa_score, c.wound_class, c.duration_of_surgery, c.patos ? "Yes" : "No", `${c.follow_up_duration} days`,
-          c.ssi_detected ? "Yes" : "No", c.type_of_ssi, statusLabel(c.current_status), c.comments, c.done_by,
+          c.ssi_detected ? "Yes" : "No", c.type_of_ssi, statusLabel(c.current_status), c.date_of_discharge || "", c.comments, c.done_by,
         ]),
       },
     ]);
@@ -548,6 +549,8 @@ export default function HaiSurveillance() {
           cases={visibleSsiCases}
           loading={loading}
           units={units}
+          session={session}
+          isAdmin={isAdmin}
           onAddCase={addSsiCase}
           onUpdateField={updateSsiField}
           onSave={saveSsiCase}
@@ -941,7 +944,7 @@ function VaeMonitoringTab({ patients, vaeRows, session, flash, reload }) {
   );
 }
 
-function SsiSurveillanceTab({ cases, loading, units, onAddCase, onUpdateField, onSave, onRemove, onUpdateFollowUp, onUpdateSpecimen }) {
+function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase, onUpdateField, onSave, onRemove, onUpdateFollowUp, onUpdateSpecimen }) {
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -966,7 +969,7 @@ function SsiSurveillanceTab({ cases, loading, units, onAddCase, onUpdateField, o
               <th colSpan={4} className="border-b border-slate-200 px-2 py-1 text-center font-medium">2nd Follow Up</th>
               <th colSpan={4} className="border-b border-slate-200 px-2 py-1 text-center font-medium">3rd Follow Up</th>
               <th colSpan={4} className="border-b border-slate-200 px-2 py-1 text-center font-medium">Specimen Information</th>
-              {["Other Specimens", "SSI Detected", "Type of SSI", "Current Status", "Comments"].map((h) => (
+              {["Other Specimens", "SSI Detected", "Type of SSI", "Current Status", "Date of Discharge", "Comments"].map((h) => (
                 <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-2 py-2 font-medium align-bottom">{h}</th>
               ))}
               <th rowSpan={2}></th>
@@ -991,6 +994,8 @@ function SsiSurveillanceTab({ cases, loading, units, onAddCase, onUpdateField, o
                 key={c.id}
                 c={c}
                 units={units}
+                session={session}
+                isAdmin={isAdmin}
                 onFieldChange={(patch) => onUpdateField(c.id, patch)}
                 onFieldBlurSave={() => onSave(c)}
                 onFollowUpFieldChange={(i, patch) => onUpdateFollowUp(c, i, patch)}
@@ -1015,41 +1020,48 @@ function SsiSurveillanceTab({ cases, loading, units, onAddCase, onUpdateField, o
   );
 }
 
-function SsiRow({ c, units, onFieldChange, onFieldBlurSave, onFollowUpFieldChange, onSpecimenFieldChange, onSpecimenMdroToggle, onPatosToggle, onSsiDetectedToggle, onRemove }) {
+function SsiRow({ c, units, session, isAdmin, onFieldChange, onFieldBlurSave, onFollowUpFieldChange, onSpecimenFieldChange, onSpecimenMdroToggle, onPatosToggle, onSsiDetectedToggle, onRemove }) {
+  function canEditSsi(group) {
+    return isAdmin || session?.department === group || (session?.ssiStages ?? []).includes(group);
+  }
+  const drDisabled = !canEditSsi("DR");
+  const orDisabled = !canEditSsi("OR");
+  const drFwDisabled = !canEditSsi("DR_FW");
+
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50">
-      <td className="px-2 py-1"><GridText value={c.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} /></td>
-      <td className="px-2 py-1"><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[10rem]" /></td>
-      <td className="px-2 py-1"><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[6rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} /></td>
+      <td className="px-2 py-1"><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[10rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[6rem]" /></td>
       <td className="px-2 py-1">
-        <select className="input-cell w-full min-w-[7rem]" value={c.unit} onChange={(e) => onFieldChange({ unit: e.target.value })} onBlur={onFieldBlurSave}>
+        <select className="input-cell w-full min-w-[7rem]" disabled={drDisabled} value={c.unit} onChange={(e) => onFieldChange({ unit: e.target.value })} onBlur={onFieldBlurSave}>
           <option value="">—</option>
           {units.map((u) => (
             <option key={u} value={u}>{u}</option>
           ))}
         </select>
       </td>
-      <td className="px-2 py-1"><GridText value={c.age} onChange={(e) => onFieldChange({ age: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[4rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.age} onChange={(e) => onFieldChange({ age: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[4rem]" /></td>
       <td className="px-2 py-1">
-        <select className="input-cell w-full" value={c.gender} onChange={(e) => onFieldChange({ gender: e.target.value })} onBlur={onFieldBlurSave}>
+        <select className="input-cell w-full" disabled={drDisabled} value={c.gender} onChange={(e) => onFieldChange({ gender: e.target.value })} onBlur={onFieldBlurSave}>
           <option value="">—</option>
           <option value="M">M</option>
           <option value="F">F</option>
         </select>
       </td>
-      <td className="px-2 py-1"><GridText value={c.admission_diagnosis} onChange={(e) => onFieldChange({ admission_diagnosis: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[10rem]" /></td>
-      <td className="px-2 py-1"><GridText value={c.surgical_procedure_type} onChange={(e) => onFieldChange({ surgical_procedure_type: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[9rem]" /></td>
-      <td className="px-2 py-1"><GridDate value={c.date_of_procedure} onChange={(e) => onFieldChange({ date_of_procedure: e.target.value })} onBlur={onFieldBlurSave} /></td>
+      <td className="px-2 py-1"><GridText value={c.admission_diagnosis} onChange={(e) => onFieldChange({ admission_diagnosis: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[10rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.surgical_procedure_type} onChange={(e) => onFieldChange({ surgical_procedure_type: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[9rem]" /></td>
+      <td className="px-2 py-1"><GridDate value={c.date_of_procedure} onChange={(e) => onFieldChange({ date_of_procedure: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} /></td>
       <td className="px-2 py-1">
-        <select className="input-cell w-full min-w-[7rem]" value={c.elective_emergency} onChange={(e) => onFieldChange({ elective_emergency: e.target.value })} onBlur={onFieldBlurSave}>
+        <select className="input-cell w-full min-w-[7rem]" disabled={orDisabled} value={c.elective_emergency} onChange={(e) => onFieldChange({ elective_emergency: e.target.value })} onBlur={onFieldBlurSave}>
           <option value="elective">Elective</option>
           <option value="emergency">Emergency</option>
         </select>
       </td>
 
-      <td className="px-2 py-1"><GridText value={c.asa_score} onChange={(e) => onFieldChange({ asa_score: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[5rem]" /></td>
-      <td className="px-2 py-1"><GridText value={c.wound_class} onChange={(e) => onFieldChange({ wound_class: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[7rem]" /></td>
-      <td className="px-2 py-1"><GridText value={c.duration_of_surgery} onChange={(e) => onFieldChange({ duration_of_surgery: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[6rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.asa_score} onChange={(e) => onFieldChange({ asa_score: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} className="min-w-[5rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.wound_class} onChange={(e) => onFieldChange({ wound_class: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} className="min-w-[7rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.duration_of_surgery} onChange={(e) => onFieldChange({ duration_of_surgery: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} className="min-w-[6rem]" /></td>
 
       <td className="px-2 py-1 text-center">
         <input type="checkbox" checked={!!c.patos} onChange={(e) => onPatosToggle(e.target.checked)} />
@@ -1082,12 +1094,13 @@ function SsiRow({ c, units, onFieldChange, onFieldBlurSave, onFollowUpFieldChang
       </td>
       <td className="px-2 py-1"><GridText value={c.type_of_ssi} onChange={(e) => onFieldChange({ type_of_ssi: e.target.value })} onBlur={onFieldBlurSave} disabled={!c.ssi_detected} className="min-w-[8rem]" /></td>
       <td className="px-2 py-1">
-        <select className="input-cell w-full" value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
+        <select className="input-cell w-full" disabled={drFwDisabled} value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>{statusLabel(s)}</option>
           ))}
         </select>
       </td>
+      <td className="px-2 py-1"><GridDate value={c.date_of_discharge} onChange={(e) => onFieldChange({ date_of_discharge: e.target.value })} onBlur={onFieldBlurSave} disabled={drFwDisabled} /></td>
       <td className="px-2 py-1"><GridText value={c.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[9rem]" /></td>
       <td className="px-2 py-1">
         <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">

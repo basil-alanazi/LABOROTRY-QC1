@@ -48,6 +48,7 @@ export function AuthProvider({ children }) {
       canViewHaiSurveillance: !!user.can_view_hai_surveillance,
       haiScope: user.hai_scope || null,
       obStages: user.ob_stages ? user.ob_stages.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      ssiStages: user.ssi_stages ? user.ssi_stages.split(",").map((s) => s.trim()).filter(Boolean) : [],
       mustChangePassword: !!user.must_change_password,
     };
   }

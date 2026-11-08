@@ -591,6 +591,7 @@ export const users = [
     can_view_hai_surveillance: true,
     hai_scope: "ob,ssi",
     ob_stages: "OR,Delivery,Female Ward",
+    ssi_stages: "OR,DR_FW",
     active: true,
     must_change_password: false,
     created_at: new Date().toISOString(),
