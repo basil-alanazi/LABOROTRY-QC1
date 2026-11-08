@@ -239,6 +239,7 @@ export default function HaiSurveillance() {
         hai_detected: !!p.hai_detected,
         hai_event_types: p.hai_event_types ?? [],
         current_status: p.current_status,
+        date_of_discharge: p.date_of_discharge || null,
         comments: p.comments,
         updated_in_seha: !!p.updated_in_seha,
       })
@@ -504,13 +505,13 @@ export default function HaiSurveillance() {
         headers: [
           "Month", "Patient Name", "MRN", "Age", "Gender", "Bed", "ICU Type", "Hospital Admission", "Unit Admission", "Admission Diagnosis",
           "Central Line Insertion", "Central Line Removed", "Urinary Catheter Insertion", "Urinary Catheter Removed",
-          "Ventilator Insertion", "Ventilator Removed", "Signs & Symptoms", "Onset Date", "HAI Detected", "Event Types", "Current Status", "Comments", "Recorded By",
+          "Ventilator Insertion", "Ventilator Removed", "Signs & Symptoms", "Onset Date", "HAI Detected", "Event Types", "Date of Discharge", "Current Status", "Comments", "Recorded By",
         ],
         rows: visibleIcuUnitPatients.map((p) => [
           p.month, p.patient_name, p.mrn, p.age, p.gender, p.bed_no, p.icu_type, p.hospital_admission_date || "", p.unit_admission_date || "", p.admission_diagnosis,
           p.central_line_insertion || "", p.central_line_removed || "", p.urinary_catheter_insertion || "", p.urinary_catheter_removed || "",
           p.ventilator_insertion || "", p.ventilator_removed || "", p.signs_symptoms, p.date_onset_symptoms || "",
-          p.hai_detected ? "Yes" : "No", (p.hai_event_types ?? []).join(", "), statusLabel(p.current_status), p.comments, p.done_by,
+          p.hai_detected ? "Yes" : "No", (p.hai_event_types ?? []).join(", "), p.date_of_discharge || "", statusLabel(p.current_status), p.comments, p.done_by,
         ]),
       },
     ]);
@@ -832,7 +833,7 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-2 py-2 font-medium align-bottom">Other Specimens</th>
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-2 py-2 font-medium align-bottom">HAI Detected</th>
               <th colSpan={4} className="border-b border-slate-200 px-2 py-1 text-center font-medium">Type of HAI Event</th>
-              {["Current Status", "Comments"].map((h) => (
+              {["Date of Discharge", "Current Status", "Comments"].map((h) => (
                 <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-2 py-2 font-medium align-bottom">{h}</th>
               ))}
               <th rowSpan={2}></th>
@@ -957,6 +958,7 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
         </td>
       ))}
 
+      <td className="px-2 py-1"><GridDate value={p.date_of_discharge} onChange={(e) => onFieldChange({ date_of_discharge: e.target.value })} onBlur={onFieldBlurSave} /></td>
       <td className="px-2 py-1">
         <select className="input-cell w-full" value={p.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
           {STATUS_OPTIONS.map((s) => (
@@ -966,9 +968,11 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
       </td>
       <td className="px-2 py-1"><GridText value={p.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[9rem]" /></td>
       <td className="px-2 py-1">
-        <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-          <Trash2 className="h-4 w-4" />
-        </button>
+        {isAdmin && (
+          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
       </td>
     </tr>
   );
@@ -1387,9 +1391,11 @@ function SsiRow({
 
       <td className="px-2 py-1"><GridText value={c.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[9rem]" /></td>
       <td className="px-2 py-1">
-        <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-          <Trash2 className="h-4 w-4" />
-        </button>
+        {isAdmin && (
+          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
       </td>
     </tr>
   );
@@ -1570,9 +1576,11 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
       </td>
       <td className="px-2 py-1"><GridText value={c.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[10rem]" /></td>
       <td className="px-2 py-1">
-        <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-          <Trash2 className="h-4 w-4" />
-        </button>
+        {isAdmin && (
+          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
       </td>
     </tr>
   );
