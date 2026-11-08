@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronUp, FileSpreadsheet, FileText, Plus, Trash2, UserPlus } from "lucide-react";
+import { AlertTriangle, FileSpreadsheet, FileText, Plus, Trash2, UserPlus } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
@@ -40,8 +40,8 @@ const TABS = [
   { key: "ob", label: "OB/Delivery Surveillance" },
 ];
 
-const emptyObForm = { patient_name: "", mrn: "", age: "", admission_diagnosis: "" };
 const emptyObSpecimen = { type: "", date_collected: "", organism: "", mdro: false };
+const OB_SPECIMEN_SLOTS = 1;
 
 const emptyFollowUp = { type: "", date: "", signs_symptoms: "", wound_status: "" };
 const emptySsiSpecimen = { type: "", date_collected: "", organism: "", mdro: false };
@@ -50,22 +50,24 @@ const SSI_SPECIMEN_SLOTS = 1;
 
 export default function HaiSurveillance() {
   const { session, config, isAdmin } = useAuth();
-  // A staff account can be scoped to just one tab/unit of this module
-  // ('adult_icu' | 'pediatric_icu' | 'ssi') from Settings — Owner/IC always
-  // see everything, and a scoped account never sees the tab/unit switchers.
-  const scope = isAdmin ? null : session?.haiScope || null;
-  const [tab, setTab] = useState(() => (scope === "ssi" ? "ssi" : "icu"));
+  // A staff account can be scoped (Settings) to just one or a few tabs/units
+  // of this module — stored as a comma-separated list of tokens among
+  // 'adult_icu' | 'pediatric_icu' | 'ssi' | 'ob'. Owner/IC always see
+  // everything; a scoped account only sees the switchers it needs (none at
+  // all when exactly one tab/unit is allowed).
+  const scopeTokens = isAdmin || !session?.haiScope ? null : session.haiScope.split(",").map((s) => s.trim()).filter(Boolean);
+  const SCOPE_TO_TAB = { adult_icu: "icu", pediatric_icu: "icu", ssi: "ssi", ob: "ob" };
+  const allowedTabs = scopeTokens ? [...new Set(scopeTokens.map((t) => SCOPE_TO_TAB[t]).filter(Boolean))] : null;
+  const icuUnitsAllowed = scopeTokens ? scopeTokens.filter((t) => t === "adult_icu" || t === "pediatric_icu") : null;
+  const [tab, setTab] = useState(() => allowedTabs?.[0] ?? "icu");
   const [patients, setPatients] = useState([]);
   const [vaeRows, setVaeRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [statusFilter, setStatusFilter] = useState("admitted");
-  const [expanded, setExpanded] = useState(null);
   const [ssiCases, setSsiCases] = useState([]);
   const [obCases, setObCases] = useState([]);
-  const [showObForm, setShowObForm] = useState(false);
-  const [obForm, setObForm] = useState(emptyObForm);
-  const [icuUnit, setIcuUnit] = useState(() => (scope === "pediatric_icu" ? "pediatric" : "adult")); // "adult" | "pediatric" — separate patient lists, not a shared type dropdown
+  const [icuUnit, setIcuUnit] = useState(() => (icuUnitsAllowed?.length === 1 && icuUnitsAllowed[0] === "pediatric_icu" ? "pediatric" : "adult")); // "adult" | "pediatric" — separate patient lists, not a shared type dropdown
 
   const adultIcuTypes = config?.hai_icu_types_adult ?? [];
   const pediatricIcuTypes = config?.hai_icu_types_pediatric ?? [];
@@ -89,7 +91,7 @@ export default function HaiSurveillance() {
         specimens: padArray(c.specimens, SSI_SPECIMEN_SLOTS, emptySsiSpecimen),
       }))
     );
-    setObCases(ob ?? []);
+    setObCases((ob ?? []).map((c) => ({ ...c, specimens: padArray(c.specimens, OB_SPECIMEN_SLOTS, emptyObSpecimen) })));
     setLoading(false);
   }
 
@@ -287,22 +289,14 @@ export default function HaiSurveillance() {
     setObCases((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
 
-  async function addObCase(e) {
-    e.preventDefault();
-    const name = obForm.patient_name.trim();
-    if (!name) return flash({ type: "error", text: "Patient name is required" });
+  async function addObCase() {
     const { error } = await supabase.from("hai_ob_surveillance").insert({
-      patient_name: name,
-      mrn: obForm.mrn.trim(),
-      age: obForm.age.trim(),
-      admission_diagnosis: obForm.admission_diagnosis.trim(),
+      patient_name: "",
+      specimens: padArray([], OB_SPECIMEN_SLOTS, emptyObSpecimen),
       done_by: session?.username,
     });
     if (error) return flash({ type: "error", text: "Could not add: " + error.message });
-    setObForm(emptyObForm);
-    setShowObForm(false);
     loadAll();
-    flash({ type: "success", text: "Patient added" });
   }
 
   async function saveObCase(c) {
@@ -356,15 +350,10 @@ export default function HaiSurveillance() {
     await supabase.from("hai_ob_surveillance").update(patch).eq("id", c.id);
   }
 
-  function addObSpecimen(c) {
-    updateObField(c.id, { specimens: [...(c.specimens ?? []), { ...emptyObSpecimen }] });
-  }
   function updateObSpecimen(c, index, patch) {
     const next = (c.specimens ?? []).map((s, i) => (i === index ? { ...s, ...patch } : s));
     updateObField(c.id, { specimens: next });
-  }
-  function removeObSpecimen(c, index) {
-    updateObField(c.id, { specimens: (c.specimens ?? []).filter((_, i) => i !== index) });
+    return { ...c, specimens: next };
   }
 
   function exportObExcel() {
@@ -488,9 +477,9 @@ export default function HaiSurveillance() {
 
       {message && <p className={`rounded-lg px-3 py-2 text-sm ${message.type === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{message.text}</p>}
 
-      {!scope && (
+      {(!scopeTokens || allowedTabs.length > 1) && (
         <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
-          {TABS.map((t) => (
+          {TABS.filter((t) => !scopeTokens || allowedTabs.includes(t.key)).map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)} className={`rounded-md px-3 py-1 font-medium ${tab === t.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
               {t.label}
             </button>
@@ -498,7 +487,7 @@ export default function HaiSurveillance() {
         </div>
       )}
 
-      {tab === "icu" && scope !== "adult_icu" && scope !== "pediatric_icu" && (
+      {tab === "icu" && (!scopeTokens || !icuUnitsAllowed || icuUnitsAllowed.length > 1) && (
         <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
           {[
             { key: "adult", label: "Adult ICU" },
@@ -574,21 +563,13 @@ export default function HaiSurveillance() {
           loading={loading}
           session={session}
           isAdmin={isAdmin}
-          showForm={showObForm}
-          setShowForm={setShowObForm}
-          form={obForm}
-          setForm={setObForm}
           onAddCase={addObCase}
-          expanded={expanded}
-          setExpanded={setExpanded}
           onUpdateField={updateObField}
           onSave={saveObCase}
           onRemove={removeObCase}
           onMarkComplete={markStageComplete}
           onReopen={reopenStage}
-          onAddSpecimen={addObSpecimen}
           onUpdateSpecimen={updateObSpecimen}
-          onRemoveSpecimen={removeObSpecimen}
         />
       )}
     </div>
@@ -610,8 +591,8 @@ function GridText({ value, onChange, onBlur, placeholder, disabled, className = 
     />
   );
 }
-function GridDate({ value, onChange, onBlur, className = "" }) {
-  return <input type="date" className={`input-cell w-full min-w-[8.5rem] ${className}`} value={value ?? ""} onChange={onChange} onBlur={onBlur} />;
+function GridDate({ value, onChange, onBlur, disabled, className = "" }) {
+  return <input type="date" className={`input-cell w-full min-w-[8.5rem] ${className}`} value={value ?? ""} onChange={onChange} onBlur={onBlur} disabled={disabled} />;
 }
 
 function IcuSurveillanceTab({ patients, loading, icuTypes, onAddPatient, onUpdateField, onSave, onRemove, onUpdateSpecimen, onToggleEventType }) {
@@ -1128,68 +1109,66 @@ function FollowUpCells({ followUp, onChange, onBlur }) {
   );
 }
 
-function ObSurveillanceTab({
-  cases, loading, session, isAdmin, showForm, setShowForm, form, setForm, onAddCase,
-  expanded, setExpanded, onUpdateField, onSave, onRemove, onMarkComplete, onReopen, onAddSpecimen, onUpdateSpecimen, onRemoveSpecimen,
-}) {
+function ObSurveillanceTab({ cases, loading, session, isAdmin, onAddCase, onUpdateField, onSave, onRemove, onMarkComplete, onReopen, onUpdateSpecimen }) {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-slate-500">
         A fixed 3-stage pipeline — <strong>OR → Delivery → Female Ward</strong>. Each stage's dedicated account (Settings → User Accounts,
-        department = "OR" / "Delivery" / "Female Ward") fills in only its own section, which opens once the previous stage is marked complete.
+        department = "OR" / "Delivery" / "Female Ward", or an OB/Delivery scope with specific stages granted) fills in only its own section,
+        which opens once the previous stage is marked complete.
       </p>
       <div>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700"
-        >
+        <button onClick={onAddCase} className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700">
           <UserPlus className="h-3.5 w-3.5" />
           Add Patient
         </button>
       </div>
-      {showForm && (
-        <form onSubmit={onAddCase} className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-4">
-          <input className="input" placeholder="Patient Name" value={form.patient_name} onChange={(e) => setForm({ ...form, patient_name: e.target.value })} required />
-          <input className="input" placeholder="MRN / ID" value={form.mrn} onChange={(e) => setForm({ ...form, mrn: e.target.value })} />
-          <input className="input" placeholder="Age" value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} />
-          <input className="input" placeholder="Admission Diagnosis" value={form.admission_diagnosis} onChange={(e) => setForm({ ...form, admission_diagnosis: e.target.value })} />
-          <button type="submit" className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
-            <Plus className="h-4 w-4" />
-            Save
-          </button>
-        </form>
-      )}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
-              <th className="px-3 py-2 font-medium">Patient</th>
-              <th className="px-3 py-2 font-medium">Procedure</th>
-              <th className="px-3 py-2 font-medium">OR</th>
-              <th className="px-3 py-2 font-medium">Delivery</th>
-              <th className="px-3 py-2 font-medium">Female Ward</th>
-              <th className="px-3 py-2 font-medium">Status</th>
-              <th className="px-3 py-2"></th>
+              {["Patient Name", "MRN/ID", "Age", "Admission Diagnosis"].map((h) => (
+                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-2 py-2 font-medium align-bottom">{h}</th>
+              ))}
+              <th colSpan={7} className="border-b border-slate-200 px-2 py-1 text-center font-medium">OR</th>
+              <th colSpan={4} className="border-b border-slate-200 px-2 py-1 text-center font-medium">Delivery</th>
+              <th colSpan={11} className="border-b border-slate-200 px-2 py-1 text-center font-medium">Female Ward</th>
+              {["Current Status", "Comments"].map((h) => (
+                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-2 py-2 font-medium align-bottom">{h}</th>
+              ))}
+              <th rowSpan={2}></th>
+            </tr>
+            <tr>
+              {["Date of Procedure", "Surgical Procedure Type", "ASA Score", "Wound Class", "Duration of Surgery", "OR Notes", "Status"].map((h) => (
+                <th key={`or-${h}`} className="whitespace-nowrap px-2 py-1 font-medium">{h}</th>
+              ))}
+              {["Date", "Signs & Symptoms", "Notes", "Status"].map((h) => (
+                <th key={`dl-${h}`} className="whitespace-nowrap px-2 py-1 font-medium">{h}</th>
+              ))}
+              {["Date", "Signs & Symptoms", "Wound Status", "Notes", "Specimen Type", "Specimen Date Collected", "Organism", "MDRO", "SSI Detected", "Type of SSI", "Status"].map((h) => (
+                <th key={`fw-${h}`} className="whitespace-nowrap px-2 py-1 font-medium">{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {cases.map((c) => (
-              <ObCaseRow
+              <ObRow
                 key={c.id}
                 c={c}
                 session={session}
                 isAdmin={isAdmin}
-                expanded={expanded === c.id}
-                onToggle={() => setExpanded(expanded === c.id ? null : c.id)}
-                onUpdateField={(patch) => onUpdateField(c.id, patch)}
-                onSave={() => onSave(c)}
-                onRemove={() => onRemove(c)}
+                onFieldChange={(patch) => onUpdateField(c.id, patch)}
+                onFieldBlurSave={() => onSave(c)}
                 onMarkComplete={(prefix) => onMarkComplete(c, prefix)}
                 onReopen={(prefix) => onReopen(c, prefix)}
-                onAddSpecimen={() => onAddSpecimen(c)}
-                onUpdateSpecimen={(i, patch) => onUpdateSpecimen(c, i, patch)}
-                onRemoveSpecimen={(i) => onRemoveSpecimen(c, i)}
+                onSpecimenFieldChange={(patch) => onUpdateSpecimen(c, 0, patch)}
+                onSpecimenMdroToggle={(checked) => onSave(onUpdateSpecimen(c, 0, { mdro: checked }))}
+                onSsiDetectedToggle={(checked) => {
+                  onUpdateField(c.id, { ssi_detected: checked });
+                  onSave({ ...c, ssi_detected: checked });
+                }}
+                onRemove={() => onRemove(c)}
               />
             ))}
           </tbody>
@@ -1200,12 +1179,31 @@ function ObSurveillanceTab({
   );
 }
 
-function stageBadge(label, done, open) {
-  const cls = done ? "bg-emerald-50 text-emerald-700" : open ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-400";
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{done ? "Done" : open ? "Open" : "Locked"}</span>;
+function StageActionCell({ open, done, canEdit, canReopen, completedBy, onMarkComplete, onReopen }) {
+  if (!open) return <span className="whitespace-nowrap text-xs text-slate-400">Locked</span>;
+  if (done) {
+    return (
+      <div className="flex flex-col gap-0.5 whitespace-nowrap text-xs text-slate-500">
+        <span className="font-medium text-emerald-700">Done — {completedBy || "—"}</span>
+        {canReopen && (
+          <button onClick={onReopen} className="w-fit text-teal-600 hover:underline">
+            Reopen
+          </button>
+        )}
+      </div>
+    );
+  }
+  if (canEdit) {
+    return (
+      <button onClick={onMarkComplete} className="whitespace-nowrap rounded-lg bg-teal-600 px-2 py-1 text-xs font-medium text-white hover:bg-teal-700">
+        Mark complete
+      </button>
+    );
+  }
+  return <span className="whitespace-nowrap text-xs font-medium text-amber-600">Open</span>;
 }
 
-function ObCaseRow({ c, session, isAdmin, expanded, onToggle, onUpdateField, onSave, onRemove, onMarkComplete, onReopen, onAddSpecimen, onUpdateSpecimen, onRemoveSpecimen }) {
+function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComplete, onReopen, onSpecimenFieldChange, onSpecimenMdroToggle, onSsiDetectedToggle, onRemove }) {
   const orDone = !!c.or_completed_at;
   const deliveryDone = !!c.delivery_completed_at;
   const fwDone = !!c.fw_completed_at;
@@ -1213,210 +1211,66 @@ function ObCaseRow({ c, session, isAdmin, expanded, onToggle, onUpdateField, onS
   const fwOpen = deliveryDone;
 
   function canEdit(dept) {
-    return isAdmin || session?.department === dept;
+    return isAdmin || session?.department === dept || (session?.obStages ?? []).includes(dept);
   }
 
+  const orDisabled = orDone || !canEdit("OR");
+  const deliveryDisabled = !deliveryOpen || deliveryDone || !canEdit("Delivery");
+  const fwDisabled = !fwOpen || fwDone || !canEdit("Female Ward");
+  const specimen = c.specimens?.[0] ?? emptyObSpecimen;
+
   return (
-    <>
-      <tr className="border-t border-slate-100 hover:bg-slate-50">
-        <td className="px-3 py-2">
-          <div className="font-medium text-slate-700">{c.patient_name}</div>
-          <div className="text-xs text-slate-400">{c.mrn}</div>
-        </td>
-        <td className="px-3 py-2">{c.surgical_procedure_type}</td>
-        <td className="px-3 py-2">{stageBadge("OR", orDone, true)}</td>
-        <td className="px-3 py-2">{stageBadge("Delivery", deliveryDone, deliveryOpen)}</td>
-        <td className="px-3 py-2">{stageBadge("Female Ward", fwDone, fwOpen)}</td>
-        <td className="px-3 py-2">
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusBadgeClass(c.current_status)}`}>{statusLabel(c.current_status)}</span>
-        </td>
-        <td className="flex items-center justify-end gap-1 px-3 py-2">
-          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-            <Trash2 className="h-4 w-4" />
-          </button>
-          <button onClick={onToggle} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-        </td>
-      </tr>
-      {expanded && (
-        <tr className="border-t border-slate-100 bg-slate-50/60">
-          <td colSpan={7} className="px-4 py-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="Patient Name">
-                <input className="input" value={c.patient_name} onChange={(e) => onUpdateField({ patient_name: e.target.value })} />
-              </Field>
-              <Field label="MRN / ID">
-                <input className="input" value={c.mrn} onChange={(e) => onUpdateField({ mrn: e.target.value })} />
-              </Field>
-              <Field label="Age">
-                <input className="input" value={c.age} onChange={(e) => onUpdateField({ age: e.target.value })} />
-              </Field>
-              <Field label="Current Status">
-                <select className="input" value={c.current_status} onChange={(e) => onUpdateField({ current_status: e.target.value })}>
-                  {STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>{statusLabel(s)}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Admission Diagnosis">
-                <input className="input sm:col-span-2" value={c.admission_diagnosis} onChange={(e) => onUpdateField({ admission_diagnosis: e.target.value })} />
-              </Field>
-            </div>
+    <tr className="border-t border-slate-100 hover:bg-slate-50">
+      <td className="px-2 py-1"><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[10rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[6rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.age} onChange={(e) => onFieldChange({ age: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[4rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.admission_diagnosis} onChange={(e) => onFieldChange({ admission_diagnosis: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[10rem]" /></td>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <StageSection
-                title="OR"
-                done={orDone}
-                open={true}
-                canEdit={canEdit("OR")}
-                canReopen={isAdmin}
-                completedBy={c.or_completed_by}
-                onMarkComplete={() => onMarkComplete("or")}
-                onReopen={() => onReopen("or")}
-              >
-                <Field label="Date of Procedure">
-                  <input type="date" className="input" disabled={orDone || !canEdit("OR")} value={c.date_of_procedure || ""} onChange={(e) => onUpdateField({ date_of_procedure: e.target.value })} />
-                </Field>
-                <Field label="Surgical Procedure Type">
-                  <input className="input" disabled={orDone || !canEdit("OR")} value={c.surgical_procedure_type} onChange={(e) => onUpdateField({ surgical_procedure_type: e.target.value })} />
-                </Field>
-                <Field label="ASA Score">
-                  <input className="input" disabled={orDone || !canEdit("OR")} value={c.asa_score} onChange={(e) => onUpdateField({ asa_score: e.target.value })} />
-                </Field>
-                <Field label="Wound Class">
-                  <input className="input" disabled={orDone || !canEdit("OR")} value={c.wound_class} onChange={(e) => onUpdateField({ wound_class: e.target.value })} />
-                </Field>
-                <Field label="Duration of Surgery">
-                  <input className="input" disabled={orDone || !canEdit("OR")} value={c.duration_of_surgery} onChange={(e) => onUpdateField({ duration_of_surgery: e.target.value })} />
-                </Field>
-                <Field label="OR Notes">
-                  <textarea className="input min-h-[50px]" disabled={orDone || !canEdit("OR")} value={c.or_notes} onChange={(e) => onUpdateField({ or_notes: e.target.value })} />
-                </Field>
-              </StageSection>
+      <td className="px-2 py-1"><GridDate value={c.date_of_procedure} onChange={(e) => onFieldChange({ date_of_procedure: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} /></td>
+      <td className="px-2 py-1"><GridText value={c.surgical_procedure_type} onChange={(e) => onFieldChange({ surgical_procedure_type: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} className="min-w-[9rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.asa_score} onChange={(e) => onFieldChange({ asa_score: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} className="min-w-[5rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.wound_class} onChange={(e) => onFieldChange({ wound_class: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} className="min-w-[8rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.duration_of_surgery} onChange={(e) => onFieldChange({ duration_of_surgery: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} className="min-w-[6rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.or_notes} onChange={(e) => onFieldChange({ or_notes: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} className="min-w-[10rem]" /></td>
+      <td className="px-2 py-1">
+        <StageActionCell open={true} done={orDone} canEdit={canEdit("OR")} canReopen={isAdmin} completedBy={c.or_completed_by} onMarkComplete={() => onMarkComplete("or")} onReopen={() => onReopen("or")} />
+      </td>
 
-              <StageSection
-                title="Delivery"
-                done={deliveryDone}
-                open={deliveryOpen}
-                canEdit={canEdit("Delivery")}
-                canReopen={isAdmin}
-                completedBy={c.delivery_completed_by}
-                onMarkComplete={() => onMarkComplete("delivery")}
-                onReopen={() => onReopen("delivery")}
-              >
-                <Field label="Delivery Date">
-                  <input type="date" className="input" disabled={!deliveryOpen || deliveryDone || !canEdit("Delivery")} value={c.delivery_date || ""} onChange={(e) => onUpdateField({ delivery_date: e.target.value })} />
-                </Field>
-                <Field label="Signs & Symptoms">
-                  <input className="input" disabled={!deliveryOpen || deliveryDone || !canEdit("Delivery")} value={c.delivery_signs_symptoms} onChange={(e) => onUpdateField({ delivery_signs_symptoms: e.target.value })} />
-                </Field>
-                <Field label="Delivery Notes">
-                  <textarea className="input min-h-[50px]" disabled={!deliveryOpen || deliveryDone || !canEdit("Delivery")} value={c.delivery_notes} onChange={(e) => onUpdateField({ delivery_notes: e.target.value })} />
-                </Field>
-              </StageSection>
+      <td className="px-2 py-1"><GridDate value={c.delivery_date} onChange={(e) => onFieldChange({ delivery_date: e.target.value })} onBlur={onFieldBlurSave} disabled={deliveryDisabled} /></td>
+      <td className="px-2 py-1"><GridText value={c.delivery_signs_symptoms} onChange={(e) => onFieldChange({ delivery_signs_symptoms: e.target.value })} onBlur={onFieldBlurSave} disabled={deliveryDisabled} className="min-w-[9rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.delivery_notes} onChange={(e) => onFieldChange({ delivery_notes: e.target.value })} onBlur={onFieldBlurSave} disabled={deliveryDisabled} className="min-w-[10rem]" /></td>
+      <td className="px-2 py-1">
+        <StageActionCell open={deliveryOpen} done={deliveryDone} canEdit={canEdit("Delivery")} canReopen={isAdmin} completedBy={c.delivery_completed_by} onMarkComplete={() => onMarkComplete("delivery")} onReopen={() => onReopen("delivery")} />
+      </td>
 
-              <StageSection
-                title="Female Ward"
-                done={fwDone}
-                open={fwOpen}
-                canEdit={canEdit("Female Ward")}
-                canReopen={isAdmin}
-                completedBy={c.fw_completed_by}
-                onMarkComplete={() => onMarkComplete("fw")}
-                onReopen={() => onReopen("fw")}
-              >
-                <Field label="Date">
-                  <input type="date" className="input" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} value={c.fw_date || ""} onChange={(e) => onUpdateField({ fw_date: e.target.value })} />
-                </Field>
-                <Field label="Signs & Symptoms">
-                  <input className="input" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} value={c.fw_signs_symptoms} onChange={(e) => onUpdateField({ fw_signs_symptoms: e.target.value })} />
-                </Field>
-                <Field label="Wound Status">
-                  <input className="input" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} value={c.fw_wound_status} onChange={(e) => onUpdateField({ fw_wound_status: e.target.value })} />
-                </Field>
-                <Field label="Female Ward Notes">
-                  <textarea className="input min-h-[50px]" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} value={c.fw_notes} onChange={(e) => onUpdateField({ fw_notes: e.target.value })} />
-                </Field>
+      <td className="px-2 py-1"><GridDate value={c.fw_date} onChange={(e) => onFieldChange({ fw_date: e.target.value })} onBlur={onFieldBlurSave} disabled={fwDisabled} /></td>
+      <td className="px-2 py-1"><GridText value={c.fw_signs_symptoms} onChange={(e) => onFieldChange({ fw_signs_symptoms: e.target.value })} onBlur={onFieldBlurSave} disabled={fwDisabled} className="min-w-[9rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.fw_wound_status} onChange={(e) => onFieldChange({ fw_wound_status: e.target.value })} onBlur={onFieldBlurSave} disabled={fwDisabled} className="min-w-[8rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.fw_notes} onChange={(e) => onFieldChange({ fw_notes: e.target.value })} onBlur={onFieldBlurSave} disabled={fwDisabled} className="min-w-[10rem]" /></td>
+      <td className="px-2 py-1"><GridText value={specimen.type} onChange={(e) => onSpecimenFieldChange({ type: e.target.value })} onBlur={onFieldBlurSave} disabled={fwDisabled} className="min-w-[7rem]" /></td>
+      <td className="px-2 py-1"><GridDate value={specimen.date_collected} onChange={(e) => onSpecimenFieldChange({ date_collected: e.target.value })} onBlur={onFieldBlurSave} disabled={fwDisabled} /></td>
+      <td className="px-2 py-1"><GridText value={specimen.organism} onChange={(e) => onSpecimenFieldChange({ organism: e.target.value })} onBlur={onFieldBlurSave} disabled={fwDisabled} className="min-w-[7rem]" /></td>
+      <td className="px-2 py-1 text-center"><input type="checkbox" disabled={fwDisabled} checked={!!specimen.mdro} onChange={(e) => onSpecimenMdroToggle(e.target.checked)} /></td>
+      <td className="px-2 py-1 text-center"><input type="checkbox" disabled={fwDisabled} checked={!!c.ssi_detected} onChange={(e) => onSsiDetectedToggle(e.target.checked)} /></td>
+      <td className="px-2 py-1"><GridText value={c.type_of_ssi} onChange={(e) => onFieldChange({ type_of_ssi: e.target.value })} onBlur={onFieldBlurSave} disabled={fwDisabled || !c.ssi_detected} className="min-w-[8rem]" /></td>
+      <td className="px-2 py-1">
+        <StageActionCell open={fwOpen} done={fwDone} canEdit={canEdit("Female Ward")} canReopen={isAdmin} completedBy={c.fw_completed_by} onMarkComplete={() => onMarkComplete("fw")} onReopen={() => onReopen("fw")} />
+      </td>
 
-                <div className="flex flex-col gap-2">
-                  {(c.specimens ?? []).map((s, i) => (
-                    <div key={i} className="grid grid-cols-1 gap-2 rounded-lg bg-white p-2 sm:grid-cols-5 sm:items-center">
-                      <input className="input-cell" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} placeholder="Type of specimen" value={s.type} onChange={(e) => onUpdateSpecimen(i, { type: e.target.value })} />
-                      <input type="date" className="input-cell" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} value={s.date_collected} onChange={(e) => onUpdateSpecimen(i, { date_collected: e.target.value })} />
-                      <input className="input-cell" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} placeholder="Organism" value={s.organism} onChange={(e) => onUpdateSpecimen(i, { organism: e.target.value })} />
-                      <label className="flex items-center gap-1 text-xs text-slate-500">
-                        <input type="checkbox" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} checked={!!s.mdro} onChange={(e) => onUpdateSpecimen(i, { mdro: e.target.checked })} />
-                        MDRO
-                      </label>
-                      <button onClick={() => onRemoveSpecimen(i)} disabled={!fwOpen || fwDone || !canEdit("Female Ward")} className="justify-self-end rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                  {(fwOpen && !fwDone && canEdit("Female Ward")) && (
-                    <button onClick={onAddSpecimen} className="flex w-fit items-center gap-1 text-xs font-medium text-teal-600 hover:underline">
-                      <Plus className="h-3.5 w-3.5" />
-                      Add specimen
-                    </button>
-                  )}
-                </div>
-
-                <label className="flex items-center gap-2 text-sm text-slate-600">
-                  <input type="checkbox" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} checked={!!c.ssi_detected} onChange={(e) => onUpdateField({ ssi_detected: e.target.checked })} />
-                  SSI Detected
-                </label>
-                {c.ssi_detected && (
-                  <Field label="Type of SSI">
-                    <input className="input" disabled={!fwOpen || fwDone || !canEdit("Female Ward")} value={c.type_of_ssi} onChange={(e) => onUpdateField({ type_of_ssi: e.target.value })} />
-                  </Field>
-                )}
-              </StageSection>
-            </div>
-
-            <Field label="Comments">
-              <textarea className="input mt-4 min-h-[60px]" value={c.comments} onChange={(e) => onUpdateField({ comments: e.target.value })} />
-            </Field>
-
-            <button onClick={onSave} className="mt-3 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
-              Save
-            </button>
-          </td>
-        </tr>
-      )}
-    </>
-  );
-}
-
-function StageSection({ title, done, open, canEdit, canReopen, completedBy, onMarkComplete, onReopen, children }) {
-  return (
-    <div className={`flex flex-col gap-2 rounded-xl border p-3 ${open ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-100/60"}`}>
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase text-slate-500">{title}</h3>
-        {stageBadge(title, done, open)}
-      </div>
-      {!open && <p className="text-xs text-slate-400">Locked until the previous stage is marked complete.</p>}
-      {open && (
-        <>
-          <div className="flex flex-col gap-2">{children}</div>
-          {canEdit && !done && (
-            <button onClick={onMarkComplete} className="mt-1 w-fit rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700">
-              Mark {title} complete
-            </button>
-          )}
-          {done && (
-            <div className="mt-1 flex items-center justify-between text-xs text-slate-400">
-              <span>Completed by {completedBy || "—"}</span>
-              {canReopen && (
-                <button onClick={onReopen} className="text-teal-600 hover:underline">
-                  Reopen
-                </button>
-              )}
-            </div>
-          )}
-        </>
-      )}
-    </div>
+      <td className="px-2 py-1">
+        <select className="input-cell w-full" value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>{statusLabel(s)}</option>
+          ))}
+        </select>
+      </td>
+      <td className="px-2 py-1"><GridText value={c.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[10rem]" /></td>
+      <td className="px-2 py-1">
+        <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </td>
+    </tr>
   );
 }
 

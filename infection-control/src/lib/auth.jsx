@@ -47,6 +47,7 @@ export function AuthProvider({ children }) {
       canViewQualityRounds: !!user.can_view_quality_rounds,
       canViewHaiSurveillance: !!user.can_view_hai_surveillance,
       haiScope: user.hai_scope || null,
+      obStages: user.ob_stages ? user.ob_stages.split(",").map((s) => s.trim()).filter(Boolean) : [],
       mustChangePassword: !!user.must_change_password,
     };
   }

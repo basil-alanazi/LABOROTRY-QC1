@@ -25,7 +25,10 @@ const HAI_SCOPE_OPTIONS = [
   { value: "adult_icu", label: "Adult ICU only" },
   { value: "pediatric_icu", label: "Pediatric ICU only" },
   { value: "ssi", label: "SSI Surveillance only" },
+  { value: "ob", label: "OB/Delivery Surveillance only" },
+  { value: "ob,ssi", label: "OB/Delivery + SSI only" },
 ];
+const OB_STAGE_OPTIONS = ["OR", "Delivery", "Female Ward"];
 const emptyNewStockItem = { department: "", name: "", unit: "unit", min_qty: "", max_qty: "", current_qty: "" };
 const emptyNewHealthItem = { name: "", category: "vaccine", recurrence_months: "", dose_schedule: "0", kitchen_only: false };
 
@@ -466,6 +469,7 @@ export default function Settings() {
         can_view_quality_rounds: user.role === "staff" && !!user.can_view_quality_rounds,
         can_view_hai_surveillance: user.role === "staff" && !!user.can_view_hai_surveillance,
         hai_scope: user.role === "staff" && user.can_view_hai_surveillance ? user.hai_scope || null : null,
+        ob_stages: user.role === "staff" && user.can_view_hai_surveillance ? user.ob_stages || null : null,
         active: user.active,
       })
       .eq("id", user.id);
@@ -1118,6 +1122,28 @@ export default function Settings() {
                       ))}
                     </select>
                   </label>
+                )}
+                {u.role === "staff" && u.can_view_hai_surveillance && (u.hai_scope || "").includes("ob") && (
+                  <div className="flex items-center gap-3 text-xs text-slate-500 sm:col-span-5 sm:pl-5">
+                    OB/Delivery stages this account can edit (independent of its Department above):
+                    {OB_STAGE_OPTIONS.map((stage) => {
+                      const current = (u.ob_stages || "").split(",").map((s) => s.trim()).filter(Boolean);
+                      const checked = current.includes(stage);
+                      return (
+                        <label key={stage} className="flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              const next = e.target.checked ? [...current, stage] : current.filter((s) => s !== stage);
+                              updateUserField(u.id, { ob_stages: next.join(",") });
+                            }}
+                          />
+                          {stage}
+                        </label>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             ))}

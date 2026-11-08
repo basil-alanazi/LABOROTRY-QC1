@@ -581,6 +581,20 @@ export const users = [
     must_change_password: false,
     created_at: new Date().toISOString(),
   },
+  {
+    id: "user-drorfw1",
+    username: "drorfw1",
+    password: "drorfw123",
+    display_name: "DR-OR-FW — Staff",
+    role: "staff",
+    department: "DR",
+    can_view_hai_surveillance: true,
+    hai_scope: "ob,ssi",
+    ob_stages: "OR,Delivery,Female Ward",
+    active: true,
+    must_change_password: false,
+    created_at: new Date().toISOString(),
+  },
 ];
 
 export const messages = [
