@@ -50,7 +50,11 @@ const SSI_SPECIMEN_SLOTS = 1;
 
 export default function HaiSurveillance() {
   const { session, config, isAdmin } = useAuth();
-  const [tab, setTab] = useState("icu");
+  // A staff account can be scoped to just one tab/unit of this module
+  // ('adult_icu' | 'pediatric_icu' | 'ssi') from Settings — Owner/IC always
+  // see everything, and a scoped account never sees the tab/unit switchers.
+  const scope = isAdmin ? null : session?.haiScope || null;
+  const [tab, setTab] = useState(() => (scope === "ssi" ? "ssi" : "icu"));
   const [patients, setPatients] = useState([]);
   const [vaeRows, setVaeRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +65,7 @@ export default function HaiSurveillance() {
   const [obCases, setObCases] = useState([]);
   const [showObForm, setShowObForm] = useState(false);
   const [obForm, setObForm] = useState(emptyObForm);
-  const [icuUnit, setIcuUnit] = useState("adult"); // "adult" | "pediatric" — separate patient lists, not a shared type dropdown
+  const [icuUnit, setIcuUnit] = useState(() => (scope === "pediatric_icu" ? "pediatric" : "adult")); // "adult" | "pediatric" — separate patient lists, not a shared type dropdown
 
   const adultIcuTypes = config?.hai_icu_types_adult ?? [];
   const pediatricIcuTypes = config?.hai_icu_types_pediatric ?? [];
@@ -484,15 +488,17 @@ export default function HaiSurveillance() {
 
       {message && <p className={`rounded-lg px-3 py-2 text-sm ${message.type === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{message.text}</p>}
 
-      <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
-        {TABS.map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)} className={`rounded-md px-3 py-1 font-medium ${tab === t.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {!scope && (
+        <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+          {TABS.map((t) => (
+            <button key={t.key} onClick={() => setTab(t.key)} className={`rounded-md px-3 py-1 font-medium ${tab === t.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {tab === "icu" && (
+      {tab === "icu" && scope !== "adult_icu" && scope !== "pediatric_icu" && (
         <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
           {[
             { key: "adult", label: "Adult ICU" },

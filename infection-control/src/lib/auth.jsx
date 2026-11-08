@@ -46,6 +46,7 @@ export function AuthProvider({ children }) {
       canViewNursingRounds: !!user.can_view_nursing_rounds,
       canViewQualityRounds: !!user.can_view_quality_rounds,
       canViewHaiSurveillance: !!user.can_view_hai_surveillance,
+      haiScope: user.hai_scope || null,
       mustChangePassword: !!user.must_change_password,
     };
   }

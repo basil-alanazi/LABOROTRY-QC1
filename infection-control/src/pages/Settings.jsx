@@ -17,7 +17,15 @@ const emptyNewUser = {
   can_view_nursing_rounds: false,
   can_view_quality_rounds: false,
   can_view_hai_surveillance: false,
+  hai_scope: "",
 };
+
+const HAI_SCOPE_OPTIONS = [
+  { value: "", label: "Full access (all tabs)" },
+  { value: "adult_icu", label: "Adult ICU only" },
+  { value: "pediatric_icu", label: "Pediatric ICU only" },
+  { value: "ssi", label: "SSI Surveillance only" },
+];
 const emptyNewStockItem = { department: "", name: "", unit: "unit", min_qty: "", max_qty: "", current_qty: "" };
 const emptyNewHealthItem = { name: "", category: "vaccine", recurrence_months: "", dose_schedule: "0", kitchen_only: false };
 
@@ -428,6 +436,7 @@ export default function Settings() {
       can_view_nursing_rounds: newUser.role === "staff" && newUser.can_view_nursing_rounds,
       can_view_quality_rounds: newUser.role === "staff" && newUser.can_view_quality_rounds,
       can_view_hai_surveillance: newUser.role === "staff" && newUser.can_view_hai_surveillance,
+      hai_scope: newUser.role === "staff" && newUser.can_view_hai_surveillance ? newUser.hai_scope || null : null,
       created_by: session?.username,
     });
     if (error) {
@@ -456,6 +465,7 @@ export default function Settings() {
         can_view_nursing_rounds: user.role === "staff" && !!user.can_view_nursing_rounds,
         can_view_quality_rounds: user.role === "staff" && !!user.can_view_quality_rounds,
         can_view_hai_surveillance: user.role === "staff" && !!user.can_view_hai_surveillance,
+        hai_scope: user.role === "staff" && user.can_view_hai_surveillance ? user.hai_scope || null : null,
         active: user.active,
       })
       .eq("id", user.id);
@@ -1099,6 +1109,16 @@ export default function Settings() {
                     HAI Surveillance access — also sees the HAI Surveillance page (in addition to whatever else this account can see)
                   </label>
                 )}
+                {u.role === "staff" && u.can_view_hai_surveillance && (
+                  <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:col-span-5 sm:pl-5">
+                    Scope:
+                    <select className="input w-56" value={u.hai_scope || ""} onChange={(e) => updateUserField(u.id, { hai_scope: e.target.value })}>
+                      {HAI_SCOPE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
               </div>
             ))}
           </div>
@@ -1208,6 +1228,16 @@ export default function Settings() {
                   onChange={(e) => setNewUser({ ...newUser, can_view_hai_surveillance: e.target.checked })}
                 />
                 HAI Surveillance access — also sees the HAI Surveillance page (in addition to whatever else this account can see)
+              </label>
+            )}
+            {newUser.role === "staff" && newUser.can_view_hai_surveillance && (
+              <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:col-span-4 sm:pl-5">
+                Scope:
+                <select className="input w-56" value={newUser.hai_scope} onChange={(e) => setNewUser({ ...newUser, hai_scope: e.target.value })}>
+                  {HAI_SCOPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
               </label>
             )}
             <button

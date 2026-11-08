@@ -713,6 +713,10 @@ create policy "allow all delete tracker-attachments" on storage.objects for dele
 -- additive (it doesn't replace their Stock Requests access).
 alter table app_config add column if not exists hai_icu_types jsonb not null default '["Adult ICU","NICU","PICU"]'::jsonb;
 alter table users add column if not exists can_view_hai_surveillance boolean not null default false;
+-- Narrows what a can_view_hai_surveillance staff account sees within the
+-- module to just one tab/unit: null = full access (all tabs), otherwise
+-- 'adult_icu' | 'pediatric_icu' | 'ssi' locks the page to just that one.
+alter table users add column if not exists hai_scope text;
 
 -- ICU/NICU Surveillance is split into two independent sub-tabs (Adult ICU
 -- vs Pediatric/NICU), each its own patient list — not one combined table
