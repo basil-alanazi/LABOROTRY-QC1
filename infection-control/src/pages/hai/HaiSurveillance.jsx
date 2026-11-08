@@ -43,7 +43,41 @@ const TABS = [
 const emptyObSpecimen = { type: "", date_collected: "", organism: "", mdro: false };
 const OB_SPECIMEN_SLOTS = 1;
 
-const emptyFollowUp = { type: "", date: "", signs_symptoms: "", wound_status: "" };
+const emptyFollowUp = {
+  type: "", date: "", fever: "", pain_tenderness: "", redness: "", swelling: "", purulent_discharge: "", wound_dehiscence: "", surgical_site_swab_sent: "", wound_status: "",
+};
+const SIGN_FIELDS = ["fever", "pain_tenderness", "redness", "swelling", "purulent_discharge", "wound_dehiscence"];
+const ASA_SCORE_OPTIONS = ["1", "2", "3", "4", "5"];
+const ASA_SCORE_GOOD = ["1", "2"];
+const WOUND_CLASS_OPTIONS = ["Clean", "Clean Contaminated", "Contaminated", "Dirty/Infected"];
+const WOUND_CLASS_GOOD = ["Clean", "Clean Contaminated"];
+const DURATION_OF_SURGERY_OPTIONS = ["Operation lasted > cut point (1)", "Operation lasted < cut point (0)"];
+
+function riskClass(value, goodValues) {
+  if (!value) return "";
+  return goodValues.includes(value) ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-red-50 text-red-800 border-red-300";
+}
+
+function SignSelect({ value, onChange, onBlur, disabled }) {
+  return (
+    <select className={`input-cell w-full ${riskClass(value, ["NO"])}`} disabled={disabled} value={value ?? ""} onChange={onChange} onBlur={onBlur}>
+      <option value="">—</option>
+      <option value="NO">NO</option>
+      <option value="YES">YES</option>
+    </select>
+  );
+}
+
+function SwabSelect({ value, onChange, onBlur, disabled }) {
+  return (
+    <select className={`input-cell w-full ${riskClass(value, ["N/A", "No"])}`} disabled={disabled} value={value ?? ""} onChange={onChange} onBlur={onBlur}>
+      <option value="">—</option>
+      <option value="N/A">N/A</option>
+      <option value="Yes">Yes</option>
+      <option value="No">No</option>
+    </select>
+  );
+}
 const emptySsiSpecimen = { type: "", date_collected: "", organism: "", mdro: false };
 const SSI_FOLLOWUP_SLOTS = 3;
 const SSI_SPECIMEN_SLOTS = 1;
@@ -66,6 +100,8 @@ export default function HaiSurveillance() {
   const [message, setMessage] = useState(null);
   const [statusFilter, setStatusFilter] = useState("admitted");
   const [ssiCases, setSsiCases] = useState([]);
+  const [ssiView, setSsiView] = useState("all"); // "all" | "doctor"
+  const [selectedDoctor, setSelectedDoctor] = useState("");
   const [obCases, setObCases] = useState([]);
   const [icuUnit, setIcuUnit] = useState(() => (icuUnitsAllowed?.length === 1 && icuUnitsAllowed[0] === "pediatric_icu" ? "pediatric" : "adult")); // "adult" | "pediatric" — separate patient lists, not a shared type dropdown
 
@@ -116,6 +152,27 @@ export default function HaiSurveillance() {
     () => (statusFilter === "all" ? ssiCases : ssiCases.filter((c) => c.current_status === statusFilter)),
     [ssiCases, statusFilter]
   );
+
+  // Each doctor's own tracker — live-derived from the same SSI records (never
+  // a separate copy): one row per follow-up visit that has a date, for every
+  // case whose Treating Doctor matches.
+  const ssiDoctors = useMemo(
+    () => [...new Set(ssiCases.map((c) => (c.treating_doctor || "").trim()).filter(Boolean))].sort(),
+    [ssiCases]
+  );
+  const doctorTrackerRows = useMemo(() => {
+    if (!selectedDoctor) return [];
+    const rows = [];
+    ssiCases
+      .filter((c) => (c.treating_doctor || "").trim() === selectedDoctor)
+      .forEach((c) => {
+        (c.follow_ups ?? []).forEach((f) => {
+          if (!f.date) return;
+          rows.push({ case: c, followUp: f });
+        });
+      });
+    return rows;
+  }, [ssiCases, selectedDoctor]);
   const visibleObCases = useMemo(
     () => (statusFilter === "all" ? obCases : obCases.filter((c) => c.current_status === statusFilter)),
     [obCases, statusFilter]
@@ -222,6 +279,7 @@ export default function HaiSurveillance() {
         age: c.age,
         gender: c.gender,
         admission_diagnosis: c.admission_diagnosis,
+        treating_doctor: c.treating_doctor,
         surgical_procedure_type: c.surgical_procedure_type,
         date_of_procedure: c.date_of_procedure || null,
         elective_emergency: c.elective_emergency,
@@ -238,6 +296,7 @@ export default function HaiSurveillance() {
         current_status: c.current_status,
         date_of_discharge: c.date_of_discharge || null,
         comments: c.comments,
+        updated_in_seha: !!c.updated_in_seha,
       })
       .eq("id", c.id);
   }
@@ -246,6 +305,20 @@ export default function HaiSurveillance() {
     if (!confirm(`Remove "${c.patient_name}" from SSI Surveillance?`)) return;
     await supabase.from("hai_ssi_surveillance").update({ deleted: true, deleted_by: session?.username, deleted_at: new Date().toISOString() }).eq("id", c.id);
     loadAll();
+  }
+
+  async function markSsiStageComplete(c, prefix) {
+    const patch = { [`${prefix}_completed_by`]: session?.username, [`${prefix}_completed_at`]: new Date().toISOString() };
+    updateSsiField(c.id, patch);
+    await supabase.from("hai_ssi_surveillance").update(patch).eq("id", c.id);
+    flash({ type: "success", text: "Stage marked complete" });
+  }
+
+  async function reopenSsiStage(c, prefix) {
+    if (!confirm("Reopen this stage for editing?")) return;
+    const patch = { [`${prefix}_completed_by`]: null, [`${prefix}_completed_at`]: null };
+    updateSsiField(c.id, patch);
+    await supabase.from("hai_ssi_surveillance").update(patch).eq("id", c.id);
   }
 
   function updateFollowUp(c, index, patch) {
@@ -265,13 +338,13 @@ export default function HaiSurveillance() {
       {
         name: "SSI Surveillance",
         headers: [
-          "Month", "Patient Name", "MRN", "Unit", "Age", "Gender", "Admission Diagnosis", "Surgical Procedure", "Date of Procedure", "Elective/Emergency",
-          "ASA Score", "Wound Class", "Duration of Surgery", "PATOS", "Follow-up Duration", "SSI Detected", "Type of SSI", "Current Status", "Date of Discharge", "Comments", "Recorded By",
+          "Month", "Patient Name", "MRN", "Unit", "Age", "Gender", "Admission Diagnosis", "Treating Doctor", "Surgical Procedure", "Date of Procedure", "Elective/Emergency",
+          "ASA Score", "Wound Class", "Duration of Surgery", "PATOS", "Follow-up Duration", "SSI Detected", "Type of SSI", "Current Status", "Date of Discharge", "Updated in Seha", "Comments", "Recorded By",
         ],
         rows: visibleSsiCases.map((c) => [
-          c.month, c.patient_name, c.mrn, c.unit, c.age, c.gender, c.admission_diagnosis, c.surgical_procedure_type, c.date_of_procedure || "", c.elective_emergency,
+          c.month, c.patient_name, c.mrn, c.unit, c.age, c.gender, c.admission_diagnosis, c.treating_doctor, c.surgical_procedure_type, c.date_of_procedure || "", c.elective_emergency,
           c.asa_score, c.wound_class, c.duration_of_surgery, c.patos ? "Yes" : "No", `${c.follow_up_duration} days`,
-          c.ssi_detected ? "Yes" : "No", c.type_of_ssi, statusLabel(c.current_status), c.date_of_discharge || "", c.comments, c.done_by,
+          c.ssi_detected ? "Yes" : "No", c.type_of_ssi, statusLabel(c.current_status), c.date_of_discharge || "", c.updated_in_seha ? "Yes" : "No", c.comments, c.done_by,
         ]),
       },
     ]);
@@ -283,6 +356,29 @@ export default function HaiSurveillance() {
         headers: ["Patient", "MRN", "Procedure", "Date of Procedure", "Status", "SSI Detected", "Type of SSI"],
         rows: visibleSsiCases.map((c) => [c.patient_name, c.mrn, c.surgical_procedure_type, c.date_of_procedure || "", statusLabel(c.current_status), c.ssi_detected ? "Yes" : "No", c.type_of_ssi]),
       },
+    ]);
+  }
+
+  const DOCTOR_TRACKER_HEADERS = [
+    "Month", "Name", "File No", "Date of Surgery", "Name of Surgeon", "Date of Follow Up",
+    "Fever", "Pain/Tenderness", "Redness", "Swelling", "Purulent Discharge", "Wound Dehiscence", "Surgical Site Swab Sent", "Comment",
+  ];
+  function doctorTrackerRow({ case: c, followUp: f }) {
+    return [
+      c.month, c.patient_name, c.mrn, c.date_of_procedure || "", c.treating_doctor, f.date || "",
+      f.fever || "", f.pain_tenderness || "", f.redness || "", f.swelling || "", f.purulent_discharge || "", f.wound_dehiscence || "", f.surgical_site_swab_sent || "", c.comments,
+    ];
+  }
+
+  function exportDoctorTrackerExcel() {
+    downloadExcel(`infection-control-ssi-tracker-${selectedDoctor}-${todayStr()}`, [
+      { name: `SSI Tracker (${selectedDoctor})`, headers: DOCTOR_TRACKER_HEADERS, rows: doctorTrackerRows.map(doctorTrackerRow) },
+    ]);
+  }
+
+  function exportDoctorTrackerPdf() {
+    downloadPdf(`infection-control-ssi-tracker-${selectedDoctor}-${todayStr()}`, `SSI Tracker — ${selectedDoctor}`, [
+      { headers: DOCTOR_TRACKER_HEADERS, rows: doctorTrackerRows.map(doctorTrackerRow) },
     ]);
   }
 
@@ -545,6 +641,49 @@ export default function HaiSurveillance() {
       )}
 
       {tab === "ssi" && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+            {[
+              { key: "all", label: "All Patients" },
+              { key: "doctor", label: "By Doctor" },
+            ].map((v) => (
+              <button
+                key={v.key}
+                onClick={() => setSsiView(v.key)}
+                className={`rounded-md px-3 py-1 font-medium ${ssiView === v.key ? "bg-teal-600 text-white" : "text-slate-500"}`}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+          {ssiView === "doctor" && (
+            <select
+              className="input w-52"
+              value={selectedDoctor}
+              onChange={(e) => setSelectedDoctor(e.target.value)}
+            >
+              <option value="">Select doctor</option>
+              {ssiDoctors.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          )}
+          {ssiView === "doctor" && selectedDoctor && (
+            <div className="flex gap-2">
+              <button onClick={exportDoctorTrackerExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                Export Excel
+              </button>
+              <button onClick={exportDoctorTrackerPdf} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                <FileText className="h-3.5 w-3.5" />
+                Export PDF
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "ssi" && ssiView === "all" && (
         <SsiSurveillanceTab
           cases={visibleSsiCases}
           loading={loading}
@@ -557,8 +696,12 @@ export default function HaiSurveillance() {
           onRemove={removeSsiCase}
           onUpdateFollowUp={updateFollowUp}
           onUpdateSpecimen={updateSsiSpecimen}
+          onMarkComplete={markSsiStageComplete}
+          onReopen={reopenSsiStage}
         />
       )}
+
+      {tab === "ssi" && ssiView === "doctor" && <DoctorTrackerTable doctor={selectedDoctor} rows={doctorTrackerRows} />}
 
       {tab === "ob" && (
         <ObSurveillanceTab
@@ -575,6 +718,54 @@ export default function HaiSurveillance() {
           onUpdateSpecimen={updateObSpecimen}
         />
       )}
+    </div>
+  );
+}
+
+// A live, read-only filtered view of the same SSI records for one Treating
+// Doctor — never a separate copy, matching the hospital's own per-surgeon
+// SSI tracker sheets. One row per follow-up visit that has a date.
+function DoctorTrackerTable({ doctor, rows }) {
+  if (!doctor) {
+    return <p className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-400">Pick a doctor to see her SSI tracker.</p>;
+  }
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <table className="w-full text-sm">
+        <thead className="bg-slate-50 text-left text-xs text-slate-500">
+          <tr>
+            {["Month", "Name", "File No", "Date of Surgery", "Name of Surgeon", "Date of Follow Up", "Fever", "Pain/Tenderness", "Redness", "Swelling", "Purulent Discharge", "Wound Dehiscence", "Surgical Site Swab Sent", "Comment"].map((h) => (
+              <th key={h} className="whitespace-nowrap border-b border-slate-200 px-2 py-2 font-medium">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ case: c, followUp: f }, i) => (
+            <tr key={`${c.id}-${i}`} className="border-t border-slate-100">
+              <td className="whitespace-nowrap px-2 py-1.5">{c.month}</td>
+              <td className="whitespace-nowrap px-2 py-1.5">{c.patient_name}</td>
+              <td className="whitespace-nowrap px-2 py-1.5">{c.mrn}</td>
+              <td className="whitespace-nowrap px-2 py-1.5">{c.date_of_procedure || "—"}</td>
+              <td className="whitespace-nowrap px-2 py-1.5">{c.treating_doctor}</td>
+              <td className="whitespace-nowrap px-2 py-1.5">{f.date || "—"}</td>
+              {SIGN_FIELDS.map((field) => (
+                <td key={field} className="px-2 py-1.5">
+                  {f[field] ? <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${riskClass(f[field], ["NO"])}`}>{f[field]}</span> : "—"}
+                </td>
+              ))}
+              <td className="px-2 py-1.5">
+                {f.surgical_site_swab_sent ? (
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${riskClass(f.surgical_site_swab_sent, ["N/A", "No"])}`}>{f.surgical_site_swab_sent}</span>
+                ) : (
+                  "—"
+                )}
+              </td>
+              <td className="px-2 py-1.5">{c.comments || "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No follow-up visits recorded for this doctor yet.</p>}
     </div>
   );
 }
@@ -944,9 +1135,13 @@ function VaeMonitoringTab({ patients, vaeRows, session, flash, reload }) {
   );
 }
 
-function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase, onUpdateField, onSave, onRemove, onUpdateFollowUp, onUpdateSpecimen }) {
+function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase, onUpdateField, onSave, onRemove, onUpdateFollowUp, onUpdateSpecimen, onMarkComplete, onReopen }) {
   return (
     <div className="flex flex-col gap-4">
+      <p className="text-xs text-slate-500">
+        <strong>DR</strong> (patient/procedure info) → <strong>OR</strong> (risk category index) → <strong>DR & FW</strong> (current status + date of discharge) — each
+        column group is locked until the previous one is marked complete. The follow-up/specimen section in between stays open to any SSI-scoped account.
+      </p>
       <div>
         <button onClick={onAddCase} className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700">
           <UserPlus className="h-3.5 w-3.5" />
@@ -958,34 +1153,44 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
-              {["Month", "Patient Name", "MRN/ID", "Unit", "Age", "Gender", "Admission Diagnosis", "Type of Surgical Procedure", "Date of Procedure", "Elective/Emergency"].map((h) => (
-                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-2 py-2 font-medium align-bottom">{h}</th>
-              ))}
-              <th colSpan={3} className="border-b border-slate-200 px-2 py-1 text-center font-medium">Risk Category Index</th>
+              <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-2 py-2 font-medium align-bottom">Updated in Seha</th>
+              <th colSpan={11} className="border-b border-slate-200 bg-cyan-100 px-2 py-1 text-center font-semibold text-cyan-900">DR</th>
+              <th colSpan={5} className="border-b border-slate-200 bg-green-100 px-2 py-1 text-center font-semibold text-green-900">OR</th>
               {["PATOS", "Follow-up Duration"].map((h) => (
                 <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-2 py-2 font-medium align-bottom">{h}</th>
               ))}
-              <th colSpan={4} className="border-b border-slate-200 px-2 py-1 text-center font-medium">1st Follow Up</th>
-              <th colSpan={4} className="border-b border-slate-200 px-2 py-1 text-center font-medium">2nd Follow Up</th>
-              <th colSpan={4} className="border-b border-slate-200 px-2 py-1 text-center font-medium">3rd Follow Up</th>
+              <th colSpan={10} className="border-b border-slate-200 px-2 py-1 text-center font-medium">1st Follow Up</th>
+              <th colSpan={10} className="border-b border-slate-200 px-2 py-1 text-center font-medium">2nd Follow Up</th>
+              <th colSpan={10} className="border-b border-slate-200 px-2 py-1 text-center font-medium">3rd Follow Up</th>
               <th colSpan={4} className="border-b border-slate-200 px-2 py-1 text-center font-medium">Specimen Information</th>
-              {["Other Specimens", "SSI Detected", "Type of SSI", "Current Status", "Date of Discharge", "Comments"].map((h) => (
+              {["Other Specimens", "SSI Detected", "Type of SSI"].map((h) => (
                 <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-2 py-2 font-medium align-bottom">{h}</th>
               ))}
+              <th colSpan={3} className="border-b border-slate-200 bg-purple-100 px-2 py-1 text-center font-semibold text-purple-900">DR & FW</th>
+              <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-2 py-2 font-medium align-bottom">Comments</th>
               <th rowSpan={2}></th>
             </tr>
             <tr>
-              <th className="whitespace-nowrap px-2 py-1 font-medium">ASA Score</th>
-              <th className="whitespace-nowrap px-2 py-1 font-medium">Wound Class</th>
-              <th className="whitespace-nowrap px-2 py-1 font-medium">Duration of Surgery</th>
+              {["Month", "Patient Name", "MRN/ID", "Unit", "Age", "Gender", "Admission Diagnosis", "Treating Doctor", "Type of Surgical Procedure", "Date of Procedure"].map((h) => (
+                <th key={`dr-${h}`} className="whitespace-nowrap px-2 py-1 font-medium">{h}</th>
+              ))}
+              <th className="whitespace-nowrap px-2 py-1 font-medium">Status</th>
+              {["Elective/Emergency", "ASA Score", "Wound Class", "Duration of Surgery"].map((h) => (
+                <th key={`or-${h}`} className="whitespace-nowrap px-2 py-1 font-medium">{h}</th>
+              ))}
+              <th className="whitespace-nowrap px-2 py-1 font-medium">Status</th>
               {[1, 2, 3].flatMap((slot) =>
-                ["Type", "Date", "Signs & Symptoms", "Wound Status"].map((h) => (
+                ["Type", "Date", "Fever", "Pain/Tenderness", "Redness", "Swelling", "Purulent Discharge", "Wound Dehiscence", "Surgical Site Swab Sent", "Wound Status"].map((h) => (
                   <th key={`${slot}-${h}`} className="whitespace-nowrap px-2 py-1 font-medium">{h}</th>
                 ))
               )}
               {["Type", "Date Collected", "Organism", "MDRO"].map((h) => (
                 <th key={h} className="whitespace-nowrap px-2 py-1 font-medium">{h}</th>
               ))}
+              {["Current Status", "Date of Discharge"].map((h) => (
+                <th key={`drfw-${h}`} className="whitespace-nowrap px-2 py-1 font-medium">{h}</th>
+              ))}
+              <th className="whitespace-nowrap px-2 py-1 font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -1001,14 +1206,20 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
                 onFollowUpFieldChange={(i, patch) => onUpdateFollowUp(c, i, patch)}
                 onSpecimenFieldChange={(i, patch) => onUpdateSpecimen(c, i, patch)}
                 onSpecimenMdroToggle={(i, checked) => onSave(onUpdateSpecimen(c, i, { mdro: checked }))}
-                onPatosToggle={(checked) => {
-                  onUpdateField(c.id, { patos: checked });
-                  onSave({ ...c, patos: checked });
+                onPatosToggle={(value) => {
+                  onUpdateField(c.id, { patos: value });
+                  onSave({ ...c, patos: value });
                 }}
                 onSsiDetectedToggle={(checked) => {
                   onUpdateField(c.id, { ssi_detected: checked });
                   onSave({ ...c, ssi_detected: checked });
                 }}
+                onUpdatedInSehaToggle={(checked) => {
+                  onUpdateField(c.id, { updated_in_seha: checked });
+                  onSave({ ...c, updated_in_seha: checked });
+                }}
+                onMarkComplete={(prefix) => onMarkComplete(c, prefix)}
+                onReopen={(prefix) => onReopen(c, prefix)}
                 onRemove={() => onRemove(c)}
               />
             ))}
@@ -1020,16 +1231,29 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
   );
 }
 
-function SsiRow({ c, units, session, isAdmin, onFieldChange, onFieldBlurSave, onFollowUpFieldChange, onSpecimenFieldChange, onSpecimenMdroToggle, onPatosToggle, onSsiDetectedToggle, onRemove }) {
+function SsiRow({
+  c, units, session, isAdmin, onFieldChange, onFieldBlurSave, onFollowUpFieldChange, onSpecimenFieldChange, onSpecimenMdroToggle,
+  onPatosToggle, onSsiDetectedToggle, onUpdatedInSehaToggle, onMarkComplete, onReopen, onRemove,
+}) {
   function canEditSsi(group) {
     return isAdmin || session?.department === group || (session?.ssiStages ?? []).includes(group);
   }
-  const drDisabled = !canEditSsi("DR");
-  const orDisabled = !canEditSsi("OR");
-  const drFwDisabled = !canEditSsi("DR_FW");
+  const drDone = !!c.dr_completed_at;
+  const orOpen = drDone;
+  const orDone = !!c.or_completed_at;
+  const drFwOpen = orDone;
+  const drFwDone = !!c.dr_fw_completed_at;
+
+  const drDisabled = drDone || !canEditSsi("DR");
+  const orDisabled = !orOpen || orDone || !canEditSsi("OR");
+  const drFwDisabled = !drFwOpen || drFwDone || !canEditSsi("DR_FW");
 
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50">
+      <td className="px-2 py-1 text-center">
+        <input type="checkbox" disabled={!isAdmin} checked={!!c.updated_in_seha} onChange={(e) => onUpdatedInSehaToggle(e.target.checked)} />
+      </td>
+
       <td className="px-2 py-1"><GridText value={c.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} /></td>
       <td className="px-2 py-1"><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[10rem]" /></td>
       <td className="px-2 py-1"><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[6rem]" /></td>
@@ -1050,21 +1274,52 @@ function SsiRow({ c, units, session, isAdmin, onFieldChange, onFieldBlurSave, on
         </select>
       </td>
       <td className="px-2 py-1"><GridText value={c.admission_diagnosis} onChange={(e) => onFieldChange({ admission_diagnosis: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[10rem]" /></td>
+      <td className="px-2 py-1"><GridText value={c.treating_doctor} onChange={(e) => onFieldChange({ treating_doctor: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} placeholder="Dr..." className="min-w-[8rem]" /></td>
       <td className="px-2 py-1"><GridText value={c.surgical_procedure_type} onChange={(e) => onFieldChange({ surgical_procedure_type: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[9rem]" /></td>
       <td className="px-2 py-1"><GridDate value={c.date_of_procedure} onChange={(e) => onFieldChange({ date_of_procedure: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} /></td>
+      <td className="px-2 py-1">
+        <StageActionCell open={true} done={drDone} canEdit={canEditSsi("DR")} canReopen={isAdmin} completedBy={c.dr_completed_by} onMarkComplete={() => onMarkComplete("dr")} onReopen={() => onReopen("dr")} />
+      </td>
+
       <td className="px-2 py-1">
         <select className="input-cell w-full min-w-[7rem]" disabled={orDisabled} value={c.elective_emergency} onChange={(e) => onFieldChange({ elective_emergency: e.target.value })} onBlur={onFieldBlurSave}>
           <option value="elective">Elective</option>
           <option value="emergency">Emergency</option>
         </select>
       </td>
+      <td className="px-2 py-1">
+        <select className={`input-cell w-full ${riskClass(c.asa_score, ASA_SCORE_GOOD)}`} disabled={orDisabled} value={c.asa_score} onChange={(e) => onFieldChange({ asa_score: e.target.value })} onBlur={onFieldBlurSave}>
+          <option value="">—</option>
+          {ASA_SCORE_OPTIONS.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+      </td>
+      <td className="px-2 py-1">
+        <select className={`input-cell w-full min-w-[8rem] ${riskClass(c.wound_class, WOUND_CLASS_GOOD)}`} disabled={orDisabled} value={c.wound_class} onChange={(e) => onFieldChange({ wound_class: e.target.value })} onBlur={onFieldBlurSave}>
+          <option value="">—</option>
+          {WOUND_CLASS_OPTIONS.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+      </td>
+      <td className="px-2 py-1">
+        <select className="input-cell w-full min-w-[10rem]" disabled={orDisabled} value={c.duration_of_surgery} onChange={(e) => onFieldChange({ duration_of_surgery: e.target.value })} onBlur={onFieldBlurSave}>
+          <option value="">—</option>
+          {DURATION_OF_SURGERY_OPTIONS.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+      </td>
+      <td className="px-2 py-1">
+        <StageActionCell open={orOpen} done={orDone} canEdit={canEditSsi("OR")} canReopen={isAdmin} completedBy={c.or_completed_by} onMarkComplete={() => onMarkComplete("or")} onReopen={() => onReopen("or")} />
+      </td>
 
-      <td className="px-2 py-1"><GridText value={c.asa_score} onChange={(e) => onFieldChange({ asa_score: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} className="min-w-[5rem]" /></td>
-      <td className="px-2 py-1"><GridText value={c.wound_class} onChange={(e) => onFieldChange({ wound_class: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} className="min-w-[7rem]" /></td>
-      <td className="px-2 py-1"><GridText value={c.duration_of_surgery} onChange={(e) => onFieldChange({ duration_of_surgery: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} className="min-w-[6rem]" /></td>
-
-      <td className="px-2 py-1 text-center">
-        <input type="checkbox" checked={!!c.patos} onChange={(e) => onPatosToggle(e.target.checked)} />
+      <td className="px-2 py-1">
+        <select className="input-cell w-full" value={c.patos ? "Yes" : "No"} onChange={(e) => onPatosToggle(e.target.value === "Yes")}>
+          <option value="No">No</option>
+          <option value="Yes">Yes</option>
+        </select>
       </td>
       <td className="px-2 py-1">
         <select className="input-cell w-full" value={c.follow_up_duration} onChange={(e) => onFieldChange({ follow_up_duration: Number(e.target.value) })} onBlur={onFieldBlurSave}>
@@ -1093,6 +1348,7 @@ function SsiRow({ c, units, session, isAdmin, onFieldChange, onFieldBlurSave, on
         <input type="checkbox" checked={!!c.ssi_detected} onChange={(e) => onSsiDetectedToggle(e.target.checked)} />
       </td>
       <td className="px-2 py-1"><GridText value={c.type_of_ssi} onChange={(e) => onFieldChange({ type_of_ssi: e.target.value })} onBlur={onFieldBlurSave} disabled={!c.ssi_detected} className="min-w-[8rem]" /></td>
+
       <td className="px-2 py-1">
         <select className="input-cell w-full" disabled={drFwDisabled} value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
           {STATUS_OPTIONS.map((s) => (
@@ -1101,6 +1357,10 @@ function SsiRow({ c, units, session, isAdmin, onFieldChange, onFieldBlurSave, on
         </select>
       </td>
       <td className="px-2 py-1"><GridDate value={c.date_of_discharge} onChange={(e) => onFieldChange({ date_of_discharge: e.target.value })} onBlur={onFieldBlurSave} disabled={drFwDisabled} /></td>
+      <td className="px-2 py-1">
+        <StageActionCell open={drFwOpen} done={drFwDone} canEdit={canEditSsi("DR_FW")} canReopen={isAdmin} completedBy={c.dr_fw_completed_by} onMarkComplete={() => onMarkComplete("dr_fw")} onReopen={() => onReopen("dr_fw")} />
+      </td>
+
       <td className="px-2 py-1"><GridText value={c.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[9rem]" /></td>
       <td className="px-2 py-1">
         <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
@@ -1116,7 +1376,14 @@ function FollowUpCells({ followUp, onChange, onBlur }) {
     <>
       <td className="px-2 py-1"><GridText value={followUp.type} onChange={(e) => onChange({ type: e.target.value })} onBlur={onBlur} placeholder="OPD/ER/Phone/Virtual" className="min-w-[8rem]" /></td>
       <td className="px-2 py-1"><GridDate value={followUp.date} onChange={(e) => onChange({ date: e.target.value })} onBlur={onBlur} /></td>
-      <td className="px-2 py-1"><GridText value={followUp.signs_symptoms} onChange={(e) => onChange({ signs_symptoms: e.target.value })} onBlur={onBlur} className="min-w-[8rem]" /></td>
+      {SIGN_FIELDS.map((f) => (
+        <td key={f} className="px-2 py-1">
+          <SignSelect value={followUp[f]} onChange={(e) => onChange({ [f]: e.target.value })} onBlur={onBlur} />
+        </td>
+      ))}
+      <td className="px-2 py-1">
+        <SwabSelect value={followUp.surgical_site_swab_sent} onChange={(e) => onChange({ surgical_site_swab_sent: e.target.value })} onBlur={onBlur} />
+      </td>
       <td className="px-2 py-1"><GridText value={followUp.wound_status} onChange={(e) => onChange({ wound_status: e.target.value })} onBlur={onBlur} className="min-w-[7rem]" /></td>
     </>
   );
