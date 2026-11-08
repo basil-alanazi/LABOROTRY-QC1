@@ -717,6 +717,12 @@ alter table users add column if not exists can_view_hai_surveillance boolean not
 -- module to just one tab/unit: null = full access (all tabs), otherwise
 -- 'adult_icu' | 'pediatric_icu' | 'ssi' locks the page to just that one.
 alter table users add column if not exists hai_scope text;
+-- OB/Delivery Surveillance stage-editing is normally one dedicated account
+-- per stage (users.department = "OR"/"Delivery"/"Female Ward"), but one
+-- account can instead be granted edit rights on several stages at once via
+-- this comma-separated list, independent of its single `department` value
+-- (which stays whatever Stock Requests etc. use it for).
+alter table users add column if not exists ob_stages text;
 
 -- ICU/NICU Surveillance is split into two independent sub-tabs (Adult ICU
 -- vs Pediatric/NICU), each its own patient list — not one combined table
