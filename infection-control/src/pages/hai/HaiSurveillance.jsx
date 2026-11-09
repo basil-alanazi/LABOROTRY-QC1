@@ -1318,7 +1318,10 @@ function SsiRow({
 
   const drDisabled = drDone || !canEditSsi("DR");
   const orDisabled = !orOpen || orDone || !canEditSsi("OR");
-  const drFwDisabled = !drFwOpen || drFwDone || !canEditSsi("DR_FW");
+  // Current Status/Date of Discharge stay editable even after "Mark complete" —
+  // a patient's discharge status can change after the DR&FW notes are finalized,
+  // so it shouldn't need an admin "Reopen" every time it's updated.
+  const drFwFieldsDisabled = !drFwOpen || !canEditSsi("DR_FW");
   const nameCellClass = sehaNameCellClass(c.current_status, c.updated_in_seha);
 
   return (
@@ -1424,13 +1427,13 @@ function SsiRow({
       <td className="px-1.5 py-0.5"><GridText value={c.type_of_ssi} onChange={(e) => onFieldChange({ type_of_ssi: e.target.value })} onBlur={onFieldBlurSave} disabled={!c.ssi_detected} className="min-w-[6.5rem]" /></td>
 
       <td className="px-1.5 py-0.5">
-        <select className="input-cell w-full" disabled={drFwDisabled} value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
+        <select className="input-cell w-full" disabled={drFwFieldsDisabled} value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>{statusLabel(s)}</option>
           ))}
         </select>
       </td>
-      <td className="px-1.5 py-0.5"><GridDate value={c.date_of_discharge} onChange={(e) => onFieldChange({ date_of_discharge: e.target.value })} onBlur={onFieldBlurSave} disabled={drFwDisabled} /></td>
+      <td className="px-1.5 py-0.5"><GridDate value={c.date_of_discharge} onChange={(e) => onFieldChange({ date_of_discharge: e.target.value })} onBlur={onFieldBlurSave} disabled={drFwFieldsDisabled} /></td>
       <td className="px-1.5 py-0.5">
         <StageActionCell open={drFwOpen} done={drFwDone} canEdit={canEditSsi("DR_FW")} canReopen={isAdmin} completedBy={c.dr_fw_completed_by} onMarkComplete={() => onMarkComplete("dr_fw")} onReopen={() => onReopen("dr_fw")} />
       </td>
