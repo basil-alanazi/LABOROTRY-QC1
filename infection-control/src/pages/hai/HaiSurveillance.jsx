@@ -70,12 +70,27 @@ function riskClass(value, goodValues) {
   return goodValues.includes(value) ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-red-50 text-red-800 border-red-300";
 }
 
+// "Updated in Seha" is ticked against whatever current_status the case was
+// in at the time — stored alongside it in updated_in_seha_status. If the
+// status has since moved on (most often: ticked while still admitted, then
+// the patient got discharged) that tick no longer means Seha is caught up,
+// so it reads as "stale" rather than fully synced.
+function sehaSyncState(currentStatus, updatedInSeha, updatedInSehaStatus) {
+  if (!updatedInSeha) return "none";
+  return updatedInSehaStatus === currentStatus ? "synced" : "stale";
+}
+
 // "Updated in Seha" highlight: discharged + synced -> whole row green;
-// discharged + not yet synced -> whole row amber (IC still needs to update
-// Seha); still admitted + synced -> just the Patient Name/MRN cells green.
-function sehaRowClass(currentStatus, updatedInSeha) {
+// discharged + stale (was ticked at a since-changed status) -> whole row
+// blue, so IC can tell it was updated once and now needs a fresh one, not
+// confuse it with "never touched"; discharged + never synced -> amber;
+// still admitted + synced -> just the Patient Name/MRN cells green.
+function sehaRowClass(currentStatus, updatedInSeha, updatedInSehaStatus) {
   if (currentStatus !== "discharged") return "";
-  return updatedInSeha ? "bg-emerald-200" : "bg-amber-200";
+  const state = sehaSyncState(currentStatus, updatedInSeha, updatedInSehaStatus);
+  if (state === "synced") return "bg-emerald-200";
+  if (state === "stale") return "bg-sky-200";
+  return "bg-amber-200";
 }
 
 function hasActiveDevice(p) {
@@ -88,12 +103,18 @@ function hasActiveDevice(p) {
 
 // The Patient Name/MRN cells' actual fill color (applied to both the <td>
 // and the input itself, so the white input box is genuinely colored, not
-// just ringed) — discharge-based green/amber takes priority, then an
+// just ringed) — discharge-based green/blue/amber takes priority, then an
 // in-progress Seha update, then an active device (ICU only; deviceActive
 // is always false for SSI/OB, which have no device fields).
-function identityCellClass(currentStatus, updatedInSeha, deviceActive) {
-  if (currentStatus === "discharged") return updatedInSeha ? "bg-emerald-200 border-emerald-400" : "bg-amber-200 border-amber-400";
-  if (updatedInSeha) return "bg-emerald-200 border-emerald-400";
+function identityCellClass(currentStatus, updatedInSeha, updatedInSehaStatus, deviceActive) {
+  const state = sehaSyncState(currentStatus, updatedInSeha, updatedInSehaStatus);
+  if (currentStatus === "discharged") {
+    if (state === "synced") return "bg-emerald-200 border-emerald-400";
+    if (state === "stale") return "bg-sky-200 border-sky-400";
+    return "bg-amber-200 border-amber-400";
+  }
+  if (state === "synced") return "bg-emerald-200 border-emerald-400";
+  if (state === "stale") return "bg-sky-200 border-sky-400";
   if (deviceActive) return "bg-purple-200 border-purple-400";
   return "";
 }
@@ -312,6 +333,7 @@ export default function HaiSurveillance() {
         date_of_discharge: p.date_of_discharge || null,
         comments: p.comments,
         updated_in_seha: !!p.updated_in_seha,
+        updated_in_seha_status: p.updated_in_seha ? p.updated_in_seha_status || null : null,
       })
       .eq("id", p.id);
   }
@@ -439,6 +461,7 @@ export default function HaiSurveillance() {
         date_of_discharge: c.date_of_discharge || null,
         comments: c.comments,
         updated_in_seha: !!c.updated_in_seha,
+        updated_in_seha_status: c.updated_in_seha ? c.updated_in_seha_status || null : null,
       })
       .eq("id", c.id);
   }
@@ -569,6 +592,7 @@ export default function HaiSurveillance() {
         current_status: c.current_status,
         comments: c.comments,
         updated_in_seha: !!c.updated_in_seha,
+        updated_in_seha_status: c.updated_in_seha ? c.updated_in_seha_status || null : null,
       })
       .eq("id", c.id);
     flash({ type: "success", text: "Saved" });
@@ -1099,8 +1123,9 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
                 }}
                 onEventTypeToggle={(type) => onSave(onToggleEventType(p, type))}
                 onUpdatedInSehaToggle={(checked) => {
-                  onUpdateField(p.id, { updated_in_seha: checked });
-                  onSave({ ...p, updated_in_seha: checked });
+                  const patch = { updated_in_seha: checked, updated_in_seha_status: checked ? p.current_status : null };
+                  onUpdateField(p.id, patch);
+                  onSave({ ...p, ...patch });
                 }}
                 onRemove={() => onRemove(p)}
               />
@@ -1115,12 +1140,18 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
 
 function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecimenFieldChange, onSpecimenMdroToggle, onHaiDetectedToggle, onEventTypeToggle, onUpdatedInSehaToggle, onRemove }) {
   const unitBeforeHospital = !!(p.hospital_admission_date && p.unit_admission_date && p.unit_admission_date < p.hospital_admission_date);
-  const nameCellClass = identityCellClass(p.current_status, p.updated_in_seha, hasActiveDevice(p));
-  const rowBg = sehaRowClass(p.current_status, p.updated_in_seha) || deviceActiveRowClass(p);
+  const nameCellClass = identityCellClass(p.current_status, p.updated_in_seha, p.updated_in_seha_status, hasActiveDevice(p));
+  const rowBg = sehaRowClass(p.current_status, p.updated_in_seha, p.updated_in_seha_status) || deviceActiveRowClass(p);
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
-        <input type="checkbox" disabled={!isAdmin} checked={!!p.updated_in_seha} onChange={(e) => onUpdatedInSehaToggle(e.target.checked)} />
+        <input
+          type="checkbox"
+          disabled={!isAdmin}
+          checked={!!p.updated_in_seha}
+          onChange={(e) => onUpdatedInSehaToggle(e.target.checked)}
+          title={sehaSyncState(p.current_status, p.updated_in_seha, p.updated_in_seha_status) === "stale" ? "Updated in Seha before — status has changed since, needs a fresh update" : undefined}
+        />
       </td>
       <td className="px-1.5 py-0.5"><GridText value={p.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} /></td>
       <td className={`sticky-name-col px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={p.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[8rem] ${nameCellClass}`} /></td>
@@ -1520,8 +1551,9 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
                   onSave({ ...c, ssi_detected: checked });
                 }}
                 onUpdatedInSehaToggle={(checked) => {
-                  onUpdateField(c.id, { updated_in_seha: checked });
-                  onSave({ ...c, updated_in_seha: checked });
+                  const patch = { updated_in_seha: checked, updated_in_seha_status: checked ? c.current_status : null };
+                  onUpdateField(c.id, patch);
+                  onSave({ ...c, ...patch });
                 }}
                 onMarkComplete={(prefix) => onMarkComplete(c, prefix)}
                 onReopen={(prefix) => onReopen(c, prefix)}
@@ -1555,13 +1587,19 @@ function SsiRow({
   // a patient's discharge status can change after the DR&FW notes are finalized,
   // so it shouldn't need an admin "Reopen" every time it's updated.
   const drFwFieldsDisabled = !drFwOpen || !canEditSsi("DR_FW");
-  const nameCellClass = identityCellClass(c.current_status, c.updated_in_seha, false);
-  const rowBg = sehaRowClass(c.current_status, c.updated_in_seha);
+  const nameCellClass = identityCellClass(c.current_status, c.updated_in_seha, c.updated_in_seha_status, false);
+  const rowBg = sehaRowClass(c.current_status, c.updated_in_seha, c.updated_in_seha_status);
 
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
-        <input type="checkbox" disabled={!isAdmin} checked={!!c.updated_in_seha} onChange={(e) => onUpdatedInSehaToggle(e.target.checked)} />
+        <input
+          type="checkbox"
+          disabled={!isAdmin}
+          checked={!!c.updated_in_seha}
+          onChange={(e) => onUpdatedInSehaToggle(e.target.checked)}
+          title={sehaSyncState(c.current_status, c.updated_in_seha, c.updated_in_seha_status) === "stale" ? "Updated in Seha before — status has changed since, needs a fresh update" : undefined}
+        />
       </td>
 
       <td className="px-1.5 py-0.5"><GridText value={c.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} /></td>
@@ -1770,8 +1808,9 @@ function ObSurveillanceTab({ cases, loading, session, isAdmin, onAddCase, onUpda
                   onSave({ ...c, ssi_detected: checked });
                 }}
                 onUpdatedInSehaToggle={(checked) => {
-                  onUpdateField(c.id, { updated_in_seha: checked });
-                  onSave({ ...c, updated_in_seha: checked });
+                  const patch = { updated_in_seha: checked, updated_in_seha_status: checked ? c.current_status : null };
+                  onUpdateField(c.id, patch);
+                  onSave({ ...c, ...patch });
                 }}
                 onRemove={() => onRemove(c)}
               />
@@ -1823,13 +1862,19 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
   const deliveryDisabled = !deliveryOpen || deliveryDone || !canEdit("Delivery");
   const fwDisabled = !fwOpen || fwDone || !canEdit("Female Ward");
   const specimen = c.specimens?.[0] ?? emptyObSpecimen;
-  const nameCellClass = identityCellClass(c.current_status, c.updated_in_seha, false);
-  const rowBg = sehaRowClass(c.current_status, c.updated_in_seha);
+  const nameCellClass = identityCellClass(c.current_status, c.updated_in_seha, c.updated_in_seha_status, false);
+  const rowBg = sehaRowClass(c.current_status, c.updated_in_seha, c.updated_in_seha_status);
 
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
-        <input type="checkbox" disabled={!isAdmin} checked={!!c.updated_in_seha} onChange={(e) => onUpdatedInSehaToggle(e.target.checked)} />
+        <input
+          type="checkbox"
+          disabled={!isAdmin}
+          checked={!!c.updated_in_seha}
+          onChange={(e) => onUpdatedInSehaToggle(e.target.checked)}
+          title={sehaSyncState(c.current_status, c.updated_in_seha, c.updated_in_seha_status) === "stale" ? "Updated in Seha before — status has changed since, needs a fresh update" : undefined}
+        />
       </td>
       <td className={`sticky-name-col px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[8rem] ${nameCellClass}`} /></td>
       <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[5rem] ${nameCellClass}`} /></td>
