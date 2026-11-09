@@ -22,8 +22,8 @@ const emptyNewUser = {
 
 const HAI_SCOPE_OPTIONS = [
   { value: "", label: "Full access (all tabs)" },
-  { value: "adult_icu", label: "Adult ICU only" },
-  { value: "pediatric_icu", label: "Pediatric ICU only" },
+  { value: "adult_icu", label: "ICU only" },
+  { value: "pediatric_icu", label: "NICU only" },
   { value: "ssi", label: "SSI Surveillance only" },
   { value: "ob", label: "OB/Delivery Surveillance only" },
   { value: "ob,ssi", label: "OB/Delivery + SSI only" },
@@ -261,7 +261,7 @@ export default function Settings() {
     setHaiIcuTypesAdult(next);
     await supabase.from("app_config").update({ hai_icu_types_adult: next }).eq("id", 1);
     reloadConfig();
-    flash("Adult ICU types saved");
+    flash("ICU types saved");
   }
 
   function addHaiIcuTypeAdult() {
@@ -279,7 +279,7 @@ export default function Settings() {
     setHaiIcuTypesPediatric(next);
     await supabase.from("app_config").update({ hai_icu_types_pediatric: next }).eq("id", 1);
     reloadConfig();
-    flash("Pediatric ICU types saved");
+    flash("NICU types saved");
   }
 
   function addHaiIcuTypePediatric() {
@@ -536,8 +536,8 @@ export default function Settings() {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">HAI Surveillance — Adult ICU Types</h2>
-        <p className="mb-4 text-xs text-slate-500">ICU types offered on the Adult ICU sub-tab of HAI Surveillance.</p>
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">HAI Surveillance — ICU Types</h2>
+        <p className="mb-4 text-xs text-slate-500">ICU types offered on the ICU sub-tab of HAI Surveillance.</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {haiIcuTypesAdult.map((d) => (
             <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
@@ -549,7 +549,7 @@ export default function Settings() {
           ))}
         </div>
         <div className="flex gap-2">
-          <input className="input" value={newHaiIcuTypeAdult} onChange={(e) => setNewHaiIcuTypeAdult(e.target.value)} placeholder="New adult ICU type name" />
+          <input className="input" value={newHaiIcuTypeAdult} onChange={(e) => setNewHaiIcuTypeAdult(e.target.value)} placeholder="New ICU type name" />
           <button onClick={addHaiIcuTypeAdult} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
             Add
@@ -558,8 +558,8 @@ export default function Settings() {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">HAI Surveillance — Pediatric ICU Types</h2>
-        <p className="mb-4 text-xs text-slate-500">ICU types offered on the Pediatric ICU (NICU/PICU) sub-tab of HAI Surveillance.</p>
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">HAI Surveillance — NICU Types</h2>
+        <p className="mb-4 text-xs text-slate-500">ICU types offered on the NICU sub-tab of HAI Surveillance.</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {haiIcuTypesPediatric.map((d) => (
             <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
@@ -571,7 +571,7 @@ export default function Settings() {
           ))}
         </div>
         <div className="flex gap-2">
-          <input className="input" value={newHaiIcuTypePediatric} onChange={(e) => setNewHaiIcuTypePediatric(e.target.value)} placeholder="New pediatric ICU type name" />
+          <input className="input" value={newHaiIcuTypePediatric} onChange={(e) => setNewHaiIcuTypePediatric(e.target.value)} placeholder="New NICU type name" />
           <button onClick={addHaiIcuTypePediatric} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
             Add
