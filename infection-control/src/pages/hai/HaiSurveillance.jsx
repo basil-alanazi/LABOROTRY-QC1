@@ -134,13 +134,17 @@ export default function HaiSurveillance() {
   const { session, config, isAdmin } = useAuth();
   // A staff account can be scoped (Settings) to just one or a few tabs/units
   // of this module — stored as a comma-separated list of tokens among
-  // 'adult_icu' | 'pediatric_icu' | 'ssi' | 'ob'. Owner/IC always see
+  // 'adult_icu' | 'pediatric_icu' | 'adult_icu_vae' | 'pediatric_icu_vae' |
+  // 'ssi'. The '..._vae' variants are for a unit's RT/respiratory therapist
+  // account: it only ever needs VAE Monitoring for its own ventilated
+  // patients, never the full ICU/NICU Surveillance tab. Owner/IC always see
   // everything; a scoped account only sees the switchers it needs (none at
   // all when exactly one tab/unit is allowed).
   const scopeTokens = isAdmin || !session?.haiScope ? null : session.haiScope.split(",").map((s) => s.trim()).filter(Boolean);
-  const SCOPE_TO_TABS = { adult_icu: ["icu", "vae"], pediatric_icu: ["icu", "vae"], ssi: ["ssi"] };
+  const SCOPE_TO_TABS = { adult_icu: ["icu", "vae"], pediatric_icu: ["icu", "vae"], adult_icu_vae: ["vae"], pediatric_icu_vae: ["vae"], ssi: ["ssi"] };
+  const SCOPE_TO_UNIT = { adult_icu: "adult_icu", adult_icu_vae: "adult_icu", pediatric_icu: "pediatric_icu", pediatric_icu_vae: "pediatric_icu" };
   const allowedTabs = scopeTokens ? [...new Set(scopeTokens.flatMap((t) => SCOPE_TO_TABS[t] ?? []))] : null;
-  const icuUnitsAllowed = scopeTokens ? scopeTokens.filter((t) => t === "adult_icu" || t === "pediatric_icu") : null;
+  const icuUnitsAllowed = scopeTokens ? scopeTokens.map((t) => SCOPE_TO_UNIT[t]).filter(Boolean) : null;
   const [tab, setTab] = useState(() => allowedTabs?.[0] ?? "icu");
   const [patients, setPatients] = useState([]);
   const [vaeRows, setVaeRows] = useState([]);
