@@ -30,6 +30,11 @@ function matchesStatusFilter(currentStatus, filter) {
 // (Owner/IC), hidden entirely for department-scoped accounts.
 const IC_ONLY_HEADERS = ["Date of Birth", "National ID", "Mobile", "Nationality"];
 
+// Doctors no longer with the hospital — hidden from the By Doctor picker
+// below, but their existing patients/follow-ups stay fully intact and
+// editable from the All Patients grid.
+const RETIRED_SSI_DOCTORS = ["Dr.Rezk"];
+
 const STATUS_OPTIONS = ["admitted", "discharged", "transferred", "referred", "expired", "other"];
 const statusLabel = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "—");
 const statusBadgeClass = (s) =>
@@ -259,7 +264,7 @@ export default function HaiSurveillance() {
   // a separate copy): one row per follow-up visit that has a date, for every
   // case whose Treating Doctor matches.
   const ssiDoctors = useMemo(
-    () => [...new Set(ssiCases.map((c) => (c.treating_doctor || "").trim()).filter(Boolean))].sort(),
+    () => [...new Set(ssiCases.map((c) => (c.treating_doctor || "").trim()).filter(Boolean))].filter((d) => !RETIRED_SSI_DOCTORS.includes(d)).sort(),
     [ssiCases]
   );
   const doctorTrackerRows = useMemo(() => {
