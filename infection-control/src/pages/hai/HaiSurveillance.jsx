@@ -17,11 +17,20 @@ const addDaysToDateStr = (dateStr, days) => {
 // else in its existing order.
 const byUpdatedInSehaLast = (a, b) => (a.updated_in_seha ? 1 : 0) - (b.updated_in_seha ? 1 : 0);
 
+// The Status filter only ever offers Admitted/Discharged/All — "Discharged"
+// is really "no longer admitted", so it also catches transferred, referred,
+// expired and other, not just the literal "discharged" status.
+function matchesStatusFilter(currentStatus, filter) {
+  if (filter === "all") return true;
+  if (filter === "discharged") return currentStatus !== "admitted";
+  return currentStatus === filter;
+}
+
 // Patient identity fields for Infection Control's own records — admin-only
 // (Owner/IC), hidden entirely for department-scoped accounts.
 const IC_ONLY_HEADERS = ["Date of Birth", "National ID", "Mobile", "Nationality"];
 
-const STATUS_OPTIONS = ["admitted", "discharged", "transferred", "referred", "expired"];
+const STATUS_OPTIONS = ["admitted", "discharged", "transferred", "referred", "expired", "other"];
 const statusLabel = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "—");
 const statusBadgeClass = (s) =>
   s === "admitted"
@@ -80,13 +89,14 @@ function sehaSyncState(currentStatus, updatedInSeha, updatedInSehaStatus) {
   return updatedInSehaStatus === currentStatus ? "synced" : "stale";
 }
 
-// "Updated in Seha" highlight: discharged + synced -> whole row green;
-// discharged + stale (was ticked at a since-changed status) -> whole row
-// blue, so IC can tell it was updated once and now needs a fresh one, not
-// confuse it with "never touched"; discharged + never synced -> amber;
-// still admitted + synced -> just the Patient Name/MRN cells green.
+// "Updated in Seha" highlight: no longer admitted (discharged, transferred,
+// referred, expired, other) + synced -> whole row green; same + stale (was
+// ticked at a since-changed status) -> whole row blue, so IC can tell it was
+// updated once and now needs a fresh one, not confuse it with "never
+// touched"; same + never synced -> amber; still admitted + synced -> just
+// the Patient Name/MRN cells green.
 function sehaRowClass(currentStatus, updatedInSeha, updatedInSehaStatus) {
-  if (currentStatus !== "discharged") return "";
+  if (currentStatus === "admitted") return "";
   const state = sehaSyncState(currentStatus, updatedInSeha, updatedInSehaStatus);
   if (state === "synced") return "bg-emerald-200";
   if (state === "stale") return "bg-sky-200";
@@ -108,7 +118,7 @@ function hasActiveDevice(p) {
 // is always false for SSI/OB, which have no device fields).
 function identityCellClass(currentStatus, updatedInSeha, updatedInSehaStatus, deviceActive) {
   const state = sehaSyncState(currentStatus, updatedInSeha, updatedInSehaStatus);
-  if (currentStatus === "discharged") {
+  if (currentStatus !== "admitted") {
     if (state === "synced") return "bg-emerald-200 border-emerald-400";
     if (state === "stale") return "bg-sky-200 border-sky-400";
     return "bg-amber-200 border-amber-400";
@@ -225,7 +235,7 @@ export default function HaiSurveillance() {
   }
 
   const visiblePatients = useMemo(
-    () => (statusFilter === "all" ? patients : patients.filter((p) => p.current_status === statusFilter)),
+    () => patients.filter((p) => matchesStatusFilter(p.current_status, statusFilter)),
     [patients, statusFilter]
   );
   const visibleIcuUnitPatients = useMemo(
@@ -241,7 +251,7 @@ export default function HaiSurveillance() {
     [visiblePatients, vaeAllowedIcuTypes]
   );
   const visibleSsiCases = useMemo(
-    () => (statusFilter === "all" ? ssiCases : ssiCases.filter((c) => c.current_status === statusFilter)).slice().sort(byUpdatedInSehaLast),
+    () => ssiCases.filter((c) => matchesStatusFilter(c.current_status, statusFilter)).slice().sort(byUpdatedInSehaLast),
     [ssiCases, statusFilter]
   );
 
@@ -272,7 +282,7 @@ export default function HaiSurveillance() {
     return rows;
   }, [ssiCases, selectedDoctor, doctorFileNoFilter]);
   const visibleObCases = useMemo(
-    () => (statusFilter === "all" ? obCases : obCases.filter((c) => c.current_status === statusFilter)).slice().sort(byUpdatedInSehaLast),
+    () => obCases.filter((c) => matchesStatusFilter(c.current_status, statusFilter)).slice().sort(byUpdatedInSehaLast),
     [obCases, statusFilter]
   );
 
