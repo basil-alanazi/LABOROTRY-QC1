@@ -729,6 +729,12 @@ alter table users add column if not exists ob_stages text;
 -- post-discharge follow-up/specimen section stays open to any SSI-scoped
 -- account, so it has no group of its own.
 alter table users add column if not exists ssi_stages text;
+-- Locks an SSI-scoped account to one doctor's own follow-up queue (e.g. one
+-- account per OBG consultant): when set, the account only ever sees its
+-- By Doctor tracker pre-filtered to this exact treating_doctor value —
+-- never the unfiltered All Patients list, and never another doctor's
+-- queue. Null/blank = unrestricted (sees every doctor, like today).
+alter table users add column if not exists ssi_doctor text;
 
 -- ICU/NICU Surveillance is split into two independent sub-tabs (Adult ICU
 -- vs Pediatric/NICU), each its own patient list — not one combined table

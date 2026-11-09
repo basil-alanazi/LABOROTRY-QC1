@@ -49,6 +49,7 @@ export function AuthProvider({ children }) {
       haiScope: user.hai_scope || null,
       obStages: user.ob_stages ? user.ob_stages.split(",").map((s) => s.trim()).filter(Boolean) : [],
       ssiStages: user.ssi_stages ? user.ssi_stages.split(",").map((s) => s.trim()).filter(Boolean) : [],
+      ssiDoctor: user.ssi_doctor || null,
       mustChangePassword: !!user.must_change_password,
     };
   }

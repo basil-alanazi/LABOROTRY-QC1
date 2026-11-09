@@ -50,7 +50,6 @@ const TABS = [
   { key: "icu", label: "ICU/NICU Surveillance" },
   { key: "vae", label: "VAE Monitoring" },
   { key: "ssi", label: "SSI Surveillance" },
-  { key: "ob", label: "OB/Delivery Surveillance" },
 ];
 
 const emptyObSpecimen = { type: "", date_collected: "", organism: "", mdro: false };
@@ -139,7 +138,7 @@ export default function HaiSurveillance() {
   // everything; a scoped account only sees the switchers it needs (none at
   // all when exactly one tab/unit is allowed).
   const scopeTokens = isAdmin || !session?.haiScope ? null : session.haiScope.split(",").map((s) => s.trim()).filter(Boolean);
-  const SCOPE_TO_TABS = { adult_icu: ["icu", "vae"], pediatric_icu: ["icu", "vae"], ssi: ["ssi"], ob: ["ob"] };
+  const SCOPE_TO_TABS = { adult_icu: ["icu", "vae"], pediatric_icu: ["icu", "vae"], ssi: ["ssi"] };
   const allowedTabs = scopeTokens ? [...new Set(scopeTokens.flatMap((t) => SCOPE_TO_TABS[t] ?? []))] : null;
   const icuUnitsAllowed = scopeTokens ? scopeTokens.filter((t) => t === "adult_icu" || t === "pediatric_icu") : null;
   const [tab, setTab] = useState(() => allowedTabs?.[0] ?? "icu");
@@ -151,6 +150,16 @@ export default function HaiSurveillance() {
   const [ssiCases, setSsiCases] = useState([]);
   const [ssiView, setSsiView] = useState("all"); // "all" | "doctor"
   const [selectedDoctor, setSelectedDoctor] = useState("");
+  // An account assigned to a single doctor (Settings -> SSI "Assigned
+  // Doctor") only ever sees that doctor's own By Doctor tracker — never the
+  // unfiltered All Patients list, and never another doctor's queue.
+  const lockedDoctor = !isAdmin ? session?.ssiDoctor || null : null;
+  useEffect(() => {
+    if (lockedDoctor) {
+      setSsiView("doctor");
+      setSelectedDoctor(lockedDoctor);
+    }
+  }, [lockedDoctor]);
   const [obCases, setObCases] = useState([]);
   const [icuUnit, setIcuUnit] = useState(() => (icuUnitsAllowed?.length === 1 && icuUnitsAllowed[0] === "pediatric_icu" ? "pediatric" : "adult")); // "adult" | "pediatric" — separate patient lists, not a shared type dropdown
 
@@ -223,9 +232,9 @@ export default function HaiSurveillance() {
     ssiCases
       .filter((c) => (c.treating_doctor || "").trim() === selectedDoctor)
       .forEach((c) => {
-        (c.follow_ups ?? []).forEach((f) => {
+        (c.follow_ups ?? []).forEach((f, i) => {
           if (!f.date) return;
-          rows.push({ case: c, followUp: f });
+          rows.push({ case: c, followUp: f, index: i });
         });
       });
     return rows;
@@ -372,19 +381,18 @@ export default function HaiSurveillance() {
   }
 
   async function saveSsiCase(c) {
-    // Once discharged (with a discharge date), auto-schedule the first open
-    // follow-up slot's due date — discharge date + the case's follow-up
-    // duration (30/90 days) — so it shows up on the doctor's tracker without
-    // needing a separate manual step. Only fills a still-empty date; never
-    // overwrites one already set.
+    // Once discharged (with a discharge date), auto-schedule the FIRST
+    // follow-up's due date — discharge date + the case's follow-up duration
+    // (30/90 days) — so it shows up on the doctor's tracker without needing
+    // a separate manual step. This only ever runs once per case: it fires
+    // only while every follow-up slot is still completely empty, so saving
+    // the row again later (or toggling admitted/discharged back and forth)
+    // never re-fires it into a second/third slot with the same date.
     let follow_ups = c.follow_ups ?? [];
-    if (c.current_status === "discharged" && c.date_of_discharge) {
-      const slot = follow_ups.findIndex((f) => !f.date);
-      if (slot !== -1) {
-        const dueDate = addDaysToDateStr(c.date_of_discharge, c.follow_up_duration || 30);
-        follow_ups = follow_ups.map((f, i) => (i === slot ? { ...f, date: dueDate } : f));
-        updateSsiField(c.id, { follow_ups });
-      }
+    if (c.current_status === "discharged" && c.date_of_discharge && follow_ups.every((f) => !f.date)) {
+      const dueDate = addDaysToDateStr(c.date_of_discharge, c.follow_up_duration || 30);
+      follow_ups = follow_ups.map((f, i) => (i === 0 ? { ...f, date: dueDate } : f));
+      updateSsiField(c.id, { follow_ups });
     }
     await supabase
       .from("hai_ssi_surveillance")
@@ -671,18 +679,6 @@ export default function HaiSurveillance() {
             </button>
           </div>
         )}
-        {tab === "ob" && (
-          <div className="flex gap-2">
-            <button onClick={exportObExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-              Export Excel
-            </button>
-            <button onClick={exportObPdf} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
-              <FileText className="h-3.5 w-3.5" />
-              Export PDF
-            </button>
-          </div>
-        )}
       </div>
 
       {tab === "icu" && haiCount > 0 && (
@@ -773,21 +769,24 @@ export default function HaiSurveillance() {
 
       {tab === "ssi" && (
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
-            {[
-              { key: "all", label: "All Patients" },
-              { key: "doctor", label: "By Doctor" },
-            ].map((v) => (
-              <button
-                key={v.key}
-                onClick={() => setSsiView(v.key)}
-                className={`rounded-md px-3 py-1 font-medium ${ssiView === v.key ? "bg-teal-600 text-white" : "text-slate-500"}`}
-              >
-                {v.label}
-              </button>
-            ))}
-          </div>
-          {ssiView === "doctor" && (
+          {!lockedDoctor && (
+            <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+              {[
+                { key: "all", label: "All Patients" },
+                { key: "doctor", label: "By Doctor" },
+              ].map((v) => (
+                <button
+                  key={v.key}
+                  onClick={() => setSsiView(v.key)}
+                  className={`rounded-md px-3 py-1 font-medium ${ssiView === v.key ? "bg-teal-600 text-white" : "text-slate-500"}`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {lockedDoctor && <p className="text-sm font-medium text-slate-700">{lockedDoctor} — follow-up tracker</p>}
+          {ssiView === "doctor" && !lockedDoctor && (
             <select
               className="input w-52"
               value={selectedDoctor}
@@ -832,31 +831,26 @@ export default function HaiSurveillance() {
         />
       )}
 
-      {tab === "ssi" && ssiView === "doctor" && <DoctorTrackerTable doctor={selectedDoctor} rows={doctorTrackerRows} />}
-
-      {tab === "ob" && (
-        <ObSurveillanceTab
-          cases={visibleObCases}
-          loading={loading}
-          session={session}
-          isAdmin={isAdmin}
-          onAddCase={addObCase}
-          onUpdateField={updateObField}
-          onSave={saveObCase}
-          onRemove={removeObCase}
-          onMarkComplete={markStageComplete}
-          onReopen={reopenStage}
-          onUpdateSpecimen={updateObSpecimen}
+      {tab === "ssi" && ssiView === "doctor" && (
+        <DoctorTrackerTable
+          doctor={selectedDoctor}
+          rows={doctorTrackerRows}
+          onFollowUpFieldChange={(c, i, patch) => updateFollowUp(c, i, patch)}
+          onFieldBlurSave={(c) => saveSsiCase(c)}
+          onCommentChange={(c, comments) => updateSsiField(c.id, { comments })}
         />
       )}
+
     </div>
   );
 }
 
-// A live, read-only filtered view of the same SSI records for one Treating
+// A live, editable filtered view of the same SSI records for one Treating
 // Doctor — never a separate copy, matching the hospital's own per-surgeon
-// SSI tracker sheets. One row per follow-up visit that has a date.
-function DoctorTrackerTable({ doctor, rows }) {
+// SSI tracker sheets. One row per follow-up visit that has a date; the
+// follow-up columns (signs, swab, comment) are filled in from here, same
+// as from the All Patients grid.
+function DoctorTrackerTable({ doctor, rows, onFollowUpFieldChange, onFieldBlurSave, onCommentChange }) {
   if (!doctor) {
     return <p className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-400">Pick a doctor to see her SSI tracker.</p>;
   }
@@ -871,27 +865,40 @@ function DoctorTrackerTable({ doctor, rows }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ case: c, followUp: f }, i) => (
+          {rows.map(({ case: c, followUp: f, index: i }) => (
             <tr key={`${c.id}-${i}`} className="border-t border-slate-100">
               <td className="whitespace-nowrap px-2 py-1.5">{c.month}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.patient_name}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.mrn}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.date_of_procedure || "—"}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.treating_doctor}</td>
-              <td className="whitespace-nowrap px-2 py-1.5">{f.date || "—"}</td>
+              <td className="px-1.5 py-0.5">
+                <GridDate value={f.date} onChange={(e) => onFollowUpFieldChange(c, i, { date: e.target.value })} onBlur={() => onFieldBlurSave(c)} />
+              </td>
               {SIGN_FIELDS.map((field) => (
-                <td key={field} className="px-2 py-1.5">
-                  {f[field] ? <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${riskClass(f[field], ["NO"])}`}>{f[field]}</span> : "—"}
+                <td key={field} className="px-1.5 py-0.5">
+                  <SignSelect
+                    value={f[field]}
+                    onChange={(e) => onFollowUpFieldChange(c, i, { [field]: e.target.value })}
+                    onBlur={() => onFieldBlurSave(c)}
+                  />
                 </td>
               ))}
-              <td className="px-2 py-1.5">
-                {f.surgical_site_swab_sent ? (
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${riskClass(f.surgical_site_swab_sent, ["N/A", "No"])}`}>{f.surgical_site_swab_sent}</span>
-                ) : (
-                  "—"
-                )}
+              <td className="px-1.5 py-0.5">
+                <SwabSelect
+                  value={f.surgical_site_swab_sent}
+                  onChange={(e) => onFollowUpFieldChange(c, i, { surgical_site_swab_sent: e.target.value })}
+                  onBlur={() => onFieldBlurSave(c)}
+                />
               </td>
-              <td className="px-2 py-1.5">{c.comments || "—"}</td>
+              <td className="px-1.5 py-0.5">
+                <GridText
+                  value={c.comments}
+                  onChange={(e) => onCommentChange(c, e.target.value)}
+                  onBlur={() => onFieldBlurSave(c)}
+                  className="min-w-[7rem]"
+                />
+              </td>
             </tr>
           ))}
         </tbody>
