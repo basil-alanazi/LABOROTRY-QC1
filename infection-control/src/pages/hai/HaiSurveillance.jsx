@@ -433,8 +433,16 @@ export default function HaiSurveillance() {
     // only while every follow-up slot is still completely empty, so saving
     // the row again later (or toggling admitted/discharged back and forth)
     // never re-fires it into a second/third slot with the same date.
+    // Same reasoning as markSsiStageComplete above: if DR & FW was already
+    // marked complete and the discharge date gets filled in afterwards,
+    // Current Status should follow rather than stay stuck on "admitted".
+    let current_status = c.current_status;
+    if (current_status === "admitted" && c.date_of_discharge && c.dr_fw_completed_at) {
+      current_status = "discharged";
+      updateSsiField(c.id, { current_status });
+    }
     let follow_ups = c.follow_ups ?? [];
-    if (c.current_status === "discharged" && c.date_of_discharge && follow_ups.every((f) => !f.date)) {
+    if (current_status === "discharged" && c.date_of_discharge && follow_ups.every((f) => !f.date)) {
       const dueDate = addDaysToDateStr(c.date_of_discharge, c.follow_up_duration || 30);
       follow_ups = follow_ups.map((f, i) => (i === 0 ? { ...f, date: dueDate } : f));
       updateSsiField(c.id, { follow_ups });
@@ -467,7 +475,7 @@ export default function HaiSurveillance() {
         other_specimens: c.other_specimens,
         ssi_detected: !!c.ssi_detected,
         type_of_ssi: c.type_of_ssi,
-        current_status: c.current_status,
+        current_status,
         date_of_discharge: c.date_of_discharge || null,
         comments: c.comments,
         updated_in_seha: !!c.updated_in_seha,
@@ -484,6 +492,13 @@ export default function HaiSurveillance() {
 
   async function markSsiStageComplete(c, prefix) {
     const patch = { [`${prefix}_completed_by`]: session?.username, [`${prefix}_completed_at`]: new Date().toISOString() };
+    // Completing DR & FW *is* discharging the patient — if Current Status
+    // was left on "admitted" (easy to miss since it's a separate dropdown
+    // from Date of Discharge), bring it in line so the patient actually
+    // moves to the Discharged filter instead of staying stuck as admitted.
+    if (prefix === "dr_fw" && c.current_status === "admitted" && c.date_of_discharge) {
+      patch.current_status = "discharged";
+    }
     updateSsiField(c.id, patch);
     await supabase.from("hai_ssi_surveillance").update(patch).eq("id", c.id);
     flash({ type: "success", text: "Stage marked complete" });
