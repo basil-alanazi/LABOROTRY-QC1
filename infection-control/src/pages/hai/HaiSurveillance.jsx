@@ -355,6 +355,8 @@ export default function HaiSurveillance() {
         mv_day: Number(r.mv_day) || 1,
         daily_min_peep: r.daily_min_peep === "" ? null : Number(r.daily_min_peep),
         daily_min_fio2: r.daily_min_fio2 === "" ? null : Number(r.daily_min_fio2),
+        daily_min_map: r.daily_min_map === "" ? null : Number(r.daily_min_map),
+        ped_vae: !!r.ped_vae,
         vac_date_of_event: r.vac_date_of_event || null,
         temp_abnormal: !!r.temp_abnormal,
         wbc_abnormal: !!r.wbc_abnormal,
@@ -770,6 +772,7 @@ export default function HaiSurveillance() {
         <VaeMonitoringTab
           patients={visibleVaePatients}
           vaeRows={vaeRows}
+          pediatricIcuTypes={pediatricIcuTypes}
           session={session}
           isAdmin={isAdmin}
           flash={flash}
@@ -1225,7 +1228,7 @@ function SpecimenCells({ specimen, hasDateResult, onChange, onBlur, onMdroToggle
 // Matches the CDC VAE Surveillance Algorithm's own form layout: one row per
 // ventilator-day, grouped into VAC -> IVAC -> PVAP (each stage's own Date of
 // Event), so the sheet reads the same way the official form does.
-function VaeMonitoringTab({ patients, vaeRows, session, isAdmin, flash, onUpdateField, onAddDay, onSave, onRemove }) {
+function VaeMonitoringTab({ patients, vaeRows, pediatricIcuTypes, session, isAdmin, flash, onUpdateField, onAddDay, onSave, onRemove }) {
   const [selectedId, setSelectedId] = useState("");
 
   useEffect(() => {
@@ -1233,6 +1236,7 @@ function VaeMonitoringTab({ patients, vaeRows, session, isAdmin, flash, onUpdate
   }, [patients, selectedId]);
 
   const selected = patients.find((p) => p.id === selectedId);
+  const isPediatric = !!selected && (pediatricIcuTypes ?? []).includes(selected.icu_type);
   const days = useMemo(
     () => vaeRows.filter((r) => r.icu_surveillance_id === selectedId).sort((a, b) => (a.mv_day > b.mv_day ? 1 : -1)),
     [vaeRows, selectedId]
@@ -1272,6 +1276,14 @@ function VaeMonitoringTab({ patients, vaeRows, session, isAdmin, flash, onUpdate
             <span><strong>Bed #:</strong> {selected.bed_no}</span>
           </div>
 
+          {isPediatric && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              PedVAE: an increase in daily minimum FiO2 of ≥0.25 (25 points) or MAP of ≥4 cmH2O over the first day of a ≥2-day stable/improving
+              baseline, sustained for ≥2 calendar days, is a Ped VAE event. For infants &lt;30 days old, a daily minimum MAP of 0–8 cmH2O counts
+              as 8; for ≥30 days old, 0–10 cmH2O counts as 10.
+            </p>
+          )}
+
           <div>
             <button onClick={handleAddDay} className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700">
               <Plus className="h-3.5 w-3.5" />
@@ -1281,45 +1293,72 @@ function VaeMonitoringTab({ patients, vaeRows, session, isAdmin, flash, onUpdate
 
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full text-sm hai-grid">
-              <thead className="bg-slate-50 text-left text-xs text-slate-500">
-                <tr>
-                  <th rowSpan={2} className="sticky-name-col whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">#</th>
-                  {["Date", "MV Day"].map((h) => (
-                    <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{h}</th>
-                  ))}
-                  <th colSpan={3} className="border-b border-l-2 border-slate-800 bg-teal-100 px-1.5 py-0.5 text-center font-semibold text-teal-900">VAE - VAC</th>
-                  <th colSpan={5} className="border-b border-l-2 border-slate-800 bg-amber-100 px-1.5 py-0.5 text-center font-semibold text-amber-900">VAE - IVAC</th>
-                  <th colSpan={3} className="border-b border-l-2 border-slate-800 bg-purple-100 px-1.5 py-0.5 text-center font-semibold text-purple-900">VAE - PVAP</th>
-                  <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">Updated in Seha</th>
-                  <th rowSpan={2}></th>
-                </tr>
-                <tr>
-                  <th className="whitespace-nowrap border-l-2 border-slate-800 px-1.5 py-0.5 font-medium">Daily Min PEEP</th>
-                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Daily Min FiO2</th>
-                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Date of Event</th>
-                  <th className="whitespace-nowrap border-l-2 border-slate-800 px-1.5 py-0.5 font-medium">Temp &lt;36°C or &gt;38°C</th>
-                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">WBC ≤4,000 or ≥12,000</th>
-                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">New Antimicrobial Agent</th>
-                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">QAD</th>
-                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Date of Event</th>
-                  <th className="whitespace-nowrap border-l-2 border-slate-800 px-1.5 py-0.5 font-medium">Positive Culture</th>
-                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Purulent Resp. Secretions</th>
-                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Date of Event</th>
-                </tr>
-              </thead>
+              {isPediatric ? (
+                <thead className="bg-slate-50 text-left text-xs text-slate-500">
+                  <tr>
+                    <th className="sticky-name-col whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium">#</th>
+                    {["Date", "MV Day", "Daily Min MAP", "Daily Min FiO2"].map((h) => (
+                      <th key={h} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium">{h}</th>
+                    ))}
+                    <th className="whitespace-nowrap border-b border-l-2 border-slate-800 border-slate-200 px-1.5 py-1 font-medium">Ped VAE</th>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium">Updated in Seha</th>
+                    <th className="border-b border-slate-200"></th>
+                  </tr>
+                </thead>
+              ) : (
+                <thead className="bg-slate-50 text-left text-xs text-slate-500">
+                  <tr>
+                    <th rowSpan={2} className="sticky-name-col whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">#</th>
+                    {["Date", "MV Day"].map((h) => (
+                      <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{h}</th>
+                    ))}
+                    <th colSpan={3} className="border-b border-l-2 border-slate-800 bg-teal-100 px-1.5 py-0.5 text-center font-semibold text-teal-900">VAE - VAC</th>
+                    <th colSpan={5} className="border-b border-l-2 border-slate-800 bg-amber-100 px-1.5 py-0.5 text-center font-semibold text-amber-900">VAE - IVAC</th>
+                    <th colSpan={3} className="border-b border-l-2 border-slate-800 bg-purple-100 px-1.5 py-0.5 text-center font-semibold text-purple-900">VAE - PVAP</th>
+                    <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">Updated in Seha</th>
+                    <th rowSpan={2}></th>
+                  </tr>
+                  <tr>
+                    <th className="whitespace-nowrap border-l-2 border-slate-800 px-1.5 py-0.5 font-medium">Daily Min PEEP</th>
+                    <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Daily Min FiO2</th>
+                    <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Date of Event</th>
+                    <th className="whitespace-nowrap border-l-2 border-slate-800 px-1.5 py-0.5 font-medium">Temp &lt;36°C or &gt;38°C</th>
+                    <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">WBC ≤4,000 or ≥12,000</th>
+                    <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">New Antimicrobial Agent</th>
+                    <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">QAD</th>
+                    <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Date of Event</th>
+                    <th className="whitespace-nowrap border-l-2 border-slate-800 px-1.5 py-0.5 font-medium">Positive Culture</th>
+                    <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Purulent Resp. Secretions</th>
+                    <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Date of Event</th>
+                  </tr>
+                </thead>
+              )}
               <tbody>
-                {days.map((d, i) => (
-                  <VaeRow
-                    key={d.id}
-                    d={d}
-                    index={i + 1}
-                    isAdmin={isAdmin}
-                    onFieldChange={(patch) => onUpdateField(d.id, patch)}
-                    onFieldBlurSave={() => onSave(d)}
-                    onToggle={(field, checked) => handleToggle(d, field, checked)}
-                    onRemove={() => onRemove(d)}
-                  />
-                ))}
+                {days.map((d, i) =>
+                  isPediatric ? (
+                    <PedVaeRow
+                      key={d.id}
+                      d={d}
+                      index={i + 1}
+                      isAdmin={isAdmin}
+                      onFieldChange={(patch) => onUpdateField(d.id, patch)}
+                      onFieldBlurSave={() => onSave(d)}
+                      onToggle={(field, checked) => handleToggle(d, field, checked)}
+                      onRemove={() => onRemove(d)}
+                    />
+                  ) : (
+                    <VaeRow
+                      key={d.id}
+                      d={d}
+                      index={i + 1}
+                      isAdmin={isAdmin}
+                      onFieldChange={(patch) => onUpdateField(d.id, patch)}
+                      onFieldBlurSave={() => onSave(d)}
+                      onToggle={(field, checked) => handleToggle(d, field, checked)}
+                      onRemove={() => onRemove(d)}
+                    />
+                  )
+                )}
               </tbody>
             </table>
             {days.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No daily entries yet for this patient.</p>}
@@ -1327,6 +1366,35 @@ function VaeMonitoringTab({ patients, vaeRows, session, isAdmin, flash, onUpdate
         </>
       )}
     </div>
+  );
+}
+
+function PedVaeRow({ d, index, isAdmin, onFieldChange, onFieldBlurSave, onToggle, onRemove }) {
+  const rowBg = d.updated_in_seha ? "bg-emerald-200" : "";
+  return (
+    <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
+      <td className={`sticky-name-col px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>{index}</td>
+      <td className="px-1.5 py-0.5"><GridDate value={d.date} onChange={(e) => onFieldChange({ date: e.target.value })} onBlur={onFieldBlurSave} /></td>
+      <td className="px-1.5 py-0.5"><GridText value={d.mv_day} onChange={(e) => onFieldChange({ mv_day: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[3.5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridText value={d.daily_min_map ?? ""} onChange={(e) => onFieldChange({ daily_min_map: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridText value={d.daily_min_fio2 ?? ""} onChange={(e) => onFieldChange({ daily_min_fio2: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[5rem]" /></td>
+      <td className="px-1.5 py-0.5 border-l-2 border-slate-800">
+        <select className="input-cell w-full" value={d.ped_vae ? "Yes" : "No"} onChange={(e) => onToggle("ped_vae", e.target.value === "Yes")}>
+          <option value="No">No</option>
+          <option value="Yes">Yes</option>
+        </select>
+      </td>
+      <td className="px-1.5 py-0.5 text-center">
+        <input type="checkbox" disabled={!isAdmin} checked={!!d.updated_in_seha} onChange={(e) => onToggle("updated_in_seha", e.target.checked)} />
+      </td>
+      <td className="px-1.5 py-0.5">
+        {isAdmin && (
+          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </td>
+    </tr>
   );
 }
 

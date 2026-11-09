@@ -798,6 +798,8 @@ create table if not exists hai_vae_monitoring (
   mv_day int not null default 1,
   daily_min_peep numeric,
   daily_min_fio2 numeric,
+  daily_min_map numeric, -- Pediatric (NICU) form only: Daily Minimum MAP
+  ped_vae boolean not null default false, -- Pediatric (NICU) form only: Ped VAE Yes/No
   vac boolean not null default false,
   temp_abnormal boolean not null default false, -- Temp <36°C or >38°C
   wbc_abnormal boolean not null default false,  -- WBC <=4,000 or >=12,000
