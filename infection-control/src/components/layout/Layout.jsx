@@ -109,7 +109,7 @@ export default function Layout({ children }) {
           HAI Surveillance
         </NavLink>
       )}
-      {(isAdmin || !(session?.canViewEmployeeHealth || session?.canViewNursingRounds || session?.canViewQualityRounds)) && (
+      {(isAdmin || !(session?.canViewEmployeeHealth || session?.canViewNursingRounds || session?.canViewQualityRounds || session?.canViewHaiSurveillance)) && (
         <NavLink to="/stock" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <Package className="h-4 w-4" />
           Stock Requests
