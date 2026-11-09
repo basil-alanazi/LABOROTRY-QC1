@@ -7,6 +7,11 @@ import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
+const addDaysToDateStr = (dateStr, days) => {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
 
 // Patient identity fields for Infection Control's own records — admin-only
 // (Owner/IC), hidden entirely for department-scoped accounts.
@@ -67,10 +72,10 @@ function riskClass(value, goodValues) {
 // Seha); still admitted + synced -> just the Patient Name/MRN cells green.
 function sehaRowClass(currentStatus, updatedInSeha) {
   if (currentStatus !== "discharged") return "";
-  return updatedInSeha ? "bg-emerald-50" : "bg-amber-50";
+  return updatedInSeha ? "bg-emerald-200" : "bg-amber-200";
 }
 function sehaNameCellClass(currentStatus, updatedInSeha) {
-  return currentStatus !== "discharged" && updatedInSeha ? "bg-emerald-50" : "";
+  return currentStatus !== "discharged" && updatedInSeha ? "bg-emerald-200" : "";
 }
 
 function SignSelect({ value, onChange, onBlur, disabled }) {
@@ -290,6 +295,20 @@ export default function HaiSurveillance() {
   }
 
   async function saveSsiCase(c) {
+    // Once discharged (with a discharge date), auto-schedule the first open
+    // follow-up slot's due date — discharge date + the case's follow-up
+    // duration (30/90 days) — so it shows up on the doctor's tracker without
+    // needing a separate manual step. Only fills a still-empty date; never
+    // overwrites one already set.
+    let follow_ups = c.follow_ups ?? [];
+    if (c.current_status === "discharged" && c.date_of_discharge) {
+      const slot = follow_ups.findIndex((f) => !f.date);
+      if (slot !== -1) {
+        const dueDate = addDaysToDateStr(c.date_of_discharge, c.follow_up_duration || 30);
+        follow_ups = follow_ups.map((f, i) => (i === slot ? { ...f, date: dueDate } : f));
+        updateSsiField(c.id, { follow_ups });
+      }
+    }
     await supabase
       .from("hai_ssi_surveillance")
       .update({
@@ -313,7 +332,7 @@ export default function HaiSurveillance() {
         duration_of_surgery: c.duration_of_surgery,
         patos: !!c.patos,
         follow_up_duration: c.follow_up_duration,
-        follow_ups: c.follow_ups ?? [],
+        follow_ups,
         specimens: c.specimens ?? [],
         other_specimens: c.other_specimens,
         ssi_detected: !!c.ssi_detected,
@@ -515,7 +534,7 @@ export default function HaiSurveillance() {
   }
 
   function exportIcuExcel() {
-    const unitLabel = icuUnit === "adult" ? "Adult ICU" : "Pediatric ICU";
+    const unitLabel = icuUnit === "adult" ? "ICU" : "NICU";
     downloadExcel(`infection-control-hai-icu-${icuUnit}-${todayStr()}`, [
       {
         name: `${unitLabel} Surveillance`,
@@ -535,7 +554,7 @@ export default function HaiSurveillance() {
   }
 
   function exportIcuPdf() {
-    const unitLabel = icuUnit === "adult" ? "Adult ICU" : "Pediatric ICU";
+    const unitLabel = icuUnit === "adult" ? "ICU" : "NICU";
     downloadPdf(`infection-control-hai-icu-${icuUnit}-${todayStr()}`, `HAI Surveillance — ${unitLabel}`, [
       {
         headers: ["Patient", "MRN", "ICU Type", "Unit Admission", "Status", "HAI Detected", "Event Types"],
@@ -617,8 +636,8 @@ export default function HaiSurveillance() {
       {tab === "icu" && (!scopeTokens || !icuUnitsAllowed || icuUnitsAllowed.length > 1) && (
         <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
           {[
-            { key: "adult", label: "Adult ICU" },
-            { key: "pediatric", label: "Pediatric ICU (NICU/PICU)" },
+            { key: "adult", label: "ICU" },
+            { key: "pediatric", label: "NICU" },
           ].map((u) => (
             <button
               key={u.key}
