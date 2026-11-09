@@ -13,4 +13,14 @@ body {
   .input-cell {
     @apply w-full rounded border border-slate-200 bg-white px-1.5 py-1 text-xs focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:border-transparent disabled:bg-transparent disabled:text-slate-500;
   }
+  /* Every cell in the wide HAI Surveillance grids gets its own border, so
+     the table reads as a proper spreadsheet grid instead of color bands
+     with no lines between columns. */
+  .hai-grid {
+    border-collapse: collapse;
+  }
+  .hai-grid th,
+  .hai-grid td {
+    @apply border border-slate-300;
+  }
 }

@@ -818,7 +818,7 @@ function DoctorTrackerTable({ doctor, rows }) {
   }
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm hai-grid">
         <thead className="bg-slate-50 text-left text-xs text-slate-500">
           <tr>
             {["Month", "Name", "File No", "Date of Surgery", "Name of Surgeon", "Date of Follow Up", "Fever", "Pain/Tenderness", "Redness", "Swelling", "Purulent Discharge", "Wound Dehiscence", "Surgical Site Swab Sent", "Comment"].map((h) => (
@@ -960,7 +960,7 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm hai-grid">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">Updated in Seha</th>
@@ -1274,7 +1274,7 @@ function VaeMonitoringTab({ patients, vaeRows, session, flash, reload }) {
           </form>
 
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm hai-grid">
               <thead className="bg-slate-50 text-left text-xs text-slate-500">
                 <tr>
                   <th className="px-3 py-2 font-medium">Date</th>
@@ -1331,7 +1331,7 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm hai-grid">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">Updated in Seha</th>
@@ -1600,7 +1600,7 @@ function ObSurveillanceTab({ cases, loading, session, isAdmin, onAddCase, onUpda
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm hai-grid">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">Updated in Seha</th>
