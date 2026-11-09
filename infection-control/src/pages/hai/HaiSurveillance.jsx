@@ -12,6 +12,10 @@ const addDaysToDateStr = (dateStr, days) => {
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
 };
+// Rows already marked "Updated in Seha" sink to the bottom, so whoever's
+// still waiting on an update stays on top. Stable sort keeps everything
+// else in its existing order.
+const byUpdatedInSehaLast = (a, b) => (a.updated_in_seha ? 1 : 0) - (b.updated_in_seha ? 1 : 0);
 
 // Patient identity fields for Infection Control's own records — admin-only
 // (Owner/IC), hidden entirely for department-scoped accounts.
@@ -110,8 +114,8 @@ export default function HaiSurveillance() {
   // everything; a scoped account only sees the switchers it needs (none at
   // all when exactly one tab/unit is allowed).
   const scopeTokens = isAdmin || !session?.haiScope ? null : session.haiScope.split(",").map((s) => s.trim()).filter(Boolean);
-  const SCOPE_TO_TAB = { adult_icu: "icu", pediatric_icu: "icu", ssi: "ssi", ob: "ob" };
-  const allowedTabs = scopeTokens ? [...new Set(scopeTokens.map((t) => SCOPE_TO_TAB[t]).filter(Boolean))] : null;
+  const SCOPE_TO_TABS = { adult_icu: ["icu", "vae"], pediatric_icu: ["icu", "vae"], ssi: ["ssi"], ob: ["ob"] };
+  const allowedTabs = scopeTokens ? [...new Set(scopeTokens.flatMap((t) => SCOPE_TO_TABS[t] ?? []))] : null;
   const icuUnitsAllowed = scopeTokens ? scopeTokens.filter((t) => t === "adult_icu" || t === "pediatric_icu") : null;
   const [tab, setTab] = useState(() => allowedTabs?.[0] ?? "icu");
   const [patients, setPatients] = useState([]);
@@ -165,11 +169,19 @@ export default function HaiSurveillance() {
     [patients, statusFilter]
   );
   const visibleIcuUnitPatients = useMemo(
-    () => visiblePatients.filter((p) => activeIcuTypes.includes(p.icu_type)),
+    () => visiblePatients.filter((p) => activeIcuTypes.includes(p.icu_type)).slice().sort(byUpdatedInSehaLast),
     [visiblePatients, activeIcuTypes]
   );
+  // VAE Monitoring isn't split by Adult/Pediatric sub-tab, but a scoped
+  // account should still only see ventilated patients in the ICU unit(s)
+  // it's allowed into — never the other unit's patients.
+  const vaeAllowedIcuTypes = !icuUnitsAllowed ? [...adultIcuTypes, ...pediatricIcuTypes] : icuUnitsAllowed.flatMap((t) => (t === "adult_icu" ? adultIcuTypes : pediatricIcuTypes));
+  const visibleVaePatients = useMemo(
+    () => visiblePatients.filter((p) => p.ventilator_insertion && vaeAllowedIcuTypes.includes(p.icu_type)),
+    [visiblePatients, vaeAllowedIcuTypes]
+  );
   const visibleSsiCases = useMemo(
-    () => (statusFilter === "all" ? ssiCases : ssiCases.filter((c) => c.current_status === statusFilter)),
+    () => (statusFilter === "all" ? ssiCases : ssiCases.filter((c) => c.current_status === statusFilter)).slice().sort(byUpdatedInSehaLast),
     [ssiCases, statusFilter]
   );
 
@@ -194,7 +206,7 @@ export default function HaiSurveillance() {
     return rows;
   }, [ssiCases, selectedDoctor]);
   const visibleObCases = useMemo(
-    () => (statusFilter === "all" ? obCases : obCases.filter((c) => c.current_status === statusFilter)),
+    () => (statusFilter === "all" ? obCases : obCases.filter((c) => c.current_status === statusFilter)).slice().sort(byUpdatedInSehaLast),
     [obCases, statusFilter]
   );
 
@@ -682,7 +694,7 @@ export default function HaiSurveillance() {
 
       {tab === "vae" && (
         <VaeMonitoringTab
-          patients={visiblePatients.filter((p) => p.ventilator_insertion)}
+          patients={visibleVaePatients}
           vaeRows={vaeRows}
           session={session}
           flash={flash}
