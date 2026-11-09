@@ -809,7 +809,7 @@ export default function HaiSurveillance() {
 
       {tab === "ssi" && (
         <div className="flex flex-wrap items-center gap-2">
-          {!lockedDoctor && (
+          {isAdmin && (
             <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
               {[
                 { key: "all", label: "All Patients" },
@@ -861,7 +861,7 @@ export default function HaiSurveillance() {
         </div>
       )}
 
-      {tab === "ssi" && ssiView === "all" && (
+      {tab === "ssi" && (ssiView === "all" || !(isAdmin || lockedDoctor)) && (
         <SsiSurveillanceTab
           cases={visibleSsiCases}
           loading={loading}
@@ -879,7 +879,7 @@ export default function HaiSurveillance() {
         />
       )}
 
-      {tab === "ssi" && ssiView === "doctor" && (
+      {tab === "ssi" && ssiView === "doctor" && (isAdmin || lockedDoctor) && (
         <DoctorTrackerTable
           doctor={selectedDoctor}
           rows={doctorTrackerRows}
