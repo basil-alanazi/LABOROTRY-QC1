@@ -25,6 +25,8 @@ const HAI_SCOPE_OPTIONS = [
   { value: "", label: "Full access (all tabs)" },
   { value: "adult_icu", label: "ICU only" },
   { value: "pediatric_icu", label: "NICU only" },
+  { value: "adult_icu_vae", label: "RTICU — VAE Monitoring only" },
+  { value: "pediatric_icu_vae", label: "RTNICU — VAE Monitoring only" },
   { value: "ssi", label: "SSI Surveillance only" },
 ];
 const OB_STAGE_OPTIONS = ["OR", "Delivery", "Female Ward"];
