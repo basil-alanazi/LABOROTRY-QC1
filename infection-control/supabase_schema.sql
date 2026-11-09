@@ -775,7 +775,8 @@ create table if not exists hai_icu_surveillance (
   current_status text not null default 'admitted', -- admitted | discharged | transferred | referred | expired
   date_of_discharge date,
   comments text not null default '',
-  updated_in_seha boolean not null default false, -- Owner/IC only; drives the row's green/amber highlight below
+  updated_in_seha boolean not null default false, -- Owner/IC only; drives the row's green/amber/blue highlight below
+  updated_in_seha_status text, -- which current_status this was ticked at; a later status change without re-ticking reads as "stale" (blue), not synced
   done_by text not null default '',
   deleted boolean not null default false,
   deleted_by text,
@@ -862,6 +863,7 @@ create table if not exists hai_ssi_surveillance (
   date_of_discharge date,
   comments text not null default '',
   updated_in_seha boolean not null default false, -- Owner/IC only — never editable by DR/OR/DR&FW accounts
+  updated_in_seha_status text, -- which current_status this was ticked at; a later status change without re-ticking reads as "stale" (blue), not synced
   -- Column-group edit permissions (Settings → User Accounts, ssi_stages): DR -> OR -> DR&FW,
   -- each locked until the previous group is marked complete, mirroring OB/Delivery's stage gating.
   dr_completed_by text,
@@ -929,7 +931,8 @@ create table if not exists hai_ob_surveillance (
   fw_completed_at timestamptz,
   current_status text not null default 'admitted', -- admitted | discharged | transferred | referred | expired
   comments text not null default '',
-  updated_in_seha boolean not null default false, -- Owner/IC only; drives the row's green/amber highlight, same as ICU/NICU and SSI
+  updated_in_seha boolean not null default false, -- Owner/IC only; drives the row's green/amber/blue highlight, same as ICU/NICU and SSI
+  updated_in_seha_status text, -- which current_status this was ticked at; a later status change without re-ticking reads as "stale" (blue), not synced
   done_by text not null default '',
   deleted boolean not null default false,
   deleted_by text,
