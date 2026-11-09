@@ -18,6 +18,7 @@ const emptyNewUser = {
   can_view_quality_rounds: false,
   can_view_hai_surveillance: false,
   hai_scope: "",
+  ssi_doctor: "",
 };
 
 const HAI_SCOPE_OPTIONS = [
@@ -25,8 +26,6 @@ const HAI_SCOPE_OPTIONS = [
   { value: "adult_icu", label: "ICU only" },
   { value: "pediatric_icu", label: "NICU only" },
   { value: "ssi", label: "SSI Surveillance only" },
-  { value: "ob", label: "OB/Delivery Surveillance only" },
-  { value: "ob,ssi", label: "OB/Delivery + SSI only" },
 ];
 const OB_STAGE_OPTIONS = ["OR", "Delivery", "Female Ward"];
 const SSI_STAGE_OPTIONS = [
@@ -445,6 +444,7 @@ export default function Settings() {
       can_view_quality_rounds: newUser.role === "staff" && newUser.can_view_quality_rounds,
       can_view_hai_surveillance: newUser.role === "staff" && newUser.can_view_hai_surveillance,
       hai_scope: newUser.role === "staff" && newUser.can_view_hai_surveillance ? newUser.hai_scope || null : null,
+      ssi_doctor: newUser.role === "staff" && newUser.can_view_hai_surveillance && (newUser.hai_scope || "").includes("ssi") ? newUser.ssi_doctor.trim() || null : null,
       created_by: session?.username,
     });
     if (error) {
@@ -476,6 +476,7 @@ export default function Settings() {
         hai_scope: user.role === "staff" && user.can_view_hai_surveillance ? user.hai_scope || null : null,
         ob_stages: user.role === "staff" && user.can_view_hai_surveillance ? user.ob_stages || null : null,
         ssi_stages: user.role === "staff" && user.can_view_hai_surveillance ? user.ssi_stages || null : null,
+        ssi_doctor: user.role === "staff" && user.can_view_hai_surveillance && (user.hai_scope || "").includes("ssi") ? (user.ssi_doctor || "").trim() || null : null,
         active: user.active,
       })
       .eq("id", user.id);
@@ -1173,6 +1174,17 @@ export default function Settings() {
                     })}
                   </div>
                 )}
+                {u.role === "staff" && u.can_view_hai_surveillance && (u.hai_scope || "").includes("ssi") && (
+                  <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:col-span-5 sm:pl-5">
+                    Assigned doctor — if set, this account only ever sees that doctor's own By Doctor follow-up tracker (not All Patients, not other doctors):
+                    <input
+                      className="input w-56"
+                      value={u.ssi_doctor || ""}
+                      onChange={(e) => updateUserField(u.id, { ssi_doctor: e.target.value })}
+                      placeholder="e.g. Dr.Jamila — blank = all doctors"
+                    />
+                  </label>
+                )}
               </div>
             ))}
           </div>
@@ -1292,6 +1304,17 @@ export default function Settings() {
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
                 </select>
+              </label>
+            )}
+            {newUser.role === "staff" && newUser.can_view_hai_surveillance && (newUser.hai_scope || "").includes("ssi") && (
+              <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:col-span-4 sm:pl-5">
+                Assigned doctor (optional):
+                <input
+                  className="input w-56"
+                  value={newUser.ssi_doctor}
+                  onChange={(e) => setNewUser({ ...newUser, ssi_doctor: e.target.value })}
+                  placeholder="e.g. Dr.Jamila — leave blank to see all doctors"
+                />
               </label>
             )}
             <button
