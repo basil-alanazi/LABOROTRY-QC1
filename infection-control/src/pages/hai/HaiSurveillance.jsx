@@ -150,6 +150,7 @@ export default function HaiSurveillance() {
   const [ssiCases, setSsiCases] = useState([]);
   const [ssiView, setSsiView] = useState("all"); // "all" | "doctor"
   const [selectedDoctor, setSelectedDoctor] = useState("");
+  const [doctorFileNoFilter, setDoctorFileNoFilter] = useState("");
   // An account assigned to a single doctor (Settings -> SSI "Assigned
   // Doctor") only ever sees that doctor's own By Doctor tracker — never the
   // unfiltered All Patients list, and never another doctor's queue.
@@ -228,17 +229,23 @@ export default function HaiSurveillance() {
   );
   const doctorTrackerRows = useMemo(() => {
     if (!selectedDoctor) return [];
+    const fileNo = doctorFileNoFilter.trim().toLowerCase();
     const rows = [];
     ssiCases
       .filter((c) => (c.treating_doctor || "").trim() === selectedDoctor)
+      .filter((c) => !fileNo || (c.mrn || "").toLowerCase().includes(fileNo))
       .forEach((c) => {
         (c.follow_ups ?? []).forEach((f, i) => {
           if (!f.date) return;
           rows.push({ case: c, followUp: f, index: i });
         });
       });
+    // Newest case added goes last — ssiCases itself is fetched newest
+    // surgery date first, which isn't the same thing a nurse means by "new
+    // patient", so sort this tracker by when the record was created instead.
+    rows.sort((a, b) => new Date(a.case.created_at || 0) - new Date(b.case.created_at || 0));
     return rows;
-  }, [ssiCases, selectedDoctor]);
+  }, [ssiCases, selectedDoctor, doctorFileNoFilter]);
   const visibleObCases = useMemo(
     () => (statusFilter === "all" ? obCases : obCases.filter((c) => c.current_status === statusFilter)).slice().sort(byUpdatedInSehaLast),
     [obCases, statusFilter]
@@ -723,20 +730,22 @@ export default function HaiSurveillance() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-medium text-slate-500">Status:</span>
-        {["admitted", "discharged", "all"].map((s) => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
-              statusFilter === s ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"
-            }`}
-          >
-            {s === "all" ? "All" : statusLabel(s)}
-          </button>
-        ))}
-      </div>
+      {!(tab === "ssi" && ssiView === "doctor") && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-slate-500">Status:</span>
+          {["admitted", "discharged", "all"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                statusFilter === s ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {s === "all" ? "All" : statusLabel(s)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {tab === "icu" && (
         <IcuSurveillanceTab
@@ -797,6 +806,14 @@ export default function HaiSurveillance() {
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
+          )}
+          {ssiView === "doctor" && selectedDoctor && (
+            <input
+              className="input w-40"
+              value={doctorFileNoFilter}
+              onChange={(e) => setDoctorFileNoFilter(e.target.value)}
+              placeholder="Filter by File No..."
+            />
           )}
           {ssiView === "doctor" && selectedDoctor && (
             <div className="flex gap-2">
