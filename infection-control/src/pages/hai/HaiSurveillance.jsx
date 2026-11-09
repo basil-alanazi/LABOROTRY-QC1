@@ -839,6 +839,64 @@ function GridDate({ value, onChange, onBlur, disabled, className = "" }) {
   return <input type="date" className={`input-cell w-full min-w-[7rem] ${className}`} value={value ?? ""} onChange={onChange} onBlur={onBlur} disabled={disabled} />;
 }
 
+// Native <input type="date"> renders its text in whatever format the
+// viewer's own browser/OS locale uses (often month-first), which HTML
+// attributes can't reliably override. For Date of Birth we want a fixed
+// day/month/year reading regardless of that, so this is a plain text
+// field that auto-inserts slashes as you type and converts to/from the
+// "YYYY-MM-DD" the database stores on blur.
+function formatDobDisplay(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return y && m && d ? `${d}/${m}/${y}` : "";
+}
+function parseDobInput(text) {
+  const match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return null;
+  const [, d, m, y] = match;
+  const day = Number(d);
+  const month = Number(m);
+  if (day < 1 || day > 31 || month < 1 || month > 12) return null;
+  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+}
+function DobInput({ value, onFieldChange, onFieldBlurSave }) {
+  const [text, setText] = useState(() => formatDobDisplay(value));
+  useEffect(() => setText(formatDobDisplay(value)), [value]);
+
+  function handleChange(e) {
+    const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
+    let formatted = digits;
+    if (digits.length > 4) formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+    else if (digits.length > 2) formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    setText(formatted);
+  }
+
+  function handleBlur() {
+    if (text === "") {
+      onFieldChange({ date_of_birth: null });
+      onFieldBlurSave();
+      return;
+    }
+    const iso = parseDobInput(text);
+    if (!iso) {
+      setText(formatDobDisplay(value)); // invalid/incomplete — revert, don't save
+      return;
+    }
+    onFieldChange({ date_of_birth: iso });
+    onFieldBlurSave();
+  }
+
+  return (
+    <input
+      className="input-cell w-full min-w-[6rem]"
+      placeholder="DD/MM/YYYY"
+      value={text}
+      onChange={handleChange}
+      onBlur={handleBlur}
+    />
+  );
+}
+
 // Date of Birth/National ID/Mobile/Nationality — Infection Control's own
 // patient-identity fields, rendered only for admin (Owner/IC); department
 // accounts never see these cells at all, matching IC_ONLY_HEADERS above.
@@ -846,7 +904,7 @@ function IcOnlyCells({ isAdmin, record, onFieldChange, onFieldBlurSave }) {
   if (!isAdmin) return null;
   return (
     <>
-      <td className="bg-slate-50 px-1.5 py-0.5"><GridDate value={record.date_of_birth} onChange={(e) => onFieldChange({ date_of_birth: e.target.value })} onBlur={onFieldBlurSave} /></td>
+      <td className="bg-slate-50 px-1.5 py-0.5"><DobInput value={record.date_of_birth} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} /></td>
       <td className="bg-slate-50 px-1.5 py-0.5"><GridText value={record.national_id} onChange={(e) => onFieldChange({ national_id: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[6rem]" /></td>
       <td className="bg-slate-50 px-1.5 py-0.5"><GridText value={record.mobile} onChange={(e) => onFieldChange({ mobile: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[6rem]" /></td>
       <td className="bg-slate-50 px-1.5 py-0.5"><GridText value={record.nationality} onChange={(e) => onFieldChange({ nationality: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[5.5rem]" /></td>
