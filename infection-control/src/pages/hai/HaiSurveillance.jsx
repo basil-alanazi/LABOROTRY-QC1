@@ -79,7 +79,20 @@ function sehaRowClass(currentStatus, updatedInSeha) {
   return updatedInSeha ? "bg-emerald-200" : "bg-amber-200";
 }
 function sehaNameCellClass(currentStatus, updatedInSeha) {
-  return currentStatus !== "discharged" && updatedInSeha ? "bg-emerald-200" : "";
+  return currentStatus !== "discharged" && updatedInSeha ? "bg-emerald-200 ring-2 ring-inset ring-emerald-500" : "";
+}
+
+// A device (central line/urinary catheter/ventilator) currently in place
+// on an admitted patient gets its own purple flag — but only while nothing
+// else is already coloring the row (Updated-in-Seha's discharge-based
+// green/amber always wins, since that's the more actionable state).
+function deviceActiveRowClass(p) {
+  if (p.current_status !== "admitted") return "";
+  const active =
+    (p.central_line_insertion && !p.central_line_removed) ||
+    (p.urinary_catheter_insertion && !p.urinary_catheter_removed) ||
+    (p.ventilator_insertion && !p.ventilator_removed);
+  return active ? "bg-purple-200" : "";
 }
 
 function SignSelect({ value, onChange, onBlur, disabled }) {
@@ -1017,7 +1030,7 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
   const unitBeforeHospital = !!(p.hospital_admission_date && p.unit_admission_date && p.unit_admission_date < p.hospital_admission_date);
   const nameCellClass = sehaNameCellClass(p.current_status, p.updated_in_seha);
   return (
-    <tr className={`border-t border-slate-100 hover:bg-slate-50 ${sehaRowClass(p.current_status, p.updated_in_seha)}`}>
+    <tr className={`border-t border-slate-100 hover:bg-slate-50 ${sehaRowClass(p.current_status, p.updated_in_seha) || deviceActiveRowClass(p)}`}>
       <td className="px-1.5 py-0.5 text-center">
         <input type="checkbox" disabled={!isAdmin} checked={!!p.updated_in_seha} onChange={(e) => onUpdatedInSehaToggle(e.target.checked)} />
       </td>
