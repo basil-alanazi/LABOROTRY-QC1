@@ -314,6 +314,46 @@ export default function HaiSurveillance() {
     return { ...p, hai_event_types: next };
   }
 
+  function updateVaeField(id, patch) {
+    setVaeRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }
+  async function addVaeDay(icuSurveillanceId, nextMvDay) {
+    const { error } = await supabase.from("hai_vae_monitoring").insert({
+      icu_surveillance_id: icuSurveillanceId,
+      date: todayStr(),
+      mv_day: nextMvDay,
+      recorded_by: session?.username,
+    });
+    if (error) return flash({ type: "error", text: error.message.includes("duplicate") ? "A row for this date already exists" : "Could not add: " + error.message });
+    loadAll();
+  }
+  async function saveVaeDay(r) {
+    await supabase
+      .from("hai_vae_monitoring")
+      .update({
+        date: r.date,
+        mv_day: Number(r.mv_day) || 1,
+        daily_min_peep: r.daily_min_peep === "" ? null : Number(r.daily_min_peep),
+        daily_min_fio2: r.daily_min_fio2 === "" ? null : Number(r.daily_min_fio2),
+        vac_date_of_event: r.vac_date_of_event || null,
+        temp_abnormal: !!r.temp_abnormal,
+        wbc_abnormal: !!r.wbc_abnormal,
+        new_antimicrobial: !!r.new_antimicrobial,
+        qad: r.qad === "" ? null : Number(r.qad),
+        ivac_date_of_event: r.ivac_date_of_event || null,
+        positive_culture: !!r.positive_culture,
+        purulent_resp_secretions: !!r.purulent_resp_secretions,
+        pvap_date_of_event: r.pvap_date_of_event || null,
+        updated_in_seha: !!r.updated_in_seha,
+      })
+      .eq("id", r.id);
+  }
+  async function removeVaeDay(r) {
+    if (!confirm(`Remove the ${r.date} entry?`)) return;
+    await supabase.from("hai_vae_monitoring").delete().eq("id", r.id);
+    loadAll();
+  }
+
   function updateSsiField(id, patch) {
     setSsiCases((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
@@ -722,8 +762,12 @@ export default function HaiSurveillance() {
           patients={visibleVaePatients}
           vaeRows={vaeRows}
           session={session}
+          isAdmin={isAdmin}
           flash={flash}
-          reload={loadAll}
+          onUpdateField={updateVaeField}
+          onAddDay={addVaeDay}
+          onSave={saveVaeDay}
+          onRemove={removeVaeDay}
         />
       )}
 
@@ -965,7 +1009,7 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
             <tr>
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">Updated in Seha</th>
               {["Month", "Patient Name", "MRN/ID"].map((h) => (
-                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{h}</th>
+                <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${h === "Patient Name" ? "sticky-name-col" : ""}`}>{h}</th>
               ))}
               {isAdmin && IC_ONLY_HEADERS.map((h) => (
                 <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 bg-slate-100 px-1.5 py-1 font-medium align-bottom">{h}</th>
@@ -1041,13 +1085,14 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
 function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecimenFieldChange, onSpecimenMdroToggle, onHaiDetectedToggle, onEventTypeToggle, onUpdatedInSehaToggle, onRemove }) {
   const unitBeforeHospital = !!(p.hospital_admission_date && p.unit_admission_date && p.unit_admission_date < p.hospital_admission_date);
   const nameCellClass = identityCellClass(p.current_status, p.updated_in_seha, hasActiveDevice(p));
+  const rowBg = sehaRowClass(p.current_status, p.updated_in_seha) || deviceActiveRowClass(p);
   return (
-    <tr className={`border-t border-slate-100 hover:bg-slate-50 ${sehaRowClass(p.current_status, p.updated_in_seha) || deviceActiveRowClass(p)}`}>
-      <td className="px-1.5 py-0.5 text-center">
+    <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
+      <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <input type="checkbox" disabled={!isAdmin} checked={!!p.updated_in_seha} onChange={(e) => onUpdatedInSehaToggle(e.target.checked)} />
       </td>
       <td className="px-1.5 py-0.5"><GridText value={p.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} /></td>
-      <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={p.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[8rem] ${nameCellClass}`} /></td>
+      <td className={`sticky-name-col px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={p.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[8rem] ${nameCellClass}`} /></td>
       <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={p.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[5rem] ${nameCellClass}`} /></td>
       <IcOnlyCells isAdmin={isAdmin} record={p} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} />
       <td className="px-1.5 py-0.5"><GridText value={p.age} onChange={(e) => onFieldChange({ age: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[3.5rem]" /></td>
@@ -1149,55 +1194,30 @@ function SpecimenCells({ specimen, hasDateResult, onChange, onBlur, onMdroToggle
   );
 }
 
-const emptyVaeForm = { date: todayStr(), mv_day: 1, daily_min_peep: "", daily_min_fio2: "", qad: "", date_of_event: "" };
-
-function VaeMonitoringTab({ patients, vaeRows, session, flash, reload }) {
+// Matches the CDC VAE Surveillance Algorithm's own form layout: one row per
+// ventilator-day, grouped into VAC -> IVAC -> PVAP (each stage's own Date of
+// Event), so the sheet reads the same way the official form does.
+function VaeMonitoringTab({ patients, vaeRows, session, isAdmin, flash, onUpdateField, onAddDay, onSave, onRemove }) {
   const [selectedId, setSelectedId] = useState("");
-  const [form, setForm] = useState(emptyVaeForm);
 
   useEffect(() => {
     if (selectedId && !patients.some((p) => p.id === selectedId)) setSelectedId("");
   }, [patients, selectedId]);
 
   const selected = patients.find((p) => p.id === selectedId);
-  const days = useMemo(() => vaeRows.filter((r) => r.icu_surveillance_id === selectedId).sort((a, b) => (a.date < b.date ? 1 : -1)), [vaeRows, selectedId]);
+  const days = useMemo(
+    () => vaeRows.filter((r) => r.icu_surveillance_id === selectedId).sort((a, b) => (a.mv_day > b.mv_day ? 1 : -1)),
+    [vaeRows, selectedId]
+  );
 
-  useEffect(() => {
-    if (!selectedId) return;
+  function handleAddDay() {
     const nextDay = days.length ? Math.max(...days.map((d) => d.mv_day)) + 1 : 1;
-    setForm((f) => ({ ...f, mv_day: nextDay }));
-  }, [selectedId, days.length]);
-
-  async function addDay(e) {
-    e.preventDefault();
-    if (!selectedId) return;
-    const { error } = await supabase.from("hai_vae_monitoring").insert({
-      icu_surveillance_id: selectedId,
-      date: form.date,
-      mv_day: Number(form.mv_day) || 1,
-      daily_min_peep: form.daily_min_peep === "" ? null : Number(form.daily_min_peep),
-      daily_min_fio2: form.daily_min_fio2 === "" ? null : Number(form.daily_min_fio2),
-      vac: !!form.vac,
-      temp_abnormal: !!form.temp_abnormal,
-      wbc_abnormal: !!form.wbc_abnormal,
-      new_antimicrobial: !!form.new_antimicrobial,
-      qad: form.qad === "" ? null : Number(form.qad),
-      ivac: !!form.ivac,
-      positive_culture: !!form.positive_culture,
-      purulent_resp_secretions: !!form.purulent_resp_secretions,
-      pvap: !!form.pvap,
-      date_of_event: form.date_of_event || null,
-      recorded_by: session?.username,
-    });
-    if (error) return flash({ type: "error", text: error.message.includes("duplicate") ? "A row for this date already exists" : "Could not save: " + error.message });
-    setForm({ ...emptyVaeForm, mv_day: Number(form.mv_day) + 1 });
-    reload();
+    onAddDay(selectedId, nextDay);
   }
 
-  async function removeDay(row) {
-    if (!confirm(`Remove the ${row.date} entry?`)) return;
-    await supabase.from("hai_vae_monitoring").delete().eq("id", row.id);
-    reload();
+  function handleToggle(d, field, checked) {
+    onUpdateField(d.id, { [field]: checked });
+    onSave({ ...d, [field]: checked });
   }
 
   return (
@@ -1215,96 +1235,62 @@ function VaeMonitoringTab({ patients, vaeRows, session, flash, reload }) {
 
       {selected && (
         <>
-          <div className="flex flex-wrap gap-4 rounded-xl bg-slate-50 p-3 text-xs text-slate-600">
-            <span><strong>{selected.patient_name}</strong></span>
-            <span>MRN: {selected.mrn}</span>
-            <span>Age: {selected.age}</span>
-            <span>Gender: {selected.gender}</span>
-            <span>Bed: {selected.bed_no}</span>
-            <span className={`rounded-full px-2 py-0.5 font-medium ${statusBadgeClass(selected.current_status)}`}>{statusLabel(selected.current_status)}</span>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 rounded-xl bg-teal-700 p-3 text-xs text-white">
+            <span><strong>Patient Name:</strong> {selected.patient_name}</span>
+            <span><strong>MRN/ID:</strong> {selected.mrn}</span>
+            <span><strong>Date of Mechanical Ventilation:</strong> {selected.ventilator_insertion || "—"}</span>
+            <span><strong>Age:</strong> {selected.age}</span>
+            <span><strong>Gender:</strong> {selected.gender}</span>
+            <span><strong>Bed #:</strong> {selected.bed_no}</span>
           </div>
 
-          <form onSubmit={addDay} className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-5">
-            <label className="flex flex-col gap-1 text-xs text-slate-500">
-              Date
-              <input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
-            </label>
-            <label className="flex flex-col gap-1 text-xs text-slate-500">
-              MV Day
-              <input type="number" min="1" className="input" value={form.mv_day} onChange={(e) => setForm({ ...form, mv_day: e.target.value })} />
-            </label>
-            <label className="flex flex-col gap-1 text-xs text-slate-500">
-              Min PEEP
-              <input type="number" step="0.1" className="input" value={form.daily_min_peep} onChange={(e) => setForm({ ...form, daily_min_peep: e.target.value })} />
-            </label>
-            <label className="flex flex-col gap-1 text-xs text-slate-500">
-              Min FiO2
-              <input type="number" step="0.01" className="input" value={form.daily_min_fio2} onChange={(e) => setForm({ ...form, daily_min_fio2: e.target.value })} />
-            </label>
-            <label className="flex flex-col gap-1 text-xs text-slate-500">
-              QAD
-              <input type="number" min="0" className="input" value={form.qad} onChange={(e) => setForm({ ...form, qad: e.target.value })} />
-            </label>
-
-            <div className="flex flex-wrap gap-3 sm:col-span-5">
-              {[
-                ["vac", "VAC (Temp/WBC worsening)"],
-                ["temp_abnormal", "Temp <36°C or >38°C"],
-                ["wbc_abnormal", "WBC ≤4,000 or ≥12,000"],
-                ["new_antimicrobial", "New Antimicrobial Agent"],
-                ["ivac", "IVAC"],
-                ["positive_culture", "Positive Culture"],
-                ["purulent_resp_secretions", "Purulent Resp. Secretions"],
-                ["pvap", "PVAP"],
-              ].map(([key, label]) => (
-                <label key={key} className="flex items-center gap-1 text-xs text-slate-600">
-                  <input type="checkbox" checked={!!form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.checked })} />
-                  {label}
-                </label>
-              ))}
-            </div>
-            <label className="flex flex-col gap-1 text-xs text-slate-500 sm:col-span-2">
-              Date of Event (if any)
-              <input type="date" className="input" value={form.date_of_event} onChange={(e) => setForm({ ...form, date_of_event: e.target.value })} />
-            </label>
-            <button type="submit" className="flex items-center justify-center gap-1 self-end rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-5">
-              <Plus className="h-4 w-4" />
+          <div>
+            <button onClick={handleAddDay} className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700">
+              <Plus className="h-3.5 w-3.5" />
               Add Day
             </button>
-          </form>
+          </div>
 
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full text-sm hai-grid">
               <thead className="bg-slate-50 text-left text-xs text-slate-500">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Date</th>
-                  <th className="px-3 py-2 font-medium">MV Day</th>
-                  <th className="px-3 py-2 font-medium">Min PEEP</th>
-                  <th className="px-3 py-2 font-medium">Min FiO2</th>
-                  <th className="px-3 py-2 font-medium">VAC</th>
-                  <th className="px-3 py-2 font-medium">IVAC</th>
-                  <th className="px-3 py-2 font-medium">PVAP</th>
-                  <th className="px-3 py-2 font-medium">Event Date</th>
-                  <th className="px-3 py-2"></th>
+                  <th rowSpan={2} className="sticky-name-col whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">#</th>
+                  {["Date", "MV Day"].map((h) => (
+                    <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{h}</th>
+                  ))}
+                  <th colSpan={3} className="border-b border-l-2 border-slate-800 bg-teal-100 px-1.5 py-0.5 text-center font-semibold text-teal-900">VAE - VAC</th>
+                  <th colSpan={5} className="border-b border-l-2 border-slate-800 bg-amber-100 px-1.5 py-0.5 text-center font-semibold text-amber-900">VAE - IVAC</th>
+                  <th colSpan={3} className="border-b border-l-2 border-slate-800 bg-purple-100 px-1.5 py-0.5 text-center font-semibold text-purple-900">VAE - PVAP</th>
+                  <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">Updated in Seha</th>
+                  <th rowSpan={2}></th>
+                </tr>
+                <tr>
+                  <th className="whitespace-nowrap border-l-2 border-slate-800 px-1.5 py-0.5 font-medium">Daily Min PEEP</th>
+                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Daily Min FiO2</th>
+                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Date of Event</th>
+                  <th className="whitespace-nowrap border-l-2 border-slate-800 px-1.5 py-0.5 font-medium">Temp &lt;36°C or &gt;38°C</th>
+                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">WBC ≤4,000 or ≥12,000</th>
+                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">New Antimicrobial Agent</th>
+                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">QAD</th>
+                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Date of Event</th>
+                  <th className="whitespace-nowrap border-l-2 border-slate-800 px-1.5 py-0.5 font-medium">Positive Culture</th>
+                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Purulent Resp. Secretions</th>
+                  <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Date of Event</th>
                 </tr>
               </thead>
               <tbody>
-                {days.map((d) => (
-                  <tr key={d.id} className="border-t border-slate-100">
-                    <td className="px-3 py-1.5">{d.date}</td>
-                    <td className="px-3 py-1.5">{d.mv_day}</td>
-                    <td className="px-3 py-1.5">{d.daily_min_peep ?? "—"}</td>
-                    <td className="px-3 py-1.5">{d.daily_min_fio2 ?? "—"}</td>
-                    <td className="px-3 py-1.5">{d.vac ? "Yes" : ""}</td>
-                    <td className="px-3 py-1.5">{d.ivac ? "Yes" : ""}</td>
-                    <td className="px-3 py-1.5">{d.pvap ? "Yes" : ""}</td>
-                    <td className="px-3 py-1.5">{d.date_of_event || ""}</td>
-                    <td className="px-3 py-1.5">
-                      <button onClick={() => removeDay(d)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
+                {days.map((d, i) => (
+                  <VaeRow
+                    key={d.id}
+                    d={d}
+                    index={i + 1}
+                    isAdmin={isAdmin}
+                    onFieldChange={(patch) => onUpdateField(d.id, patch)}
+                    onFieldBlurSave={() => onSave(d)}
+                    onToggle={(field, checked) => handleToggle(d, field, checked)}
+                    onRemove={() => onRemove(d)}
+                  />
                 ))}
               </tbody>
             </table>
@@ -1313,6 +1299,42 @@ function VaeMonitoringTab({ patients, vaeRows, session, flash, reload }) {
         </>
       )}
     </div>
+  );
+}
+
+function VaeRow({ d, index, isAdmin, onFieldChange, onFieldBlurSave, onToggle, onRemove }) {
+  const rowBg = d.updated_in_seha ? "bg-emerald-200" : "";
+  return (
+    <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
+      <td className={`sticky-name-col px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>{index}</td>
+      <td className="px-1.5 py-0.5"><GridDate value={d.date} onChange={(e) => onFieldChange({ date: e.target.value })} onBlur={onFieldBlurSave} /></td>
+      <td className="px-1.5 py-0.5"><GridText value={d.mv_day} onChange={(e) => onFieldChange({ mv_day: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[3.5rem]" /></td>
+
+      <td className="px-1.5 py-0.5 border-l-2 border-slate-800"><GridText value={d.daily_min_peep ?? ""} onChange={(e) => onFieldChange({ daily_min_peep: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridText value={d.daily_min_fio2 ?? ""} onChange={(e) => onFieldChange({ daily_min_fio2: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridDate value={d.vac_date_of_event} onChange={(e) => onFieldChange({ vac_date_of_event: e.target.value })} onBlur={onFieldBlurSave} /></td>
+
+      <td className="px-1.5 py-0.5 text-center border-l-2 border-slate-800"><input type="checkbox" checked={!!d.temp_abnormal} onChange={(e) => onToggle("temp_abnormal", e.target.checked)} /></td>
+      <td className="px-1.5 py-0.5 text-center"><input type="checkbox" checked={!!d.wbc_abnormal} onChange={(e) => onToggle("wbc_abnormal", e.target.checked)} /></td>
+      <td className="px-1.5 py-0.5 text-center"><input type="checkbox" checked={!!d.new_antimicrobial} onChange={(e) => onToggle("new_antimicrobial", e.target.checked)} /></td>
+      <td className="px-1.5 py-0.5"><GridText value={d.qad ?? ""} onChange={(e) => onFieldChange({ qad: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[3.5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridDate value={d.ivac_date_of_event} onChange={(e) => onFieldChange({ ivac_date_of_event: e.target.value })} onBlur={onFieldBlurSave} /></td>
+
+      <td className="px-1.5 py-0.5 text-center border-l-2 border-slate-800"><input type="checkbox" checked={!!d.positive_culture} onChange={(e) => onToggle("positive_culture", e.target.checked)} /></td>
+      <td className="px-1.5 py-0.5 text-center"><input type="checkbox" checked={!!d.purulent_resp_secretions} onChange={(e) => onToggle("purulent_resp_secretions", e.target.checked)} /></td>
+      <td className="px-1.5 py-0.5"><GridDate value={d.pvap_date_of_event} onChange={(e) => onFieldChange({ pvap_date_of_event: e.target.value })} onBlur={onFieldBlurSave} /></td>
+
+      <td className="px-1.5 py-0.5 text-center">
+        <input type="checkbox" disabled={!isAdmin} checked={!!d.updated_in_seha} onChange={(e) => onToggle("updated_in_seha", e.target.checked)} />
+      </td>
+      <td className="px-1.5 py-0.5">
+        {isAdmin && (
+          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </td>
+    </tr>
   );
 }
 
@@ -1353,7 +1375,7 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
             </tr>
             <tr>
               {["Month", "Patient Name", "MRN/ID"].map((h) => (
-                <th key={`dr-${h}`} className="whitespace-nowrap px-1.5 py-0.5 font-medium">{h}</th>
+                <th key={`dr-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${h === "Patient Name" ? "sticky-name-col" : ""}`}>{h}</th>
               ))}
               {isAdmin && IC_ONLY_HEADERS.map((h) => (
                 <th key={`dr-${h}`} className="whitespace-nowrap bg-slate-100 px-1.5 py-0.5 font-medium">{h}</th>
@@ -1438,15 +1460,16 @@ function SsiRow({
   // so it shouldn't need an admin "Reopen" every time it's updated.
   const drFwFieldsDisabled = !drFwOpen || !canEditSsi("DR_FW");
   const nameCellClass = identityCellClass(c.current_status, c.updated_in_seha, false);
+  const rowBg = sehaRowClass(c.current_status, c.updated_in_seha);
 
   return (
-    <tr className={`border-t border-slate-100 hover:bg-slate-50 ${sehaRowClass(c.current_status, c.updated_in_seha)}`}>
-      <td className="px-1.5 py-0.5 text-center">
+    <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
+      <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <input type="checkbox" disabled={!isAdmin} checked={!!c.updated_in_seha} onChange={(e) => onUpdatedInSehaToggle(e.target.checked)} />
       </td>
 
       <td className="px-1.5 py-0.5"><GridText value={c.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} /></td>
-      <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className={`min-w-[8rem] ${nameCellClass}`} /></td>
+      <td className={`sticky-name-col px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className={`min-w-[8rem] ${nameCellClass}`} /></td>
       <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className={`min-w-[5rem] ${nameCellClass}`} /></td>
       <IcOnlyCells isAdmin={isAdmin} record={c} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} />
       <td className="px-1.5 py-0.5">
@@ -1605,7 +1628,7 @@ function ObSurveillanceTab({ cases, loading, session, isAdmin, onAddCase, onUpda
             <tr>
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">Updated in Seha</th>
               {["Patient Name", "MRN/ID"].map((h) => (
-                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{h}</th>
+                <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${h === "Patient Name" ? "sticky-name-col" : ""}`}>{h}</th>
               ))}
               {isAdmin && IC_ONLY_HEADERS.map((h) => (
                 <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 bg-slate-100 px-1.5 py-1 font-medium align-bottom">{h}</th>
@@ -1705,13 +1728,14 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
   const fwDisabled = !fwOpen || fwDone || !canEdit("Female Ward");
   const specimen = c.specimens?.[0] ?? emptyObSpecimen;
   const nameCellClass = identityCellClass(c.current_status, c.updated_in_seha, false);
+  const rowBg = sehaRowClass(c.current_status, c.updated_in_seha);
 
   return (
-    <tr className={`border-t border-slate-100 hover:bg-slate-50 ${sehaRowClass(c.current_status, c.updated_in_seha)}`}>
-      <td className="px-1.5 py-0.5 text-center">
+    <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
+      <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <input type="checkbox" disabled={!isAdmin} checked={!!c.updated_in_seha} onChange={(e) => onUpdatedInSehaToggle(e.target.checked)} />
       </td>
-      <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[8rem] ${nameCellClass}`} /></td>
+      <td className={`sticky-name-col px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[8rem] ${nameCellClass}`} /></td>
       <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[5rem] ${nameCellClass}`} /></td>
       <IcOnlyCells isAdmin={isAdmin} record={c} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} />
       <td className="px-1.5 py-0.5"><GridText value={c.age} onChange={(e) => onFieldChange({ age: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[3.5rem]" /></td>

@@ -801,7 +801,11 @@ create table if not exists hai_vae_monitoring (
   positive_culture boolean not null default false,
   purulent_resp_secretions boolean not null default false,
   pvap boolean not null default false,
-  date_of_event date,
+  date_of_event date, -- superseded by the three stage-specific columns below; kept for old rows
+  vac_date_of_event date,
+  ivac_date_of_event date,
+  pvap_date_of_event date,
+  updated_in_seha boolean not null default false, -- Owner/IC only
   recorded_by text not null default '',
   created_at timestamptz not null default now(),
   unique (icu_surveillance_id, date)

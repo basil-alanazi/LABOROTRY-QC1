@@ -23,4 +23,15 @@ body {
   .hai-grid td {
     @apply border border-slate-300;
   }
+  /* Freeze the Patient Name column so the patient stays identifiable
+     while scrolling right through these very wide grids. */
+  .sticky-name-col {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+  }
+  .hai-grid thead .sticky-name-col {
+    z-index: 3;
+    background-color: #f8fafc;
+  }
 }
