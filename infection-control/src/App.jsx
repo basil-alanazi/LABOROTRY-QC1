@@ -6,6 +6,7 @@ import Login from "./pages/Login.jsx";
 import Settings from "./pages/Settings.jsx";
 import Profile from "./pages/Profile.jsx";
 import Messages from "./pages/Messages.jsx";
+import IpcCalendar from "./pages/IpcCalendar.jsx";
 import StockRequests from "./pages/stock/StockRequests.jsx";
 import EmployeeHealth from "./pages/health/EmployeeHealth.jsx";
 import CommunicableCases from "./pages/cases/CommunicableCases.jsx";
@@ -135,6 +136,16 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <Messages />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ipc-calendar"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <IpcCalendar />
               </Layout>
             </ProtectedRoute>
           }

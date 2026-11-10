@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   Activity,
+  CalendarDays,
   ClipboardCheck,
   Droplets,
   FolderClock,
@@ -121,6 +122,10 @@ export default function Layout({ children }) {
           Settings
         </NavLink>
       )}
+      <NavLink to="/ipc-calendar" className={linkClass} onClick={() => setSidebarOpen(false)}>
+        <CalendarDays className="h-4 w-4" />
+        IPC Calendar
+      </NavLink>
       <NavLink to="/messages" className={linkClass} onClick={() => setSidebarOpen(false)}>
         <MessageSquare className="h-4 w-4" />
         Messages
