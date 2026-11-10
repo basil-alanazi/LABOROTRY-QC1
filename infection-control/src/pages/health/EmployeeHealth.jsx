@@ -47,6 +47,7 @@ const emptyStatus = {
   ppd_status: "",
   ppd_result: "",
   ppd_test_date: "",
+  ppd_2nd_test_date: "",
   ppd_next_due_date: "",
   stool_urine_status: "",
   stool_urine_test_date: "",
@@ -319,6 +320,7 @@ export default function EmployeeHealth() {
         ppd_status: merged.ppd_status || null,
         ppd_result: merged.ppd_result || "",
         ppd_test_date: merged.ppd_test_date || null,
+        ppd_2nd_test_date: merged.ppd_2nd_test_date || null,
         ppd_next_due_date: merged.ppd_next_due_date || null,
         stool_urine_status: merged.stool_urine_status || null,
         stool_urine_test_date: merged.stool_urine_test_date || null,
@@ -389,7 +391,7 @@ export default function EmployeeHealth() {
     return vaccines.map((item) => ({ item, doses: Array.from({ length: item.dose_schedule?.length || 1 }, (_, i) => i + 1) }));
   }
   const CLINIC_BASE_HEADERS = ["#", "Name", "Emp ID", "File No", "Iqama No", "DOB", "Phone", "Department"];
-  const CLINIC_INVEST_HEADERS = ["Investigation Status", "PPD Status", "PPD Result", "PPD Test Date", "PPD Next Due"];
+  const CLINIC_INVEST_HEADERS = ["Investigation Status", "PPD Status", "PPD Result", "1st PPD", "2nd PPD", "PPD Next Due"];
   const CLINIC_STOOL_HEADERS = ["Stool/Urine Status", "Stool/Urine Test Date", "Stool/Urine Next Due"];
 
   function buildGridHeaders(vaccines, kitchenMode) {
@@ -411,6 +413,7 @@ export default function EmployeeHealth() {
       s?.ppd_status || "",
       s?.ppd_result || "",
       s?.ppd_test_date || "",
+      s?.ppd_2nd_test_date || "",
       s?.ppd_next_due_date || "",
     ];
     const stool = kitchenMode ? [s?.stool_urine_status || "", s?.stool_urine_test_date || "", s?.stool_urine_next_due_date || ""] : [];
@@ -436,7 +439,7 @@ export default function EmployeeHealth() {
     // Shortened versions of CLINIC_INVEST_HEADERS/CLINIC_STOOL_HEADERS so a
     // single long word (e.g. "Investigation") never has to be force-split
     // mid-word just to fit a narrow PDF column.
-    const investHeadersPdf = ["Invest.", "PPD Status", "PPD Result", "PPD Test Date", "PPD Next Due"];
+    const investHeadersPdf = ["Invest.", "PPD Status", "PPD Result", "1st PPD", "2nd PPD", "PPD Next Due"];
     const stoolHeadersPdf = ["Stool Urine Status", "Stool Urine Test", "Stool Urine Due"];
     return [...CLINIC_BASE_HEADERS, ...investHeadersPdf, ...(kitchenMode ? stoolHeadersPdf : []), "Remarks"];
   }
@@ -448,6 +451,7 @@ export default function EmployeeHealth() {
       s?.ppd_status || "",
       s?.ppd_result || "",
       s?.ppd_test_date || "",
+      s?.ppd_2nd_test_date || "",
       s?.ppd_next_due_date || "",
     ];
     const stool = kitchenMode ? [s?.stool_urine_status || "", s?.stool_urine_test_date || "", s?.stool_urine_next_due_date || ""] : [];
@@ -659,6 +663,16 @@ export default function EmployeeHealth() {
                       value={s.ppd_test_date || ""}
                       disabled={!canEdit}
                       onChange={(e) => setStatusField(emp.id, { ppd_test_date: e.target.value, ppd_next_due_date: e.target.value ? addMonths(e.target.value, 12) : "" })}
+                      onBlur={() => saveStatusRow(emp)}
+                    />
+                  </td>
+                  <td className="border-r border-slate-100 px-2 py-1">
+                    <input
+                      type="date"
+                      className="input-cell w-28"
+                      value={s.ppd_2nd_test_date || ""}
+                      disabled={!canEdit}
+                      onChange={(e) => setStatusField(emp.id, { ppd_2nd_test_date: e.target.value, ppd_next_due_date: e.target.value ? addMonths(e.target.value, 12) : s.ppd_next_due_date })}
                       onBlur={() => saveStatusRow(emp)}
                     />
                   </td>
