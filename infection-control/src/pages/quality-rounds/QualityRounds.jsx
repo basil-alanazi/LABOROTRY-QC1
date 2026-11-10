@@ -256,8 +256,31 @@ export default function QualityRounds() {
             </Field>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Attachment(s)">
-                <input type="file" multiple className="input" onChange={(e) => setNewAttachments(Array.from(e.target.files ?? []))} />
-                {newAttachments.length > 1 && <p className="mt-1 text-xs text-slate-500">{newAttachments.length} files selected</p>}
+                {/* On mobile, picking "Take Photo" from this input each time replaces
+                    its FileList rather than adding to it — so taking a second photo
+                    would silently drop the first unless we accumulate them ourselves. */}
+                <input
+                  type="file"
+                  multiple
+                  className="input"
+                  onChange={(e) => setNewAttachments((prev) => [...prev, ...Array.from(e.target.files ?? [])])}
+                />
+                {newAttachments.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {newAttachments.map((f, i) => (
+                      <span key={i} className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                        {f.name}
+                        <button
+                          type="button"
+                          onClick={() => setNewAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                          className="text-slate-400 hover:text-red-500"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </Field>
               <Field label="Date of Discussion">
                 <input type="date" className="input" value={form.date_of_discussion} onChange={(e) => setForm({ ...form, date_of_discussion: e.target.value })} />
