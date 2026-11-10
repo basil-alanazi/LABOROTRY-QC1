@@ -314,6 +314,12 @@ export default function HaiSurveillance() {
   }
 
   async function savePatient(p) {
+    // Filling in Date of Discharge almost always means the patient was
+    // discharged — if Current Status was left on "admitted" (a separate
+    // dropdown, easy to miss), bring it in line so the patient doesn't stay
+    // stuck under the Admitted filter indefinitely.
+    const current_status = p.current_status === "admitted" && p.date_of_discharge ? "discharged" : p.current_status;
+    if (current_status !== p.current_status) updatePatientField(p.id, { current_status });
     await supabase
       .from("hai_icu_surveillance")
       .update({
@@ -344,7 +350,7 @@ export default function HaiSurveillance() {
         other_specimens: p.other_specimens,
         hai_detected: !!p.hai_detected,
         hai_event_types: p.hai_event_types ?? [],
-        current_status: p.current_status,
+        current_status,
         date_of_discharge: p.date_of_discharge || null,
         comments: p.comments,
         updated_in_seha: !!p.updated_in_seha,
