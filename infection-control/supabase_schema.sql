@@ -387,7 +387,8 @@ create table if not exists employee_clinic_status (
   investigation_status text not null default 'review_due', -- review_due | sample_not_given | review_done
   ppd_status text, -- done | refused
   ppd_result text not null default '', -- e.g. Negative / Positive, only meaningful when ppd_status = 'done'
-  ppd_test_date date,
+  ppd_test_date date, -- "1st PPD" in the UI (2-step baseline)
+  ppd_2nd_test_date date, -- "2nd PPD" in the UI (2-step baseline)
   ppd_next_due_date date,
   stool_urine_status text, -- done | refused
   stool_urine_test_date date,
