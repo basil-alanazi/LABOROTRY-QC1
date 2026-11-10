@@ -29,6 +29,7 @@ export const supabase =
         communicable_cases: seed.communicable_cases,
         users: seed.users,
         messages: seed.messages,
+        ipc_calendar_tasks: seed.ipc_calendar_tasks,
         ic_rounds: seed.ic_rounds,
         nursing_rounds: seed.nursing_rounds,
         quality_rounds: seed.quality_rounds,

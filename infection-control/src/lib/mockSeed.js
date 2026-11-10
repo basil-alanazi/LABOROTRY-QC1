@@ -624,3 +624,30 @@ export const messages = [
     created_at: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
   },
 ];
+
+export const ipc_calendar_tasks = [
+  {
+    id: "ipc-task-1",
+    task_date: today,
+    label: "Submit the daily IC round report",
+    done: false,
+    needs_file: true,
+    file_path: null,
+    file_name: null,
+    is_private: false,
+    created_by: "ic",
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "ipc-task-2",
+    task_date: today,
+    label: "Follow up PPD for new hires",
+    done: false,
+    needs_file: false,
+    file_path: null,
+    file_name: null,
+    is_private: true,
+    created_by: "owner",
+    created_at: new Date().toISOString(),
+  },
+];
