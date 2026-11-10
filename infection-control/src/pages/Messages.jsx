@@ -1,8 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, MessageSquare, Plus, Send } from "lucide-react";
+import { ArrowLeft, FileText, MessageSquare, Paperclip, Plus, Send, X } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
 import { fetchAllRows } from "../lib/fetchAll";
+
+const MESSAGE_ATTACHMENTS_BUCKET = "message-attachments";
+const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "heic"];
+
+function isImageAttachment(name) {
+  const ext = (name || "").split(".").pop()?.toLowerCase();
+  return IMAGE_EXTENSIONS.includes(ext);
+}
+
+function attachmentUrl(path) {
+  if (!path) return null;
+  return supabase.storage.from(MESSAGE_ATTACHMENTS_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+function messagePreview(m) {
+  if (m.body) return m.body;
+  const count = m.attachments?.length ?? 0;
+  if (count === 0) return "";
+  const allImages = m.attachments.every((a) => isImageAttachment(a.name));
+  return count === 1 ? (allImages ? "📎 Photo" : `📎 ${m.attachments[0].name}`) : `📎 ${count} attachments`;
+}
 
 function timeLabel(iso) {
   const d = new Date(iso);
@@ -17,6 +38,8 @@ export default function Messages() {
   const [messages, setMessages] = useState([]);
   const [activeUsername, setActiveUsername] = useState(null);
   const [draft, setDraft] = useState("");
+  const [draftFiles, setDraftFiles] = useState([]);
+  const [sending, setSending] = useState(false);
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef(null);
@@ -106,12 +129,31 @@ export default function Messages() {
     }
   }
 
+  async function uploadAttachment(file) {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${session.username}/${Date.now()}-${safeName}`;
+    const { error } = await supabase.storage.from(MESSAGE_ATTACHMENTS_BUCKET).upload(path, file);
+    if (error) throw error;
+    return { path, name: file.name };
+  }
+
   async function sendMessage(e) {
     e.preventDefault();
     const body = draft.trim();
-    if (!body || !activeUsername) return;
+    if ((!body && draftFiles.length === 0) || !activeUsername) return;
+    setSending(true);
+    let attachments = [];
+    try {
+      attachments = await Promise.all(draftFiles.map(uploadAttachment));
+    } catch (err) {
+      alert("Could not upload attachment: " + err.message);
+      setSending(false);
+      return;
+    }
     setDraft("");
-    await supabase.from("messages").insert({ sender_username: session.username, recipient_username: activeUsername, body });
+    setDraftFiles([]);
+    setSending(false);
+    await supabase.from("messages").insert({ sender_username: session.username, recipient_username: activeUsername, body, attachments });
     loadMessages();
   }
 
@@ -167,7 +209,7 @@ export default function Messages() {
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-xs text-slate-500">
                       {mine ? "You: " : ""}
-                      {c.lastMessage.body}
+                      {messagePreview(c.lastMessage)}
                     </span>
                     {c.unread > 0 && <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white">{c.unread}</span>}
                   </div>
@@ -200,7 +242,31 @@ export default function Messages() {
                   return (
                     <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                       <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "rounded-br-sm bg-teal-600 text-white" : "rounded-bl-sm bg-slate-100 text-slate-800"}`}>
-                        <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                        {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
+                        {(m.attachments ?? []).length > 0 && (
+                          <div className={`flex flex-col gap-1.5 ${m.body ? "mt-2" : ""}`}>
+                            {m.attachments.map((a, i) =>
+                              isImageAttachment(a.name) ? (
+                                <a key={i} href={attachmentUrl(a.path)} target="_blank" rel="noreferrer">
+                                  <img src={attachmentUrl(a.path)} alt={a.name} className="max-h-48 max-w-full rounded-lg object-cover" />
+                                </a>
+                              ) : (
+                                <a
+                                  key={i}
+                                  href={attachmentUrl(a.path)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium hover:underline ${
+                                    mine ? "bg-teal-700" : "bg-white"
+                                  }`}
+                                >
+                                  <FileText className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="truncate">{a.name}</span>
+                                </a>
+                              )
+                            )}
+                          </div>
+                        )}
                         <p className={`mt-1 text-[10px] ${mine ? "text-teal-100" : "text-slate-400"}`}>{timeLabel(m.created_at)}</p>
                       </div>
                     </div>
@@ -208,11 +274,38 @@ export default function Messages() {
                 })}
                 {threadMessages.length === 0 && <p className="pt-6 text-center text-sm text-slate-400">No messages yet — say hello.</p>}
               </div>
-              <form onSubmit={sendMessage} className="flex items-center gap-2 border-t border-slate-100 p-3">
-                <input className="input flex-1" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Type a message..." />
-                <button type="submit" className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white hover:bg-teal-700">
-                  <Send className="h-4 w-4" />
-                </button>
+              <form onSubmit={sendMessage} className="flex flex-col gap-2 border-t border-slate-100 p-3">
+                {draftFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {draftFiles.map((f, i) => (
+                      <span key={i} className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                        {f.name}
+                        <button type="button" onClick={() => setDraftFiles((prev) => prev.filter((_, idx) => idx !== i))} className="text-slate-400 hover:text-red-500">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <label className="flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+                    <Paperclip className="h-4 w-4" />
+                    <input
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => setDraftFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])])}
+                    />
+                  </label>
+                  <input className="input flex-1" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Type a message..." />
+                  <button
+                    type="submit"
+                    disabled={sending || (!draft.trim() && draftFiles.length === 0)}
+                    className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-40"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
               </form>
             </>
           )}

@@ -492,7 +492,8 @@ create table if not exists messages (
   id uuid primary key default gen_random_uuid(),
   sender_username text not null,
   recipient_username text not null,
-  body text not null,
+  body text not null default '',
+  attachments jsonb not null default '[]'::jsonb, -- [{path, name}], images and documents alike
   read_at timestamptz,
   created_at timestamptz not null default now()
 );
@@ -501,6 +502,15 @@ create index if not exists messages_sender_idx on messages (sender_username);
 
 alter table messages enable row level security;
 create policy "allow all messages" on messages for all using (true) with check (true);
+
+insert into storage.buckets (id, name, public)
+values ('message-attachments', 'message-attachments', true)
+on conflict (id) do nothing;
+
+create policy "allow all read message-attachments" on storage.objects for select using (bucket_id = 'message-attachments');
+create policy "allow all insert message-attachments" on storage.objects for insert with check (bucket_id = 'message-attachments');
+create policy "allow all update message-attachments" on storage.objects for update using (bucket_id = 'message-attachments') with check (bucket_id = 'message-attachments');
+create policy "allow all delete message-attachments" on storage.objects for delete using (bucket_id = 'message-attachments');
 
 -- Powers live delivery on the Messages page (new messages/read receipts
 -- appear without a manual refresh).
