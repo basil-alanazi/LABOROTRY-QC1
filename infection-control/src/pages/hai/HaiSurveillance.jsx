@@ -1505,8 +1505,8 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-slate-500">
-        <strong>DR</strong> (patient/procedure info) → <strong>OR</strong> (risk category index) → <strong>DR & FW</strong> (current status + date of discharge) — each
-        column group is locked until the previous one is marked complete. The follow-up/specimen section in between stays open to any SSI-scoped account.
+        <strong>DR</strong> (patient/procedure info) and <strong>OR</strong> (risk category index) are always editable to any SSI-scoped account.
+        Only <strong>DR & FW</strong> (current status + date of discharge) keeps a "Mark complete" step.
       </p>
       <div>
         <button onClick={onAddCase} className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700">
@@ -1520,8 +1520,8 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">Updated in Seha</th>
-              <th colSpan={isAdmin ? 15 : 11} className="border-b border-slate-200 bg-cyan-100 px-1.5 py-0.5 text-center font-semibold text-cyan-900">DR</th>
-              <th colSpan={5} className="border-b border-l-2 border-slate-800 bg-green-100 px-1.5 py-0.5 text-center font-semibold text-green-900">OR</th>
+              <th colSpan={isAdmin ? 14 : 10} className="border-b border-slate-200 bg-cyan-100 px-1.5 py-0.5 text-center font-semibold text-cyan-900">DR</th>
+              <th colSpan={4} className="border-b border-l-2 border-slate-800 bg-green-100 px-1.5 py-0.5 text-center font-semibold text-green-900">OR</th>
               {["PATOS", "Follow-up Duration"].map((h) => (
                 <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{h}</th>
               ))}
@@ -1546,11 +1546,9 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
               {["Unit", "Age", "Gender", "Admission Diagnosis", "Treating Doctor", "Type of Surgical Procedure", "Date of Procedure"].map((h) => (
                 <th key={`dr-${h}`} className="whitespace-nowrap px-1.5 py-0.5 font-medium">{h}</th>
               ))}
-              <th className="whitespace-nowrap border-l-2 border-slate-800 px-1.5 py-0.5 font-medium">Status</th>
-              {["Elective/Emergency", "ASA Score", "Wound Class", "Duration of Surgery"].map((h) => (
-                <th key={`or-${h}`} className="whitespace-nowrap px-1.5 py-0.5 font-medium">{h}</th>
+              {["Elective/Emergency", "ASA Score", "Wound Class", "Duration of Surgery"].map((h, i) => (
+                <th key={`or-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{h}</th>
               ))}
-              <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Status</th>
               {[1, 2, 3].flatMap((slot) =>
                 ["Type", "Date", "Fever", "Pain/Tenderness", "Redness", "Swelling", "Purulent Discharge", "Wound Dehiscence", "Surgical Site Swab Sent", "Wound Status"].map((h, i) => (
                   <th key={`${slot}-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 && slot === 1 ? "border-l-2 border-slate-800" : ""}`}>{h}</th>
@@ -1611,18 +1609,16 @@ function SsiRow({
   function canEditSsi(group) {
     return isAdmin || session?.department === group || (session?.ssiStages ?? []).includes(group);
   }
-  const drDone = !!c.dr_completed_at;
-  const orOpen = drDone;
-  const orDone = !!c.or_completed_at;
-  const drFwOpen = orDone;
   const drFwDone = !!c.dr_fw_completed_at;
 
-  const drDisabled = drDone || !canEditSsi("DR");
-  const orDisabled = !orOpen || orDone || !canEditSsi("OR");
+  // DR and OR are plain, always-editable fields now — only DR & FW keeps the
+  // "Mark complete" step, and it's no longer gated behind DR/OR completion.
+  const drDisabled = !canEditSsi("DR");
+  const orDisabled = !canEditSsi("OR");
   // Current Status/Date of Discharge stay editable even after "Mark complete" —
   // a patient's discharge status can change after the DR&FW notes are finalized,
   // so it shouldn't need an admin "Reopen" every time it's updated.
-  const drFwFieldsDisabled = !drFwOpen || !canEditSsi("DR_FW");
+  const drFwFieldsDisabled = !canEditSsi("DR_FW");
   const nameCellClass = identityCellClass(c.current_status, c.updated_in_seha, c.updated_in_seha_status, false);
   const rowBg = sehaRowClass(c.current_status, c.updated_in_seha, c.updated_in_seha_status);
 
@@ -1662,9 +1658,6 @@ function SsiRow({
       <td className="px-1.5 py-0.5"><GridText value={c.treating_doctor} onChange={(e) => onFieldChange({ treating_doctor: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} placeholder="Dr..." className="min-w-[6.5rem]" /></td>
       <td className="px-1.5 py-0.5"><GridText value={c.surgical_procedure_type} onChange={(e) => onFieldChange({ surgical_procedure_type: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[7rem]" /></td>
       <td className="px-1.5 py-0.5"><GridDate value={c.date_of_procedure} onChange={(e) => onFieldChange({ date_of_procedure: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} /></td>
-      <td className="px-1.5 py-0.5">
-        <StageActionCell open={true} done={drDone} canEdit={canEditSsi("DR")} canReopen={isAdmin} completedBy={c.dr_completed_by} onMarkComplete={() => onMarkComplete("dr")} onReopen={() => onReopen("dr")} />
-      </td>
 
       <td className="px-1.5 py-0.5 border-l-2 border-slate-800">
         <select className="input-cell w-full min-w-[5.5rem]" disabled={orDisabled} value={c.elective_emergency} onChange={(e) => onFieldChange({ elective_emergency: e.target.value })} onBlur={onFieldBlurSave}>
@@ -1695,9 +1688,6 @@ function SsiRow({
             <option key={o} value={o}>{o}</option>
           ))}
         </select>
-      </td>
-      <td className="px-1.5 py-0.5">
-        <StageActionCell open={orOpen} done={orDone} canEdit={canEditSsi("OR")} canReopen={isAdmin} completedBy={c.or_completed_by} onMarkComplete={() => onMarkComplete("or")} onReopen={() => onReopen("or")} />
       </td>
 
       <td className="px-1.5 py-0.5">
@@ -1744,7 +1734,7 @@ function SsiRow({
       </td>
       <td className="px-1.5 py-0.5"><GridDate value={c.date_of_discharge} onChange={(e) => onFieldChange({ date_of_discharge: e.target.value })} onBlur={onFieldBlurSave} disabled={drFwFieldsDisabled} /></td>
       <td className="px-1.5 py-0.5">
-        <StageActionCell open={drFwOpen} done={drFwDone} canEdit={canEditSsi("DR_FW")} canReopen={isAdmin} completedBy={c.dr_fw_completed_by} onMarkComplete={() => onMarkComplete("dr_fw")} onReopen={() => onReopen("dr_fw")} />
+        <StageActionCell open={true} done={drFwDone} canEdit={canEditSsi("DR_FW")} canReopen={isAdmin} completedBy={c.dr_fw_completed_by} onMarkComplete={() => onMarkComplete("dr_fw")} onReopen={() => onReopen("dr_fw")} />
       </td>
 
       <td className="px-1.5 py-0.5"><GridText value={c.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[7rem]" /></td>
