@@ -320,6 +320,20 @@ export const agreement_tracker = [
   },
 ];
 
+// Fixed regulatory-standards checklists, seeded once in the live database
+// from the source documents — offline preview just shows them empty.
+export const ica_standards_tracker = [
+  { id: "ica-1", seq: 1, code: "Domain - A", label: "Infection Prevention & Control Administrative Measures", is_header: true, status: "", notes: "", attachments: [], deleted: false },
+  { id: "ica-2", seq: 2, code: "A-1.1", label: "Adequate resources are allocated to infection prevention & control (IPC) department.", is_header: false, status: "", notes: "", attachments: [], deleted: false },
+  { id: "ica-3", seq: 3, code: "A-1.2", label: "Adequate IPC supplies are provided to healthcare workers.", is_header: false, status: "Compliant", notes: "Verified during Q3 round.", attachments: [], deleted: false },
+];
+export const cbahi_standards_tracker = [
+  { id: "cbahi-1", seq: 1, code: "IPC.1", label: "Hospital leaders support an infection prevention and control program.", is_header: true, esr: false, status: "", notes: "", attachments: [], deleted: false },
+  { id: "cbahi-2", seq: 2, code: "IPC.1.1", label: "Hospital leaders allocate adequate resources such as equipment and supplies.", is_header: false, esr: false, status: "", notes: "", attachments: [], deleted: false },
+  { id: "cbahi-3", seq: 3, code: "IPC.4", label: "There is a designated multidisciplinary committee that provides oversight of the infection prevention and control program.", is_header: true, esr: true, status: "", notes: "", attachments: [], deleted: false },
+  { id: "cbahi-4", seq: 4, code: "IPC.4.1", label: "The infection prevention and control committee is chaired by the hospital director or the medical director.", is_header: false, esr: false, status: "Non-Compliant", notes: "", attachments: [], deleted: false },
+];
+
 export const stock_items = [
   { id: "item-1", department: "ICU", name: "SHARP CONTAINER", unit: "unit", min_qty: 5, max_qty: 10, current_qty: 0, active: true, sort_order: 1 },
   { id: "item-2", department: "Emergency Room", name: "NORMAL SALINE 500ML", unit: "unit", min_qty: 20, max_qty: 30, current_qty: 30, active: true, sort_order: 2 },
