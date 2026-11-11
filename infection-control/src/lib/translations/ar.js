@@ -625,6 +625,7 @@ export const ar = {
 
   // --- Doctor Review / QR Employee Profile ---
   "Doctor Review": "مراجعة الطبيب",
+  "Doctor Login": "دخول الطبيب",
   "Employee QR profile": "ملف الموظف (رمز QR)",
   "Employee QR Profile": "ملف الموظف (رمز QR)",
   "Print Badge": "طباعة البطاقة",

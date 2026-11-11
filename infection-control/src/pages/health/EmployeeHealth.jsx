@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, FileSpreadsheet, FileText, Paperclip, Pencil, Plus, Printer, QrCode, Save, Trash2, Upload, UserPlus } from "lucide-react";
 import QRCode from "qrcode";
 import { supabase } from "../../lib/supabaseClient";
@@ -72,7 +73,11 @@ export default function EmployeeHealth() {
   // Doctor accounts (staff granted "Employee Health access only") can view
   // everything here but never edit — editing stays exclusive to IC/Owner.
   const canEdit = isAdmin;
-  const [tab, setTab] = useState("compliance");
+  const [searchParams] = useSearchParams();
+  // A doctor who signs in from the public QR employee profile page's
+  // "Doctor Login" button is sent here as /employee-health?tab=doctor-review
+  // so they land straight on their review queues instead of the default tab.
+  const [tab, setTab] = useState(() => (TABS.some((td) => td.key === searchParams.get("tab")) ? searchParams.get("tab") : "compliance"));
   const [clinicGroup, setClinicGroup] = useState("regular"); // regular | kitchen
   const [clinicDeptFilter, setClinicDeptFilter] = useState("");
   const [clinicSearch, setClinicSearch] = useState("");

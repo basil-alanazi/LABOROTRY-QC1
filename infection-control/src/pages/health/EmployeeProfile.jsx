@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Printer } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Languages, LogIn, Printer } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useLanguage } from "../../lib/i18n.jsx";
 import { fetchAllRows } from "../../lib/fetchAll";
+import rabiaLogo from "../../assets/rabia-logo.jpg";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -19,13 +20,15 @@ const INVESTIGATION_LABELS = {
   review_done: "Review done",
 };
 
-// Reachable by any logged-in account (any role) via a QR code printed on the
-// employee's badge — not public, but deliberately not restricted to
-// IC/Owner either, since any staff member scanning the badge should be able
-// to pull up the read-only summary. No edit actions live here.
+// Public — reachable by anyone who scans the employee's QR badge, no login
+// required, so it's not wrapped in <ProtectedRoute>/<Layout> (that sidebar
+// and nav are for signed-in staff). Read-only: no edit actions live here. A
+// "Doctor Login" button sends a doctor to sign in and land straight on
+// their Doctor Review queues (see EmployeeHealth.jsx's doctor-review tab).
 export default function EmployeeProfile() {
   const { employeeId } = useParams();
-  const { t } = useLanguage();
+  const navigate = useNavigate();
+  const { t, lang, toggleLang } = useLanguage();
   const [employee, setEmployee] = useState(null);
   const [status, setStatus] = useState(null);
   const [itemTypes, setItemTypes] = useState([]);
@@ -93,15 +96,62 @@ export default function EmployeeProfile() {
     return itemTypes.filter((ty) => ty.active && (!ty.kitchen_only || employee.is_kitchen_staff));
   }, [itemTypes, employee]);
 
-  if (loading) return <div className="p-10 text-center text-sm text-slate-400">{t("Loading...")}</div>;
-  if (notFound || !employee) return <div className="p-10 text-center text-sm text-slate-400">{t("Employee not found.")}</div>;
+  function goToDoctorLogin() {
+    const next = encodeURIComponent("/employee-health?tab=doctor-review");
+    navigate(`/login?next=${next}`);
+  }
+
+  const header = (
+    <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 print:hidden">
+      <div className="flex items-center gap-2 text-teal-700">
+        <img src={rabiaLogo} alt="Rabia Hospital" className="h-9 w-9 rounded-md object-contain" />
+        <span className="text-lg font-bold">{t("Infection Control")}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={toggleLang}
+          className="flex items-center gap-1 rounded-lg px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+          title={lang === "ar" ? "English" : "العربية"}
+        >
+          <Languages className="h-4 w-4" />
+          {lang === "ar" ? "EN" : "AR"}
+        </button>
+        <button
+          onClick={goToDoctorLogin}
+          className="flex items-center gap-1.5 rounded-lg border border-teal-600 px-3 py-1.5 text-sm font-medium text-teal-700 hover:bg-teal-50"
+        >
+          <LogIn className="h-4 w-4" />
+          {t("Doctor Login")}
+        </button>
+      </div>
+    </header>
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        {header}
+        <div className="p-10 text-center text-sm text-slate-400">{t("Loading...")}</div>
+      </div>
+    );
+  }
+  if (notFound || !employee) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        {header}
+        <div className="p-10 text-center text-sm text-slate-400">{t("Employee not found.")}</div>
+      </div>
+    );
+  }
 
   const ppdOverdue = status?.ppd_status === "done" && status.ppd_next_due_date && status.ppd_next_due_date < todayStr();
   const stoolOverdue = status?.stool_urine_status === "done" && status.stool_urine_next_due_date && status.stool_urine_next_due_date < todayStr();
   const licenseExpired = license && license.expiry_date && license.expiry_date < todayStr();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="min-h-screen bg-slate-50">
+      {header}
+      <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6">
       <div className="flex items-start justify-between gap-3 print:hidden">
         <div>
           <h1 className="text-xl font-bold text-slate-800">{t("Employee Health Profile")}</h1>
@@ -225,6 +275,7 @@ export default function EmployeeProfile() {
           <p className="text-sm text-slate-400">{t("No Baladiya license on record.")}</p>
         )}
       </Section>
+      </div>
     </div>
   );
 }
