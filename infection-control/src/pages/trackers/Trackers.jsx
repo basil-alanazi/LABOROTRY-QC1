@@ -5,6 +5,7 @@ import { useAuth } from "../../lib/auth.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
+import StandardsTrackerPanel from "./StandardsTrackerPanel.jsx";
 
 const TRACKER_ATTACHMENTS_BUCKET = "tracker-attachments";
 
@@ -51,6 +52,8 @@ const TABS = [
   { key: "policy", label: "Policy" },
   { key: "culture", label: "Culture" },
   { key: "agreement", label: "Agreement" },
+  { key: "ica", label: "ICA Tool" },
+  { key: "cbahi", label: "CBAHI Tool" },
 ];
 
 const emptyLicenseForm = { name: "", employee_no: "", file_no: "", department: "" };
@@ -722,6 +725,9 @@ export default function Trackers() {
           </div>
         </div>
       )}
+
+      {tab === "ica" && <StandardsTrackerPanel table="ica_standards_tracker" exportName="ica-standards" session={session} />}
+      {tab === "cbahi" && <StandardsTrackerPanel table="cbahi_standards_tracker" exportName="cbahi-standards" session={session} />}
     </div>
   );
 }
