@@ -92,6 +92,7 @@ export const hai_icu_surveillance = [
     hai_detected: false,
     hai_event_types: [],
     current_status: "admitted",
+    status_after_discharge: "",
     comments: "",
     done_by: "ic",
     deleted: false,

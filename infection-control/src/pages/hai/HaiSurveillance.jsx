@@ -48,6 +48,10 @@ const statusBadgeClass = (s) =>
 
 const EVENT_TYPES = ["CLABSI", "CAUTI", "VAE", "Secondary BSI"];
 
+// ICU/NICU-only — what became of the patient after they left the unit,
+// tracked separately from Current Status (admitted/discharged/etc.).
+const STATUS_AFTER_DISCHARGE_OPTIONS = ["", "Improved", "Readmitted", "Transferred", "Expired", "Lost to follow-up"];
+
 const emptySpecimen = { type: "", date_collected: "", date_result: "", organism: "", mdro: false };
 const ICU_SPECIMEN_SLOTS = 3;
 
@@ -352,6 +356,7 @@ export default function HaiSurveillance() {
         hai_event_types: p.hai_event_types ?? [],
         current_status,
         date_of_discharge: p.date_of_discharge || null,
+        status_after_discharge: p.status_after_discharge || "",
         comments: p.comments,
         updated_in_seha: !!p.updated_in_seha,
         updated_in_seha_status: p.updated_in_seha ? p.updated_in_seha_status || null : null,
@@ -699,13 +704,13 @@ export default function HaiSurveillance() {
         headers: [
           "Month", "Patient Name", "MRN", ...(isAdmin ? IC_ONLY_HEADERS : []), "Age", "Gender", "Bed", "ICU Type", "Hospital Admission", "Unit Admission", "Admission Diagnosis",
           "Central Line Insertion", "Central Line Removed", "Urinary Catheter Insertion", "Urinary Catheter Removed",
-          "Ventilator Insertion", "Ventilator Removed", "Signs & Symptoms", "Onset Date", "HAI Detected", "Event Types", "Date of Discharge", "Current Status", "Comments", "Recorded By",
+          "Ventilator Insertion", "Ventilator Removed", "Signs & Symptoms", "Onset Date", "HAI Detected", "Event Types", "Date of Discharge", "Current Status", "Status After Discharge", "Comments", "Recorded By",
         ],
         rows: visibleIcuUnitPatients.map((p) => [
           p.month, p.patient_name, p.mrn, ...(isAdmin ? [p.date_of_birth || "", p.national_id, p.mobile, p.nationality] : []), p.age, p.gender, p.bed_no, p.icu_type, p.hospital_admission_date || "", p.unit_admission_date || "", p.admission_diagnosis,
           p.central_line_insertion || "", p.central_line_removed || "", p.urinary_catheter_insertion || "", p.urinary_catheter_removed || "",
           p.ventilator_insertion || "", p.ventilator_removed || "", p.signs_symptoms, p.date_onset_symptoms || "",
-          p.hai_detected ? "Yes" : "No", (p.hai_event_types ?? []).join(", "), p.date_of_discharge || "", statusLabel(p.current_status), p.comments, p.done_by,
+          p.hai_detected ? "Yes" : "No", (p.hai_event_types ?? []).join(", "), p.date_of_discharge || "", statusLabel(p.current_status), p.status_after_discharge || "", p.comments, p.done_by,
         ]),
       },
     ]);
@@ -1120,7 +1125,7 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
               <th rowSpan={2} className="whitespace-nowrap border-b border-l-2 border-slate-800 px-1.5 py-1 font-medium align-bottom">Other Specimens</th>
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">HAI Detected</th>
               <th colSpan={4} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">Type of HAI Event</th>
-              {["Date of Discharge", "Current Status", "Comments"].map((h, i) => (
+              {["Date of Discharge", "Current Status", "Status After Discharge", "Comments"].map((h, i) => (
                 <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{h}</th>
               ))}
               <th rowSpan={2}></th>
@@ -1260,6 +1265,13 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
         <select className="input-cell w-full" value={p.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>{statusLabel(s)}</option>
+          ))}
+        </select>
+      </td>
+      <td className="px-1.5 py-0.5">
+        <select className="input-cell w-full" value={p.status_after_discharge ?? ""} onChange={(e) => onFieldChange({ status_after_discharge: e.target.value })} onBlur={onFieldBlurSave}>
+          {STATUS_AFTER_DISCHARGE_OPTIONS.map((s) => (
+            <option key={s} value={s}>{s || "—"}</option>
           ))}
         </select>
       </td>
