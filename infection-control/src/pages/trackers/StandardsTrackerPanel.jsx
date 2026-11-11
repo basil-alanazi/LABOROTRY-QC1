@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FileSpreadsheet, Paperclip, Trash2, Upload } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { useLanguage } from "../../lib/i18n.jsx";
 import { fetchAllRows } from "../../lib/fetchAll";
 import { downloadExcel } from "../../lib/exportExcel";
 
@@ -34,6 +35,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 // staff assess and annotate over time, not a list users add entries to
 // themselves like the other trackers.
 export default function StandardsTrackerPanel({ table, exportName, session }) {
+  const { t } = useLanguage();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -132,16 +134,16 @@ export default function StandardsTrackerPanel({ table, exportName, session }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3 text-xs">
-          <span className="font-semibold text-slate-700">{counts.total} standards</span>
-          <span className="text-emerald-700">{counts["Compliant"]} compliant</span>
-          <span className="text-amber-700">{counts["Partially Compliant"]} partial</span>
-          <span className="text-red-700">{counts["Non-Compliant"]} non-compliant</span>
-          <span className="text-slate-400">{counts["Not Applicable"]} N/A</span>
-          <span className="text-slate-400">{counts[""]} not assessed</span>
+          <span className="font-semibold text-slate-700">{counts.total} {t("standards")}</span>
+          <span className="text-emerald-700">{counts["Compliant"]} {t("compliant")}</span>
+          <span className="text-amber-700">{counts["Partially Compliant"]} {t("partial")}</span>
+          <span className="text-red-700">{counts["Non-Compliant"]} {t("non-compliant")}</span>
+          <span className="text-slate-400">{counts["Not Applicable"]} {t("N/A")}</span>
+          <span className="text-slate-400">{counts[""]} {t("not assessed")}</span>
         </div>
         <button onClick={exportExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
           <FileSpreadsheet className="h-3.5 w-3.5" />
-          Export Excel
+          {t("Export Excel")}
         </button>
       </div>
 
@@ -154,12 +156,12 @@ export default function StandardsTrackerPanel({ table, exportName, session }) {
               filter === f ? "border-teal-600 bg-teal-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"
             }`}
           >
-            {f === "all" ? "All" : STATUS_LABELS[f]}
+            {f === "all" ? t("All") : t(STATUS_LABELS[f])}
           </button>
         ))}
       </div>
 
-      {loading && <p className="p-6 text-center text-sm text-slate-400">Loading...</p>}
+      {loading && <p className="p-6 text-center text-sm text-slate-400">{t("Loading...")}</p>}
 
       <div className="flex flex-col gap-2">
         {visibleRows.map((r) =>
@@ -186,7 +188,7 @@ export default function StandardsTrackerPanel({ table, exportName, session }) {
                 >
                   {STATUS_OPTIONS.map((s) => (
                     <option key={s} value={s}>
-                      {STATUS_LABELS[s]}
+                      {t(STATUS_LABELS[s])}
                     </option>
                   ))}
                 </select>
@@ -194,7 +196,7 @@ export default function StandardsTrackerPanel({ table, exportName, session }) {
               <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <input
                   className="input-cell flex-1 text-xs"
-                  placeholder="Notes / evidence..."
+                  placeholder={t("Notes / evidence...")}
                   value={r.notes || ""}
                   onChange={(e) => updateField(r.id, { notes: e.target.value })}
                   onBlur={() => saveNotes(r)}
@@ -204,13 +206,14 @@ export default function StandardsTrackerPanel({ table, exportName, session }) {
             </div>
           )
         )}
-        {!loading && visibleRows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No standards match this filter.</p>}
+        {!loading && visibleRows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No standards match this filter.")}</p>}
       </div>
     </div>
   );
 }
 
 function AttachmentList({ attachments, onAdd, onRemove }) {
+  const { t } = useLanguage();
   const list = attachments ?? [];
   return (
     <div className="flex shrink-0 flex-col gap-1 text-xs">
@@ -220,7 +223,7 @@ function AttachmentList({ attachments, onAdd, onRemove }) {
             <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-slate-600">
               <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
                 <Paperclip className="h-3.5 w-3.5" />
-                {a.name || "View"}
+                {a.name || t("View")}
               </a>
               <button onClick={() => onRemove(i)} className="text-slate-400 hover:text-red-500">
                 <Trash2 className="h-3.5 w-3.5" />
@@ -231,7 +234,7 @@ function AttachmentList({ attachments, onAdd, onRemove }) {
       )}
       <label className="flex w-fit cursor-pointer items-center gap-1 font-medium text-red-600 hover:underline">
         <Upload className="h-3.5 w-3.5" />
-        {list.length > 0 ? "Add evidence" : "Attach evidence"}
+        {list.length > 0 ? t("Add evidence") : t("Attach evidence")}
         <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && onAdd(e.target.files)} />
       </label>
     </div>

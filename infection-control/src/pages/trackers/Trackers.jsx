@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FileSpreadsheet, FileText, Paperclip, Plus, Trash2, Upload, UserPlus } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
+import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
@@ -63,6 +64,7 @@ const emptyAgreementForm = { entity: "" };
 
 export default function Trackers() {
   const { session, config } = useAuth();
+  const { t } = useLanguage();
   const [tab, setTab] = useState("license");
   const [message, setMessage] = useState(null);
 
@@ -351,33 +353,33 @@ export default function Trackers() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Trackers</h1>
-          <p className="text-sm text-slate-500">Baladiya license, policy renewals, culture submissions, and vendor agreements.</p>
+          <h1 className="text-xl font-bold text-slate-800">{t("Trackers")}</h1>
+          <p className="text-sm text-slate-500">{t("Baladiya license, policy renewals, culture submissions, and vendor agreements.")}</p>
         </div>
         <div className="flex gap-2">
           <button onClick={exportExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
             <FileSpreadsheet className="h-3.5 w-3.5" />
-            Export Excel
+            {t("Export Excel")}
           </button>
           <button onClick={exportPdf} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
             <FileText className="h-3.5 w-3.5" />
-            Export PDF
+            {t("Export PDF")}
           </button>
         </div>
       </div>
 
       {overdueCount > 0 && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
-          {overdueCount} item{overdueCount > 1 ? "s" : ""} expired across the trackers
+          {overdueCount} {t("item(s) expired across the trackers")}
         </div>
       )}
 
       {message && <p className={`rounded-lg px-3 py-2 text-sm ${message.type === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{message.text}</p>}
 
       <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
-        {TABS.map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)} className={`rounded-md px-3 py-1 font-medium ${tab === t.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
-            {t.label}
+        {TABS.map((tabDef) => (
+          <button key={tabDef.key} onClick={() => setTab(tabDef.key)} className={`rounded-md px-3 py-1 font-medium ${tab === tabDef.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
+            {t(tabDef.label)}
           </button>
         ))}
       </div>
@@ -390,7 +392,7 @@ export default function Trackers() {
               className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700"
             >
               <UserPlus className="h-3.5 w-3.5" />
-              Add Employee
+              {t("Add Employee")}
             </button>
             <button
               onClick={() => setLicenseDueSoonOnly((v) => !v)}
@@ -398,16 +400,16 @@ export default function Trackers() {
                 licenseDueSoonOnly ? "border-amber-500 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
-              {licenseDueSoonOnly ? `Showing ≤${LICENSE_DUE_SOON_DAYS} days only` : `Due within ${LICENSE_DUE_SOON_DAYS} days`}
+              {licenseDueSoonOnly ? `${t("Showing")} ≤${LICENSE_DUE_SOON_DAYS} ${t("days only")}` : `${t("Due within")} ${LICENSE_DUE_SOON_DAYS} ${t("days")}`}
             </button>
           </div>
           {showLicenseForm && (
             <form onSubmit={addLicense} className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-5 sm:items-center">
-              <input className="input" placeholder="Name" value={licenseForm.name} onChange={(e) => setLicenseForm({ ...licenseForm, name: e.target.value })} required />
-              <input className="input" placeholder="Employee #" value={licenseForm.employee_no} onChange={(e) => setLicenseForm({ ...licenseForm, employee_no: e.target.value })} />
-              <input className="input" placeholder="File #" value={licenseForm.file_no} onChange={(e) => setLicenseForm({ ...licenseForm, file_no: e.target.value })} />
+              <input className="input" placeholder={t("Name")} value={licenseForm.name} onChange={(e) => setLicenseForm({ ...licenseForm, name: e.target.value })} required />
+              <input className="input" placeholder={t("Employee #")} value={licenseForm.employee_no} onChange={(e) => setLicenseForm({ ...licenseForm, employee_no: e.target.value })} />
+              <input className="input" placeholder={t("File #")} value={licenseForm.file_no} onChange={(e) => setLicenseForm({ ...licenseForm, file_no: e.target.value })} />
               <select className="input" value={licenseForm.department} onChange={(e) => setLicenseForm({ ...licenseForm, department: e.target.value })}>
-                <option value="">Department</option>
+                <option value="">{t("Department")}</option>
                 {departments.map((d) => (
                   <option key={d} value={d}>
                     {d}
@@ -416,7 +418,7 @@ export default function Trackers() {
               </select>
               <button type="submit" className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
                 <Plus className="h-4 w-4" />
-                Save
+                {t("Save")}
               </button>
             </form>
           )}
@@ -424,14 +426,14 @@ export default function Trackers() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs text-slate-500">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Name</th>
-                  <th className="px-3 py-2 font-medium">Emp ID</th>
-                  <th className="px-3 py-2 font-medium">File No</th>
-                  <th className="px-3 py-2 font-medium">Department</th>
-                  <th className="px-3 py-2 font-medium">Issue Date</th>
-                  <th className="px-3 py-2 font-medium">Expiry Date</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Attachment</th>
+                  <th className="px-3 py-2 font-medium">{t("Name")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Emp ID")}</th>
+                  <th className="px-3 py-2 font-medium">{t("File No")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Department")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Issue Date")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Expiry Date")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Status")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Attachment")}</th>
                   <th className="px-3 py-2"></th>
                 </tr>
               </thead>
@@ -479,9 +481,9 @@ export default function Trackers() {
                 })}
               </tbody>
             </table>
-            {!loading && licenses.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No employees in the license tracker yet.</p>}
+            {!loading && licenses.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No employees in the license tracker yet.")}</p>}
             {!loading && licenses.length > 0 && visibleLicenses.length === 0 && (
-              <p className="p-6 text-center text-sm text-slate-400">No licenses due within {LICENSE_DUE_SOON_DAYS} days.</p>
+              <p className="p-6 text-center text-sm text-slate-400">{t("No licenses due within")} {LICENSE_DUE_SOON_DAYS} {t("days.")}</p>
             )}
           </div>
         </div>
@@ -489,23 +491,23 @@ export default function Trackers() {
 
       {tab === "policy" && (
         <div className="flex flex-col gap-4">
-          <p className="text-xs text-slate-500">Expiry date auto-fills to 3 years after the issue date when you set/change it — you can still edit it manually anytime.</p>
+          <p className="text-xs text-slate-500">{t("Expiry date auto-fills to 3 years after the issue date when you set/change it — you can still edit it manually anytime.")}</p>
           <div>
             <button
               onClick={() => setShowPolicyForm((v) => !v)}
               className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add Policy
+              {t("Add Policy")}
             </button>
           </div>
           {showPolicyForm && (
             <form onSubmit={addPolicy} className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-3 sm:items-center">
-              <input className="input" placeholder="Policy Name" value={policyForm.policy_name} onChange={(e) => setPolicyForm({ ...policyForm, policy_name: e.target.value })} required />
-              <input className="input" placeholder="Policy No" value={policyForm.policy_no} onChange={(e) => setPolicyForm({ ...policyForm, policy_no: e.target.value })} />
+              <input className="input" placeholder={t("Policy Name")} value={policyForm.policy_name} onChange={(e) => setPolicyForm({ ...policyForm, policy_name: e.target.value })} required />
+              <input className="input" placeholder={t("Policy No")} value={policyForm.policy_no} onChange={(e) => setPolicyForm({ ...policyForm, policy_no: e.target.value })} />
               <button type="submit" className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
                 <Plus className="h-4 w-4" />
-                Save
+                {t("Save")}
               </button>
             </form>
           )}
@@ -513,14 +515,14 @@ export default function Trackers() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs text-slate-500">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Policy Name</th>
-                  <th className="px-3 py-2 font-medium">Policy No</th>
-                  <th className="px-3 py-2 font-medium">Issue Date</th>
-                  <th className="px-3 py-2 font-medium">Revision Date</th>
-                  <th className="px-3 py-2 font-medium">Expiry Date</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Renewed</th>
-                  <th className="px-3 py-2 font-medium">Attachment</th>
+                  <th className="px-3 py-2 font-medium">{t("Policy Name")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Policy No")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Issue Date")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Revision Date")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Expiry Date")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Status")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Renewed")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Attachment")}</th>
                   <th className="px-3 py-2"></th>
                 </tr>
               </thead>
@@ -544,7 +546,7 @@ export default function Trackers() {
                       <td className="px-3 py-1.5">
                         <input type="date" className="input-cell w-32" value={r.expiry_date || ""} onChange={(e) => updatePolicyField(r.id, { expiry_date: e.target.value })} onBlur={() => savePolicy(r)} />
                       </td>
-                      <td className="px-3 py-1.5">{badge && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.cls}`}>{badge.label}</span>}</td>
+                      <td className="px-3 py-1.5">{badge && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.cls}`}>{t(badge.label)}</span>}</td>
                       <td className="px-3 py-1.5 text-center">
                         <input type="checkbox" checked={!!r.renewed} onChange={() => togglePolicyRenewed(r)} />
                       </td>
@@ -561,7 +563,7 @@ export default function Trackers() {
                 })}
               </tbody>
             </table>
-            {!loading && policies.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No policies tracked yet.</p>}
+            {!loading && policies.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No policies tracked yet.")}</p>}
           </div>
         </div>
       )}
@@ -569,7 +571,7 @@ export default function Trackers() {
       {tab === "culture" && (
         <div className="flex flex-col gap-4">
           <p className="text-xs text-slate-500">
-            Manage the list of items (e.g. "Dental 1", "Hospital 6 Month CS") from Settings → "Culture Tracker Items".
+            {t('Manage the list of items (e.g. "Dental 1", "Hospital 6 Month CS") from Settings → "Culture Tracker Items".')}
           </p>
           <div>
             <button
@@ -577,13 +579,13 @@ export default function Trackers() {
               className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add Entry
+              {t("Add Entry")}
             </button>
           </div>
           {showCultureForm && (
             <form onSubmit={addCulture} className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-3 sm:items-center">
               <select className="input" value={cultureForm.item} onChange={(e) => setCultureForm({ ...cultureForm, item: e.target.value })} required>
-                <option value="">Select item</option>
+                <option value="">{t("Select item")}</option>
                 {cultureItems.map((d) => (
                   <option key={d} value={d}>
                     {d}
@@ -592,7 +594,7 @@ export default function Trackers() {
               </select>
               <button type="submit" className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
                 <Plus className="h-4 w-4" />
-                Save
+                {t("Save")}
               </button>
             </form>
           )}
@@ -600,11 +602,11 @@ export default function Trackers() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs text-slate-500">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Item</th>
-                  <th className="px-3 py-2 font-medium">Sent On</th>
-                  <th className="px-3 py-2 font-medium">Next Due</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Attachment</th>
+                  <th className="px-3 py-2 font-medium">{t("Item")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Sent On")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Next Due")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Status")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Attachment")}</th>
                   <th className="px-3 py-2"></th>
                 </tr>
               </thead>
@@ -628,7 +630,7 @@ export default function Trackers() {
                       <td className="px-3 py-1.5">
                         <input type="date" className="input-cell w-32" value={r.next_due || ""} onChange={(e) => updateCultureField(r.id, { next_due: e.target.value })} onBlur={() => saveCulture(r)} />
                       </td>
-                      <td className="px-3 py-1.5">{badge && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.cls}`}>{badge.label}</span>}</td>
+                      <td className="px-3 py-1.5">{badge && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.cls}`}>{t(badge.label)}</span>}</td>
                       <td className="px-3 py-1.5">
                         <AttachmentList attachments={r.attachments} onAdd={(files) => addCultureAttachments(r, files)} onRemove={(index) => removeCultureAttachment(r, index)} />
                       </td>
@@ -642,27 +644,27 @@ export default function Trackers() {
                 })}
               </tbody>
             </table>
-            {!loading && cultures.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No culture entries yet.</p>}
+            {!loading && cultures.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No culture entries yet.")}</p>}
           </div>
         </div>
       )}
 
       {tab === "agreement" && (
         <div className="flex flex-col gap-4">
-          <p className="text-xs text-slate-500">Manage the list of vendors/entities from Settings → "Agreement Tracker Entities".</p>
+          <p className="text-xs text-slate-500">{t('Manage the list of vendors/entities from Settings → "Agreement Tracker Entities".')}</p>
           <div>
             <button
               onClick={() => setShowAgreementForm((v) => !v)}
               className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add Entry
+              {t("Add Entry")}
             </button>
           </div>
           {showAgreementForm && (
             <form onSubmit={addAgreement} className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-3 sm:items-center">
               <select className="input" value={agreementForm.entity} onChange={(e) => setAgreementForm({ ...agreementForm, entity: e.target.value })} required>
-                <option value="">Select entity</option>
+                <option value="">{t("Select entity")}</option>
                 {agreementEntities.map((d) => (
                   <option key={d} value={d}>
                     {d}
@@ -671,7 +673,7 @@ export default function Trackers() {
               </select>
               <button type="submit" className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
                 <Plus className="h-4 w-4" />
-                Save
+                {t("Save")}
               </button>
             </form>
           )}
@@ -679,11 +681,11 @@ export default function Trackers() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs text-slate-500">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Entity</th>
-                  <th className="px-3 py-2 font-medium">Renewed On</th>
-                  <th className="px-3 py-2 font-medium">Next Due</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-3 py-2 font-medium">Attachment</th>
+                  <th className="px-3 py-2 font-medium">{t("Entity")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Renewed On")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Next Due")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Status")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Attachment")}</th>
                   <th className="px-3 py-2"></th>
                 </tr>
               </thead>
@@ -707,7 +709,7 @@ export default function Trackers() {
                       <td className="px-3 py-1.5">
                         <input type="date" className="input-cell w-32" value={r.next_due || ""} onChange={(e) => updateAgreementField(r.id, { next_due: e.target.value })} onBlur={() => saveAgreement(r)} />
                       </td>
-                      <td className="px-3 py-1.5">{badge && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.cls}`}>{badge.label}</span>}</td>
+                      <td className="px-3 py-1.5">{badge && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.cls}`}>{t(badge.label)}</span>}</td>
                       <td className="px-3 py-1.5">
                         <AttachmentList attachments={r.attachments} onAdd={(files) => addAgreementAttachments(r, files)} onRemove={(index) => removeAgreementAttachment(r, index)} />
                       </td>
@@ -721,7 +723,7 @@ export default function Trackers() {
                 })}
               </tbody>
             </table>
-            {!loading && agreements.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No agreements tracked yet.</p>}
+            {!loading && agreements.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No agreements tracked yet.")}</p>}
           </div>
         </div>
       )}
@@ -733,6 +735,7 @@ export default function Trackers() {
 }
 
 function AttachmentList({ attachments, onAdd, onRemove }) {
+  const { t } = useLanguage();
   const list = attachments ?? [];
   return (
     <div className="flex flex-col gap-1 text-xs">
@@ -742,7 +745,7 @@ function AttachmentList({ attachments, onAdd, onRemove }) {
             <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-slate-600">
               <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
                 <Paperclip className="h-3.5 w-3.5" />
-                {a.name || "View"}
+                {a.name || t("View")}
               </a>
               <button onClick={() => onRemove(i)} className="text-slate-400 hover:text-red-500">
                 <Trash2 className="h-3.5 w-3.5" />
@@ -753,7 +756,7 @@ function AttachmentList({ attachments, onAdd, onRemove }) {
       )}
       <label className="flex w-fit cursor-pointer items-center gap-1 font-medium text-red-600 hover:underline">
         <Upload className="h-3.5 w-3.5" />
-        {list.length > 0 ? "Add more" : "Upload"}
+        {list.length > 0 ? t("Add more") : t("Upload")}
         <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && onAdd(e.target.files)} />
       </label>
     </div>
@@ -761,15 +764,16 @@ function AttachmentList({ attachments, onAdd, onRemove }) {
 }
 
 function AttachmentSlot({ path, name, onUpload }) {
+  const { t } = useLanguage();
   return path ? (
     <a href={attachmentUrl(path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline">
       <Paperclip className="h-3.5 w-3.5" />
-      {name || "View"}
+      {name || t("View")}
     </a>
   ) : (
     <label className="flex cursor-pointer items-center gap-1 text-xs font-medium text-red-600 hover:underline">
       <Upload className="h-3.5 w-3.5" />
-      Upload
+      {t("Upload")}
       <input type="file" className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
     </label>
   );
