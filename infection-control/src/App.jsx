@@ -77,16 +77,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/employee-profile/:employeeId"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <EmployeeProfile />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/employee-profile/:employeeId" element={<EmployeeProfile />} />
         <Route
           path="/cases"
           element={

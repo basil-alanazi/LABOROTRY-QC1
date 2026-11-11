@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Languages } from "lucide-react";
 import { useAuth } from "../lib/auth.jsx";
 import { useLanguage } from "../lib/i18n.jsx";
@@ -10,6 +10,11 @@ export default function Login() {
   const { login } = useAuth();
   const { t, lang, toggleLang } = useLanguage();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Lets a link elsewhere in the app (e.g. the "Doctor Login" button on the
+  // public QR employee profile page) send the user straight to a specific
+  // screen after signing in, instead of always landing on the default route.
+  const next = searchParams.get("next");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -21,7 +26,7 @@ export default function Login() {
     setBusy(true);
     const res = await login(username.trim(), password);
     setBusy(false);
-    if (res.ok) navigate("/");
+    if (res.ok) navigate(next ? decodeURIComponent(next) : "/");
     else setError(res.error);
   }
 
