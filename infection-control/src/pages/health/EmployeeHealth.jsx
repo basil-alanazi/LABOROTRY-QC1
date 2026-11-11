@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, FileSpreadsheet, FileText, Pencil, Save, Trash2, UserPlus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileSpreadsheet, FileText, Paperclip, Pencil, Plus, Printer, QrCode, Save, Trash2, Upload, UserPlus } from "lucide-react";
+import QRCode from "qrcode";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { useLanguage } from "../../lib/i18n.jsx";
@@ -10,9 +11,17 @@ import { fetchAllRows } from "../../lib/fetchAll";
 const TABS = [
   { key: "compliance", label: "Overdue & Missing" },
   { key: "clinic", label: "Employee Clinic" },
+  { key: "doctor-review", label: "Doctor Review" },
   { key: "records", label: "All Records" },
   { key: "employees", label: "Employees" },
 ];
+
+const EMP_HEALTH_ATTACHMENTS_BUCKET = "employee-health-attachments";
+
+function attachmentUrl(path) {
+  if (!path) return null;
+  return supabase.storage.from(EMP_HEALTH_ATTACHMENTS_BUCKET).getPublicUrl(path).data.publicUrl;
+}
 
 const INVESTIGATION_STATUSES = [
   { value: "review_due", label: "Doctor review due" },
@@ -54,6 +63,7 @@ const emptyStatus = {
   stool_urine_test_date: "",
   stool_urine_next_due_date: "",
   icn_remarks: "",
+  investigation_attachments: [],
 };
 
 export default function EmployeeHealth() {
@@ -74,6 +84,7 @@ export default function EmployeeHealth() {
   const [records, setRecords] = useState([]);
   const [requests, setRequests] = useState([]);
   const [statuses, setStatuses] = useState([]);
+  const [nsiCases, setNsiCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [employeeForm, setEmployeeForm] = useState(emptyEmployeeForm);
   const [message, setMessage] = useState(null);
@@ -82,23 +93,28 @@ export default function EmployeeHealth() {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [statusDrafts, setStatusDrafts] = useState({}); // employee_id -> status fields
   const [doseDrafts, setDoseDrafts] = useState({}); // "empId|itemId|doseNum" -> { date, batch }
+  const [nsiForm, setNsiForm] = useState({ employee_id: "", incident_date: todayStr(), notes: "" });
+  const [qrEmployee, setQrEmployee] = useState(null);
+  const [qrDataUrl, setQrDataUrl] = useState("");
 
   const departments = config?.employee_departments ?? [];
 
   async function loadAll() {
     setLoading(true);
-    const [{ data: emp }, { data: types }, { data: recs }, { data: reqs }, { data: stat }] = await Promise.all([
+    const [{ data: emp }, { data: types }, { data: recs }, { data: reqs }, { data: stat }, { data: nsi }] = await Promise.all([
       fetchAllRows((from, to) => supabase.from("employees").select("*").order("name").range(from, to)),
       supabase.from("health_item_types").select("*").order("sort_order"),
       fetchAllRows((from, to) => supabase.from("employee_health_records").select("*").order("date_given", { ascending: false }).range(from, to)),
       fetchAllRows((from, to) => supabase.from("employee_vaccine_requests").select("*").range(from, to)),
       fetchAllRows((from, to) => supabase.from("employee_clinic_status").select("*").range(from, to)),
+      fetchAllRows((from, to) => supabase.from("employee_nsi_followups").select("*").eq("deleted", false).order("incident_date", { ascending: false }).range(from, to)),
     ]);
     setEmployees(emp ?? []);
     setItemTypes((types ?? []).map((t) => ({ ...t, dose_schedule: t.dose_schedule?.length ? t.dose_schedule : [0] })));
     setRecords(recs ?? []);
     setRequests(reqs ?? []);
     setStatuses(stat ?? []);
+    setNsiCases(nsi ?? []);
     setLoading(false);
   }
 
@@ -342,6 +358,7 @@ export default function EmployeeHealth() {
         stool_urine_test_date: merged.stool_urine_test_date || null,
         stool_urine_next_due_date: merged.stool_urine_next_due_date || null,
         icn_remarks: merged.icn_remarks || "",
+        investigation_attachments: merged.investigation_attachments || [],
         updated_by: session?.username,
         updated_at: new Date().toISOString(),
       },
@@ -401,6 +418,131 @@ export default function EmployeeHealth() {
     if (error) flash({ type: "error", text: "Could not save dose: " + error.message });
     loadAll();
   }
+
+  // --- Doctor Review: investigation blood-test attachments ---
+  async function uploadInvestigationFile(emp, file) {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${emp.id}/${Date.now()}-${safeName}`;
+    const { error } = await supabase.storage.from(EMP_HEALTH_ATTACHMENTS_BUCKET).upload(path, file);
+    if (error) throw error;
+    return { path, name: file.name };
+  }
+  async function addInvestigationAttachments(emp, files) {
+    try {
+      const uploaded = await Promise.all(Array.from(files).map((f) => uploadInvestigationFile(emp, f)));
+      const current = statusFor(emp.id).investigation_attachments || [];
+      await saveStatus(emp, { investigation_attachments: [...current, ...uploaded] });
+    } catch (err) {
+      flash({ type: "error", text: "Could not upload: " + err.message });
+    }
+  }
+  function removeInvestigationAttachment(emp, index) {
+    const current = statusFor(emp.id).investigation_attachments || [];
+    saveStatus(emp, { investigation_attachments: current.filter((_, i) => i !== index) });
+  }
+  function neededVaccines(emp) {
+    const empRequests = requests.filter((r) => r.employee_id === emp.id);
+    const visible = activeItemTypes.filter((ty) => !ty.kitchen_only || emp.is_kitchen_staff);
+    const out = [];
+    for (const item of visible) {
+      if (!empRequests.some((r) => r.item_type_id === item.id)) continue;
+      const state = doseState(emp.id, item);
+      if (state.complete && !state.renewalDue) continue;
+      out.push(state.nextDueDate ? `${item.name} — Dose ${state.nextDoseNumber} (${state.nextDueDate})` : `${item.name} — Dose ${state.nextDoseNumber}`);
+    }
+    return out;
+  }
+
+  // --- Doctor Review: needle-stick injury (NSI) follow-ups ---
+  async function addNsiCase(e) {
+    e.preventDefault();
+    if (!nsiForm.employee_id) {
+      flash({ type: "error", text: "Select an employee" });
+      return;
+    }
+    const { error } = await supabase.from("employee_nsi_followups").insert({
+      employee_id: nsiForm.employee_id,
+      incident_date: nsiForm.incident_date || null,
+      notes: nsiForm.notes.trim(),
+      done_by: session?.username,
+    });
+    if (error) {
+      flash({ type: "error", text: "Could not add case" });
+      return;
+    }
+    setNsiForm({ employee_id: "", incident_date: todayStr(), notes: "" });
+    loadAll();
+    flash({ type: "success", text: "NSI case added" });
+  }
+  function updateNsiField(id, patch) {
+    setNsiCases((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  }
+  async function saveNsiCase(c, patch) {
+    const merged = { ...c, ...patch };
+    updateNsiField(c.id, patch);
+    await supabase
+      .from("employee_nsi_followups")
+      .update({
+        doctor_reviewed: merged.doctor_reviewed,
+        report_1_date: merged.report_1_date || null,
+        report_2_date: merged.report_2_date || null,
+        report_3_date: merged.report_3_date || null,
+        notes: merged.notes || "",
+      })
+      .eq("id", c.id);
+  }
+  async function uploadNsiFile(c, file) {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `nsi/${c.id}/${Date.now()}-${safeName}`;
+    const { error } = await supabase.storage.from(EMP_HEALTH_ATTACHMENTS_BUCKET).upload(path, file);
+    if (error) throw error;
+    return { path, name: file.name };
+  }
+  async function addNsiAttachments(c, files) {
+    try {
+      const uploaded = await Promise.all(Array.from(files).map((f) => uploadNsiFile(c, f)));
+      const next = [...(c.form_attachments ?? []), ...uploaded];
+      updateNsiField(c.id, { form_attachments: next });
+      await supabase.from("employee_nsi_followups").update({ form_attachments: next }).eq("id", c.id);
+    } catch (err) {
+      flash({ type: "error", text: "Could not upload: " + err.message });
+    }
+  }
+  async function removeNsiAttachment(c, index) {
+    const next = (c.form_attachments ?? []).filter((_, i) => i !== index);
+    updateNsiField(c.id, { form_attachments: next });
+    await supabase.from("employee_nsi_followups").update({ form_attachments: next }).eq("id", c.id);
+  }
+  async function removeNsiCase(c) {
+    const emp = employees.find((e) => e.id === c.employee_id);
+    if (!confirm(`Delete this NSI case for ${emp?.name || ""}?`)) return;
+    await supabase.from("employee_nsi_followups").update({ deleted: true, deleted_by: session?.username, deleted_at: new Date().toISOString() }).eq("id", c.id);
+    loadAll();
+  }
+
+  // --- QR employee profile badge ---
+  function openQr(emp) {
+    setQrEmployee(emp);
+    const url = `${window.location.origin}/employee-profile/${emp.id}`;
+    QRCode.toDataURL(url, { width: 320, margin: 1 })
+      .then(setQrDataUrl)
+      .catch(() => setQrDataUrl(""));
+  }
+  function closeQr() {
+    setQrEmployee(null);
+    setQrDataUrl("");
+  }
+
+  const pendingReviewEmployees = useMemo(
+    () => activeEmployees.filter((e) => statusFor(e.id).investigation_status !== "review_done").sort((a, b) => a.name.localeCompare(b.name)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeEmployees, statusDrafts]
+  );
+  const pendingPpdEmployees = useMemo(
+    () => activeEmployees.filter((e) => !statusFor(e.id).ppd_status).sort((a, b) => a.name.localeCompare(b.name)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeEmployees, statusDrafts]
+  );
 
   // --- Grid <-> export shared column/row builders ---
   function vaccineSlots(vaccines) {
@@ -607,6 +749,14 @@ export default function EmployeeHealth() {
                         }`}
                       />
                       <input className="input-cell" value={emp.name} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { name: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                      <button
+                        type="button"
+                        title={t("Employee QR profile")}
+                        onClick={() => openQr(emp)}
+                        className="shrink-0 rounded p-0.5 text-slate-300 hover:bg-slate-100 hover:text-teal-600"
+                      >
+                        <QrCode className="h-3.5 w-3.5" />
+                      </button>
                       {canEdit && (
                         <button
                           type="button"
@@ -946,6 +1096,214 @@ export default function EmployeeHealth() {
         </div>
       )}
 
+      {tab === "doctor-review" && (
+        <div className="flex flex-col gap-8">
+          <div>
+            <h2 className="mb-3 text-sm font-bold text-slate-800">
+              {t("Emp Clinic Pending Review")} ({pendingReviewEmployees.length})
+            </h2>
+            <div className="flex flex-col gap-3">
+              {pendingReviewEmployees.map((emp) => {
+                const s = statusFor(emp.id);
+                const needed = neededVaccines(emp);
+                return (
+                  <div key={emp.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-slate-800">{emp.name}</p>
+                        <p className="text-xs text-slate-500">
+                          {emp.department} · {emp.employee_no}
+                        </p>
+                      </div>
+                      <select className="input-cell w-44" value={s.investigation_status || "review_due"} onChange={(e) => saveStatus(emp, { investigation_status: e.target.value })}>
+                        {INVESTIGATION_STATUSES.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {t(o.label)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {needed.length > 0 && (
+                      <p className="mt-2 text-xs text-amber-700">
+                        {t("Needed vaccinations")}: {needed.join(" · ")}
+                      </p>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {(s.investigation_attachments ?? []).map((a, i) => (
+                        <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
+                          <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                            <Paperclip className="h-3 w-3" />
+                            {a.name || t("View")}
+                          </a>
+                          <button onClick={() => removeInvestigationAttachment(emp, i)} className="text-slate-400 hover:text-red-500">
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                      <label className="flex cursor-pointer items-center gap-1 text-xs font-medium text-red-600 hover:underline">
+                        <Upload className="h-3.5 w-3.5" />
+                        {t("Attach blood test results")}
+                        <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && addInvestigationAttachments(emp, e.target.files)} />
+                      </label>
+                      <button
+                        onClick={() => saveStatus(emp, { investigation_status: "review_done" })}
+                        className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        {t("Mark reviewed")}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {pendingReviewEmployees.length === 0 && <p className="text-sm text-slate-400">{t("Nothing pending doctor review 🎉")}</p>}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="mb-3 text-sm font-bold text-slate-800">
+              {t("NSI Follow Up")} ({nsiCases.length})
+            </h2>
+            <form onSubmit={addNsiCase} className="mb-3 grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-4 sm:items-center">
+              <select className="input" value={nsiForm.employee_id} onChange={(e) => setNsiForm({ ...nsiForm, employee_id: e.target.value })} required>
+                <option value="">{t("Employee")}</option>
+                {activeEmployees.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                  </option>
+                ))}
+              </select>
+              <input type="date" className="input" value={nsiForm.incident_date} onChange={(e) => setNsiForm({ ...nsiForm, incident_date: e.target.value })} />
+              <input className="input" value={nsiForm.notes} onChange={(e) => setNsiForm({ ...nsiForm, notes: e.target.value })} placeholder={t("Notes")} />
+              <button type="submit" className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+                <Plus className="h-4 w-4" />
+                {t("Add Incident")}
+              </button>
+            </form>
+            <div className="flex flex-col gap-3">
+              {nsiCases.map((c) => {
+                const emp = employees.find((e) => e.id === c.employee_id);
+                return (
+                  <div key={c.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-slate-800">{emp?.name || "—"}</p>
+                        <p className="text-xs text-slate-500">
+                          {t("Incident date")}: {c.incident_date || "—"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                          <input type="checkbox" checked={c.doctor_reviewed} onChange={(e) => saveNsiCase(c, { doctor_reviewed: e.target.checked })} />
+                          {t("Doctor reviewed")}
+                        </label>
+                        <button onClick={() => removeNsiCase(c)} className="rounded-lg p-1 text-slate-300 hover:bg-red-50 hover:text-red-600">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                      <label className="flex items-center gap-1.5 text-xs text-slate-500">
+                        {t("Report 1")}
+                        <input
+                          type="date"
+                          className="input-cell flex-1"
+                          value={c.report_1_date || ""}
+                          onChange={(e) => updateNsiField(c.id, { report_1_date: e.target.value })}
+                          onBlur={() => saveNsiCase(c, {})}
+                        />
+                      </label>
+                      <label className="flex items-center gap-1.5 text-xs text-slate-500">
+                        {t("Report 2")}
+                        <input
+                          type="date"
+                          className="input-cell flex-1"
+                          value={c.report_2_date || ""}
+                          onChange={(e) => updateNsiField(c.id, { report_2_date: e.target.value })}
+                          onBlur={() => saveNsiCase(c, {})}
+                        />
+                      </label>
+                      <label className="flex items-center gap-1.5 text-xs text-slate-500">
+                        {t("Report 3")}
+                        <input
+                          type="date"
+                          className="input-cell flex-1"
+                          value={c.report_3_date || ""}
+                          onChange={(e) => updateNsiField(c.id, { report_3_date: e.target.value })}
+                          onBlur={() => saveNsiCase(c, {})}
+                        />
+                      </label>
+                    </div>
+                    <input
+                      className="input mt-2 w-full text-sm"
+                      value={c.notes || ""}
+                      onChange={(e) => updateNsiField(c.id, { notes: e.target.value })}
+                      onBlur={() => saveNsiCase(c, {})}
+                      placeholder={t("Notes")}
+                    />
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {(c.form_attachments ?? []).map((a, i) => (
+                        <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
+                          <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                            <Paperclip className="h-3 w-3" />
+                            {a.name || t("View")}
+                          </a>
+                          <button onClick={() => removeNsiAttachment(c, i)} className="text-slate-400 hover:text-red-500">
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                      <label className="flex cursor-pointer items-center gap-1 text-xs font-medium text-red-600 hover:underline">
+                        <Upload className="h-3.5 w-3.5" />
+                        {t("Attach form")}
+                        <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && addNsiAttachments(c, e.target.files)} />
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+              {nsiCases.length === 0 && <p className="text-sm text-slate-400">{t("No needle-stick injury cases on record.")}</p>}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="mb-3 text-sm font-bold text-slate-800">
+              {t("PPD Pending Review")} ({pendingPpdEmployees.length})
+            </h2>
+            <div className="flex flex-col gap-2">
+              {pendingPpdEmployees.map((emp) => {
+                const s = statusFor(emp.id);
+                return (
+                  <div key={emp.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                    <div>
+                      <p className="font-semibold text-slate-800">{emp.name}</p>
+                      <p className="text-xs text-slate-500">{emp.department}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="date"
+                        className="input-cell w-32"
+                        value={s.ppd_test_date || ""}
+                        onChange={(e) => setStatusField(emp.id, { ppd_test_date: e.target.value, ppd_next_due_date: e.target.value ? addMonths(e.target.value, 12) : "" })}
+                      />
+                      <input className="input-cell w-28" placeholder={t("e.g. Negative")} value={s.ppd_result || ""} onChange={(e) => setStatusField(emp.id, { ppd_result: e.target.value })} />
+                      <button
+                        onClick={() => saveStatus(emp, { ppd_status: "done" })}
+                        className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        {t("Mark done")}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {pendingPpdEmployees.length === 0 && <p className="text-sm text-slate-400">{t("Everyone is up to date 🎉")}</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {tab === "records" && (
         <div className="flex flex-col gap-4">
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -1090,6 +1448,40 @@ export default function EmployeeHealth() {
                 </>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {qrEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 print:hidden" onClick={closeQr}>
+          <style>{`
+            @media print {
+              body * { visibility: hidden; }
+              #qr-print-area, #qr-print-area * { visibility: visible; }
+              #qr-print-area { position: fixed; inset: 0; margin: auto; }
+            }
+          `}</style>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 text-center shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-base font-semibold text-slate-800">{t("Employee QR Profile")}</h3>
+              <button onClick={closeQr} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-50">
+                ✕
+              </button>
+            </div>
+            <div id="qr-print-area" className="mt-3 flex flex-col items-center gap-2">
+              {qrDataUrl && <img src={qrDataUrl} alt="QR code" className="h-56 w-56" />}
+              <p className="text-sm font-semibold text-slate-700">{qrEmployee.name}</p>
+              <p className="text-xs text-slate-500">
+                {qrEmployee.department} · {qrEmployee.employee_no}
+              </p>
+            </div>
+            <button
+              onClick={() => window.print()}
+              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 print:hidden"
+            >
+              <Printer className="h-4 w-4" />
+              {t("Print Badge")}
+            </button>
           </div>
         </div>
       )}
