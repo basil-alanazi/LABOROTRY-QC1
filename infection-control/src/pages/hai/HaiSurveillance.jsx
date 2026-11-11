@@ -1033,7 +1033,7 @@ function parseDobInput(text) {
   if (day < 1 || day > 31 || month < 1 || month > 12) return null;
   return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }
-function DobInput({ value, onFieldChange, onFieldBlurSave, dischargeBg = "" }) {
+function DobInput({ value, onFieldChange, onCommit, dischargeBg = "" }) {
   const [text, setText] = useState(() => formatDobDisplay(value));
   useEffect(() => setText(formatDobDisplay(value)), [value]);
 
@@ -1045,10 +1045,17 @@ function DobInput({ value, onFieldChange, onFieldBlurSave, dischargeBg = "" }) {
     setText(formatted);
   }
 
+  // onFieldChange only updates local grid state (async) — unlike every other
+  // field here, this one both patches AND saves in the same blur handler, so
+  // it can't wait for that state update to land first (it hasn't, yet) the
+  // way other fields' save-on-blur does. onCommit saves the patch directly,
+  // merged onto the record as it stood before this edit, so the save always
+  // includes the date actually just typed instead of racing the UI update.
   function handleBlur() {
     if (text === "") {
-      onFieldChange({ date_of_birth: null });
-      onFieldBlurSave();
+      const patch = { date_of_birth: null };
+      onFieldChange(patch);
+      onCommit(patch);
       return;
     }
     const iso = parseDobInput(text);
@@ -1056,8 +1063,9 @@ function DobInput({ value, onFieldChange, onFieldBlurSave, dischargeBg = "" }) {
       setText(formatDobDisplay(value)); // invalid/incomplete — revert, don't save
       return;
     }
-    onFieldChange({ date_of_birth: iso });
-    onFieldBlurSave();
+    const patch = { date_of_birth: iso };
+    onFieldChange(patch);
+    onCommit(patch);
   }
 
   return (
@@ -1074,12 +1082,12 @@ function DobInput({ value, onFieldChange, onFieldBlurSave, dischargeBg = "" }) {
 // Date of Birth/National ID/Mobile/Nationality — Infection Control's own
 // patient-identity fields, rendered only for admin (Owner/IC); department
 // accounts never see these cells at all, matching IC_ONLY_HEADERS above.
-function IcOnlyCells({ isAdmin, record, onFieldChange, onFieldBlurSave, dischargeBg = "" }) {
+function IcOnlyCells({ isAdmin, record, onFieldChange, onFieldBlurSave, onDobCommit, dischargeBg = "" }) {
   if (!isAdmin) return null;
   const cellClass = dischargeBg || "bg-slate-50";
   return (
     <>
-      <td className={`${cellClass} px-1.5 py-0.5`}><DobInput value={record.date_of_birth} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} dischargeBg={dischargeBg} /></td>
+      <td className={`${cellClass} px-1.5 py-0.5`}><DobInput value={record.date_of_birth} onFieldChange={onFieldChange} onCommit={onDobCommit} dischargeBg={dischargeBg} /></td>
       <td className={`${cellClass} px-1.5 py-0.5`}><GridText value={record.national_id} onChange={(e) => onFieldChange({ national_id: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[6rem] ${dischargeBg}`} /></td>
       <td className={`${cellClass} px-1.5 py-0.5`}><GridText value={record.mobile} onChange={(e) => onFieldChange({ mobile: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[6rem] ${dischargeBg}`} /></td>
       <td className={`${cellClass} px-1.5 py-0.5`}><GridText value={record.nationality} onChange={(e) => onFieldChange({ nationality: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[5.5rem] ${dischargeBg}`} /></td>
@@ -1170,6 +1178,7 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
                   onUpdateField(p.id, { status_after_discharge: checked });
                   onSave({ ...p, status_after_discharge: checked });
                 }}
+                onDobCommit={(patch) => onSave({ ...p, ...patch })}
                 onRemove={() => onRemove(p)}
               />
             ))}
@@ -1181,7 +1190,7 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
   );
 }
 
-function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecimenFieldChange, onSpecimenMdroToggle, onHaiDetectedToggle, onEventTypeToggle, onUpdatedInSehaToggle, onStatusAfterDischargeToggle, onRemove }) {
+function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecimenFieldChange, onSpecimenMdroToggle, onHaiDetectedToggle, onEventTypeToggle, onUpdatedInSehaToggle, onStatusAfterDischargeToggle, onDobCommit, onRemove }) {
   const unitBeforeHospital = !!(p.hospital_admission_date && p.unit_admission_date && p.unit_admission_date < p.hospital_admission_date);
   const nameCellClass = identityCellClass(p.current_status, p.updated_in_seha, p.updated_in_seha_status, hasActiveDevice(p));
   // Once "Status After Discharge" is ticked, the whole row goes dark green —
@@ -1202,7 +1211,7 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
       <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} className={dischargeBg} /></td>
       <td className={`sticky-name-col px-1.5 py-0.5 ${dischargeBg || nameCellClass || rowBg || "bg-white"}`}><GridText value={p.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[8rem] ${dischargeBg || nameCellClass}`} /></td>
       <td className={`px-1.5 py-0.5 ${dischargeBg || nameCellClass || rowBg}`}><GridText value={p.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[5rem] ${dischargeBg || nameCellClass}`} /></td>
-      <IcOnlyCells isAdmin={isAdmin} record={p} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} dischargeBg={dischargeBg} />
+      <IcOnlyCells isAdmin={isAdmin} record={p} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} onDobCommit={onDobCommit} dischargeBg={dischargeBg} />
       <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.age} onChange={(e) => onFieldChange({ age: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[3.5rem] ${dischargeBg}`} /></td>
       <td className={`px-1.5 py-0.5 ${rowBg}`}>
         <select className={`input-cell w-full ${dischargeBg}`} value={p.gender} onChange={(e) => onFieldChange({ gender: e.target.value })} onBlur={onFieldBlurSave}>
@@ -1605,6 +1614,7 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
                 }}
                 onMarkComplete={(prefix) => onMarkComplete(c, prefix)}
                 onReopen={(prefix) => onReopen(c, prefix)}
+                onDobCommit={(patch) => onSave({ ...c, ...patch })}
                 onRemove={() => onRemove(c)}
               />
             ))}
@@ -1618,7 +1628,7 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
 
 function SsiRow({
   c, units, session, isAdmin, onFieldChange, onFieldBlurSave, onFollowUpFieldChange, onSpecimenFieldChange, onSpecimenMdroToggle,
-  onPatosToggle, onSsiDetectedToggle, onUpdatedInSehaToggle, onMarkComplete, onReopen, onRemove,
+  onPatosToggle, onSsiDetectedToggle, onUpdatedInSehaToggle, onMarkComplete, onReopen, onDobCommit, onRemove,
 }) {
   function canEditSsi(group) {
     return isAdmin || session?.department === group || (session?.ssiStages ?? []).includes(group);
@@ -1651,7 +1661,7 @@ function SsiRow({
       <td className="px-1.5 py-0.5"><GridText value={c.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} /></td>
       <td className={`sticky-name-col px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className={`min-w-[8rem] ${nameCellClass}`} /></td>
       <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className={`min-w-[5rem] ${nameCellClass}`} /></td>
-      <IcOnlyCells isAdmin={isAdmin} record={c} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} />
+      <IcOnlyCells isAdmin={isAdmin} record={c} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} onDobCommit={onDobCommit} />
       <td className="px-1.5 py-0.5">
         <select className="input-cell w-full min-w-[5.5rem]" disabled={drDisabled} value={c.unit} onChange={(e) => onFieldChange({ unit: e.target.value })} onBlur={onFieldBlurSave}>
           <option value="">—</option>
@@ -1852,6 +1862,7 @@ function ObSurveillanceTab({ cases, loading, session, isAdmin, onAddCase, onUpda
                   onUpdateField(c.id, patch);
                   onSave({ ...c, ...patch });
                 }}
+                onDobCommit={(patch) => onSave({ ...c, ...patch })}
                 onRemove={() => onRemove(c)}
               />
             ))}
@@ -1887,7 +1898,7 @@ function StageActionCell({ open, done, canEdit, canReopen, completedBy, onMarkCo
   return <span className="whitespace-nowrap text-xs font-medium text-amber-600">Open</span>;
 }
 
-function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComplete, onReopen, onSpecimenFieldChange, onSpecimenMdroToggle, onSsiDetectedToggle, onUpdatedInSehaToggle, onRemove }) {
+function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComplete, onReopen, onSpecimenFieldChange, onSpecimenMdroToggle, onSsiDetectedToggle, onUpdatedInSehaToggle, onDobCommit, onRemove }) {
   const orDone = !!c.or_completed_at;
   const deliveryDone = !!c.delivery_completed_at;
   const fwDone = !!c.fw_completed_at;
@@ -1918,7 +1929,7 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
       </td>
       <td className={`sticky-name-col px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[8rem] ${nameCellClass}`} /></td>
       <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[5rem] ${nameCellClass}`} /></td>
-      <IcOnlyCells isAdmin={isAdmin} record={c} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} />
+      <IcOnlyCells isAdmin={isAdmin} record={c} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} onDobCommit={onDobCommit} />
       <td className="px-1.5 py-0.5"><GridText value={c.age} onChange={(e) => onFieldChange({ age: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[3.5rem]" /></td>
       <td className="px-1.5 py-0.5"><GridText value={c.admission_diagnosis} onChange={(e) => onFieldChange({ admission_diagnosis: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[8rem]" /></td>
 
