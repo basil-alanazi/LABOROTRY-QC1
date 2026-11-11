@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./lib/auth.jsx";
+import { LanguageProvider } from "./lib/i18n.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import Layout from "./components/layout/Layout.jsx";
 import Login from "./pages/Login.jsx";
@@ -32,6 +33,7 @@ function RouteLoading() {
 
 export default function App() {
   return (
+    <LanguageProvider>
     <AuthProvider>
       <Suspense fallback={<RouteLoading />}>
       <Routes>
@@ -178,5 +180,6 @@ export default function App() {
       </Routes>
       </Suspense>
     </AuthProvider>
+    </LanguageProvider>
   );
 }
