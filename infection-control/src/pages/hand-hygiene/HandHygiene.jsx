@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Droplets, FileSpreadsheet, FileText, Paperclip, Plus, Trash2, TrendingDown, TrendingUp } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
+import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
@@ -82,6 +83,7 @@ function toReportRow(r) {
 
 export default function HandHygiene() {
   const { session, config } = useAuth();
+  const { t } = useLanguage();
   const [observations, setObservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptySessionForm);
@@ -264,8 +266,8 @@ export default function HandHygiene() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Hand Hygiene</h1>
-          <p className="text-sm text-slate-500">WHO 5 Moments hand-hygiene observation — Indication, HH Action (Hand Rub/Hand Wash/Missed), and glove use per session.</p>
+          <h1 className="text-xl font-bold text-slate-800">{t("Hand Hygiene")}</h1>
+          <p className="text-sm text-slate-500">{t("WHO 5 Moments hand-hygiene observation — Indication, HH Action (Hand Rub/Hand Wash/Missed), and glove use per session.")}</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -274,7 +276,7 @@ export default function HandHygiene() {
             className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
           >
             <FileSpreadsheet className="h-3.5 w-3.5" />
-            Export Excel
+            {t("Export Excel")}
           </button>
           <button
             onClick={exportPdf}
@@ -282,14 +284,14 @@ export default function HandHygiene() {
             className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
           >
             <FileText className="h-3.5 w-3.5" />
-            Export PDF
+            {t("Export PDF")}
           </button>
         </div>
       </div>
 
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-slate-700">Monthly Report</h2>
+          <h2 className="text-sm font-semibold text-slate-700">{t("Monthly Report")}</h2>
           <div className="flex items-center gap-2">
             <input type="month" className="input w-40" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} />
             <button
@@ -298,7 +300,7 @@ export default function HandHygiene() {
               className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
-              Excel
+              {t("Excel")}
             </button>
             <button
               onClick={exportMonthlyPdf}
@@ -306,24 +308,24 @@ export default function HandHygiene() {
               className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
             >
               <FileText className="h-3.5 w-3.5" />
-              PDF
+              {t("PDF")}
             </button>
           </div>
         </div>
 
         {monthlyReport.totalObservations === 0 ? (
-          <p className="text-sm text-slate-400">No observations recorded for this month.</p>
+          <p className="text-sm text-slate-400">{t("No observations recorded for this month.")}</p>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <StatTile label="Observations" value={monthlyReport.totalObservations} />
-              <StatTile label="Opportunities" value={monthlyReport.totalOpportunities} />
+              <StatTile label={t("Observations")} value={monthlyReport.totalObservations} />
+              <StatTile label={t("Opportunities")} value={monthlyReport.totalOpportunities} />
               <StatTile
-                label="Compliant (Success)"
+                label={t("Compliant (Success)")}
                 value={`${monthlyReport.totalCompliant}${monthlyReport.overallPct != null ? ` (${monthlyReport.overallPct}%)` : ""}`}
                 tone="good"
               />
-              <StatTile label="Missed (Failed)" value={monthlyReport.totalMissed} tone="bad" />
+              <StatTile label={t("Missed (Failed)")} value={monthlyReport.totalMissed} tone="bad" />
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -331,7 +333,7 @@ export default function HandHygiene() {
                 <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm">
                   <TrendingUp className="h-4 w-4 text-emerald-600" />
                   <span className="font-medium text-emerald-800">
-                    Best department: <b>{monthlyReport.best.department}</b> ({monthlyReport.best.compliance_pct}%)
+                    {t("Best department: ")}<b>{monthlyReport.best.department}</b> ({monthlyReport.best.compliance_pct}%)
                   </span>
                 </div>
               )}
@@ -339,7 +341,7 @@ export default function HandHygiene() {
                 <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm">
                   <TrendingDown className="h-4 w-4 text-red-600" />
                   <span className="font-medium text-red-800">
-                    Worst department: <b>{monthlyReport.worst.department}</b> ({monthlyReport.worst.compliance_pct}%)
+                    {t("Worst department: ")}<b>{monthlyReport.worst.department}</b> ({monthlyReport.worst.compliance_pct}%)
                   </span>
                 </div>
               )}
@@ -349,12 +351,12 @@ export default function HandHygiene() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 text-left text-xs text-slate-500">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Department</th>
-                    <th className="px-3 py-2 font-medium">Observations</th>
-                    <th className="px-3 py-2 font-medium">Opportunities</th>
-                    <th className="px-3 py-2 font-medium">Compliant</th>
-                    <th className="px-3 py-2 font-medium">Missed</th>
-                    <th className="px-3 py-2 font-medium">Compliance</th>
+                    <th className="px-3 py-2 font-medium">{t("Department")}</th>
+                    <th className="px-3 py-2 font-medium">{t("Observations")}</th>
+                    <th className="px-3 py-2 font-medium">{t("Opportunities")}</th>
+                    <th className="px-3 py-2 font-medium">{t("Compliant")}</th>
+                    <th className="px-3 py-2 font-medium">{t("Missed")}</th>
+                    <th className="px-3 py-2 font-medium">{t("Compliance")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -389,30 +391,29 @@ export default function HandHygiene() {
             <option key={s} value={s} />
           ))}
         </datalist>
-        <h2 className="text-sm font-semibold text-slate-700">New Observation</h2>
+        <h2 className="text-sm font-semibold text-slate-700">{t("New Observation")}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Date">
+          <Field label={t("Date")}>
             <input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
           </Field>
-          <Field label="Department / Ward">
+          <Field label={t("Department / Ward")}>
             <select className="input" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} required>
-              <option value="">Select department</option>
+              <option value="">{t("Select department")}</option>
               {departments.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
           </Field>
-          <Field label="Start Time">
+          <Field label={t("Start Time")}>
             <input type="time" className="input" value={form.time_from} onChange={(e) => setForm({ ...form, time_from: e.target.value })} />
           </Field>
-          <Field label="End Time">
+          <Field label={t("End Time")}>
             <input type="time" className="input" value={form.time_to} onChange={(e) => setForm({ ...form, time_to: e.target.value })} />
           </Field>
         </div>
 
         <p className="text-xs text-slate-500">
-          Fill in a Prof.cat column for each worker observed this session, then check off each numbered opportunity exactly like the paper form —
-          Total Opportunities/Compliant/Compliance% are tallied automatically from your checkmarks when you save.
+          {t("Fill in a Prof.cat column for each worker observed this session, then check off each numbered opportunity exactly like the paper form — Total Opportunities/Compliant/Compliance% are tallied automatically from your checkmarks when you save.")}
         </p>
 
         <div className="grid grid-cols-1 gap-3 overflow-x-auto sm:grid-cols-2 xl:grid-cols-4">
@@ -421,7 +422,7 @@ export default function HandHygiene() {
           ))}
         </div>
 
-        <Field label="Attachment (optional — photo of the paper form)">
+        <Field label={t("Attachment (optional — photo of the paper form)")}>
           <input type="file" className="input" onChange={(e) => setNewAttachment(e.target.files?.[0] ?? null)} />
         </Field>
 
@@ -433,13 +434,13 @@ export default function HandHygiene() {
 
         <button type="submit" className="flex items-center gap-1 self-start rounded-lg bg-teal-600 px-6 py-2 text-sm font-semibold text-white hover:bg-teal-700">
           <Plus className="h-4 w-4" />
-          Save Observation
+          {t("Save Observation")}
         </button>
       </form>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <select className="input w-56" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
-          <option value="">All Departments</option>
+          <option value="">{t("All Departments")}</option>
           {departments.map((d) => (
             <option key={d} value={d}>{d}</option>
           ))}
@@ -447,24 +448,24 @@ export default function HandHygiene() {
         {avgCompliance != null && (
           <span className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-xs font-medium text-teal-700">
             <Droplets className="h-3.5 w-3.5" />
-            Average compliance: {avgCompliance}%
+            {t("Average compliance: ")}{avgCompliance}%
           </span>
         )}
       </div>
-      <p className="text-xs text-slate-500">Export Excel/PDF exports exactly what's shown below — filter by department first.</p>
+      <p className="text-xs text-slate-500">{t("Export Excel/PDF exports exactly what's shown below — filter by department first.")}</p>
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Date</th>
-              <th className="px-4 py-2 font-medium">Department</th>
-              <th className="px-4 py-2 font-medium">Observer</th>
-              <th className="px-4 py-2 font-medium">Time</th>
-              <th className="px-4 py-2 font-medium">Total Opp.</th>
-              <th className="px-4 py-2 font-medium">Compliant</th>
-              <th className="px-4 py-2 font-medium">Compliance</th>
-              <th className="px-4 py-2 font-medium">Attachment</th>
+              <th className="px-4 py-2 font-medium">{t("Date")}</th>
+              <th className="px-4 py-2 font-medium">{t("Department")}</th>
+              <th className="px-4 py-2 font-medium">{t("Observer")}</th>
+              <th className="px-4 py-2 font-medium">{t("Time")}</th>
+              <th className="px-4 py-2 font-medium">{t("Total Opp.")}</th>
+              <th className="px-4 py-2 font-medium">{t("Compliant")}</th>
+              <th className="px-4 py-2 font-medium">{t("Compliance")}</th>
+              <th className="px-4 py-2 font-medium">{t("Attachment")}</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
@@ -490,7 +491,7 @@ export default function HandHygiene() {
                   {o.attachment_path ? (
                     <a href={attachmentUrl(o.attachment_path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-teal-700 hover:underline">
                       <Paperclip className="h-3.5 w-3.5" />
-                      View
+                      {t("View")}
                     </a>
                   ) : (
                     <span className="text-slate-300">—</span>
@@ -505,15 +506,16 @@ export default function HandHygiene() {
             ))}
           </tbody>
         </table>
-        {!loading && visibleObservations.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No observations recorded</p>}
-        {loading && <p className="p-6 text-center text-sm text-slate-400">Loading...</p>}
+        {!loading && visibleObservations.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No observations recorded")}</p>}
+        {loading && <p className="p-6 text-center text-sm text-slate-400">{t("Loading...")}</p>}
       </div>
     </div>
   );
 }
 
 function ProfCatColumn({ col, onFieldChange, onToggleOpp }) {
-  const t = computeColumnTotals(col);
+  const { t } = useLanguage();
+  const totals = computeColumnTotals(col);
   const active = columnHasData(col);
   return (
     <div className={`flex flex-col overflow-hidden rounded-xl border ${active ? "border-teal-400" : "border-slate-200"}`}>
@@ -542,8 +544,8 @@ function ProfCatColumn({ col, onFieldChange, onToggleOpp }) {
         <thead>
           <tr className="bg-slate-50 text-slate-500">
             <th className="border-b border-slate-200 px-1 py-1 font-medium">Opp.</th>
-            <th className="border-b border-slate-200 px-1 py-1 font-medium">Indication</th>
-            <th className="border-b border-slate-200 px-1 py-1 font-medium">HH Action</th>
+            <th className="border-b border-slate-200 px-1 py-1 font-medium">{t("Indication")}</th>
+            <th className="border-b border-slate-200 px-1 py-1 font-medium">{t("HH Action")}</th>
           </tr>
         </thead>
         <tbody>
@@ -572,11 +574,11 @@ function ProfCatColumn({ col, onFieldChange, onToggleOpp }) {
                   </label>
                   <label className="flex items-center gap-1 whitespace-nowrap">
                     <input type="checkbox" className="h-3 w-3 rounded-full" checked={o.missed} onChange={() => onToggleOpp(oi, "missed")} />
-                    missed
+                    {t("missed")}
                   </label>
                   <label className="flex items-center gap-1 whitespace-nowrap">
                     <input type="checkbox" className="h-3 w-3 rounded-full" checked={o.gloves} onChange={() => onToggleOpp(oi, "gloves")} />
-                    gloves
+                    {t("gloves")}
                   </label>
                 </div>
               </td>
@@ -587,9 +589,9 @@ function ProfCatColumn({ col, onFieldChange, onToggleOpp }) {
 
       {active && (
         <div className="flex flex-wrap gap-x-3 gap-y-0.5 bg-teal-50/60 px-2 py-1.5 text-[11px] text-teal-700">
-          <span>Total: <b>{t.total_opportunities}</b></span>
-          <span>Compliant: <b>{t.compliant}</b></span>
-          <span>Compliance: <b>{t.compliance_pct != null ? `${t.compliance_pct}%` : "—"}</b></span>
+          <span>{t("Total: ")}<b>{totals.total_opportunities}</b></span>
+          <span>{t("Compliant: ")}<b>{totals.compliant}</b></span>
+          <span>{t("Compliance: ")}<b>{totals.compliance_pct != null ? `${totals.compliance_pct}%` : "—"}</b></span>
         </div>
       )}
     </div>
