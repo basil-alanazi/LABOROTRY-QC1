@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, Fragment } from "react";
 import { FileSpreadsheet, FileText, Check, CheckCheck, AlertTriangle, Plus, Trash2 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
+import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
@@ -56,6 +57,7 @@ function stockColorClass(item) {
 
 export default function StockRequests() {
   const { session, config, isAdmin, canAdminStock } = useAuth();
+  const { t } = useLanguage();
   // Owner/IC always see the full admin view; a Ward Staff account can be
   // granted "Stock Requests Admin" (Settings → User Accounts) to see and
   // manage every department here too, without broader admin access.
@@ -353,11 +355,11 @@ export default function StockRequests() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Stock Requests</h1>
+          <h1 className="text-xl font-bold text-slate-800">{t("Stock Requests")}</h1>
           <p className="text-sm text-slate-500">
             {isStockAdmin
-              ? "Supply usage across every department's own stock catalog, tracked in real time."
-              : `Log supplies used from ${myDepartment || "your department"}'s own stock.`}
+              ? t("Supply usage across every department's own stock catalog, tracked in real time.")
+              : `${t("Log supplies used from")} ${myDepartment || t("your department")}${t("'s own stock.")}`}
           </p>
         </div>
         {isStockAdmin && tab === "use" && (
@@ -367,7 +369,7 @@ export default function StockRequests() {
               className="input w-auto"
               value={reportMonth}
               onChange={(e) => setReportMonth(e.target.value)}
-              title="Report month"
+              title={t("Report month")}
             />
             <button
               type="button"
@@ -376,7 +378,7 @@ export default function StockRequests() {
                 !reportMonth ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 text-slate-500"
               }`}
             >
-              All time
+              {t("All time")}
             </button>
             <button
               onClick={exportExcel}
@@ -384,7 +386,7 @@ export default function StockRequests() {
               className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
             >
               <FileSpreadsheet className="h-3.5 w-3.5" />
-              Export Excel
+              {t("Export Excel")}
             </button>
             <button
               onClick={exportPdf}
@@ -392,7 +394,7 @@ export default function StockRequests() {
               className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
             >
               <FileText className="h-3.5 w-3.5" />
-              Export PDF
+              {t("Export PDF")}
             </button>
           </div>
         )}
@@ -400,23 +402,23 @@ export default function StockRequests() {
 
       <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
         <button onClick={() => setTab("use")} className={`rounded-md px-3 py-1 font-medium ${tab === "use" ? "bg-teal-600 text-white" : "text-slate-500"}`}>
-          Use Stock
+          {t("Use Stock")}
         </button>
         <button
           onClick={() => setTab("daily-check")}
           className={`rounded-md px-3 py-1 font-medium ${tab === "daily-check" ? "bg-teal-600 text-white" : "text-slate-500"}`}
         >
-          Daily Check
+          {t("Daily Check")}
         </button>
       </div>
 
       {tab === "use" && (
       <>
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-700">Use Stock</h2>
+        <h2 className="text-sm font-semibold text-slate-700">{t("Use Stock")}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {isStockAdmin ? (
-            <Field label="Department">
+            <Field label={t("Department")}>
               <select
                 value={selectedDept}
                 onChange={(e) => {
@@ -425,7 +427,7 @@ export default function StockRequests() {
                 }}
                 className="input"
               >
-                <option value="">Select department</option>
+                <option value="">{t("Select department")}</option>
                 {departments.map((d) => (
                   <option key={d} value={d}>
                     {d}
@@ -434,16 +436,16 @@ export default function StockRequests() {
               </select>
             </Field>
           ) : (
-            <Field label="Department">
+            <Field label={t("Department")}>
               <input className="input bg-slate-50" value={myDepartment} disabled readOnly />
             </Field>
           )}
-          <Field label="Search items">
+          <Field label={t("Search items")}>
             <input
               className="input"
               value={itemSearch}
               onChange={(e) => setItemSearch(e.target.value)}
-              placeholder="Type to filter..."
+              placeholder={t("Type to filter...")}
               disabled={!activeDepartment}
             />
           </Field>
@@ -457,7 +459,7 @@ export default function StockRequests() {
             lowStockOnly ? "border-amber-500 bg-amber-50 text-amber-700" : "border-slate-200 text-slate-500 hover:bg-slate-50"
           }`}
         >
-          {lowStockOnly ? "Showing low stock only" : "Low stock only"}
+          {lowStockOnly ? t("Showing low stock only") : t("Low stock only")}
         </button>
 
         {message && (
@@ -466,11 +468,11 @@ export default function StockRequests() {
           </p>
         )}
 
-        {!activeDepartment && <p className="text-sm text-slate-400">Select a department to see its stock items.</p>}
+        {!activeDepartment && <p className="text-sm text-slate-400">{t("Select a department to see its stock items.")}</p>}
 
         {activeDepartment && departmentItems.length === 0 && (
           <p className="text-sm text-slate-400">
-            {lowStockOnly ? "No low-stock items right now" : "No items match"} — {items.filter((i) => i.department === activeDepartment).length} items total for {activeDepartment}.
+            {lowStockOnly ? t("No low-stock items right now") : t("No items match")} — {items.filter((i) => i.department === activeDepartment).length} {t("items total for")} {activeDepartment}.
           </p>
         )}
 
@@ -479,21 +481,21 @@ export default function StockRequests() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs text-slate-500">
                 <tr>
-                  <th className="px-4 py-2 font-medium">Item</th>
+                  <th className="px-4 py-2 font-medium">{t("Item")}</th>
                   {canManage && (
                     <>
-                      <th className="px-4 py-2 font-medium">Quantity to be Added</th>
+                      <th className="px-4 py-2 font-medium">{t("Quantity to be Added")}</th>
                       <th className="px-4 py-2"></th>
                     </>
                   )}
-                  <th className="px-4 py-2 font-medium">Current Stock</th>
+                  <th className="px-4 py-2 font-medium">{t("Current Stock")}</th>
                   {canManage && (
                     <>
-                      <th className="px-4 py-2 font-medium">Min</th>
-                      <th className="px-4 py-2 font-medium">Max</th>
+                      <th className="px-4 py-2 font-medium">{t("Min")}</th>
+                      <th className="px-4 py-2 font-medium">{t("Max")}</th>
                     </>
                   )}
-                  <th className="px-4 py-2 font-medium">Quantity to Use</th>
+                  <th className="px-4 py-2 font-medium">{t("Quantity to Use")}</th>
                   <th className="px-4 py-2"></th>
                   {canManage && <th className="px-4 py-2"></th>}
                 </tr>
@@ -511,7 +513,7 @@ export default function StockRequests() {
                             className="input w-24"
                             value={addQtyInputs[i.id] ?? ""}
                             onChange={(e) => setAddQty(i.id, e.target.value)}
-                            placeholder="qty"
+                            placeholder={t("qty")}
                           />
                         </td>
                         <td className="px-4 py-2">
@@ -521,7 +523,7 @@ export default function StockRequests() {
                             className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
                           >
                             <Plus className="h-3.5 w-3.5" />
-                            Add
+                            {t("Add")}
                           </button>
                         </td>
                       </>
@@ -529,7 +531,7 @@ export default function StockRequests() {
                     <td className="px-4 py-2">
                       <span className={`font-medium ${stockColorClass(i)}`}>
                         {i.current_qty} {i.unit}
-                        {isOverstock(i) && <span className="ml-1 text-[10px] font-semibold uppercase text-orange-600">over max</span>}
+                        {isOverstock(i) && <span className="ml-1 text-[10px] font-semibold uppercase text-orange-600">{t("over max")}</span>}
                       </span>
                     </td>
                     {canManage && (
@@ -563,7 +565,7 @@ export default function StockRequests() {
                         value={qtyInputs[i.id] ?? ""}
                         onChange={(e) => setQty(i.id, e.target.value)}
                         disabled={i.current_qty <= 0}
-                        placeholder="qty"
+                        placeholder={t("qty")}
                       />
                     </td>
                     <td className="px-4 py-2">
@@ -573,14 +575,14 @@ export default function StockRequests() {
                         className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-40"
                       >
                         <Check className="h-3.5 w-3.5" />
-                        Use
+                        {t("Use")}
                       </button>
                     </td>
                     {canManage && (
                       <td className="px-4 py-2">
                         <button
                           onClick={() => removeItem(i)}
-                          title="Remove this item"
+                          title={t("Remove this item")}
                           className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -600,35 +602,35 @@ export default function StockRequests() {
               className="input sm:col-span-2"
               value={newItem.name}
               onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-              placeholder="New item name"
+              placeholder={t("New item name")}
             />
             <input
               type="number"
               className="input"
               value={newItem.min_qty}
               onChange={(e) => setNewItem({ ...newItem, min_qty: e.target.value })}
-              placeholder="Min qty"
+              placeholder={t("Min qty")}
             />
             <input
               type="number"
               className="input"
               value={newItem.max_qty}
               onChange={(e) => setNewItem({ ...newItem, max_qty: e.target.value })}
-              placeholder="Max qty"
+              placeholder={t("Max qty")}
             />
             <input
               type="number"
               className="input"
               value={newItem.current_qty}
               onChange={(e) => setNewItem({ ...newItem, current_qty: e.target.value })}
-              placeholder="Current qty"
+              placeholder={t("Current qty")}
             />
             <button
               onClick={addNewItem}
               className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-5"
             >
               <Plus className="h-4 w-4" />
-              Add New Item to {activeDepartment}
+              {t("Add New Item to")} {activeDepartment}
             </button>
           </div>
         )}
@@ -636,7 +638,7 @@ export default function StockRequests() {
 
       {isStockAdmin && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4">
-          <span className="text-xs font-medium text-slate-500">Departments in report:</span>
+          <span className="text-xs font-medium text-slate-500">{t("Departments in report:")}</span>
           <button
             type="button"
             onClick={() => setFilterDepts([])}
@@ -644,7 +646,7 @@ export default function StockRequests() {
               filterDepts.length === 0 ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 text-slate-500"
             }`}
           >
-            All
+            {t("All")}
           </button>
           {departments.map((d) => (
             <button
@@ -665,11 +667,11 @@ export default function StockRequests() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Date</th>
-              {isStockAdmin && <th className="px-4 py-2 font-medium">Department</th>}
-              <th className="px-4 py-2 font-medium">Item</th>
-              <th className="px-4 py-2 font-medium">Quantity Used</th>
-              <th className="px-4 py-2 font-medium">Used By</th>
+              <th className="px-4 py-2 font-medium">{t("Date")}</th>
+              {isStockAdmin && <th className="px-4 py-2 font-medium">{t("Department")}</th>}
+              <th className="px-4 py-2 font-medium">{t("Item")}</th>
+              <th className="px-4 py-2 font-medium">{t("Quantity Used")}</th>
+              <th className="px-4 py-2 font-medium">{t("Used By")}</th>
               {isStockAdmin && <th className="px-4 py-2"></th>}
             </tr>
           </thead>
@@ -686,7 +688,7 @@ export default function StockRequests() {
                 {isStockAdmin && (
                   <td className="px-4 py-2 text-right">
                     <button onClick={() => voidRequest(r)} className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-red-50 hover:text-red-600">
-                      Void
+                      {t("Void")}
                     </button>
                   </td>
                 )}
@@ -694,8 +696,8 @@ export default function StockRequests() {
             ))}
           </tbody>
         </table>
-        {!loading && requests.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No usage recorded yet</p>}
-        {loading && <p className="p-6 text-center text-sm text-slate-400">Loading...</p>}
+        {!loading && requests.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No usage recorded yet")}</p>}
+        {loading && <p className="p-6 text-center text-sm text-slate-400">{t("Loading...")}</p>}
       </div>
       </>
       )}
@@ -703,14 +705,14 @@ export default function StockRequests() {
       {tab === "daily-check" && (
         <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-slate-700">Daily Stock Check</h2>
+            <h2 className="text-sm font-semibold text-slate-700">{t("Daily Stock Check")}</h2>
             <input type="date" className="input w-auto" value={checkDate} onChange={(e) => setCheckDate(e.target.value)} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {isStockAdmin ? (
-              <Field label="Department">
+              <Field label={t("Department")}>
                 <select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)} className="input">
-                  <option value="">Select department</option>
+                  <option value="">{t("Select department")}</option>
                   {departments.map((d) => (
                     <option key={d} value={d}>
                       {d}
@@ -719,29 +721,29 @@ export default function StockRequests() {
                 </select>
               </Field>
             ) : (
-              <Field label="Department">
+              <Field label={t("Department")}>
                 <input className="input bg-slate-50" value={myDepartment} disabled readOnly />
               </Field>
             )}
           </div>
           <p className="text-xs text-slate-500">
-            Tick an item once it's been checked for that shift. Or type a name at the top of a shift and click{" "}
-            <CheckCheck className="inline h-3.5 w-3.5 align-text-bottom" /> to mark every item in this department checked for that shift at once.
-            Flag <AlertTriangle className="inline h-3.5 w-3.5 align-text-bottom text-red-500" /> on an item/shift you couldn't check or found empty.
+            {t("Tick an item once it's been checked for that shift.")} {t("Or type a name at the top of a shift and click")}{" "}
+            <CheckCheck className="inline h-3.5 w-3.5 align-text-bottom" /> {t("to mark every item in this department checked for that shift at once.")}
+            {" "}{t("Flag")} <AlertTriangle className="inline h-3.5 w-3.5 align-text-bottom text-red-500" /> {t("on an item/shift you couldn't check or found empty.")}
           </p>
 
           {dailyCheckIssueCount > 0 && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
-              {dailyCheckIssueCount} item{dailyCheckIssueCount === 1 ? "" : "s"} flagged with a problem for {checkDate}
+              {dailyCheckIssueCount} {t("item(s) flagged with a problem for")} {checkDate}
             </p>
           )}
           {dailyCheckLowStockCount > 0 && (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700">
-              {dailyCheckLowStockCount} item{dailyCheckLowStockCount === 1 ? " is" : "s are"} currently low on stock — restock before checking it off
+              {dailyCheckLowStockCount} {t("item(s) currently low on stock — restock before checking it off")}
             </p>
           )}
 
-          {!activeDepartment && <p className="text-sm text-slate-400">Select a department to see its stock items.</p>}
+          {!activeDepartment && <p className="text-sm text-slate-400">{t("Select a department to see its stock items.")}</p>}
 
           {activeDepartment && (
             <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -749,11 +751,11 @@ export default function StockRequests() {
                 <thead className="bg-slate-50 text-left text-xs text-slate-500">
                   <tr>
                     <th className="px-3 py-2 font-medium" rowSpan={2}>
-                      Item
+                      {t("Item")}
                     </th>
                     {SHIFTS.map((s) => (
                       <th key={s.key} className="px-3 py-2 text-center font-medium" colSpan={3}>
-                        {s.label}
+                        {t(s.label)}
                       </th>
                     ))}
                   </tr>
@@ -765,7 +767,7 @@ export default function StockRequests() {
                             type="button"
                             onClick={() => markAllForShift(s.key)}
                             disabled={!masterName[s.key]?.trim()}
-                            title="Mark every item checked for this shift"
+                            title={t("Mark every item checked for this shift")}
                             className="rounded p-1 text-teal-600 hover:bg-teal-50 disabled:opacity-30 disabled:hover:bg-transparent"
                           >
                             <CheckCheck className="h-4 w-4" />
@@ -774,12 +776,12 @@ export default function StockRequests() {
                         <th className="px-2 py-1.5 font-normal">
                           <input
                             className="input-cell w-24"
-                            placeholder="Name for all"
+                            placeholder={t("Name for all")}
                             value={masterName[s.key]}
                             onChange={(e) => setMasterName((prev) => ({ ...prev, [s.key]: e.target.value }))}
                           />
                         </th>
-                        <th className="px-2 py-1.5 text-center font-normal text-slate-400">Issue</th>
+                        <th className="px-2 py-1.5 text-center font-normal text-slate-400">{t("Issue")}</th>
                       </Fragment>
                     ))}
                   </tr>
@@ -795,12 +797,12 @@ export default function StockRequests() {
                           {item.name}
                           {lowStock && (
                             <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700">
-                              Low stock
+                              {t("Low stock")}
                             </span>
                           )}
                           {isOverstock(item) && (
                             <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-orange-700">
-                              Over max
+                              {t("Over max")}
                             </span>
                           )}
                         </td>
@@ -819,7 +821,7 @@ export default function StockRequests() {
                                 value={row[`${s.key}_by`] || ""}
                                 onChange={(e) => updateCheckField(item.id, { [`${s.key}_by`]: e.target.value })}
                                 onBlur={() => saveCheck(item, { [`${s.key}_by`]: row[`${s.key}_by`] })}
-                                placeholder="Name"
+                                placeholder={t("Name")}
                               />
                             </td>
                             <td className="px-2 py-1.5">
@@ -827,7 +829,7 @@ export default function StockRequests() {
                                 <button
                                   type="button"
                                   onClick={() => toggleIssue(item, s.key)}
-                                  title="Flag a problem with this item for this shift (couldn't check it, empty/out of stock, etc.)"
+                                  title={t("Flag a problem with this item for this shift (couldn't check it, empty/out of stock, etc.)")}
                                   className={`rounded p-1 ${
                                     row[`${s.key}_issue`] ? "bg-red-100 text-red-600" : "text-slate-300 hover:bg-red-50 hover:text-red-500"
                                   }`}
@@ -840,7 +842,7 @@ export default function StockRequests() {
                                     value={row[`${s.key}_issue_note`] || ""}
                                     onChange={(e) => updateCheckField(item.id, { [`${s.key}_issue_note`]: e.target.value })}
                                     onBlur={() => saveCheck(item, { [`${s.key}_issue_note`]: row[`${s.key}_issue_note`] })}
-                                    placeholder="Reason"
+                                    placeholder={t("Reason")}
                                   />
                                 )}
                               </div>
@@ -853,9 +855,9 @@ export default function StockRequests() {
                 </tbody>
               </table>
               {!loadingChecks && dailyCheckItems.length === 0 && (
-                <p className="p-6 text-center text-sm text-slate-400">No items in {activeDepartment}'s stock catalog yet.</p>
+                <p className="p-6 text-center text-sm text-slate-400">{t("No items in")} {activeDepartment}{t("'s stock catalog yet.")}</p>
               )}
-              {loadingChecks && <p className="p-6 text-center text-sm text-slate-400">Loading...</p>}
+              {loadingChecks && <p className="p-6 text-center text-sm text-slate-400">{t("Loading...")}</p>}
             </div>
           )}
         </div>
