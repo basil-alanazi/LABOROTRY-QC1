@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, FileSpreadsheet, FileText, Pencil, Save, Trash2, UserPlus } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
+import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
@@ -57,6 +58,7 @@ const emptyStatus = {
 
 export default function EmployeeHealth() {
   const { session, config, isAdmin } = useAuth();
+  const { t } = useLanguage();
   // Doctor accounts (staff granted "Employee Health access only") can view
   // everything here but never edit — editing stays exclusive to IC/Owner.
   const canEdit = isAdmin;
@@ -544,22 +546,22 @@ export default function EmployeeHealth() {
                     h === "#" ? "sticky left-10 z-20 w-10 bg-slate-50" : h === "Name" ? "sticky left-20 z-20 bg-slate-50" : ""
                   }`}
                 >
-                  {h}
+                  {t(h)}
                 </th>
               ))}
               {CLINIC_INVEST_HEADERS.map((h) => (
                 <th key={h} rowSpan={2} className="border-b border-r border-slate-200 px-2 py-1.5 align-bottom font-medium whitespace-nowrap">
-                  {h}
+                  {t(h)}
                 </th>
               ))}
               {kitchenMode &&
                 CLINIC_STOOL_HEADERS.map((h) => (
                   <th key={h} rowSpan={2} className="border-b border-r border-amber-200 bg-amber-50/60 px-2 py-1.5 align-bottom font-medium whitespace-nowrap">
-                    {h}
+                    {t(h)}
                   </th>
                 ))}
               <th rowSpan={2} className="border-b border-r border-slate-200 px-2 py-1.5 align-bottom font-medium whitespace-nowrap">
-                ICN Remarks
+                {t("ICN Remarks")}
               </th>
               {slots.map(({ item, doses }) => (
                 <th key={item.id} colSpan={1 + doses.length * 2} className="border-b border-r border-slate-200 px-2 py-1.5 text-center font-semibold whitespace-nowrap">
@@ -588,7 +590,7 @@ export default function EmployeeHealth() {
                 <tr key={emp.id} className="border-t border-slate-100 align-top">
                   <td className="sticky left-0 z-10 w-10 border-r border-slate-100 bg-white px-1 py-1 text-center">
                     {canEdit && (
-                      <button onClick={() => removeEmployee(emp)} title="Remove employee" className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600">
+                      <button onClick={() => removeEmployee(emp)} title={t("Remove employee")} className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     )}
@@ -598,7 +600,7 @@ export default function EmployeeHealth() {
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"
-                        title="View status summary"
+                        title={t("View status summary")}
                         onClick={() => setStatusPopupEmployee(emp)}
                         className={`h-2.5 w-2.5 shrink-0 rounded-full ${
                           employeeStatus(emp).severity === "red" ? "bg-red-500" : employeeStatus(emp).severity === "yellow" ? "bg-amber-400" : "bg-emerald-500"
@@ -608,7 +610,7 @@ export default function EmployeeHealth() {
                       {canEdit && (
                         <button
                           type="button"
-                          title="Edit employee"
+                          title={t("Edit employee")}
                           onClick={() => setEditingEmployee({ ...emp })}
                           className="shrink-0 rounded p-0.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600"
                         >
@@ -643,7 +645,7 @@ export default function EmployeeHealth() {
                     >
                       {INVESTIGATION_STATUSES.map((o) => (
                         <option key={o.value} value={o.value}>
-                          {o.label}
+                          {t(o.label)}
                         </option>
                       ))}
                     </select>
@@ -656,14 +658,14 @@ export default function EmployeeHealth() {
                       onChange={(e) => saveStatus(emp, { ppd_status: e.target.value })}
                     >
                       <option value="">—</option>
-                      <option value="done">Done</option>
-                      <option value="refused">Refused</option>
+                      <option value="done">{t("Done")}</option>
+                      <option value="refused">{t("Refused")}</option>
                     </select>
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
                     <input
                       className="input-cell w-24"
-                      placeholder="e.g. Negative"
+                      placeholder={t("e.g. Negative")}
                       value={s.ppd_result || ""}
                       disabled={!canEdit}
                       onChange={(e) => setStatusField(emp.id, { ppd_result: e.target.value })}
@@ -704,9 +706,9 @@ export default function EmployeeHealth() {
                           onChange={(e) => saveStatus(emp, { stool_urine_status: e.target.value })}
                         >
                           <option value="">—</option>
-                          <option value="done">Done</option>
-                          <option value="refused">Refused</option>
-                          <option value="not_applicable">Not Applicable</option>
+                          <option value="done">{t("Done")}</option>
+                          <option value="refused">{t("Refused")}</option>
+                          <option value="not_applicable">{t("Not Applicable")}</option>
                         </select>
                       </td>
                       <td className="border-r border-amber-100 bg-amber-50/30 px-2 py-1">
@@ -771,7 +773,7 @@ export default function EmployeeHealth() {
             })}
           </tbody>
         </table>
-        {!loading && groupEmployees.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No employees in this group yet.</p>}
+        {!loading && groupEmployees.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No employees in this group yet.")}</p>}
       </div>
     );
   }
@@ -779,14 +781,14 @@ export default function EmployeeHealth() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-800">Employee Health</h1>
-        <p className="text-sm text-slate-500">Employee Clinic — a live grid matching the clinic's tracking sheet: investigations, PPD, and vaccinations by dose.</p>
+        <h1 className="text-xl font-bold text-slate-800">{t("Employee Health")}</h1>
+        <p className="text-sm text-slate-500">{t("Employee Clinic — a live grid matching the clinic's tracking sheet: investigations, PPD, and vaccinations by dose.")}</p>
       </div>
 
       <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
-        {TABS.filter((t) => canEdit || t.key !== "employees").map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)} className={`rounded-md px-3 py-1 font-medium ${tab === t.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
-            {t.label}
+        {TABS.filter((tabDef) => canEdit || tabDef.key !== "employees").map((tabDef) => (
+          <button key={tabDef.key} onClick={() => setTab(tabDef.key)} className={`rounded-md px-3 py-1 font-medium ${tab === tabDef.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
+            {t(tabDef.label)}
           </button>
         ))}
       </div>
@@ -798,7 +800,7 @@ export default function EmployeeHealth() {
       {tab === "compliance" && (
         <div className="flex flex-col gap-4">
           <select className="input w-full sm:w-64" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
-            <option value="">All Departments</option>
+            <option value="">{t("All Departments")}</option>
             {departments.map((d) => (
               <option key={d} value={d}>
                 {d}
@@ -809,11 +811,11 @@ export default function EmployeeHealth() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs text-slate-500">
                 <tr>
-                  <th className="px-4 py-2 font-medium">Employee</th>
-                  <th className="px-4 py-2 font-medium">Department</th>
-                  <th className="px-4 py-2 font-medium">Item</th>
-                  <th className="px-4 py-2 font-medium">Due Date</th>
-                  <th className="px-4 py-2 font-medium">Status</th>
+                  <th className="px-4 py-2 font-medium">{t("Employee")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Department")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Item")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Due Date")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -826,15 +828,15 @@ export default function EmployeeHealth() {
                     <td className="px-4 py-2">
                       <span className={`flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${row.status === "overdue" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>
                         <AlertTriangle className="h-3 w-3" />
-                        {row.status === "overdue" ? "Overdue" : "Missing"}
+                        {row.status === "overdue" ? t("Overdue") : t("Missing")}
                       </span>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {!loading && complianceRows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">Everyone is up to date 🎉</p>}
-            {loading && <p className="p-6 text-center text-sm text-slate-400">Loading...</p>}
+            {!loading && complianceRows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("Everyone is up to date 🎉")}</p>}
+            {loading && <p className="p-6 text-center text-sm text-slate-400">{t("Loading...")}</p>}
           </div>
         </div>
       )}
@@ -850,7 +852,7 @@ export default function EmployeeHealth() {
                 }}
                 className={`rounded-md px-3 py-1 font-medium ${clinicGroup === "regular" ? "bg-teal-600 text-white" : "text-slate-500"}`}
               >
-                Regular Staff ({regularEmployees.length})
+                {t("Regular Staff")} ({regularEmployees.length})
               </button>
               <button
                 onClick={() => {
@@ -859,12 +861,12 @@ export default function EmployeeHealth() {
                 }}
                 className={`rounded-md px-3 py-1 font-medium ${clinicGroup === "kitchen" ? "bg-teal-600 text-white" : "text-slate-500"}`}
               >
-                Kitchen Staff ({kitchenEmployees.length})
+                {t("Kitchen Staff")} ({kitchenEmployees.length})
               </button>
             </div>
             <div className="flex flex-wrap gap-2">
               <select className="input w-44" value={clinicDeptFilter} onChange={(e) => setClinicDeptFilter(e.target.value)}>
-                <option value="">All Departments</option>
+                <option value="">{t("All Departments")}</option>
                 {clinicDepartments.map((d) => (
                   <option key={d} value={d}>
                     {d}
@@ -875,13 +877,13 @@ export default function EmployeeHealth() {
                 className="input w-48"
                 value={clinicSearch}
                 onChange={(e) => setClinicSearch(e.target.value)}
-                placeholder="Search name / file no / emp #"
+                placeholder={t("Search name / file no / emp #")}
               />
               <select className="input w-36" value={clinicPpdFilter} onChange={(e) => setClinicPpdFilter(e.target.value)}>
-                <option value="">All PPD</option>
-                <option value="pending">PPD Pending</option>
-                <option value="overdue">PPD Overdue</option>
-                <option value="done">PPD Done</option>
+                <option value="">{t("All PPD")}</option>
+                <option value="pending">{t("PPD Pending")}</option>
+                <option value="overdue">{t("PPD Overdue")}</option>
+                <option value="done">{t("PPD Done")}</option>
               </select>
               {canEdit && (
                 <button
@@ -892,20 +894,20 @@ export default function EmployeeHealth() {
                   className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700"
                 >
                   <UserPlus className="h-3.5 w-3.5" />
-                  Add Employee
+                  {t("Add Employee")}
                 </button>
               )}
               <label className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600">
                 <input type="checkbox" checked={pendingOnlyExport} onChange={(e) => setPendingOnlyExport(e.target.checked)} />
-                Pending only
+                {t("Pending only")}
               </label>
               <button onClick={exportExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
                 <FileSpreadsheet className="h-3.5 w-3.5" />
-                Export Excel
+                {t("Export Excel")}
               </button>
               <button onClick={exportPdf} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
                 <FileText className="h-3.5 w-3.5" />
-                Export PDF
+                {t("Export PDF")}
               </button>
             </div>
           </div>
@@ -917,16 +919,16 @@ export default function EmployeeHealth() {
               }}
               className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-5 sm:items-center"
             >
-              <input className="input" value={employeeForm.name} onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })} placeholder="Name" required />
+              <input className="input" value={employeeForm.name} onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })} placeholder={t("Name")} required />
               <input
                 className="input"
                 value={employeeForm.employee_no}
                 onChange={(e) => setEmployeeForm({ ...employeeForm, employee_no: e.target.value })}
-                placeholder="Employee #"
+                placeholder={t("Employee #")}
               />
-              <input className="input" value={employeeForm.file_no} onChange={(e) => setEmployeeForm({ ...employeeForm, file_no: e.target.value })} placeholder="File #" />
+              <input className="input" value={employeeForm.file_no} onChange={(e) => setEmployeeForm({ ...employeeForm, file_no: e.target.value })} placeholder={t("File #")} />
               <select className="input" value={employeeForm.department} onChange={(e) => setEmployeeForm({ ...employeeForm, department: e.target.value })} required>
-                <option value="">Department</option>
+                <option value="">{t("Department")}</option>
                 {departments.map((d) => (
                   <option key={d} value={d}>
                     {d}
@@ -935,11 +937,11 @@ export default function EmployeeHealth() {
               </select>
               <button type="submit" className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
                 <UserPlus className="h-4 w-4" />
-                Save
+                {t("Save")}
               </button>
             </form>
           )}
-          <p className="text-xs text-slate-500">{INVESTIGATION_TESTS}</p>
+          <p className="text-xs text-slate-500">{t(INVESTIGATION_TESTS)}</p>
           {clinicGroup === "regular" ? renderClinicGrid(visibleRegularEmployees, regularVaccines, false) : renderClinicGrid(visibleKitchenEmployees, kitchenVaccines, true)}
         </div>
       )}
@@ -950,13 +952,13 @@ export default function EmployeeHealth() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs text-slate-500">
                 <tr>
-                  <th className="px-4 py-2 font-medium">Date</th>
-                  <th className="px-4 py-2 font-medium">Employee</th>
-                  <th className="px-4 py-2 font-medium">Vaccine</th>
-                  <th className="px-4 py-2 font-medium">Dose #</th>
-                  <th className="px-4 py-2 font-medium">Batch No</th>
-                  <th className="px-4 py-2 font-medium">Next Due</th>
-                  <th className="px-4 py-2 font-medium">Recorded By</th>
+                  <th className="px-4 py-2 font-medium">{t("Date")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Employee")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Vaccine")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Dose #")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Batch No")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Next Due")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Recorded By")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -976,7 +978,7 @@ export default function EmployeeHealth() {
                 })}
               </tbody>
             </table>
-            {!loading && records.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No records yet</p>}
+            {!loading && records.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No records yet")}</p>}
           </div>
         </div>
       )}
@@ -986,12 +988,12 @@ export default function EmployeeHealth() {
           <div className="flex flex-col gap-3">
             {employees.map((emp) => (
               <div key={emp.id} className="grid grid-cols-1 gap-2 rounded-xl border border-slate-100 bg-white p-4 sm:grid-cols-9 sm:items-center">
-                <input className="input sm:col-span-1" value={emp.employee_no} onChange={(e) => updateEmployeeField(emp.id, { employee_no: e.target.value })} placeholder="Employee #" />
-                <input className="input sm:col-span-2" value={emp.name} onChange={(e) => updateEmployeeField(emp.id, { name: e.target.value })} placeholder="Name" />
-                <input className="input sm:col-span-1" value={emp.file_no} onChange={(e) => updateEmployeeField(emp.id, { file_no: e.target.value })} placeholder="File #" />
-                <input className="input sm:col-span-1" value={emp.iqama_no} onChange={(e) => updateEmployeeField(emp.id, { iqama_no: e.target.value })} placeholder="Iqama #" />
+                <input className="input sm:col-span-1" value={emp.employee_no} onChange={(e) => updateEmployeeField(emp.id, { employee_no: e.target.value })} placeholder={t("Employee #")} />
+                <input className="input sm:col-span-2" value={emp.name} onChange={(e) => updateEmployeeField(emp.id, { name: e.target.value })} placeholder={t("Name")} />
+                <input className="input sm:col-span-1" value={emp.file_no} onChange={(e) => updateEmployeeField(emp.id, { file_no: e.target.value })} placeholder={t("File #")} />
+                <input className="input sm:col-span-1" value={emp.iqama_no} onChange={(e) => updateEmployeeField(emp.id, { iqama_no: e.target.value })} placeholder={t("Iqama #")} />
                 <input type="date" className="input sm:col-span-1" value={emp.date_of_birth || ""} onChange={(e) => updateEmployeeField(emp.id, { date_of_birth: e.target.value })} />
-                <input className="input sm:col-span-1" value={emp.phone} onChange={(e) => updateEmployeeField(emp.id, { phone: e.target.value })} placeholder="Phone" />
+                <input className="input sm:col-span-1" value={emp.phone} onChange={(e) => updateEmployeeField(emp.id, { phone: e.target.value })} placeholder={t("Phone")} />
                 <select className="input sm:col-span-1" value={emp.department} onChange={(e) => updateEmployeeField(emp.id, { department: e.target.value })}>
                   {departments.map((d) => (
                     <option key={d} value={d}>
@@ -1002,11 +1004,11 @@ export default function EmployeeHealth() {
                 <div className="flex items-center justify-end gap-2 sm:col-span-9">
                   <label className="flex items-center gap-1 text-xs text-slate-500">
                     <input type="checkbox" checked={emp.is_kitchen_staff} onChange={(e) => updateEmployeeField(emp.id, { is_kitchen_staff: e.target.checked })} />
-                    Kitchen Staff
+                    {t("Kitchen Staff")}
                   </label>
                   <label className="flex items-center gap-1 text-xs text-slate-500">
                     <input type="checkbox" checked={emp.active} onChange={(e) => updateEmployeeField(emp.id, { active: e.target.checked })} />
-                    Active
+                    {t("Active")}
                   </label>
                   <button onClick={() => saveEmployee(emp)} className="rounded-lg p-1.5 text-teal-600 hover:bg-teal-50">
                     <Save className="h-4 w-4" />
@@ -1020,28 +1022,28 @@ export default function EmployeeHealth() {
           </div>
 
           <form onSubmit={handleAddEmployee} className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-4">
-            <input className="input" value={employeeForm.employee_no} onChange={(e) => setEmployeeForm({ ...employeeForm, employee_no: e.target.value })} placeholder="Employee #" />
-            <input className="input" value={employeeForm.name} onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })} placeholder="Name" required />
-            <input className="input" value={employeeForm.file_no} onChange={(e) => setEmployeeForm({ ...employeeForm, file_no: e.target.value })} placeholder="File #" />
-            <input className="input" value={employeeForm.iqama_no} onChange={(e) => setEmployeeForm({ ...employeeForm, iqama_no: e.target.value })} placeholder="Iqama #" />
-            <input type="date" className="input" value={employeeForm.date_of_birth} onChange={(e) => setEmployeeForm({ ...employeeForm, date_of_birth: e.target.value })} placeholder="Date of birth" />
-            <input className="input" value={employeeForm.phone} onChange={(e) => setEmployeeForm({ ...employeeForm, phone: e.target.value })} placeholder="Phone" />
+            <input className="input" value={employeeForm.employee_no} onChange={(e) => setEmployeeForm({ ...employeeForm, employee_no: e.target.value })} placeholder={t("Employee #")} />
+            <input className="input" value={employeeForm.name} onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })} placeholder={t("Name")} required />
+            <input className="input" value={employeeForm.file_no} onChange={(e) => setEmployeeForm({ ...employeeForm, file_no: e.target.value })} placeholder={t("File #")} />
+            <input className="input" value={employeeForm.iqama_no} onChange={(e) => setEmployeeForm({ ...employeeForm, iqama_no: e.target.value })} placeholder={t("Iqama #")} />
+            <input type="date" className="input" value={employeeForm.date_of_birth} onChange={(e) => setEmployeeForm({ ...employeeForm, date_of_birth: e.target.value })} placeholder={t("Date of birth")} />
+            <input className="input" value={employeeForm.phone} onChange={(e) => setEmployeeForm({ ...employeeForm, phone: e.target.value })} placeholder={t("Phone")} />
             <select className="input" value={employeeForm.department} onChange={(e) => setEmployeeForm({ ...employeeForm, department: e.target.value })} required>
-              <option value="">Department</option>
+              <option value="">{t("Department")}</option>
               {departments.map((d) => (
                 <option key={d} value={d}>
                   {d}
                 </option>
               ))}
             </select>
-            <input className="input" value={employeeForm.job_title} onChange={(e) => setEmployeeForm({ ...employeeForm, job_title: e.target.value })} placeholder="Job title" />
+            <input className="input" value={employeeForm.job_title} onChange={(e) => setEmployeeForm({ ...employeeForm, job_title: e.target.value })} placeholder={t("Job title")} />
             <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-4">
               <input type="checkbox" checked={employeeForm.is_kitchen_staff} onChange={(e) => setEmployeeForm({ ...employeeForm, is_kitchen_staff: e.target.checked })} />
-              Kitchen Staff (extra investigations &amp; vaccines)
+              {t("Kitchen Staff (extra investigations & vaccines)")}
             </label>
             <button type="submit" className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-4">
               <UserPlus className="h-4 w-4" />
-              Add Employee
+              {t("Add Employee")}
             </button>
           </form>
         </div>
@@ -1053,9 +1055,9 @@ export default function EmployeeHealth() {
             {(() => {
               const { severity, issues } = employeeStatus(statusPopupEmployee);
               const badge =
-                severity === "red" ? { dot: "bg-red-500", text: "text-red-700", bg: "bg-red-50", label: "Overdue / Missing" }
-                : severity === "yellow" ? { dot: "bg-amber-400", text: "text-amber-700", bg: "bg-amber-50", label: "Pending" }
-                : { dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50", label: "Up to date" };
+                severity === "red" ? { dot: "bg-red-500", text: "text-red-700", bg: "bg-red-50", label: t("Overdue / Missing") }
+                : severity === "yellow" ? { dot: "bg-amber-400", text: "text-amber-700", bg: "bg-amber-50", label: t("Pending") }
+                : { dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50", label: t("Up to date") };
               return (
                 <>
                   <div className="flex items-start justify-between gap-2">
@@ -1073,13 +1075,13 @@ export default function EmployeeHealth() {
                   </span>
                   <div className="mt-3 flex flex-col gap-2">
                     {issues.length === 0 ? (
-                      <p className="text-sm text-emerald-700">All good — no pending or missing items ✓</p>
+                      <p className="text-sm text-emerald-700">{t("All good — no pending or missing items ✓")}</p>
                     ) : (
                       issues.map((issue, i) => (
                         <div key={i} className={`flex items-start gap-2 rounded-lg px-3 py-2 text-sm ${issue.severity === "red" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>
                           <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${issue.severity === "red" ? "bg-red-500" : "bg-amber-400"}`} />
                           <span>
-                            <span className="font-medium">{issue.label}:</span> {issue.detail}
+                            <span className="font-medium">{t(issue.label)}:</span> {t(issue.detail)}
                           </span>
                         </div>
                       ))
@@ -1096,7 +1098,7 @@ export default function EmployeeHealth() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setEditingEmployee(null)}>
           <form onSubmit={handleEditSave} onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="text-base font-semibold text-slate-800">Edit Employee</h3>
+              <h3 className="text-base font-semibold text-slate-800">{t("Edit Employee")}</h3>
               <button type="button" onClick={() => setEditingEmployee(null)} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-50">
                 ✕
               </button>
@@ -1106,26 +1108,26 @@ export default function EmployeeHealth() {
                 className="input"
                 value={editingEmployee.name}
                 onChange={(e) => setEditingEmployee({ ...editingEmployee, name: e.target.value })}
-                placeholder="Name"
+                placeholder={t("Name")}
                 required
               />
               <input
                 className="input"
                 value={editingEmployee.employee_no || ""}
                 onChange={(e) => setEditingEmployee({ ...editingEmployee, employee_no: e.target.value })}
-                placeholder="Employee #"
+                placeholder={t("Employee #")}
               />
               <input
                 className="input"
                 value={editingEmployee.file_no || ""}
                 onChange={(e) => setEditingEmployee({ ...editingEmployee, file_no: e.target.value })}
-                placeholder="File #"
+                placeholder={t("File #")}
               />
               <input
                 className="input"
                 value={editingEmployee.iqama_no || ""}
                 onChange={(e) => setEditingEmployee({ ...editingEmployee, iqama_no: e.target.value })}
-                placeholder="Iqama #"
+                placeholder={t("Iqama #")}
               />
               <input
                 type="date"
@@ -1137,7 +1139,7 @@ export default function EmployeeHealth() {
                 className="input"
                 value={editingEmployee.phone || ""}
                 onChange={(e) => setEditingEmployee({ ...editingEmployee, phone: e.target.value })}
-                placeholder="Phone"
+                placeholder={t("Phone")}
               />
               <select
                 className="input"
@@ -1145,7 +1147,7 @@ export default function EmployeeHealth() {
                 onChange={(e) => setEditingEmployee({ ...editingEmployee, department: e.target.value })}
                 required
               >
-                <option value="">Department</option>
+                <option value="">{t("Department")}</option>
                 {departments.map((d) => (
                   <option key={d} value={d}>
                     {d}
@@ -1156,7 +1158,7 @@ export default function EmployeeHealth() {
                 className="input"
                 value={editingEmployee.job_title || ""}
                 onChange={(e) => setEditingEmployee({ ...editingEmployee, job_title: e.target.value })}
-                placeholder="Job title"
+                placeholder={t("Job title")}
               />
             </div>
             <label className="mt-2 flex items-center gap-1 text-xs text-slate-500">
@@ -1165,11 +1167,11 @@ export default function EmployeeHealth() {
                 checked={editingEmployee.is_kitchen_staff}
                 onChange={(e) => setEditingEmployee({ ...editingEmployee, is_kitchen_staff: e.target.checked })}
               />
-              Kitchen Staff (extra investigations &amp; vaccines)
+              {t("Kitchen Staff (extra investigations & vaccines)")}
             </label>
             <button type="submit" className="mt-4 flex w-full items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
               <Save className="h-4 w-4" />
-              Save Changes
+              {t("Save Changes")}
             </button>
           </form>
         </div>
