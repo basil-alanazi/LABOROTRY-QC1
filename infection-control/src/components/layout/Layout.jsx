@@ -152,7 +152,7 @@ export default function Layout({ children }) {
       )}
 
       <aside
-        className={`fixed inset-y-0 start-0 z-30 flex w-64 flex-col border-e border-slate-200 bg-white transition-transform md:static md:translate-x-0 ${
+        className={`fixed inset-y-0 start-0 z-30 flex w-64 flex-col border-e border-slate-200 bg-white transition-transform md:static md:translate-x-0 print:hidden ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -169,7 +169,7 @@ export default function Layout({ children }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur">
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur print:hidden">
           <button onClick={() => setSidebarOpen(true)} className="text-slate-500 hover:text-slate-800 md:hidden">
             <Menu className="h-5 w-5" />
           </button>
@@ -194,11 +194,11 @@ export default function Layout({ children }) {
           </div>
         </header>
         {supabase.isMock && (
-          <div className="bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800">
+          <div className="bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-800 print:hidden">
             {t("Preview mode — sample data, not connected to a real database. Nothing is saved after a page refresh.")}
           </div>
         )}
-        <main className="flex-1 px-4 py-6">
+        <main className="flex-1 px-4 py-6 print:p-0">
           <div className="mx-auto max-w-6xl">{children}</div>
         </main>
       </div>

@@ -15,6 +15,7 @@ const Messages = lazy(() => import("./pages/Messages.jsx"));
 const IpcCalendar = lazy(() => import("./pages/IpcCalendar.jsx"));
 const StockRequests = lazy(() => import("./pages/stock/StockRequests.jsx"));
 const EmployeeHealth = lazy(() => import("./pages/health/EmployeeHealth.jsx"));
+const EmployeeProfile = lazy(() => import("./pages/health/EmployeeProfile.jsx"));
 const CommunicableCases = lazy(() => import("./pages/cases/CommunicableCases.jsx"));
 const ICRounds = lazy(() => import("./pages/ic-rounds/ICRounds.jsx"));
 const HandHygiene = lazy(() => import("./pages/hand-hygiene/HandHygiene.jsx"));
@@ -72,6 +73,16 @@ export default function App() {
             <ProtectedRoute employeeHealthOnly>
               <Layout>
                 <EmployeeHealth />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/employee-profile/:employeeId"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <EmployeeProfile />
               </Layout>
             </ProtectedRoute>
           }

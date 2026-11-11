@@ -436,8 +436,28 @@ export const employee_clinic_status = [
     stool_urine_test_date: null,
     stool_urine_next_due_date: null,
     icn_remarks: "",
+    investigation_attachments: [],
     updated_by: "ic",
     updated_at: new Date().toISOString(),
+  },
+];
+
+export const employee_nsi_followups = [
+  {
+    id: "nsi-1",
+    employee_id: "emp-2",
+    incident_date: today,
+    form_attachments: [],
+    doctor_reviewed: false,
+    report_1_date: null,
+    report_2_date: null,
+    report_3_date: null,
+    notes: "",
+    done_by: "ic",
+    deleted: false,
+    deleted_by: null,
+    deleted_at: null,
+    created_at: new Date().toISOString(),
   },
 ];
 
