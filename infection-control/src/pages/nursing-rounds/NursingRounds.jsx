@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, FileSpreadsheet, FileText, Paperclip, Plus, Trash2, Upload } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
+import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
@@ -42,6 +43,7 @@ function toReportRow(r) {
 
 export default function NursingRounds() {
   const { session, config } = useAuth();
+  const { t } = useLanguage();
   const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
@@ -179,8 +181,8 @@ export default function NursingRounds() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Nursing Daily Rounds</h1>
-          <p className="text-sm text-slate-500">Quick MET / NOT MET check per department, with finding &amp; corrective-action tracking.</p>
+          <h1 className="text-xl font-bold text-slate-800">{t("Nursing Daily Rounds")}</h1>
+          <p className="text-sm text-slate-500">{t("Quick MET / NOT MET check per department, with finding & corrective-action tracking.")}</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -189,7 +191,7 @@ export default function NursingRounds() {
             className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
           >
             <FileSpreadsheet className="h-3.5 w-3.5" />
-            Export Excel
+            {t("Export Excel")}
           </button>
           <button
             onClick={exportPdf}
@@ -197,7 +199,7 @@ export default function NursingRounds() {
             className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
           >
             <FileText className="h-3.5 w-3.5" />
-            Export PDF
+            {t("Export PDF")}
           </button>
         </div>
       </div>
@@ -205,19 +207,19 @@ export default function NursingRounds() {
       {openCount > 0 && (
         <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
           <AlertTriangle className="h-4 w-4" />
-          {openCount} open finding{openCount > 1 ? "s" : ""} needing follow-up
+          {openCount} {t("of the findings are open and need follow-up")}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-700">New Round</h2>
+        <h2 className="text-sm font-semibold text-slate-700">{t("New Round")}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Field label="Date">
+          <Field label={t("Date")}>
             <input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
           </Field>
-          <Field label="Department">
+          <Field label={t("Department")}>
             <select className="input" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} required>
-              <option value="">Select department</option>
+              <option value="">{t("Select department")}</option>
               {departments.map((d) => (
                 <option key={d} value={d}>
                   {d}
@@ -225,7 +227,7 @@ export default function NursingRounds() {
               ))}
             </select>
           </Field>
-          <Field label="Result">
+          <Field label={t("Result")}>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -234,7 +236,7 @@ export default function NursingRounds() {
                   form.result === "met" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-500"
                 }`}
               >
-                MET
+                {t("MET")}
               </button>
               <button
                 type="button"
@@ -243,7 +245,7 @@ export default function NursingRounds() {
                   form.result === "not_met" ? "border-red-500 bg-red-50 text-red-700" : "border-slate-200 text-slate-500"
                 }`}
               >
-                NOT MET
+                {t("NOT MET")}
               </button>
             </div>
           </Field>
@@ -251,11 +253,11 @@ export default function NursingRounds() {
 
         {form.result === "not_met" && (
           <div className="flex flex-col gap-4 rounded-xl border border-red-100 bg-red-50/40 p-4">
-            <Field label="Finding / Observation">
+            <Field label={t("Finding / Observation")}>
               <textarea className="input min-h-[70px]" value={form.finding} onChange={(e) => setForm({ ...form, finding: e.target.value })} required />
             </Field>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Attachment(s)">
+              <Field label={t("Attachment(s)")}>
                 {/* On mobile, picking "Take Photo" from this input each time replaces
                     its FileList rather than adding to it — so taking a second photo
                     would silently drop the first unless we accumulate them ourselves. */}
@@ -282,11 +284,11 @@ export default function NursingRounds() {
                   </div>
                 )}
               </Field>
-              <Field label="Date of Discussion">
+              <Field label={t("Date of Discussion")}>
                 <input type="date" className="input" value={form.date_of_discussion} onChange={(e) => setForm({ ...form, date_of_discussion: e.target.value })} />
               </Field>
             </div>
-            <Field label="Corrective Action">
+            <Field label={t("Corrective Action")}>
               <textarea className="input min-h-[70px]" value={form.corrective_action} onChange={(e) => setForm({ ...form, corrective_action: e.target.value })} />
             </Field>
           </div>
@@ -300,7 +302,7 @@ export default function NursingRounds() {
 
         <button type="submit" className="flex items-center gap-1 self-start rounded-lg bg-teal-600 px-6 py-2 text-sm font-semibold text-white hover:bg-teal-700">
           <Plus className="h-4 w-4" />
-          Save Round
+          {t("Save Round")}
         </button>
       </form>
 
@@ -317,12 +319,12 @@ export default function NursingRounds() {
               onClick={() => setFilterStatus(o.key)}
               className={`rounded-md px-3 py-1 font-medium ${filterStatus === o.key ? "bg-teal-600 text-white" : "text-slate-500"}`}
             >
-              {o.label}
+              {t(o.label)}
             </button>
           ))}
         </div>
         <select className="input w-44" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
-          <option value="">All Departments</option>
+          <option value="">{t("All Departments")}</option>
           {departments.map((d) => (
             <option key={d} value={d}>
               {d}
@@ -330,16 +332,16 @@ export default function NursingRounds() {
           ))}
         </select>
       </div>
-      <p className="text-xs text-slate-500">Export Excel/PDF exports exactly what's shown below — filter by department and/or status first.</p>
+      <p className="text-xs text-slate-500">{t("Export Excel/PDF exports exactly what's shown below — filter by department and/or status first.")}</p>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Date</th>
-              <th className="px-4 py-2 font-medium">Department</th>
-              <th className="px-4 py-2 font-medium">Result</th>
-              <th className="px-4 py-2 font-medium">Status</th>
+              <th className="px-4 py-2 font-medium">{t("Date")}</th>
+              <th className="px-4 py-2 font-medium">{t("Department")}</th>
+              <th className="px-4 py-2 font-medium">{t("Result")}</th>
+              <th className="px-4 py-2 font-medium">{t("Status")}</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
@@ -358,14 +360,15 @@ export default function NursingRounds() {
             ))}
           </tbody>
         </table>
-        {!loading && visibleRounds.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No rounds recorded</p>}
-        {loading && <p className="p-6 text-center text-sm text-slate-400">Loading...</p>}
+        {!loading && visibleRounds.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No rounds recorded")}</p>}
+        {loading && <p className="p-6 text-center text-sm text-slate-400">{t("Loading...")}</p>}
       </div>
     </div>
   );
 }
 
 function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttachment, onFieldChange, onFieldSave }) {
+  const { t } = useLanguage();
   const notMet = r.result === "not_met";
   return (
     <>
@@ -375,13 +378,13 @@ function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttach
         <td className="px-4 py-2">
           <span className={`flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${notMet ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
             {notMet ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
-            {notMet ? "NOT MET" : "MET"}
+            {notMet ? t("NOT MET") : t("MET")}
           </span>
         </td>
         <td className="px-4 py-2">
           {notMet && (
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.status === "closed" ? "bg-slate-100 text-slate-500" : "bg-amber-50 text-amber-700"}`}>
-              {r.status === "closed" ? "Closed" : "Open"}
+              {r.status === "closed" ? t("Closed") : t("Open")}
             </span>
           )}
         </td>
@@ -396,7 +399,7 @@ function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttach
           <td colSpan={5} className="px-4 py-4">
             <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-lg bg-white px-3 py-2 text-xs">
-                <p className="mb-1 font-medium text-slate-500">Finding / Observation</p>
+                <p className="mb-1 font-medium text-slate-500">{t("Finding / Observation")}</p>
                 <textarea
                   className="input min-h-[60px] text-xs"
                   value={r.finding || ""}
@@ -405,7 +408,7 @@ function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttach
                 />
               </div>
               <div className="rounded-lg bg-white px-3 py-2 text-xs">
-                <p className="mb-1 font-medium text-slate-500">Corrective Action</p>
+                <p className="mb-1 font-medium text-slate-500">{t("Corrective Action")}</p>
                 <textarea
                   className="input min-h-[60px] text-xs"
                   value={r.corrective_action || ""}
@@ -416,7 +419,7 @@ function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttach
             </div>
             <div className="mb-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
               <label className="flex items-center gap-1.5">
-                Date of discussion:
+                {t("Date of discussion:")}
                 <input
                   type="date"
                   className="input-cell w-32"
@@ -425,14 +428,14 @@ function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttach
                   onBlur={onFieldSave}
                 />
               </label>
-              <span>Recorded by: {r.done_by || "—"}</span>
+              <span>{t("Recorded by: ")}{r.done_by || "—"}</span>
               <button
                 onClick={onToggleStatus}
                 className={`ml-auto rounded-lg px-3 py-1.5 text-xs font-semibold ${
                   r.status === "closed" ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-teal-600 text-white hover:bg-teal-700"
                 }`}
               >
-                {r.status === "closed" ? "Reopen" : "Mark Closed"}
+                {r.status === "closed" ? t("Reopen") : t("Mark Closed")}
               </button>
             </div>
             <AttachmentList attachments={r.attachments} onAdd={onAddAttachment} onRemove={onRemoveAttachment} />
@@ -444,6 +447,7 @@ function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttach
 }
 
 function AttachmentList({ attachments, onAdd, onRemove }) {
+  const { t } = useLanguage();
   const list = attachments ?? [];
   return (
     <div className="flex flex-col gap-2 text-xs">
@@ -453,7 +457,7 @@ function AttachmentList({ attachments, onAdd, onRemove }) {
             <span key={i} className="flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-slate-600">
               <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
                 <Paperclip className="h-3.5 w-3.5" />
-                {a.name || "View attachment"}
+                {a.name || t("View attachment")}
               </a>
               <button onClick={() => onRemove(i)} className="text-slate-400 hover:text-red-500">
                 <Trash2 className="h-3.5 w-3.5" />
@@ -464,7 +468,7 @@ function AttachmentList({ attachments, onAdd, onRemove }) {
       )}
       <label className="flex w-fit cursor-pointer items-center gap-1 font-medium text-red-600 hover:underline">
         <Upload className="h-3.5 w-3.5" />
-        {list.length > 0 ? "Add more attachments" : "Upload attachment(s)"}
+        {list.length > 0 ? t("Add more attachments") : t("Upload attachment(s)")}
         <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && onAdd(e.target.files)} />
       </label>
     </div>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, FileSpreadsheet, FileText, Paperclip, Plus, Trash2, Upload } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
+import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 
@@ -47,6 +48,7 @@ function toReportRow(c) {
 
 export default function CommunicableCases() {
   const { session } = useAuth();
+  const { t } = useLanguage();
   const [diseaseTypes, setDiseaseTypes] = useState([]);
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -178,8 +180,8 @@ export default function CommunicableCases() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Suspected / Confirmed Cases</h1>
-          <p className="text-sm text-slate-500">Track communicable disease cases and required documentation.</p>
+          <h1 className="text-xl font-bold text-slate-800">{t("Suspected / Confirmed Cases")}</h1>
+          <p className="text-sm text-slate-500">{t("Track communicable disease cases and required documentation.")}</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -188,7 +190,7 @@ export default function CommunicableCases() {
             className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
           >
             <FileSpreadsheet className="h-3.5 w-3.5" />
-            Export Excel
+            {t("Export Excel")}
           </button>
           <button
             onClick={exportPdf}
@@ -196,7 +198,7 @@ export default function CommunicableCases() {
             className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
           >
             <FileText className="h-3.5 w-3.5" />
-            Export PDF
+            {t("Export PDF")}
           </button>
         </div>
       </div>
@@ -204,28 +206,28 @@ export default function CommunicableCases() {
       {missingCount > 0 && (
         <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
           <AlertTriangle className="h-4 w-4" />
-          {missingCount} case{missingCount > 1 ? "s" : ""} with missing attachments
+          {missingCount} {t("of the cases are missing attachments")}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-700">New Case</h2>
+        <h2 className="text-sm font-semibold text-slate-700">{t("New Case")}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Patient Name">
+          <Field label={t("Patient Name")}>
             <input className="input" value={form.patient_name} onChange={(e) => setForm({ ...form, patient_name: e.target.value })} required />
           </Field>
-          <Field label="RH No">
+          <Field label={t("RH No")}>
             <input className="input" value={form.rh_no} onChange={(e) => setForm({ ...form, rh_no: e.target.value })} />
           </Field>
-          <Field label="Status">
+          <Field label={t("Status")}>
             <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="suspected">Suspected</option>
-              <option value="confirmed">Confirmed</option>
+              <option value="suspected">{t("Suspected")}</option>
+              <option value="confirmed">{t("Confirmed")}</option>
             </select>
           </Field>
-          <Field label="Disease">
+          <Field label={t("Disease")}>
             <select className="input" value={form.disease_type_id} onChange={(e) => setForm({ ...form, disease_type_id: e.target.value })}>
-              <option value="">Select disease</option>
+              <option value="">{t("Select disease")}</option>
               {diseaseTypes.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
@@ -234,20 +236,20 @@ export default function CommunicableCases() {
             </select>
           </Field>
           {selectedType?.name === "Other" && (
-            <Field label="Specify Disease">
+            <Field label={t("Specify Disease")}>
               <input className="input" value={form.disease_other} onChange={(e) => setForm({ ...form, disease_other: e.target.value })} required />
             </Field>
           )}
-          <Field label="Reported to Health Authority">
+          <Field label={t("Reported to Health Authority")}>
             <input type="date" className="input" value={form.reported_at} onChange={(e) => setForm({ ...form, reported_at: e.target.value })} />
           </Field>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Attachment 1">
+          <Field label={t("Attachment 1")}>
             <input type="file" className="input" onChange={(e) => setAttachment1(e.target.files?.[0] ?? null)} />
           </Field>
-          <Field label="Attachment 2">
+          <Field label={t("Attachment 2")}>
             <input
               type="file"
               className="input"
@@ -262,10 +264,10 @@ export default function CommunicableCases() {
             checked={form.attachment2_not_required}
             onChange={(e) => setForm({ ...form, attachment2_not_required: e.target.checked })}
           />
-          Second attachment not required for this case
+          {t("Second attachment not required for this case")}
         </label>
 
-        <Field label="IPC Note">
+        <Field label={t("IPC Note")}>
           <textarea className="input min-h-[80px]" value={form.ipc_note} onChange={(e) => setForm({ ...form, ipc_note: e.target.value })} />
         </Field>
 
@@ -277,7 +279,7 @@ export default function CommunicableCases() {
 
         <button type="submit" className="flex items-center gap-1 self-start rounded-lg bg-teal-600 px-6 py-2 text-sm font-semibold text-white hover:bg-teal-700">
           <Plus className="h-4 w-4" />
-          Save Case
+          {t("Save Case")}
         </button>
       </form>
 
@@ -285,12 +287,12 @@ export default function CommunicableCases() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
-              <th className="px-4 py-2 font-medium">Date</th>
-              <th className="px-4 py-2 font-medium">Patient</th>
-              <th className="px-4 py-2 font-medium">RH No</th>
-              <th className="px-4 py-2 font-medium">Status</th>
-              <th className="px-4 py-2 font-medium">Disease</th>
-              <th className="px-4 py-2 font-medium">Attachments</th>
+              <th className="px-4 py-2 font-medium">{t("Date")}</th>
+              <th className="px-4 py-2 font-medium">{t("Patient")}</th>
+              <th className="px-4 py-2 font-medium">{t("RH No")}</th>
+              <th className="px-4 py-2 font-medium">{t("Status")}</th>
+              <th className="px-4 py-2 font-medium">{t("Disease")}</th>
+              <th className="px-4 py-2 font-medium">{t("Attachments")}</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
@@ -308,14 +310,15 @@ export default function CommunicableCases() {
             ))}
           </tbody>
         </table>
-        {!loading && cases.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No cases recorded</p>}
-        {loading && <p className="p-6 text-center text-sm text-slate-400">Loading...</p>}
+        {!loading && cases.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No cases recorded")}</p>}
+        {loading && <p className="p-6 text-center text-sm text-slate-400">{t("Loading...")}</p>}
       </div>
     </div>
   );
 }
 
 function CaseRow({ c, expanded, onToggle, onDelete, onToggleNotRequired, onUpload }) {
+  const { t } = useLanguage();
   const complete = isComplete(c);
   return (
     <>
@@ -329,7 +332,7 @@ function CaseRow({ c, expanded, onToggle, onDelete, onToggleNotRequired, onUploa
               c.status === "confirmed" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"
             }`}
           >
-            {c.status === "confirmed" ? "Confirmed" : "Suspected"}
+            {c.status === "confirmed" ? t("Confirmed") : t("Suspected")}
           </span>
         </td>
         <td className="px-4 py-2">{c.disease_name === "Other" ? c.disease_other : c.disease_name}</td>
@@ -340,7 +343,7 @@ function CaseRow({ c, expanded, onToggle, onDelete, onToggleNotRequired, onUploa
             }`}
           >
             {complete ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-            {complete ? "Complete" : "Attachment Missing"}
+            {complete ? t("Complete") : t("Attachment Missing")}
           </span>
         </td>
         <td className="flex items-center justify-end gap-1 px-4 py-2">
@@ -356,28 +359,28 @@ function CaseRow({ c, expanded, onToggle, onDelete, onToggleNotRequired, onUploa
         <tr className="border-t border-slate-100 bg-slate-50/60">
           <td colSpan={7} className="px-4 py-4">
             <div className="mb-3 grid grid-cols-2 gap-2 text-xs text-slate-500 sm:grid-cols-3">
-              <div>Reported to health authority: {c.reported_at || "—"}</div>
-              <div>Recorded by: {c.done_by || "—"}</div>
-              {c.deleted && <div>Deleted by: {c.deleted_by || "—"}</div>}
+              <div>{t("Reported to health authority: ")}{c.reported_at || "—"}</div>
+              <div>{t("Recorded by: ")}{c.done_by || "—"}</div>
+              {c.deleted && <div>{t("Deleted by: ")}{c.deleted_by || "—"}</div>}
             </div>
 
             <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <AttachmentSlot label="Attachment 1" path={c.attachment1_path} name={c.attachment1_name} onUpload={(f) => onUpload(1, f)} />
+              <AttachmentSlot label={t("Attachment 1")} path={c.attachment1_path} name={c.attachment1_name} onUpload={(f) => onUpload(1, f)} />
               {c.attachment2_not_required ? (
                 <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-xs">
-                  <span className="text-slate-500">Attachment 2 — not required for this case</span>
+                  <span className="text-slate-500">{t("Attachment 2 — not required for this case")}</span>
                   <button onClick={onToggleNotRequired} className="text-teal-600 hover:underline">
-                    Undo
+                    {t("Undo")}
                   </button>
                 </div>
               ) : (
-                <AttachmentSlot label="Attachment 2" path={c.attachment2_path} name={c.attachment2_name} onUpload={(f) => onUpload(2, f)} />
+                <AttachmentSlot label={t("Attachment 2")} path={c.attachment2_path} name={c.attachment2_name} onUpload={(f) => onUpload(2, f)} />
               )}
             </div>
 
             {!c.attachment2_path && !c.attachment2_not_required && (
               <button onClick={onToggleNotRequired} className="mb-3 text-xs text-teal-600 hover:underline">
-                Mark 2nd attachment as not required for this case
+                {t("Mark 2nd attachment as not required for this case")}
               </button>
             )}
 
@@ -390,18 +393,19 @@ function CaseRow({ c, expanded, onToggle, onDelete, onToggleNotRequired, onUploa
 }
 
 function AttachmentSlot({ label, path, name, onUpload }) {
+  const { t } = useLanguage();
   return (
     <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-xs">
       <span className="text-slate-500">{label}</span>
       {path ? (
         <a href={attachmentUrl(path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
           <Paperclip className="h-3.5 w-3.5" />
-          {name || "View"}
+          {name || t("View")}
         </a>
       ) : (
         <label className="flex cursor-pointer items-center gap-1 font-medium text-red-600 hover:underline">
           <Upload className="h-3.5 w-3.5" />
-          Upload
+          {t("Upload")}
           <input type="file" className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
         </label>
       )}
