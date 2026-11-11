@@ -48,9 +48,6 @@ const statusBadgeClass = (s) =>
 
 const EVENT_TYPES = ["CLABSI", "CAUTI", "VAE", "Secondary BSI"];
 
-// ICU/NICU-only — what became of the patient after they left the unit,
-// tracked separately from Current Status (admitted/discharged/etc.).
-const STATUS_AFTER_DISCHARGE_OPTIONS = ["", "Improved", "Readmitted", "Transferred", "Expired", "Lost to follow-up"];
 
 const emptySpecimen = { type: "", date_collected: "", date_result: "", organism: "", mdro: false };
 const ICU_SPECIMEN_SLOTS = 3;
@@ -356,7 +353,7 @@ export default function HaiSurveillance() {
         hai_event_types: p.hai_event_types ?? [],
         current_status,
         date_of_discharge: p.date_of_discharge || null,
-        status_after_discharge: p.status_after_discharge || "",
+        status_after_discharge: !!p.status_after_discharge,
         comments: p.comments,
         updated_in_seha: !!p.updated_in_seha,
         updated_in_seha_status: p.updated_in_seha ? p.updated_in_seha_status || null : null,
@@ -710,7 +707,7 @@ export default function HaiSurveillance() {
           p.month, p.patient_name, p.mrn, ...(isAdmin ? [p.date_of_birth || "", p.national_id, p.mobile, p.nationality] : []), p.age, p.gender, p.bed_no, p.icu_type, p.hospital_admission_date || "", p.unit_admission_date || "", p.admission_diagnosis,
           p.central_line_insertion || "", p.central_line_removed || "", p.urinary_catheter_insertion || "", p.urinary_catheter_removed || "",
           p.ventilator_insertion || "", p.ventilator_removed || "", p.signs_symptoms, p.date_onset_symptoms || "",
-          p.hai_detected ? "Yes" : "No", (p.hai_event_types ?? []).join(", "), p.date_of_discharge || "", statusLabel(p.current_status), p.status_after_discharge || "", p.comments, p.done_by,
+          p.hai_detected ? "Yes" : "No", (p.hai_event_types ?? []).join(", "), p.date_of_discharge || "", statusLabel(p.current_status), p.status_after_discharge ? "Yes" : "No", p.comments, p.done_by,
         ]),
       },
     ]);
@@ -1168,6 +1165,10 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
                   onUpdateField(p.id, patch);
                   onSave({ ...p, ...patch });
                 }}
+                onStatusAfterDischargeToggle={(checked) => {
+                  onUpdateField(p.id, { status_after_discharge: checked });
+                  onSave({ ...p, status_after_discharge: checked });
+                }}
                 onRemove={() => onRemove(p)}
               />
             ))}
@@ -1179,7 +1180,7 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
   );
 }
 
-function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecimenFieldChange, onSpecimenMdroToggle, onHaiDetectedToggle, onEventTypeToggle, onUpdatedInSehaToggle, onRemove }) {
+function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecimenFieldChange, onSpecimenMdroToggle, onHaiDetectedToggle, onEventTypeToggle, onUpdatedInSehaToggle, onStatusAfterDischargeToggle, onRemove }) {
   const unitBeforeHospital = !!(p.hospital_admission_date && p.unit_admission_date && p.unit_admission_date < p.hospital_admission_date);
   const nameCellClass = identityCellClass(p.current_status, p.updated_in_seha, p.updated_in_seha_status, hasActiveDevice(p));
   const rowBg = sehaRowClass(p.current_status, p.updated_in_seha, p.updated_in_seha_status) || deviceActiveRowClass(p);
@@ -1268,12 +1269,8 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
           ))}
         </select>
       </td>
-      <td className="px-1.5 py-0.5">
-        <select className="input-cell w-full" value={p.status_after_discharge ?? ""} onChange={(e) => onFieldChange({ status_after_discharge: e.target.value })} onBlur={onFieldBlurSave}>
-          {STATUS_AFTER_DISCHARGE_OPTIONS.map((s) => (
-            <option key={s} value={s}>{s || "—"}</option>
-          ))}
-        </select>
+      <td className={`px-1.5 py-0.5 text-center ${p.status_after_discharge ? "bg-green-700" : ""}`}>
+        <input type="checkbox" checked={!!p.status_after_discharge} onChange={(e) => onStatusAfterDischargeToggle(e.target.checked)} />
       </td>
       <td className="px-1.5 py-0.5"><GridText value={p.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[7rem]" /></td>
       <td className="px-1.5 py-0.5">
