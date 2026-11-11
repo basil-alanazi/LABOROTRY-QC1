@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, FileSpreadsheet, FileText, Plus, Trash2, UserPlus } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
+import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
@@ -144,22 +145,24 @@ function deviceActiveRowClass(p) {
 }
 
 function SignSelect({ value, onChange, onBlur, disabled }) {
+  const { t } = useLanguage();
   return (
     <select className={`input-cell w-full ${riskClass(value, ["NO"])}`} disabled={disabled} value={value ?? ""} onChange={onChange} onBlur={onBlur}>
       <option value="">—</option>
-      <option value="NO">NO</option>
-      <option value="YES">YES</option>
+      <option value="NO">{t("NO")}</option>
+      <option value="YES">{t("YES")}</option>
     </select>
   );
 }
 
 function SwabSelect({ value, onChange, onBlur, disabled }) {
+  const { t } = useLanguage();
   return (
     <select className={`input-cell w-full ${riskClass(value, ["N/A", "No"])}`} disabled={disabled} value={value ?? ""} onChange={onChange} onBlur={onBlur}>
       <option value="">—</option>
-      <option value="N/A">N/A</option>
-      <option value="Yes">Yes</option>
-      <option value="No">No</option>
+      <option value="N/A">{t("N/A")}</option>
+      <option value="Yes">{t("Yes")}</option>
+      <option value="No">{t("No")}</option>
     </select>
   );
 }
@@ -169,6 +172,7 @@ const SSI_SPECIMEN_SLOTS = 1;
 
 export default function HaiSurveillance() {
   const { session, config, isAdmin } = useAuth();
+  const { t } = useLanguage();
   // A staff account can be scoped (Settings) to just one or a few tabs/units
   // of this module — stored as a comma-separated list of tokens among
   // 'adult_icu' | 'pediatric_icu' | 'adult_icu_vae' | 'pediatric_icu_vae' |
@@ -727,18 +731,18 @@ export default function HaiSurveillance() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">HAI Surveillance</h1>
-          <p className="text-sm text-slate-500">Device-associated events (CLABSI/CAUTI/VAE) across ICU/NICU, with daily VAE monitoring.</p>
+          <h1 className="text-xl font-bold text-slate-800">{t("HAI Surveillance")}</h1>
+          <p className="text-sm text-slate-500">{t("Device-associated events (CLABSI/CAUTI/VAE) across ICU/NICU, with daily VAE monitoring.")}</p>
         </div>
         {tab === "icu" && (
           <div className="flex gap-2">
             <button onClick={exportIcuExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
               <FileSpreadsheet className="h-3.5 w-3.5" />
-              Export Excel
+              {t("Export Excel")}
             </button>
             <button onClick={exportIcuPdf} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
               <FileText className="h-3.5 w-3.5" />
-              Export PDF
+              {t("Export PDF")}
             </button>
           </div>
         )}
@@ -746,11 +750,11 @@ export default function HaiSurveillance() {
           <div className="flex gap-2">
             <button onClick={exportSsiExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
               <FileSpreadsheet className="h-3.5 w-3.5" />
-              Export Excel
+              {t("Export Excel")}
             </button>
             <button onClick={exportSsiPdf} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
               <FileText className="h-3.5 w-3.5" />
-              Export PDF
+              {t("Export PDF")}
             </button>
           </div>
         )}
@@ -759,13 +763,13 @@ export default function HaiSurveillance() {
       {tab === "icu" && haiCount > 0 && (
         <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
           <AlertTriangle className="h-4 w-4" />
-          {haiCount} admitted patient{haiCount > 1 ? "s" : ""} with a detected HAI event
+          {haiCount} {t("of the admitted patients have a detected HAI event")}
         </div>
       )}
       {tab === "ssi" && ssiCount > 0 && (
         <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
           <AlertTriangle className="h-4 w-4" />
-          {ssiCount} admitted patient{ssiCount > 1 ? "s" : ""} with a detected SSI
+          {ssiCount} {t("of the admitted patients have a detected SSI")}
         </div>
       )}
 
@@ -773,9 +777,9 @@ export default function HaiSurveillance() {
 
       {(!scopeTokens || allowedTabs.length > 1) && (
         <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
-          {TABS.filter((t) => !scopeTokens || allowedTabs.includes(t.key)).map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)} className={`rounded-md px-3 py-1 font-medium ${tab === t.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
-              {t.label}
+          {TABS.filter((tabDef) => !scopeTokens || allowedTabs.includes(tabDef.key)).map((tabDef) => (
+            <button key={tabDef.key} onClick={() => setTab(tabDef.key)} className={`rounded-md px-3 py-1 font-medium ${tab === tabDef.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
+              {t(tabDef.label)}
             </button>
           ))}
         </div>
@@ -800,7 +804,7 @@ export default function HaiSurveillance() {
 
       {!(tab === "ssi" && ssiView === "doctor") && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-slate-500">Status:</span>
+          <span className="text-xs font-medium text-slate-500">{t("Status:")}</span>
           {["admitted", "discharged", "all"].map((s) => (
             <button
               key={s}
@@ -809,7 +813,7 @@ export default function HaiSurveillance() {
                 statusFilter === s ? "border-teal-500 bg-teal-50 text-teal-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"
               }`}
             >
-              {s === "all" ? "All" : statusLabel(s)}
+              {s === "all" ? t("All") : t(statusLabel(s))}
             </button>
           ))}
         </div>
@@ -858,19 +862,19 @@ export default function HaiSurveillance() {
                   onClick={() => setSsiView(v.key)}
                   className={`rounded-md px-3 py-1 font-medium ${ssiView === v.key ? "bg-teal-600 text-white" : "text-slate-500"}`}
                 >
-                  {v.label}
+                  {t(v.label)}
                 </button>
               ))}
             </div>
           )}
-          {lockedDoctor && <p className="text-sm font-medium text-slate-700">{lockedDoctor} — follow-up tracker</p>}
+          {lockedDoctor && <p className="text-sm font-medium text-slate-700">{lockedDoctor} — {t("follow-up tracker")}</p>}
           {ssiView === "doctor" && !lockedDoctor && (
             <select
               className="input w-52"
               value={selectedDoctor}
               onChange={(e) => setSelectedDoctor(e.target.value)}
             >
-              <option value="">Select doctor</option>
+              <option value="">{t("Select doctor")}</option>
               {ssiDoctors.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
@@ -881,18 +885,18 @@ export default function HaiSurveillance() {
               className="input w-40"
               value={doctorFileNoFilter}
               onChange={(e) => setDoctorFileNoFilter(e.target.value)}
-              placeholder="Filter by File No..."
+              placeholder={t("Filter by File No...")}
             />
           )}
           {ssiView === "doctor" && selectedDoctor && (
             <div className="flex gap-2">
               <button onClick={exportDoctorTrackerExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
                 <FileSpreadsheet className="h-3.5 w-3.5" />
-                Export Excel
+                {t("Export Excel")}
               </button>
               <button onClick={exportDoctorTrackerPdf} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
                 <FileText className="h-3.5 w-3.5" />
-                Export PDF
+                {t("Export PDF")}
               </button>
             </div>
           )}
@@ -937,8 +941,9 @@ export default function HaiSurveillance() {
 // follow-up columns (signs, swab, comment) are filled in from here, same
 // as from the All Patients grid.
 function DoctorTrackerTable({ doctor, rows, onFollowUpFieldChange, onFieldBlurSave, onCommentChange }) {
+  const { t } = useLanguage();
   if (!doctor) {
-    return <p className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-400">Pick a doctor to see her SSI tracker.</p>;
+    return <p className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-400">{t("Pick a doctor to see her SSI tracker.")}</p>;
   }
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -946,7 +951,7 @@ function DoctorTrackerTable({ doctor, rows, onFollowUpFieldChange, onFieldBlurSa
         <thead className="bg-slate-50 text-left text-xs text-slate-500">
           <tr>
             {["Month", "Name", "File No", "Date of Surgery", "Name of Surgeon", "Date of Follow Up", "Fever", "Pain/Tenderness", "Redness", "Swelling", "Purulent Discharge", "Wound Dehiscence", "Surgical Site Swab Sent", "Comment"].map((h) => (
-              <th key={h} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium">{h}</th>
+              <th key={h} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium">{t(h)}</th>
             ))}
           </tr>
         </thead>
@@ -989,7 +994,7 @@ function DoctorTrackerTable({ doctor, rows, onFollowUpFieldChange, onFieldBlurSa
           ))}
         </tbody>
       </table>
-      {rows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No follow-up visits recorded for this doctor yet.</p>}
+      {rows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No follow-up visits recorded for this doctor yet.")}</p>}
     </div>
   );
 }
@@ -1096,12 +1101,13 @@ function IcOnlyCells({ isAdmin, record, onFieldChange, onFieldBlurSave, onDobCom
 }
 
 function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient, onUpdateField, onSave, onRemove, onUpdateSpecimen, onToggleEventType }) {
+  const { t } = useLanguage();
   return (
     <div className="flex flex-col gap-4">
       <div>
         <button onClick={onAddPatient} className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700">
           <UserPlus className="h-3.5 w-3.5" />
-          Add Patient
+          {t("Add Patient")}
         </button>
       </div>
 
@@ -1109,47 +1115,47 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
         <table className="w-full text-sm hai-grid">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
-              <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">Updated in Seha</th>
+              <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t("Updated in Seha")}</th>
               {["Month", "Patient Name", "MRN/ID"].map((h) => (
-                <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${h === "Patient Name" ? "sticky-name-col" : ""}`}>{h}</th>
+                <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${h === "Patient Name" ? "sticky-name-col" : ""}`}>{t(h)}</th>
               ))}
               {isAdmin && IC_ONLY_HEADERS.map((h) => (
-                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 bg-slate-100 px-1.5 py-1 font-medium align-bottom">{h}</th>
+                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 bg-slate-100 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
               ))}
               {["Age", "Gender", "Bed #", "Hospital Admission", "ICU Type", "Unit Admission", "Admission Diagnosis"].map((h) => (
-                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{h}</th>
+                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
               ))}
-              <th colSpan={2} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">Central Line</th>
-              <th colSpan={2} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">Urinary Catheter</th>
-              <th colSpan={2} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">Ventilator</th>
+              <th colSpan={2} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">{t("Central Line")}</th>
+              <th colSpan={2} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">{t("Urinary Catheter")}</th>
+              <th colSpan={2} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">{t("Ventilator")}</th>
               {["Device Reinsertion (If any)", "Signs & Symptoms", "Date of Onset"].map((h) => (
-                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{h}</th>
+                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
               ))}
-              <th colSpan={5} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">Specimen 1</th>
-              <th colSpan={5} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">Specimen 2</th>
-              <th colSpan={5} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">Specimen 3</th>
-              <th rowSpan={2} className="whitespace-nowrap border-b border-l-2 border-slate-800 px-1.5 py-1 font-medium align-bottom">Other Specimens</th>
-              <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">HAI Detected</th>
-              <th colSpan={4} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">Type of HAI Event</th>
+              <th colSpan={5} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">{t("Specimen 1")}</th>
+              <th colSpan={5} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">{t("Specimen 2")}</th>
+              <th colSpan={5} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">{t("Specimen 3")}</th>
+              <th rowSpan={2} className="whitespace-nowrap border-b border-l-2 border-slate-800 px-1.5 py-1 font-medium align-bottom">{t("Other Specimens")}</th>
+              <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t("HAI Detected")}</th>
+              <th colSpan={4} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">{t("Type of HAI Event")}</th>
               {["Date of Discharge", "Current Status", "Status After Discharge", "Comments"].map((h, i) => (
-                <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{h}</th>
+                <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{t(h)}</th>
               ))}
               <th rowSpan={2}></th>
             </tr>
             <tr>
-              <th className="whitespace-nowrap border-l-2 border-slate-800 px-1.5 py-0.5 font-medium">Inserted</th>
-              <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Removed</th>
-              <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Inserted</th>
-              <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Removed</th>
-              <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Inserted</th>
-              <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Removed</th>
+              <th className="whitespace-nowrap border-l-2 border-slate-800 px-1.5 py-0.5 font-medium">{t("Inserted")}</th>
+              <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">{t("Removed")}</th>
+              <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">{t("Inserted")}</th>
+              <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">{t("Removed")}</th>
+              <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">{t("Inserted")}</th>
+              <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">{t("Removed")}</th>
               {[1, 2, 3].flatMap((slot) =>
                 ["Type", "Date Collected", "Date of Result", "Organism", "MDRO"].map((h, i) => (
-                  <th key={`${slot}-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 && slot === 1 ? "border-l-2 border-slate-800" : ""}`}>{h}</th>
+                  <th key={`${slot}-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 && slot === 1 ? "border-l-2 border-slate-800" : ""}`}>{t(h)}</th>
                 ))
               )}
-              {EVENT_TYPES.map((t, i) => (
-                <th key={t} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{t}</th>
+              {EVENT_TYPES.map((evt, i) => (
+                <th key={evt} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{evt}</th>
               ))}
             </tr>
           </thead>
@@ -1184,13 +1190,14 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
             ))}
           </tbody>
         </table>
-        {!loading && patients.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No patients in this list.</p>}
+        {!loading && patients.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No patients in this list.")}</p>}
       </div>
     </div>
   );
 }
 
 function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecimenFieldChange, onSpecimenMdroToggle, onHaiDetectedToggle, onEventTypeToggle, onUpdatedInSehaToggle, onStatusAfterDischargeToggle, onDobCommit, onRemove }) {
+  const { t } = useLanguage();
   const unitBeforeHospital = !!(p.hospital_admission_date && p.unit_admission_date && p.unit_admission_date < p.hospital_admission_date);
   const nameCellClass = identityCellClass(p.current_status, p.updated_in_seha, p.updated_in_seha_status, hasActiveDevice(p));
   // Once "Status After Discharge" is ticked, the whole row goes dark green —
@@ -1205,7 +1212,7 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
           disabled={!isAdmin}
           checked={!!p.updated_in_seha}
           onChange={(e) => onUpdatedInSehaToggle(e.target.checked)}
-          title={sehaSyncState(p.current_status, p.updated_in_seha, p.updated_in_seha_status) === "stale" ? "Updated in Seha before — status has changed since, needs a fresh update" : undefined}
+          title={sehaSyncState(p.current_status, p.updated_in_seha, p.updated_in_seha_status) === "stale" ? t("Updated in Seha before — status has changed since, needs a fresh update") : undefined}
         />
       </td>
       <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} className={dischargeBg} /></td>
@@ -1225,8 +1232,8 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
       <td className={`px-1.5 py-0.5 ${rowBg}`}>
         <select className={`input-cell w-full min-w-[5.5rem] ${dischargeBg}`} value={p.icu_type} onChange={(e) => onFieldChange({ icu_type: e.target.value })} onBlur={onFieldBlurSave}>
           <option value="">—</option>
-          {icuTypes.map((t) => (
-            <option key={t} value={t}>{t}</option>
+          {icuTypes.map((type) => (
+            <option key={type} value={type}>{type}</option>
           ))}
         </select>
       </td>
@@ -1237,7 +1244,7 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
           onBlur={onFieldBlurSave}
           className={unitBeforeHospital ? "border-red-400 bg-red-50" : dischargeBg}
         />
-        {unitBeforeHospital && <p className="mt-0.5 whitespace-nowrap text-[10px] font-medium text-red-600">Before hospital admission</p>}
+        {unitBeforeHospital && <p className="mt-0.5 whitespace-nowrap text-[10px] font-medium text-red-600">{t("Before hospital admission")}</p>}
       </td>
       <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.admission_diagnosis} onChange={(e) => onFieldChange({ admission_diagnosis: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[8rem] ${dischargeBg}`} /></td>
 
@@ -1279,7 +1286,7 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
       <td className={`px-1.5 py-0.5 ${rowBg}`}>
         <select className={`input-cell w-full ${dischargeBg}`} value={p.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
           {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>{statusLabel(s)}</option>
+            <option key={s} value={s}>{t(statusLabel(s))}</option>
           ))}
         </select>
       </td>
@@ -1319,6 +1326,7 @@ function SpecimenCells({ specimen, hasDateResult, onChange, onBlur, onMdroToggle
 // ventilator-day, grouped into VAC -> IVAC -> PVAP (each stage's own Date of
 // Event), so the sheet reads the same way the official form does.
 function VaeMonitoringTab({ patients, vaeRows, pediatricIcuTypes, session, isAdmin, flash, onUpdateField, onAddDay, onSave, onRemove }) {
+  const { t } = useLanguage();
   const [selectedId, setSelectedId] = useState("");
 
   useEffect(() => {
@@ -1344,12 +1352,12 @@ function VaeMonitoringTab({ patients, vaeRows, pediatricIcuTypes, session, isAdm
 
   return (
     <div className="flex flex-col gap-4">
-      <Field label="Patient (ventilated, matching the status filter above)">
+      <Field label={t("Patient (ventilated, matching the status filter above)")}>
         <select className="input" value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
-          <option value="">Select a patient</option>
+          <option value="">{t("Select a patient")}</option>
           {patients.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.patient_name} — {p.mrn} ({p.icu_type}, {statusLabel(p.current_status)})
+              {p.patient_name} — {p.mrn} ({p.icu_type}, {t(statusLabel(p.current_status))})
             </option>
           ))}
         </select>
@@ -1358,12 +1366,12 @@ function VaeMonitoringTab({ patients, vaeRows, pediatricIcuTypes, session, isAdm
       {selected && (
         <>
           <div className="flex flex-wrap gap-x-6 gap-y-1 rounded-xl bg-teal-700 p-3 text-xs text-white">
-            <span><strong>Patient Name:</strong> {selected.patient_name}</span>
-            <span><strong>MRN/ID:</strong> {selected.mrn}</span>
-            <span><strong>Date of Mechanical Ventilation:</strong> {selected.ventilator_insertion || "—"}</span>
-            <span><strong>Age:</strong> {selected.age}</span>
-            <span><strong>Gender:</strong> {selected.gender}</span>
-            <span><strong>Bed #:</strong> {selected.bed_no}</span>
+            <span><strong>{t("Patient Name")}:</strong> {selected.patient_name}</span>
+            <span><strong>{t("MRN/ID")}:</strong> {selected.mrn}</span>
+            <span><strong>{t("Date of Mechanical Ventilation")}:</strong> {selected.ventilator_insertion || "—"}</span>
+            <span><strong>{t("Age")}:</strong> {selected.age}</span>
+            <span><strong>{t("Gender")}:</strong> {selected.gender}</span>
+            <span><strong>{t("Bed #")}:</strong> {selected.bed_no}</span>
           </div>
 
           {isPediatric && (
@@ -1377,7 +1385,7 @@ function VaeMonitoringTab({ patients, vaeRows, pediatricIcuTypes, session, isAdm
           <div>
             <button onClick={handleAddDay} className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700">
               <Plus className="h-3.5 w-3.5" />
-              Add Day
+              {t("Add Day")}
             </button>
           </div>
 
@@ -1388,10 +1396,10 @@ function VaeMonitoringTab({ patients, vaeRows, pediatricIcuTypes, session, isAdm
                   <tr>
                     <th className="sticky-name-col whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium">#</th>
                     {["Date", "MV Day", "Daily Min MAP", "Daily Min FiO2"].map((h) => (
-                      <th key={h} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium">{h}</th>
+                      <th key={h} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium">{t(h)}</th>
                     ))}
                     <th className="whitespace-nowrap border-b border-l-2 border-slate-800 border-slate-200 px-1.5 py-1 font-medium">Ped VAE</th>
-                    <th className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium">Updated in Seha</th>
+                    <th className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium">{t("Updated in Seha")}</th>
                     <th className="border-b border-slate-200"></th>
                   </tr>
                 </thead>
@@ -1400,12 +1408,12 @@ function VaeMonitoringTab({ patients, vaeRows, pediatricIcuTypes, session, isAdm
                   <tr>
                     <th rowSpan={2} className="sticky-name-col whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">#</th>
                     {["Date", "MV Day"].map((h) => (
-                      <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{h}</th>
+                      <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
                     ))}
                     <th colSpan={3} className="border-b border-l-2 border-slate-800 bg-teal-100 px-1.5 py-0.5 text-center font-semibold text-teal-900">VAE - VAC</th>
                     <th colSpan={5} className="border-b border-l-2 border-slate-800 bg-amber-100 px-1.5 py-0.5 text-center font-semibold text-amber-900">VAE - IVAC</th>
                     <th colSpan={3} className="border-b border-l-2 border-slate-800 bg-purple-100 px-1.5 py-0.5 text-center font-semibold text-purple-900">VAE - PVAP</th>
-                    <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">Updated in Seha</th>
+                    <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t("Updated in Seha")}</th>
                     <th rowSpan={2}></th>
                   </tr>
                   <tr>
@@ -1451,7 +1459,7 @@ function VaeMonitoringTab({ patients, vaeRows, pediatricIcuTypes, session, isAdm
                 )}
               </tbody>
             </table>
-            {days.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No daily entries yet for this patient.</p>}
+            {days.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No daily entries yet for this patient.")}</p>}
           </div>
         </>
       )}
@@ -1460,6 +1468,7 @@ function VaeMonitoringTab({ patients, vaeRows, pediatricIcuTypes, session, isAdm
 }
 
 function PedVaeRow({ d, index, isAdmin, onFieldChange, onFieldBlurSave, onToggle, onRemove }) {
+  const { t } = useLanguage();
   const rowBg = d.updated_in_seha ? "bg-emerald-200" : "";
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
@@ -1470,8 +1479,8 @@ function PedVaeRow({ d, index, isAdmin, onFieldChange, onFieldBlurSave, onToggle
       <td className="px-1.5 py-0.5"><GridText value={d.daily_min_fio2 ?? ""} onChange={(e) => onFieldChange({ daily_min_fio2: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[5rem]" /></td>
       <td className="px-1.5 py-0.5 border-l-2 border-slate-800">
         <select className="input-cell w-full" value={d.ped_vae ? "Yes" : "No"} onChange={(e) => onToggle("ped_vae", e.target.value === "Yes")}>
-          <option value="No">No</option>
-          <option value="Yes">Yes</option>
+          <option value="No">{t("No")}</option>
+          <option value="Yes">{t("Yes")}</option>
         </select>
       </td>
       <td className="px-1.5 py-0.5 text-center">
@@ -1525,16 +1534,16 @@ function VaeRow({ d, index, isAdmin, onFieldChange, onFieldBlurSave, onToggle, o
 }
 
 function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase, onUpdateField, onSave, onRemove, onUpdateFollowUp, onUpdateSpecimen, onMarkComplete, onReopen }) {
+  const { t } = useLanguage();
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-slate-500">
-        <strong>DR</strong> (patient/procedure info) and <strong>OR</strong> (risk category index) are always editable to any SSI-scoped account.
-        Only <strong>DR & FW</strong> (current status + date of discharge) keeps a "Mark complete" step.
+        {t('DR (patient/procedure info) and OR (risk category index) are always editable to any SSI-scoped account. Only DR & FW (current status + date of discharge) keeps a "Mark complete" step.')}
       </p>
       <div>
         <button onClick={onAddCase} className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700">
           <UserPlus className="h-3.5 w-3.5" />
-          Add Patient
+          {t("Add Patient")}
         </button>
       </div>
 
@@ -1542,48 +1551,48 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
         <table className="w-full text-sm hai-grid">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
-              <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">Updated in Seha</th>
+              <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t("Updated in Seha")}</th>
               <th colSpan={isAdmin ? 14 : 10} className="border-b border-slate-200 bg-cyan-100 px-1.5 py-0.5 text-center font-semibold text-cyan-900">DR</th>
               <th colSpan={4} className="border-b border-l-2 border-slate-800 bg-green-100 px-1.5 py-0.5 text-center font-semibold text-green-900">OR</th>
               {["PATOS", "Follow-up Duration"].map((h) => (
-                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{h}</th>
+                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
               ))}
-              <th colSpan={10} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">1st Follow Up</th>
-              <th colSpan={10} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">2nd Follow Up</th>
-              <th colSpan={10} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">3rd Follow Up</th>
-              <th colSpan={4} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">Specimen Information</th>
+              <th colSpan={10} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">{t("1st Follow Up")}</th>
+              <th colSpan={10} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">{t("2nd Follow Up")}</th>
+              <th colSpan={10} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">{t("3rd Follow Up")}</th>
+              <th colSpan={4} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">{t("Specimen Information")}</th>
               {["Other Specimens", "SSI Detected", "Type of SSI"].map((h) => (
-                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{h}</th>
+                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
               ))}
               <th colSpan={3} className="border-b border-l-2 border-slate-800 bg-purple-100 px-1.5 py-0.5 text-center font-semibold text-purple-900">DR & FW</th>
-              <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">Comments</th>
+              <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t("Comments")}</th>
               <th rowSpan={2}></th>
             </tr>
             <tr>
               {["Month", "Patient Name", "MRN/ID"].map((h) => (
-                <th key={`dr-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${h === "Patient Name" ? "sticky-name-col" : ""}`}>{h}</th>
+                <th key={`dr-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${h === "Patient Name" ? "sticky-name-col" : ""}`}>{t(h)}</th>
               ))}
               {isAdmin && IC_ONLY_HEADERS.map((h) => (
-                <th key={`dr-${h}`} className="whitespace-nowrap bg-slate-100 px-1.5 py-0.5 font-medium">{h}</th>
+                <th key={`dr-${h}`} className="whitespace-nowrap bg-slate-100 px-1.5 py-0.5 font-medium">{t(h)}</th>
               ))}
               {["Unit", "Age", "Gender", "Admission Diagnosis", "Treating Doctor", "Type of Surgical Procedure", "Date of Procedure"].map((h) => (
-                <th key={`dr-${h}`} className="whitespace-nowrap px-1.5 py-0.5 font-medium">{h}</th>
+                <th key={`dr-${h}`} className="whitespace-nowrap px-1.5 py-0.5 font-medium">{t(h)}</th>
               ))}
               {["Elective/Emergency", "ASA Score", "Wound Class", "Duration of Surgery"].map((h, i) => (
-                <th key={`or-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{h}</th>
+                <th key={`or-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{t(h)}</th>
               ))}
               {[1, 2, 3].flatMap((slot) =>
                 ["Type", "Date", "Fever", "Pain/Tenderness", "Redness", "Swelling", "Purulent Discharge", "Wound Dehiscence", "Surgical Site Swab Sent", "Wound Status"].map((h, i) => (
-                  <th key={`${slot}-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 && slot === 1 ? "border-l-2 border-slate-800" : ""}`}>{h}</th>
+                  <th key={`${slot}-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 && slot === 1 ? "border-l-2 border-slate-800" : ""}`}>{t(h)}</th>
                 ))
               )}
               {["Type", "Date Collected", "Organism", "MDRO"].map((h, i) => (
-                <th key={h} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{h}</th>
+                <th key={h} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{t(h)}</th>
               ))}
               {["Current Status", "Date of Discharge"].map((h, i) => (
-                <th key={`drfw-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{h}</th>
+                <th key={`drfw-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{t(h)}</th>
               ))}
-              <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">Status</th>
+              <th className="whitespace-nowrap px-1.5 py-0.5 font-medium">{t("Status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -1620,7 +1629,7 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
             ))}
           </tbody>
         </table>
-        {!loading && cases.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No patients in this list.</p>}
+        {!loading && cases.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No patients in this list.")}</p>}
       </div>
     </div>
   );
@@ -1630,6 +1639,7 @@ function SsiRow({
   c, units, session, isAdmin, onFieldChange, onFieldBlurSave, onFollowUpFieldChange, onSpecimenFieldChange, onSpecimenMdroToggle,
   onPatosToggle, onSsiDetectedToggle, onUpdatedInSehaToggle, onMarkComplete, onReopen, onDobCommit, onRemove,
 }) {
+  const { t } = useLanguage();
   function canEditSsi(group) {
     return isAdmin || session?.department === group || (session?.ssiStages ?? []).includes(group);
   }
@@ -1654,7 +1664,7 @@ function SsiRow({
           disabled={!isAdmin}
           checked={!!c.updated_in_seha}
           onChange={(e) => onUpdatedInSehaToggle(e.target.checked)}
-          title={sehaSyncState(c.current_status, c.updated_in_seha, c.updated_in_seha_status) === "stale" ? "Updated in Seha before — status has changed since, needs a fresh update" : undefined}
+          title={sehaSyncState(c.current_status, c.updated_in_seha, c.updated_in_seha_status) === "stale" ? t("Updated in Seha before — status has changed since, needs a fresh update") : undefined}
         />
       </td>
 
@@ -1679,14 +1689,14 @@ function SsiRow({
         </select>
       </td>
       <td className="px-1.5 py-0.5"><GridText value={c.admission_diagnosis} onChange={(e) => onFieldChange({ admission_diagnosis: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[8rem]" /></td>
-      <td className="px-1.5 py-0.5"><GridText value={c.treating_doctor} onChange={(e) => onFieldChange({ treating_doctor: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} placeholder="Dr..." className="min-w-[6.5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridText value={c.treating_doctor} onChange={(e) => onFieldChange({ treating_doctor: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} placeholder={t("Dr...")} className="min-w-[6.5rem]" /></td>
       <td className="px-1.5 py-0.5"><GridText value={c.surgical_procedure_type} onChange={(e) => onFieldChange({ surgical_procedure_type: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[7rem]" /></td>
       <td className="px-1.5 py-0.5"><GridDate value={c.date_of_procedure} onChange={(e) => onFieldChange({ date_of_procedure: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} /></td>
 
       <td className="px-1.5 py-0.5 border-l-2 border-slate-800">
         <select className="input-cell w-full min-w-[5.5rem]" disabled={orDisabled} value={c.elective_emergency} onChange={(e) => onFieldChange({ elective_emergency: e.target.value })} onBlur={onFieldBlurSave}>
-          <option value="elective">Elective</option>
-          <option value="emergency">Emergency</option>
+          <option value="elective">{t("Elective")}</option>
+          <option value="emergency">{t("Emergency")}</option>
         </select>
       </td>
       <td className="px-1.5 py-0.5">
@@ -1716,14 +1726,14 @@ function SsiRow({
 
       <td className="px-1.5 py-0.5">
         <select className="input-cell w-full" value={c.patos ? "Yes" : "No"} onChange={(e) => onPatosToggle(e.target.value === "Yes")}>
-          <option value="No">No</option>
-          <option value="Yes">Yes</option>
+          <option value="No">{t("No")}</option>
+          <option value="Yes">{t("Yes")}</option>
         </select>
       </td>
       <td className="px-1.5 py-0.5">
         <select className="input-cell w-full" value={c.follow_up_duration} onChange={(e) => onFieldChange({ follow_up_duration: Number(e.target.value) })} onBlur={onFieldBlurSave}>
-          <option value={30}>30 days</option>
-          <option value={90}>90 days</option>
+          <option value={30}>{t("30 days")}</option>
+          <option value={90}>{t("90 days")}</option>
         </select>
       </td>
 
@@ -1752,7 +1762,7 @@ function SsiRow({
       <td className="px-1.5 py-0.5 border-l-2 border-slate-800">
         <select className="input-cell w-full" disabled={drFwFieldsDisabled} value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
           {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>{statusLabel(s)}</option>
+            <option key={s} value={s}>{t(statusLabel(s))}</option>
           ))}
         </select>
       </td>
@@ -1774,9 +1784,10 @@ function SsiRow({
 }
 
 function FollowUpCells({ followUp, onChange, onBlur, divider }) {
+  const { t } = useLanguage();
   return (
     <>
-      <td className={`px-1.5 py-0.5 ${divider ? "border-l-2 border-slate-800" : ""}`}><GridText value={followUp.type} onChange={(e) => onChange({ type: e.target.value })} onBlur={onBlur} placeholder="OPD/ER/Phone/Virtual" className="min-w-[6.5rem]" /></td>
+      <td className={`px-1.5 py-0.5 ${divider ? "border-l-2 border-slate-800" : ""}`}><GridText value={followUp.type} onChange={(e) => onChange({ type: e.target.value })} onBlur={onBlur} placeholder={t("OPD/ER/Phone/Virtual")} className="min-w-[6.5rem]" /></td>
       <td className="px-1.5 py-0.5"><GridDate value={followUp.date} onChange={(e) => onChange({ date: e.target.value })} onBlur={onBlur} /></td>
       {SIGN_FIELDS.map((f) => (
         <td key={f} className="px-1.5 py-0.5">
@@ -1792,17 +1803,16 @@ function FollowUpCells({ followUp, onChange, onBlur, divider }) {
 }
 
 function ObSurveillanceTab({ cases, loading, session, isAdmin, onAddCase, onUpdateField, onSave, onRemove, onMarkComplete, onReopen, onUpdateSpecimen }) {
+  const { t } = useLanguage();
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-slate-500">
-        A fixed 3-stage pipeline — <strong>OR → Delivery → Female Ward</strong>. Each stage's dedicated account (Settings → User Accounts,
-        department = "OR" / "Delivery" / "Female Ward", or an OB/Delivery scope with specific stages granted) fills in only its own section,
-        which opens once the previous stage is marked complete.
+        {t('A fixed 3-stage pipeline — OR → Delivery → Female Ward. Each stage\'s dedicated account (Settings → User Accounts, department = "OR" / "Delivery" / "Female Ward", or an OB/Delivery scope with specific stages granted) fills in only its own section, which opens once the previous stage is marked complete.')}
       </p>
       <div>
         <button onClick={onAddCase} className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700">
           <UserPlus className="h-3.5 w-3.5" />
-          Add Patient
+          {t("Add Patient")}
         </button>
       </div>
 
@@ -1810,33 +1820,33 @@ function ObSurveillanceTab({ cases, loading, session, isAdmin, onAddCase, onUpda
         <table className="w-full text-sm hai-grid">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
-              <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">Updated in Seha</th>
+              <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t("Updated in Seha")}</th>
               {["Patient Name", "MRN/ID"].map((h) => (
-                <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${h === "Patient Name" ? "sticky-name-col" : ""}`}>{h}</th>
+                <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${h === "Patient Name" ? "sticky-name-col" : ""}`}>{t(h)}</th>
               ))}
               {isAdmin && IC_ONLY_HEADERS.map((h) => (
-                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 bg-slate-100 px-1.5 py-1 font-medium align-bottom">{h}</th>
+                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 bg-slate-100 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
               ))}
               {["Age", "Admission Diagnosis"].map((h) => (
-                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{h}</th>
+                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
               ))}
               <th colSpan={7} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">OR</th>
-              <th colSpan={4} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">Delivery</th>
-              <th colSpan={11} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">Female Ward</th>
+              <th colSpan={4} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">{t("Delivery")}</th>
+              <th colSpan={11} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">{t("Female Ward")}</th>
               {["Current Status", "Comments"].map((h) => (
-                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{h}</th>
+                <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
               ))}
               <th rowSpan={2}></th>
             </tr>
             <tr>
               {["Date of Procedure", "Surgical Procedure Type", "ASA Score", "Wound Class", "Duration of Surgery", "OR Notes", "Status"].map((h) => (
-                <th key={`or-${h}`} className="whitespace-nowrap px-1.5 py-0.5 font-medium">{h}</th>
+                <th key={`or-${h}`} className="whitespace-nowrap px-1.5 py-0.5 font-medium">{t(h)}</th>
               ))}
               {["Date", "Signs & Symptoms", "Notes", "Status"].map((h, i) => (
-                <th key={`dl-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{h}</th>
+                <th key={`dl-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{t(h)}</th>
               ))}
               {["Date", "Signs & Symptoms", "Wound Status", "Notes", "Specimen Type", "Specimen Date Collected", "Organism", "MDRO", "SSI Detected", "Type of SSI", "Status"].map((h, i) => (
-                <th key={`fw-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{h}</th>
+                <th key={`fw-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{t(h)}</th>
               ))}
             </tr>
           </thead>
@@ -1868,21 +1878,22 @@ function ObSurveillanceTab({ cases, loading, session, isAdmin, onAddCase, onUpda
             ))}
           </tbody>
         </table>
-        {!loading && cases.length === 0 && <p className="p-6 text-center text-sm text-slate-400">No patients in this list.</p>}
+        {!loading && cases.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No patients in this list.")}</p>}
       </div>
     </div>
   );
 }
 
 function StageActionCell({ open, done, canEdit, canReopen, completedBy, onMarkComplete, onReopen }) {
-  if (!open) return <span className="whitespace-nowrap text-xs text-slate-400">Locked</span>;
+  const { t } = useLanguage();
+  if (!open) return <span className="whitespace-nowrap text-xs text-slate-400">{t("Locked")}</span>;
   if (done) {
     return (
       <div className="flex flex-col gap-0.5 whitespace-nowrap text-xs text-slate-500">
-        <span className="font-medium text-emerald-700">Done — {completedBy || "—"}</span>
+        <span className="font-medium text-emerald-700">{t("Done")} — {completedBy || "—"}</span>
         {canReopen && (
           <button onClick={onReopen} className="w-fit text-teal-600 hover:underline">
-            Reopen
+            {t("Reopen")}
           </button>
         )}
       </div>
@@ -1891,14 +1902,15 @@ function StageActionCell({ open, done, canEdit, canReopen, completedBy, onMarkCo
   if (canEdit) {
     return (
       <button onClick={onMarkComplete} className="whitespace-nowrap rounded-lg bg-teal-600 px-1.5 py-0.5 text-xs font-medium text-white hover:bg-teal-700">
-        Mark complete
+        {t("Mark complete")}
       </button>
     );
   }
-  return <span className="whitespace-nowrap text-xs font-medium text-amber-600">Open</span>;
+  return <span className="whitespace-nowrap text-xs font-medium text-amber-600">{t("Open")}</span>;
 }
 
 function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComplete, onReopen, onSpecimenFieldChange, onSpecimenMdroToggle, onSsiDetectedToggle, onUpdatedInSehaToggle, onDobCommit, onRemove }) {
+  const { t } = useLanguage();
   const orDone = !!c.or_completed_at;
   const deliveryDone = !!c.delivery_completed_at;
   const fwDone = !!c.fw_completed_at;
@@ -1924,7 +1936,7 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
           disabled={!isAdmin}
           checked={!!c.updated_in_seha}
           onChange={(e) => onUpdatedInSehaToggle(e.target.checked)}
-          title={sehaSyncState(c.current_status, c.updated_in_seha, c.updated_in_seha_status) === "stale" ? "Updated in Seha before — status has changed since, needs a fresh update" : undefined}
+          title={sehaSyncState(c.current_status, c.updated_in_seha, c.updated_in_seha_status) === "stale" ? t("Updated in Seha before — status has changed since, needs a fresh update") : undefined}
         />
       </td>
       <td className={`sticky-name-col px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[8rem] ${nameCellClass}`} /></td>
@@ -1967,7 +1979,7 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
       <td className="px-1.5 py-0.5">
         <select className="input-cell w-full" value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
           {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>{statusLabel(s)}</option>
+            <option key={s} value={s}>{t(statusLabel(s))}</option>
           ))}
         </select>
       </td>
