@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, FileText, MessageSquare, Paperclip, Plus, Send, X } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
+import { useLanguage } from "../lib/i18n.jsx";
 import { fetchAllRows } from "../lib/fetchAll";
 
 const MESSAGE_ATTACHMENTS_BUCKET = "message-attachments";
@@ -34,6 +35,7 @@ function timeLabel(iso) {
 
 export default function Messages() {
   const { session } = useAuth();
+  const { t } = useLanguage();
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [activeUsername, setActiveUsername] = useState(null);
@@ -162,26 +164,26 @@ export default function Messages() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-800">Messages</h1>
-        <p className="text-sm text-slate-500">Send a message to any staff account.</p>
+        <h1 className="text-xl font-bold text-slate-800">{t("Messages")}</h1>
+        <p className="text-sm text-slate-500">{t("Send a message to any staff account.")}</p>
       </div>
 
       <div className="flex h-[70vh] min-h-[420px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className={`w-full flex-col border-r border-slate-200 sm:flex sm:w-72 sm:shrink-0 ${activeUsername ? "hidden sm:flex" : "flex"}`}>
           <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">Conversations</span>
+            <span className="text-sm font-semibold text-slate-700">{t("Conversations")}</span>
             <button
               onClick={() => setShowNewMessage((v) => !v)}
               className="flex items-center gap-1 rounded-lg bg-teal-600 px-2 py-1 text-xs font-medium text-white hover:bg-teal-700"
             >
               <Plus className="h-3.5 w-3.5" />
-              New
+              {t("New")}
             </button>
           </div>
 
           {showNewMessage && (
             <div className="max-h-56 overflow-y-auto border-b border-slate-100 bg-slate-50 p-2">
-              {activeRecipients.length === 0 && <p className="px-2 py-1 text-xs text-slate-400">No other accounts yet.</p>}
+              {activeRecipients.length === 0 && <p className="px-2 py-1 text-xs text-slate-400">{t("No other accounts yet.")}</p>}
               {activeRecipients.map((u) => (
                 <button key={u.username} onClick={() => openConversation(u.username)} className="flex w-full flex-col rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white">
                   <span className="font-medium text-slate-700">{u.display_name || u.username}</span>
@@ -192,7 +194,7 @@ export default function Messages() {
           )}
 
           <div className="flex-1 overflow-y-auto">
-            {conversations.length === 0 && !showNewMessage && <p className="p-4 text-center text-sm text-slate-400">No messages yet — tap "New" to message someone.</p>}
+            {conversations.length === 0 && !showNewMessage && <p className="p-4 text-center text-sm text-slate-400">{t('No messages yet — tap "New" to message someone.')}</p>}
             {conversations.map((c) => {
               const u = usersByUsername[c.username];
               const mine = c.lastMessage.sender_username === session.username;
@@ -208,7 +210,7 @@ export default function Messages() {
                   </div>
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-xs text-slate-500">
-                      {mine ? "You: " : ""}
+                      {mine ? t("You: ") : ""}
                       {messagePreview(c.lastMessage)}
                     </span>
                     {c.unread > 0 && <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white">{c.unread}</span>}
@@ -223,7 +225,7 @@ export default function Messages() {
           {!activeUsername ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 text-slate-300">
               <MessageSquare className="h-10 w-10" />
-              <p className="text-sm text-slate-400">Select a conversation or start a new one.</p>
+              <p className="text-sm text-slate-400">{t("Select a conversation or start a new one.")}</p>
             </div>
           ) : (
             <>
@@ -272,7 +274,7 @@ export default function Messages() {
                     </div>
                   );
                 })}
-                {threadMessages.length === 0 && <p className="pt-6 text-center text-sm text-slate-400">No messages yet — say hello.</p>}
+                {threadMessages.length === 0 && <p className="pt-6 text-center text-sm text-slate-400">{t("No messages yet — say hello.")}</p>}
               </div>
               <form onSubmit={sendMessage} className="flex flex-col gap-2 border-t border-slate-100 p-3">
                 {draftFiles.length > 0 && (
@@ -297,7 +299,7 @@ export default function Messages() {
                       onChange={(e) => setDraftFiles((prev) => [...prev, ...Array.from(e.target.files ?? [])])}
                     />
                   </label>
-                  <input className="input flex-1" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Type a message..." />
+                  <input className="input flex-1" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("Type a message...")} />
                   <button
                     type="submit"
                     disabled={sending || (!draft.trim() && draftFiles.length === 0)}
@@ -311,7 +313,7 @@ export default function Messages() {
           )}
         </div>
       </div>
-      {loading && <p className="text-center text-xs text-slate-400">Loading...</p>}
+      {loading && <p className="text-center text-xs text-slate-400">{t("Loading...")}</p>}
     </div>
   );
 }
