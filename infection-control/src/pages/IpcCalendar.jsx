@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Lock, Paperclip, Trash2, Upload } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
+import { useLanguage } from "../lib/i18n.jsx";
 
 const IPC_CALENDAR_BUCKET = "ipc-calendar-attachments";
 const MONTH_NAMES = [
@@ -27,6 +28,7 @@ function startOfDay(d) {
 
 export default function IpcCalendar() {
   const { session } = useAuth();
+  const { t } = useLanguage();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const today = useMemo(() => startOfDay(new Date()), []);
@@ -165,8 +167,8 @@ export default function IpcCalendar() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-800">IPC Calendar</h1>
-        <p className="text-sm text-slate-500">Daily tasks and files to upload — mark anything personal as "just for me".</p>
+        <h1 className="text-xl font-bold text-slate-800">{t("IPC Calendar")}</h1>
+        <p className="text-sm text-slate-500">{t('Daily tasks and files to upload — mark anything personal as "just for me".')}</p>
       </div>
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
@@ -176,7 +178,7 @@ export default function IpcCalendar() {
               <ChevronLeft className="h-4 w-4" />
             </button>
             <span className="text-sm font-bold text-slate-800">
-              {MONTH_NAMES[viewMonth]} {viewYear}
+              {t(MONTH_NAMES[viewMonth])} {viewYear}
             </span>
             <button onClick={gotoNextMonth} className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-teal-50 hover:text-teal-700">
               <ChevronRight className="h-4 w-4" />
@@ -185,7 +187,7 @@ export default function IpcCalendar() {
 
           <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-400">
             {WEEKDAYS.map((w) => (
-              <div key={w} className="pb-1.5">{w}</div>
+              <div key={w} className="pb-1.5">{t(w)}</div>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-1">
@@ -227,42 +229,42 @@ export default function IpcCalendar() {
           </div>
 
           <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-slate-500">
-            <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-teal-500" /> Has task</span>
-            <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Needs file</span>
+            <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-teal-500" /> {t("Has task")}</span>
+            <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> {t("Needs file")}</span>
           </div>
         </div>
 
         <div className="flex flex-1 flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div>
             <h2 className="text-sm font-semibold text-slate-800">{formatSelectedLabel(selected)}</h2>
-            {selectedKey === dateKey(today) && <p className="text-xs text-slate-400">Today</p>}
+            {selectedKey === dateKey(today) && <p className="text-xs text-slate-400">{t("Today")}</p>}
           </div>
 
           <div className="flex max-h-80 flex-col gap-1.5 overflow-y-auto">
-            {loading && <p className="p-4 text-center text-sm text-slate-400">Loading...</p>}
+            {loading && <p className="p-4 text-center text-sm text-slate-400">{t("Loading...")}</p>}
             {!loading && selectedTasks.length === 0 && (
-              <p className="rounded-lg p-6 text-center text-sm text-slate-400">No tasks for this day yet — add one below.</p>
+              <p className="rounded-lg p-6 text-center text-sm text-slate-400">{t("No tasks for this day yet — add one below.")}</p>
             )}
-            {selectedTasks.map((t) => (
-              <div key={t.id} className="flex items-start gap-2 rounded-lg border border-slate-200 p-2.5 text-sm">
-                <input type="checkbox" checked={!!t.done} onChange={() => toggleDone(t)} className="mt-0.5 accent-teal-600" />
+            {selectedTasks.map((task) => (
+              <div key={task.id} className="flex items-start gap-2 rounded-lg border border-slate-200 p-2.5 text-sm">
+                <input type="checkbox" checked={!!task.done} onChange={() => toggleDone(task)} className="mt-0.5 accent-teal-600" />
                 <div className="min-w-0 flex-1">
-                  <p className={t.done ? "break-words text-slate-400 line-through" : "break-words text-slate-700"}>{t.label}</p>
+                  <p className={task.done ? "break-words text-slate-400 line-through" : "break-words text-slate-700"}>{task.label}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    {t.is_private && (
+                    {task.is_private && (
                       <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
                         <Lock className="h-2.5 w-2.5" />
-                        Just for me
+                        {t("Just for me")}
                       </span>
                     )}
-                    {t.needs_file && (
+                    {task.needs_file && (
                       <>
-                        {(t.attachments ?? []).length === 0 && (
+                        {(task.attachments ?? []).length === 0 && (
                           <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                            📎 Needs file
+                            {t("📎 Needs file")}
                           </span>
                         )}
-                        {(t.attachments ?? []).map((a, i) => (
+                        {(task.attachments ?? []).map((a, i) => (
                           <a
                             key={i}
                             href={attachmentUrl(a.path)}
@@ -276,14 +278,14 @@ export default function IpcCalendar() {
                         ))}
                         <label className="flex cursor-pointer items-center gap-1 rounded-full border border-dashed border-slate-300 px-2 py-0.5 text-[10px] font-medium text-slate-500 hover:border-teal-500 hover:text-teal-700">
                           <Upload className="h-2.5 w-2.5" />
-                          Attach
+                          {t("Attach")}
                           <input
                             type="file"
                             multiple
                             className="hidden"
                             onChange={(e) => {
                               const files = Array.from(e.target.files ?? []);
-                              if (files.length > 0) attachFiles(t, files);
+                              if (files.length > 0) attachFiles(task, files);
                             }}
                           />
                         </label>
@@ -291,7 +293,7 @@ export default function IpcCalendar() {
                     )}
                   </div>
                 </div>
-                <button onClick={() => removeTask(t)} className="shrink-0 rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600">
+                <button onClick={() => removeTask(task)} className="shrink-0 rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600">
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -303,21 +305,21 @@ export default function IpcCalendar() {
               className="input"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="Add a new task for this day..."
+              placeholder={t("Add a new task for this day...")}
               maxLength={200}
             />
             <div className="flex flex-wrap items-center gap-3">
               <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-500">
                 <input type="checkbox" checked={needsFile} onChange={(e) => setNeedsFile(e.target.checked)} className="accent-amber-600" />
-                📎 Needs file upload
+                {t("📎 Needs file upload")}
               </label>
               <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-500">
                 <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} className="accent-slate-600" />
                 <Lock className="h-3 w-3" />
-                Just for me
+                {t("Just for me")}
               </label>
               <button type="submit" className="ml-auto rounded-lg bg-teal-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-teal-700">
-                + Add
+                {t("+ Add")}
               </button>
             </div>
           </form>
