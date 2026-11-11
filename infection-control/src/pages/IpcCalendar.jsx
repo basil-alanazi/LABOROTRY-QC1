@@ -137,15 +137,23 @@ export default function IpcCalendar() {
     await supabase.from("ipc_calendar_tasks").delete().eq("id", t.id);
   }
 
-  async function attachFile(t, file) {
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const path = `${t.id}/${Date.now()}-${safeName}`;
-    const { error } = await supabase.storage.from(IPC_CALENDAR_BUCKET).upload(path, file);
-    if (error) {
-      alert("Could not upload: " + error.message);
+  async function attachFiles(t, files) {
+    let uploaded;
+    try {
+      uploaded = await Promise.all(
+        files.map(async (file) => {
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+          const path = `${t.id}/${Date.now()}-${safeName}`;
+          const { error } = await supabase.storage.from(IPC_CALENDAR_BUCKET).upload(path, file);
+          if (error) throw error;
+          return { path, name: file.name };
+        })
+      );
+    } catch (err) {
+      alert("Could not upload: " + err.message);
       return;
     }
-    const patch = { file_path: path, file_name: file.name };
+    const patch = { attachments: [...(t.attachments ?? []), ...uploaded] };
     setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, ...patch } : x)));
     await supabase.from("ipc_calendar_tasks").update(patch).eq("id", t.id);
   }
@@ -187,7 +195,7 @@ export default function IpcCalendar() {
               const isToday = key === dateKey(today);
               const isSelected = key === selectedKey;
               const isOtherMonth = d.getMonth() !== viewMonth;
-              const hasFileNeeded = dayTasks.some((t) => t.needs_file && !t.file_path);
+              const hasFileNeeded = dayTasks.some((t) => t.needs_file && (t.attachments ?? []).length === 0);
               return (
                 <button
                   key={i}
@@ -207,7 +215,7 @@ export default function IpcCalendar() {
                         <span
                           key={t.id}
                           className={`h-1.5 w-1.5 rounded-full ${
-                            isSelected ? "bg-white" : t.needs_file && !t.file_path ? "bg-amber-500" : "bg-teal-500"
+                            isSelected ? "bg-white" : t.needs_file && (t.attachments ?? []).length === 0 ? "bg-amber-500" : "bg-teal-500"
                           }`}
                         />
                       ))}
@@ -247,33 +255,40 @@ export default function IpcCalendar() {
                         Just for me
                       </span>
                     )}
-                    {t.needs_file &&
-                      (t.file_path ? (
-                        <a
-                          href={attachmentUrl(t.file_path)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-medium text-teal-700 hover:underline"
-                        >
-                          <Paperclip className="h-2.5 w-2.5" />
-                          {t.file_name}
-                        </a>
-                      ) : (
-                        <>
+                    {t.needs_file && (
+                      <>
+                        {(t.attachments ?? []).length === 0 && (
                           <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
                             📎 Needs file
                           </span>
-                          <label className="flex cursor-pointer items-center gap-1 rounded-full border border-dashed border-slate-300 px-2 py-0.5 text-[10px] font-medium text-slate-500 hover:border-teal-500 hover:text-teal-700">
-                            <Upload className="h-2.5 w-2.5" />
-                            Attach
-                            <input
-                              type="file"
-                              className="hidden"
-                              onChange={(e) => e.target.files?.[0] && attachFile(t, e.target.files[0])}
-                            />
-                          </label>
-                        </>
-                      ))}
+                        )}
+                        {(t.attachments ?? []).map((a, i) => (
+                          <a
+                            key={i}
+                            href={attachmentUrl(a.path)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-medium text-teal-700 hover:underline"
+                          >
+                            <Paperclip className="h-2.5 w-2.5" />
+                            {a.name}
+                          </a>
+                        ))}
+                        <label className="flex cursor-pointer items-center gap-1 rounded-full border border-dashed border-slate-300 px-2 py-0.5 text-[10px] font-medium text-slate-500 hover:border-teal-500 hover:text-teal-700">
+                          <Upload className="h-2.5 w-2.5" />
+                          Attach
+                          <input
+                            type="file"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files ?? []);
+                              if (files.length > 0) attachFiles(t, files);
+                            }}
+                          />
+                        </label>
+                      </>
+                    )}
                   </div>
                 </div>
                 <button onClick={() => removeTask(t)} className="shrink-0 rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600">
