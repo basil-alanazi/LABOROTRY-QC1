@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, Trash2, Save, UserPlus, KeyRound, PackagePlus, HeartPulse } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
+import { useLanguage } from "../lib/i18n.jsx";
 import { sha256Hex } from "../lib/hash";
 import { fetchAllRows } from "../lib/fetchAll";
 
@@ -48,6 +49,7 @@ function parseDoseSchedule(text) {
 
 export default function Settings() {
   const { config, reloadConfig, isOwner, session } = useAuth();
+  const { t } = useLanguage();
   const [stockDepartments, setStockDepartments] = useState([]);
   const [newStockDept, setNewStockDept] = useState("");
   const [stockItems, setStockItems] = useState([]);
@@ -510,15 +512,15 @@ export default function Settings() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-xl font-bold text-slate-800">Settings</h1>
-        <p className="text-sm text-slate-500">Manage departments, tracker lists, and user accounts.</p>
+        <h1 className="text-xl font-bold text-slate-800">{t("Settings")}</h1>
+        <p className="text-sm text-slate-500">{t("Manage departments, tracker lists, and user accounts.")}</p>
       </div>
 
       {message && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p>}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">Daily IC Round Departments</h2>
-        <p className="mb-4 text-xs text-slate-500">Separate department list used only by the Daily IC Rounds module.</p>
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">{t("Daily IC Round Departments")}</h2>
+        <p className="mb-4 text-xs text-slate-500">{t("Separate department list used only by the Daily IC Rounds module.")}</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {icRoundDepartments.map((d) => (
             <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
@@ -530,17 +532,17 @@ export default function Settings() {
           ))}
         </div>
         <div className="flex gap-2">
-          <input className="input" value={newIcRoundDept} onChange={(e) => setNewIcRoundDept(e.target.value)} placeholder="New department name" />
+          <input className="input" value={newIcRoundDept} onChange={(e) => setNewIcRoundDept(e.target.value)} placeholder={t("New department name")} />
           <button onClick={addIcRoundDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
-            Add
+            {t("Add")}
           </button>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">HAI Surveillance — ICU Types</h2>
-        <p className="mb-4 text-xs text-slate-500">ICU types offered on the ICU sub-tab of HAI Surveillance.</p>
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">{t("HAI Surveillance — ICU Types")}</h2>
+        <p className="mb-4 text-xs text-slate-500">{t("ICU types offered on the ICU sub-tab of HAI Surveillance.")}</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {haiIcuTypesAdult.map((d) => (
             <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
@@ -552,17 +554,17 @@ export default function Settings() {
           ))}
         </div>
         <div className="flex gap-2">
-          <input className="input" value={newHaiIcuTypeAdult} onChange={(e) => setNewHaiIcuTypeAdult(e.target.value)} placeholder="New ICU type name" />
+          <input className="input" value={newHaiIcuTypeAdult} onChange={(e) => setNewHaiIcuTypeAdult(e.target.value)} placeholder={t("New ICU type name")} />
           <button onClick={addHaiIcuTypeAdult} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
-            Add
+            {t("Add")}
           </button>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">HAI Surveillance — NICU Types</h2>
-        <p className="mb-4 text-xs text-slate-500">ICU types offered on the NICU sub-tab of HAI Surveillance.</p>
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">{t("HAI Surveillance — NICU Types")}</h2>
+        <p className="mb-4 text-xs text-slate-500">{t("ICU types offered on the NICU sub-tab of HAI Surveillance.")}</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {haiIcuTypesPediatric.map((d) => (
             <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
@@ -574,17 +576,17 @@ export default function Settings() {
           ))}
         </div>
         <div className="flex gap-2">
-          <input className="input" value={newHaiIcuTypePediatric} onChange={(e) => setNewHaiIcuTypePediatric(e.target.value)} placeholder="New NICU type name" />
+          <input className="input" value={newHaiIcuTypePediatric} onChange={(e) => setNewHaiIcuTypePediatric(e.target.value)} placeholder={t("New NICU type name")} />
           <button onClick={addHaiIcuTypePediatric} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
-            Add
+            {t("Add")}
           </button>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">Nursing Daily Round Departments</h2>
-        <p className="mb-4 text-xs text-slate-500">Separate department list used only by the Nursing Daily Rounds module.</p>
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">{t("Nursing Daily Round Departments")}</h2>
+        <p className="mb-4 text-xs text-slate-500">{t("Separate department list used only by the Nursing Daily Rounds module.")}</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {nursingRoundDepartments.map((d) => (
             <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
@@ -596,17 +598,17 @@ export default function Settings() {
           ))}
         </div>
         <div className="flex gap-2">
-          <input className="input" value={newNursingRoundDept} onChange={(e) => setNewNursingRoundDept(e.target.value)} placeholder="New department name" />
+          <input className="input" value={newNursingRoundDept} onChange={(e) => setNewNursingRoundDept(e.target.value)} placeholder={t("New department name")} />
           <button onClick={addNursingRoundDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
-            Add
+            {t("Add")}
           </button>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">Quality Daily Round Departments</h2>
-        <p className="mb-4 text-xs text-slate-500">Separate department list used only by the Quality Daily Rounds module.</p>
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">{t("Quality Daily Round Departments")}</h2>
+        <p className="mb-4 text-xs text-slate-500">{t("Separate department list used only by the Quality Daily Rounds module.")}</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {qualityRoundDepartments.map((d) => (
             <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
@@ -618,17 +620,17 @@ export default function Settings() {
           ))}
         </div>
         <div className="flex gap-2">
-          <input className="input" value={newQualityRoundDept} onChange={(e) => setNewQualityRoundDept(e.target.value)} placeholder="New department name" />
+          <input className="input" value={newQualityRoundDept} onChange={(e) => setNewQualityRoundDept(e.target.value)} placeholder={t("New department name")} />
           <button onClick={addQualityRoundDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
-            Add
+            {t("Add")}
           </button>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">Culture Tracker Items</h2>
-        <p className="mb-4 text-xs text-slate-500">The list of areas/categories selectable on Trackers → Culture.</p>
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">{t("Culture Tracker Items")}</h2>
+        <p className="mb-4 text-xs text-slate-500">{t("The list of areas/categories selectable on Trackers → Culture.")}</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {cultureTrackerItems.map((d) => (
             <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
@@ -640,17 +642,17 @@ export default function Settings() {
           ))}
         </div>
         <div className="flex gap-2">
-          <input className="input" value={newCultureTrackerItem} onChange={(e) => setNewCultureTrackerItem(e.target.value)} placeholder="New item name" />
+          <input className="input" value={newCultureTrackerItem} onChange={(e) => setNewCultureTrackerItem(e.target.value)} placeholder={t("New item name")} />
           <button onClick={addCultureTrackerItem} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
-            Add
+            {t("Add")}
           </button>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">Agreement Tracker Entities</h2>
-        <p className="mb-4 text-xs text-slate-500">The list of vendors/entities selectable on Trackers → Agreement.</p>
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">{t("Agreement Tracker Entities")}</h2>
+        <p className="mb-4 text-xs text-slate-500">{t("The list of vendors/entities selectable on Trackers → Agreement.")}</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {agreementTrackerEntities.map((d) => (
             <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
@@ -662,17 +664,17 @@ export default function Settings() {
           ))}
         </div>
         <div className="flex gap-2">
-          <input className="input" value={newAgreementTrackerEntity} onChange={(e) => setNewAgreementTrackerEntity(e.target.value)} placeholder="New entity name" />
+          <input className="input" value={newAgreementTrackerEntity} onChange={(e) => setNewAgreementTrackerEntity(e.target.value)} placeholder={t("New entity name")} />
           <button onClick={addAgreementTrackerEntity} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
-            Add
+            {t("Add")}
           </button>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">Stock Request Departments</h2>
-        <p className="mb-4 text-xs text-slate-500">Departments/units — each keeps its own stock item catalog and usage log.</p>
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">{t("Stock Request Departments")}</h2>
+        <p className="mb-4 text-xs text-slate-500">{t("Departments/units — each keeps its own stock item catalog and usage log.")}</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {stockDepartments.map((d) => (
             <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
@@ -688,20 +690,20 @@ export default function Settings() {
             className="input"
             value={newStockDept}
             onChange={(e) => setNewStockDept(e.target.value)}
-            placeholder="New department name"
+            placeholder={t("New department name")}
           />
           <button onClick={addStockDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
-            Add
+            {t("Add")}
           </button>
         </div>
       </section>
 
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-sm font-semibold text-slate-700">Stock Items</h2>
+          <h2 className="text-sm font-semibold text-slate-700">{t("Stock Items")}</h2>
           <select className="input w-full sm:w-64" value={stockItemsFilterDept} onChange={(e) => setStockItemsFilterDept(e.target.value)}>
-            <option value="">Filter by department — select one</option>
+            <option value="">{t("Filter by department — select one")}</option>
             {stockDepartments.map((d) => (
               <option key={d} value={d}>
                 {d} ({stockItems.filter((i) => i.department === d).length})
@@ -715,12 +717,12 @@ export default function Settings() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 text-left text-xs text-slate-500">
                   <tr>
-                    <th className="px-3 py-2 font-medium">Name</th>
-                    <th className="px-3 py-2 font-medium">Unit</th>
-                    <th className="px-3 py-2 font-medium">Min</th>
-                    <th className="px-3 py-2 font-medium">Max</th>
-                    <th className="px-3 py-2 font-medium">Current</th>
-                    <th className="px-3 py-2 font-medium">Active</th>
+                    <th className="px-3 py-2 font-medium">{t("Name")}</th>
+                    <th className="px-3 py-2 font-medium">{t("Unit")}</th>
+                    <th className="px-3 py-2 font-medium">{t("Min")}</th>
+                    <th className="px-3 py-2 font-medium">{t("Max")}</th>
+                    <th className="px-3 py-2 font-medium">{t("Current")}</th>
+                    <th className="px-3 py-2 font-medium">{t("Active")}</th>
                     <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
@@ -765,7 +767,7 @@ export default function Settings() {
                 </tbody>
               </table>
               {stockItems.filter((i) => i.department === stockItemsFilterDept).length === 0 && (
-                <p className="p-6 text-center text-sm text-slate-400">No items yet for {stockItemsFilterDept}</p>
+                <p className="p-6 text-center text-sm text-slate-400">{t("No items yet for")} {stockItemsFilterDept}</p>
               )}
             </div>
 
@@ -785,54 +787,54 @@ export default function Settings() {
                 className="input"
                 value={newStockItem.name}
                 onChange={(e) => setNewStockItem({ ...newStockItem, name: e.target.value })}
-                placeholder="Item name"
+                placeholder={t("Item name")}
               />
               <input
                 className="input"
                 value={newStockItem.unit}
                 onChange={(e) => setNewStockItem({ ...newStockItem, unit: e.target.value })}
-                placeholder="Unit (box, piece...)"
+                placeholder={t("Unit (box, piece...)")}
               />
               <input
                 type="number"
                 className="input"
                 value={newStockItem.min_qty}
                 onChange={(e) => setNewStockItem({ ...newStockItem, min_qty: e.target.value })}
-                placeholder="Min"
+                placeholder={t("Min")}
               />
               <input
                 type="number"
                 className="input"
                 value={newStockItem.max_qty}
                 onChange={(e) => setNewStockItem({ ...newStockItem, max_qty: e.target.value })}
-                placeholder="Max"
+                placeholder={t("Max")}
               />
               <input
                 type="number"
                 className="input"
                 value={newStockItem.current_qty}
                 onChange={(e) => setNewStockItem({ ...newStockItem, current_qty: e.target.value })}
-                placeholder="Current stock"
+                placeholder={t("Current stock")}
               />
               <button
                 onClick={addStockItem}
                 className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-6"
               >
                 <PackagePlus className="h-4 w-4" />
-                Add Item
+                {t("Add Item")}
               </button>
             </div>
           </>
         ) : (
           <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-400">
-            Pick a department above to view and edit its items — {stockItems.length} items total across all departments.
+            {t("Pick a department above to view and edit its items —")} {stockItems.length} {t("items total across all departments.")}
           </p>
         )}
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">Employee Health Departments</h2>
-        <p className="mb-4 text-xs text-slate-500">Departments used when adding employees for health tracking.</p>
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">{t("Employee Health Departments")}</h2>
+        <p className="mb-4 text-xs text-slate-500">{t("Departments used when adding employees for health tracking.")}</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {employeeDepartments.map((d) => (
             <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
@@ -848,76 +850,75 @@ export default function Settings() {
             className="input"
             value={newEmployeeDept}
             onChange={(e) => setNewEmployeeDept(e.target.value)}
-            placeholder="New department name"
+            placeholder={t("New department name")}
           />
           <button onClick={addEmployeeDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
-            Add
+            {t("Add")}
           </button>
         </div>
       </section>
 
       <section className="flex flex-col gap-4">
         <div>
-          <h2 className="text-sm font-semibold text-slate-700">Employee Health Items (Vaccines &amp; Screenings)</h2>
+          <h2 className="text-sm font-semibold text-slate-700">{t("Employee Health Items (Vaccines & Screenings)")}</h2>
           <p className="text-xs text-slate-500">
-            Dose Schedule = month offsets from the 1st dose date, one per dose. E.g. Hepatitis B "0,1,6" means the 1st dose,
-            2nd dose 1 month later, 3rd dose 6 months later (Jan / Feb / Jul). A single dose is just "0".
+            {t('Dose Schedule = month offsets from the 1st dose date, one per dose. E.g. Hepatitis B "0,1,6" means the 1st dose, 2nd dose 1 month later, 3rd dose 6 months later (Jan / Feb / Jul). A single dose is just "0".')}
           </p>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs text-slate-500">
               <tr>
-                <th className="px-3 py-2 font-medium">Name</th>
-                <th className="px-3 py-2 font-medium">Category</th>
-                <th className="px-3 py-2 font-medium">Dose Schedule (months after 1st dose)</th>
-                <th className="px-3 py-2 font-medium">Repeats Every (months)</th>
-                <th className="px-3 py-2 font-medium">Kitchen Staff Only</th>
-                <th className="px-3 py-2 font-medium">Active</th>
+                <th className="px-3 py-2 font-medium">{t("Name")}</th>
+                <th className="px-3 py-2 font-medium">{t("Category")}</th>
+                <th className="px-3 py-2 font-medium">{t("Dose Schedule (months after 1st dose)")}</th>
+                <th className="px-3 py-2 font-medium">{t("Repeats Every (months)")}</th>
+                <th className="px-3 py-2 font-medium">{t("Kitchen Staff Only")}</th>
+                <th className="px-3 py-2 font-medium">{t("Active")}</th>
                 <th className="px-3 py-2"></th>
               </tr>
             </thead>
             <tbody>
-              {healthItemTypes.map((t) => (
-                <tr key={t.id} className="border-t border-slate-100">
+              {healthItemTypes.map((item) => (
+                <tr key={item.id} className="border-t border-slate-100">
                   <td className="px-3 py-2">
-                    <input className="input" value={t.name} onChange={(e) => updateHealthItemType(t.id, { name: e.target.value })} />
+                    <input className="input" value={item.name} onChange={(e) => updateHealthItemType(item.id, { name: e.target.value })} />
                   </td>
                   <td className="px-3 py-2">
-                    <select className="input" value={t.category} onChange={(e) => updateHealthItemType(t.id, { category: e.target.value })}>
-                      <option value="vaccine">Vaccine</option>
-                      <option value="screening">Screening</option>
+                    <select className="input" value={item.category} onChange={(e) => updateHealthItemType(item.id, { category: e.target.value })}>
+                      <option value="vaccine">{t("Vaccine")}</option>
+                      <option value="screening">{t("Screening")}</option>
                     </select>
                   </td>
                   <td className="px-3 py-2">
                     <input
                       className="input w-32"
-                      value={t.dose_schedule ?? "0"}
-                      onChange={(e) => updateHealthItemType(t.id, { dose_schedule: e.target.value })}
-                      placeholder="e.g. 0,1,6"
+                      value={item.dose_schedule ?? "0"}
+                      onChange={(e) => updateHealthItemType(item.id, { dose_schedule: e.target.value })}
+                      placeholder={t("e.g. 0,1,6")}
                     />
                   </td>
                   <td className="px-3 py-2">
                     <input
                       type="number"
                       className="input w-28"
-                      value={t.recurrence_months ?? ""}
-                      onChange={(e) => updateHealthItemType(t.id, { recurrence_months: e.target.value })}
-                      placeholder="One-time"
+                      value={item.recurrence_months ?? ""}
+                      onChange={(e) => updateHealthItemType(item.id, { recurrence_months: e.target.value })}
+                      placeholder={t("One-time")}
                     />
                   </td>
                   <td className="px-3 py-2 text-center">
-                    <input type="checkbox" checked={!!t.kitchen_only} onChange={(e) => updateHealthItemType(t.id, { kitchen_only: e.target.checked })} />
+                    <input type="checkbox" checked={!!item.kitchen_only} onChange={(e) => updateHealthItemType(item.id, { kitchen_only: e.target.checked })} />
                   </td>
                   <td className="px-3 py-2">
-                    <input type="checkbox" checked={t.active} onChange={(e) => updateHealthItemType(t.id, { active: e.target.checked })} />
+                    <input type="checkbox" checked={item.active} onChange={(e) => updateHealthItemType(item.id, { active: e.target.checked })} />
                   </td>
                   <td className="flex items-center gap-1 px-3 py-2">
-                    <button onClick={() => saveHealthItemType(t)} className="rounded-lg p-1.5 text-teal-600 hover:bg-teal-50">
+                    <button onClick={() => saveHealthItemType(item)} className="rounded-lg p-1.5 text-teal-600 hover:bg-teal-50">
                       <Save className="h-4 w-4" />
                     </button>
-                    <button onClick={() => removeHealthItemType(t)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+                    <button onClick={() => removeHealthItemType(item)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </td>
@@ -932,24 +933,24 @@ export default function Settings() {
             className="input sm:col-span-2"
             value={newHealthItem.name}
             onChange={(e) => setNewHealthItem({ ...newHealthItem, name: e.target.value })}
-            placeholder="Vaccine or screening name"
+            placeholder={t("Vaccine or screening name")}
           />
           <select className="input" value={newHealthItem.category} onChange={(e) => setNewHealthItem({ ...newHealthItem, category: e.target.value })}>
-            <option value="vaccine">Vaccine</option>
-            <option value="screening">Screening</option>
+            <option value="vaccine">{t("Vaccine")}</option>
+            <option value="screening">{t("Screening")}</option>
           </select>
           <input
             className="input"
             value={newHealthItem.dose_schedule}
             onChange={(e) => setNewHealthItem({ ...newHealthItem, dose_schedule: e.target.value })}
-            placeholder="Dose schedule, e.g. 0,1,6"
+            placeholder={t("Dose schedule, e.g. 0,1,6")}
           />
           <input
             type="number"
             className="input"
             value={newHealthItem.recurrence_months}
             onChange={(e) => setNewHealthItem({ ...newHealthItem, recurrence_months: e.target.value })}
-            placeholder="Repeats every N months (blank = one-time)"
+            placeholder={t("Repeats every N months (blank = one-time)")}
           />
           <label className="flex items-center gap-1 text-xs text-slate-500">
             <input
@@ -957,21 +958,21 @@ export default function Settings() {
               checked={newHealthItem.kitchen_only}
               onChange={(e) => setNewHealthItem({ ...newHealthItem, kitchen_only: e.target.checked })}
             />
-            Kitchen Staff only
+            {t("Kitchen Staff only")}
           </label>
           <button
             onClick={addHealthItemType}
             className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-4"
           >
             <HeartPulse className="h-4 w-4" />
-            Add Item
+            {t("Add Item")}
           </button>
         </div>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-slate-700">Communicable Diseases</h2>
-        <p className="mb-4 text-xs text-slate-500">The disease list shown on the Suspected/Confirmed Cases entry form.</p>
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">{t("Communicable Diseases")}</h2>
+        <p className="mb-4 text-xs text-slate-500">{t("The disease list shown on the Suspected/Confirmed Cases entry form.")}</p>
         <div className="mb-4 flex flex-wrap gap-2">
           {diseaseTypes.map((d) => (
             <span key={d.id} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
@@ -983,20 +984,19 @@ export default function Settings() {
           ))}
         </div>
         <div className="flex gap-2">
-          <input className="input" value={newDisease} onChange={(e) => setNewDisease(e.target.value)} placeholder="New disease name" />
+          <input className="input" value={newDisease} onChange={(e) => setNewDisease(e.target.value)} placeholder={t("New disease name")} />
           <button onClick={addDisease} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
-            Add
+            {t("Add")}
           </button>
         </div>
       </section>
 
       {isOwner && (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-1 text-sm font-semibold text-slate-700">User Accounts</h2>
+          <h2 className="mb-1 text-sm font-semibold text-slate-700">{t("User Accounts")}</h2>
           <p className="mb-4 text-xs text-slate-500">
-            Create an account for each person, with their own role and permissions — infection control team or any
-            other department. Every entry, resolve, and delete is attributed to the account that did it.
+            {t("Create an account for each person, with their own role and permissions — infection control team or any other department. Every entry, resolve, and delete is attributed to the account that did it.")}
           </p>
 
           <div className="flex flex-col gap-3">
@@ -1007,16 +1007,16 @@ export default function Settings() {
                   className="input sm:col-span-1"
                   value={u.display_name}
                   onChange={(e) => updateUserField(u.id, { display_name: e.target.value })}
-                  placeholder="Display name"
+                  placeholder={t("Display name")}
                 />
                 <select
                   className="input sm:col-span-1"
                   value={u.role}
                   onChange={(e) => updateUserField(u.id, { role: e.target.value })}
                 >
-                  <option value="owner">Owner</option>
-                  <option value="ic">Infection Control</option>
-                  <option value="staff">Ward Staff</option>
+                  <option value="owner">{t("Owner")}</option>
+                  <option value="ic">{t("Infection Control")}</option>
+                  <option value="staff">{t("Ward Staff")}</option>
                 </select>
                 <div className="flex gap-1 sm:col-span-1">
                   <select
@@ -1024,7 +1024,7 @@ export default function Settings() {
                     value={u.department || ""}
                     onChange={(e) => updateUserField(u.id, { department: e.target.value })}
                   >
-                    <option value="">No department</option>
+                    <option value="">{t("No department")}</option>
                     {stockDepartments.map((d) => (
                       <option key={d} value={d}>
                         {d}
@@ -1037,7 +1037,7 @@ export default function Settings() {
                       const d = await quickAddDepartment();
                       if (d) updateUserField(u.id, { department: d });
                     }}
-                    title="Add a new department"
+                    title={t("Add a new department")}
                     className="shrink-0 rounded-lg border border-slate-200 px-2 text-slate-500 hover:bg-slate-50"
                   >
                     <Plus className="h-4 w-4" />
@@ -1046,11 +1046,11 @@ export default function Settings() {
                 <div className="flex items-center justify-end gap-2 sm:col-span-1">
                   <label className="flex items-center gap-1 text-xs text-slate-500">
                     <input type="checkbox" checked={u.active} onChange={(e) => updateUserField(u.id, { active: e.target.checked })} />
-                    Active
+                    {t("Active")}
                   </label>
                   <button
                     onClick={() => resetPassword(u)}
-                    title={`Reset password to ${DEFAULT_PASSWORD}`}
+                    title={`${t("Reset password to")} ${DEFAULT_PASSWORD}`}
                     className="rounded-lg p-1.5 text-amber-600 hover:bg-amber-50"
                   >
                     <KeyRound className="h-4 w-4" />
@@ -1069,7 +1069,7 @@ export default function Settings() {
                       checked={!!u.can_manage_stock}
                       onChange={(e) => updateUserField(u.id, { can_manage_stock: e.target.checked })}
                     />
-                    Department stock in-charge — can also add/remove items in {u.department}'s stock catalog (not just use them)
+                    {t("Department stock in-charge — can also add/remove items in")} {u.department}{t("'s stock catalog (not just use them)")}
                   </label>
                 )}
                 {u.role === "staff" && (
@@ -1079,7 +1079,7 @@ export default function Settings() {
                       checked={!!u.can_admin_stock}
                       onChange={(e) => updateUserField(u.id, { can_admin_stock: e.target.checked })}
                     />
-                    Stock Requests admin — sees and manages every department's stock (not just their own), same as Owner/IC
+                    {t("Stock Requests admin — sees and manages every department's stock (not just their own), same as Owner/IC")}
                   </label>
                 )}
                 {u.role === "staff" && (
@@ -1089,7 +1089,7 @@ export default function Settings() {
                       checked={!!u.can_view_employee_health}
                       onChange={(e) => updateUserField(u.id, { can_view_employee_health: e.target.checked })}
                     />
-                    Employee Health access only — e.g. a doctor's account; sees the Employee Health page instead of Stock Requests
+                    {t("Employee Health access only — e.g. a doctor's account; sees the Employee Health page instead of Stock Requests")}
                   </label>
                 )}
                 {u.role === "staff" && (
@@ -1099,7 +1099,7 @@ export default function Settings() {
                       checked={!!u.can_view_nursing_rounds}
                       onChange={(e) => updateUserField(u.id, { can_view_nursing_rounds: e.target.checked })}
                     />
-                    Nursing Daily Rounds access only — sees only the Nursing Daily Rounds page instead of Stock Requests
+                    {t("Nursing Daily Rounds access only — sees only the Nursing Daily Rounds page instead of Stock Requests")}
                   </label>
                 )}
                 {u.role === "staff" && (
@@ -1109,7 +1109,7 @@ export default function Settings() {
                       checked={!!u.can_view_quality_rounds}
                       onChange={(e) => updateUserField(u.id, { can_view_quality_rounds: e.target.checked })}
                     />
-                    Quality Daily Rounds access only — sees only the Quality Daily Rounds page instead of Stock Requests
+                    {t("Quality Daily Rounds access only — sees only the Quality Daily Rounds page instead of Stock Requests")}
                   </label>
                 )}
                 {u.role === "staff" && (
@@ -1119,22 +1119,22 @@ export default function Settings() {
                       checked={!!u.can_view_hai_surveillance}
                       onChange={(e) => updateUserField(u.id, { can_view_hai_surveillance: e.target.checked })}
                     />
-                    HAI Surveillance access — also sees the HAI Surveillance page (in addition to whatever else this account can see)
+                    {t("HAI Surveillance access — also sees the HAI Surveillance page (in addition to whatever else this account can see)")}
                   </label>
                 )}
                 {u.role === "staff" && u.can_view_hai_surveillance && (
                   <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:col-span-5 sm:pl-5">
-                    Scope:
+                    {t("Scope:")}
                     <select className="input w-56" value={u.hai_scope || ""} onChange={(e) => updateUserField(u.id, { hai_scope: e.target.value })}>
                       {HAI_SCOPE_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
+                        <option key={o.value} value={o.value}>{t(o.label)}</option>
                       ))}
                     </select>
                   </label>
                 )}
                 {u.role === "staff" && u.can_view_hai_surveillance && (u.hai_scope || "").includes("ob") && (
                   <div className="flex items-center gap-3 text-xs text-slate-500 sm:col-span-5 sm:pl-5">
-                    OB/Delivery stages this account can edit (independent of its Department above):
+                    {t("OB/Delivery stages this account can edit (independent of its Department above):")}
                     {OB_STAGE_OPTIONS.map((stage) => {
                       const current = (u.ob_stages || "").split(",").map((s) => s.trim()).filter(Boolean);
                       const checked = current.includes(stage);
@@ -1156,7 +1156,7 @@ export default function Settings() {
                 )}
                 {u.role === "staff" && u.can_view_hai_surveillance && (u.hai_scope || "").includes("ssi") && (
                   <div className="flex items-center gap-3 text-xs text-slate-500 sm:col-span-5 sm:pl-5">
-                    SSI column groups this account can edit (independent of its Department above):
+                    {t("SSI column groups this account can edit (independent of its Department above):")}
                     {SSI_STAGE_OPTIONS.map((opt) => {
                       const current = (u.ssi_stages || "").split(",").map((s) => s.trim()).filter(Boolean);
                       const checked = current.includes(opt.value);
@@ -1170,7 +1170,7 @@ export default function Settings() {
                               updateUserField(u.id, { ssi_stages: next.join(",") });
                             }}
                           />
-                          {opt.label}
+                          {t(opt.label)}
                         </label>
                       );
                     })}
@@ -1178,12 +1178,12 @@ export default function Settings() {
                 )}
                 {u.role === "staff" && u.can_view_hai_surveillance && (u.hai_scope || "").includes("ssi") && (
                   <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:col-span-5 sm:pl-5">
-                    Assigned doctor — if set, this account only ever sees that doctor's own By Doctor follow-up tracker (not All Patients, not other doctors):
+                    {t("Assigned doctor — if set, this account only ever sees that doctor's own By Doctor follow-up tracker (not All Patients, not other doctors):")}
                     <input
                       className="input w-56"
                       value={u.ssi_doctor || ""}
                       onChange={(e) => updateUserField(u.id, { ssi_doctor: e.target.value })}
-                      placeholder="e.g. Dr.Jamila — blank = all doctors"
+                      placeholder={t("e.g. Dr.Jamila — blank = all doctors")}
                     />
                   </label>
                 )}
@@ -1196,22 +1196,22 @@ export default function Settings() {
               className="input sm:col-span-1"
               value={newUser.username}
               onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-              placeholder="Username"
+              placeholder={t("Username")}
             />
             <input
               className="input sm:col-span-1"
               value={newUser.display_name}
               onChange={(e) => setNewUser({ ...newUser, display_name: e.target.value })}
-              placeholder="Display name"
+              placeholder={t("Display name")}
             />
             <select
               className="input sm:col-span-1"
               value={newUser.role}
               onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
             >
-              <option value="owner">Owner</option>
-              <option value="ic">Infection Control</option>
-              <option value="staff">Ward Staff</option>
+              <option value="owner">{t("Owner")}</option>
+              <option value="ic">{t("Infection Control")}</option>
+              <option value="staff">{t("Ward Staff")}</option>
             </select>
             <div className="flex gap-1 sm:col-span-1">
               <select
@@ -1219,7 +1219,7 @@ export default function Settings() {
                 value={newUser.department}
                 onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
               >
-                <option value="">No department</option>
+                <option value="">{t("No department")}</option>
                 {stockDepartments.map((d) => (
                   <option key={d} value={d}>
                     {d}
@@ -1232,7 +1232,7 @@ export default function Settings() {
                   const d = await quickAddDepartment();
                   if (d) setNewUser({ ...newUser, department: d });
                 }}
-                title="Add a new department"
+                title={t("Add a new department")}
                 className="shrink-0 rounded-lg border border-slate-200 px-2 text-slate-500 hover:bg-slate-50"
               >
                 <Plus className="h-4 w-4" />
@@ -1245,7 +1245,7 @@ export default function Settings() {
                   checked={newUser.can_manage_stock}
                   onChange={(e) => setNewUser({ ...newUser, can_manage_stock: e.target.checked })}
                 />
-                Department stock in-charge — can also add/remove items in this department's stock catalog (not just use them)
+                {t("Department stock in-charge — can also add/remove items in this department's stock catalog (not just use them)")}
               </label>
             )}
             {newUser.role === "staff" && (
@@ -1255,7 +1255,7 @@ export default function Settings() {
                   checked={newUser.can_admin_stock}
                   onChange={(e) => setNewUser({ ...newUser, can_admin_stock: e.target.checked })}
                 />
-                Stock Requests admin — sees and manages every department's stock (not just their own), same as Owner/IC
+                {t("Stock Requests admin — sees and manages every department's stock (not just their own), same as Owner/IC")}
               </label>
             )}
             {newUser.role === "staff" && (
@@ -1265,7 +1265,7 @@ export default function Settings() {
                   checked={newUser.can_view_employee_health}
                   onChange={(e) => setNewUser({ ...newUser, can_view_employee_health: e.target.checked })}
                 />
-                Employee Health access only — e.g. a doctor's account; sees the Employee Health page instead of Stock Requests
+                {t("Employee Health access only — e.g. a doctor's account; sees the Employee Health page instead of Stock Requests")}
               </label>
             )}
             {newUser.role === "staff" && (
@@ -1275,7 +1275,7 @@ export default function Settings() {
                   checked={newUser.can_view_nursing_rounds}
                   onChange={(e) => setNewUser({ ...newUser, can_view_nursing_rounds: e.target.checked })}
                 />
-                Nursing Daily Rounds access only — sees only the Nursing Daily Rounds page instead of Stock Requests
+                {t("Nursing Daily Rounds access only — sees only the Nursing Daily Rounds page instead of Stock Requests")}
               </label>
             )}
             {newUser.role === "staff" && (
@@ -1285,7 +1285,7 @@ export default function Settings() {
                   checked={newUser.can_view_quality_rounds}
                   onChange={(e) => setNewUser({ ...newUser, can_view_quality_rounds: e.target.checked })}
                 />
-                Quality Daily Rounds access only — sees only the Quality Daily Rounds page instead of Stock Requests
+                {t("Quality Daily Rounds access only — sees only the Quality Daily Rounds page instead of Stock Requests")}
               </label>
             )}
             {newUser.role === "staff" && (
@@ -1295,27 +1295,27 @@ export default function Settings() {
                   checked={newUser.can_view_hai_surveillance}
                   onChange={(e) => setNewUser({ ...newUser, can_view_hai_surveillance: e.target.checked })}
                 />
-                HAI Surveillance access — also sees the HAI Surveillance page (in addition to whatever else this account can see)
+                {t("HAI Surveillance access — also sees the HAI Surveillance page (in addition to whatever else this account can see)")}
               </label>
             )}
             {newUser.role === "staff" && newUser.can_view_hai_surveillance && (
               <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:col-span-4 sm:pl-5">
-                Scope:
+                {t("Scope:")}
                 <select className="input w-56" value={newUser.hai_scope} onChange={(e) => setNewUser({ ...newUser, hai_scope: e.target.value })}>
                   {HAI_SCOPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                    <option key={o.value} value={o.value}>{t(o.label)}</option>
                   ))}
                 </select>
               </label>
             )}
             {newUser.role === "staff" && newUser.can_view_hai_surveillance && (newUser.hai_scope || "").includes("ssi") && (
               <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:col-span-4 sm:pl-5">
-                Assigned doctor (optional):
+                {t("Assigned doctor (optional):")}
                 <input
                   className="input w-56"
                   value={newUser.ssi_doctor}
                   onChange={(e) => setNewUser({ ...newUser, ssi_doctor: e.target.value })}
-                  placeholder="e.g. Dr.Jamila — leave blank to see all doctors"
+                  placeholder={t("e.g. Dr.Jamila — leave blank to see all doctors")}
                 />
               </label>
             )}
@@ -1324,7 +1324,7 @@ export default function Settings() {
               className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 sm:col-span-4"
             >
               <UserPlus className="h-4 w-4" />
-              Add User (starting password: {DEFAULT_PASSWORD})
+              {t("Add User (starting password:")} {DEFAULT_PASSWORD})
             </button>
           </div>
         </section>
