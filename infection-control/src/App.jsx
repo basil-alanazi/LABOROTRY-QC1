@@ -1,25 +1,39 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./lib/auth.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import Layout from "./components/layout/Layout.jsx";
 import Login from "./pages/Login.jsx";
-import Settings from "./pages/Settings.jsx";
-import Profile from "./pages/Profile.jsx";
-import Messages from "./pages/Messages.jsx";
-import IpcCalendar from "./pages/IpcCalendar.jsx";
-import StockRequests from "./pages/stock/StockRequests.jsx";
-import EmployeeHealth from "./pages/health/EmployeeHealth.jsx";
-import CommunicableCases from "./pages/cases/CommunicableCases.jsx";
-import ICRounds from "./pages/ic-rounds/ICRounds.jsx";
-import HandHygiene from "./pages/hand-hygiene/HandHygiene.jsx";
-import NursingRounds from "./pages/nursing-rounds/NursingRounds.jsx";
-import QualityRounds from "./pages/quality-rounds/QualityRounds.jsx";
-import Trackers from "./pages/trackers/Trackers.jsx";
-import HaiSurveillance from "./pages/hai/HaiSurveillance.jsx";
+
+// Code-split every page behind login: each one downloads only when its
+// route is first visited, instead of all 15 pages (plus xlsx/jspdf) loading
+// up front on every login.
+const Settings = lazy(() => import("./pages/Settings.jsx"));
+const Profile = lazy(() => import("./pages/Profile.jsx"));
+const Messages = lazy(() => import("./pages/Messages.jsx"));
+const IpcCalendar = lazy(() => import("./pages/IpcCalendar.jsx"));
+const StockRequests = lazy(() => import("./pages/stock/StockRequests.jsx"));
+const EmployeeHealth = lazy(() => import("./pages/health/EmployeeHealth.jsx"));
+const CommunicableCases = lazy(() => import("./pages/cases/CommunicableCases.jsx"));
+const ICRounds = lazy(() => import("./pages/ic-rounds/ICRounds.jsx"));
+const HandHygiene = lazy(() => import("./pages/hand-hygiene/HandHygiene.jsx"));
+const NursingRounds = lazy(() => import("./pages/nursing-rounds/NursingRounds.jsx"));
+const QualityRounds = lazy(() => import("./pages/quality-rounds/QualityRounds.jsx"));
+const Trackers = lazy(() => import("./pages/trackers/Trackers.jsx"));
+const HaiSurveillance = lazy(() => import("./pages/hai/HaiSurveillance.jsx"));
+
+function RouteLoading() {
+  return (
+    <div className="flex h-[60vh] items-center justify-center text-sm text-slate-400">
+      Loading…
+    </div>
+  );
+}
 
 export default function App() {
   return (
     <AuthProvider>
+      <Suspense fallback={<RouteLoading />}>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route
@@ -162,6 +176,7 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </AuthProvider>
   );
 }
