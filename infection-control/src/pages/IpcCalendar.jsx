@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Lock, Paperclip, Trash2, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Globe, Lock, Paperclip, Trash2, Upload } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
 import { useLanguage } from "../lib/i18n.jsx";
@@ -27,7 +27,7 @@ function startOfDay(d) {
 }
 
 export default function IpcCalendar() {
-  const { session } = useAuth();
+  const { session, isAdmin } = useAuth();
   const { t } = useLanguage();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +38,7 @@ export default function IpcCalendar() {
   const [label, setLabel] = useState("");
   const [needsFile, setNeedsFile] = useState(false);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [isPublic, setIsPublic] = useState(false);
 
   async function loadAll() {
     setLoading(true);
@@ -53,11 +54,14 @@ export default function IpcCalendar() {
     loadAll();
   }, []);
 
-  // Personal tasks only show to the account that created them — everyone
-  // else, including admins, never sees another person's private reminders.
+  // The calendar is IC/Owner-only by default — a non-admin account (Ward
+  // Staff, a doctor account, etc.) only sees tasks explicitly marked
+  // public. Personal tasks only show to the account that created them —
+  // everyone else, including admins, never sees another person's private
+  // reminders.
   const visibleTasks = useMemo(
-    () => tasks.filter((t) => !t.is_private || t.created_by === session?.username),
-    [tasks, session?.username]
+    () => tasks.filter((t) => (isAdmin || t.is_public) && (!t.is_private || t.created_by === session?.username)),
+    [tasks, session?.username, isAdmin]
   );
 
   const tasksByDate = useMemo(() => {
@@ -118,12 +122,14 @@ export default function IpcCalendar() {
       label: text,
       needs_file: needsFile,
       is_private: isPrivate,
+      is_public: isAdmin ? isPublic : false,
       created_by: session?.username,
     });
     if (!error) {
       setLabel("");
       setNeedsFile(false);
       setIsPrivate(false);
+      setIsPublic(false);
       loadAll();
     }
   }
@@ -168,7 +174,9 @@ export default function IpcCalendar() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-xl font-bold text-slate-800">{t("IPC Calendar")}</h1>
-        <p className="text-sm text-slate-500">{t('Daily tasks and files to upload — mark anything personal as "just for me".')}</p>
+        <p className="text-sm text-slate-500">
+          {t('Visible to Infection Control & Owner only, unless marked Public. Mark anything personal as "just for me".')}
+        </p>
       </div>
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
@@ -257,6 +265,12 @@ export default function IpcCalendar() {
                         {t("Just for me")}
                       </span>
                     )}
+                    {task.is_public && (
+                      <span className="flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-medium text-teal-700">
+                        <Globe className="h-2.5 w-2.5" />
+                        {t("Public")}
+                      </span>
+                    )}
                     {task.needs_file && (
                       <>
                         {(task.attachments ?? []).length === 0 && (
@@ -318,6 +332,13 @@ export default function IpcCalendar() {
                 <Lock className="h-3 w-3" />
                 {t("Just for me")}
               </label>
+              {isAdmin && (
+                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-500">
+                  <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="accent-teal-600" />
+                  <Globe className="h-3 w-3" />
+                  {t("Public (everyone can see)")}
+                </label>
+              )}
               <button type="submit" className="ml-auto rounded-lg bg-teal-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-teal-700">
                 {t("+ Add")}
               </button>
