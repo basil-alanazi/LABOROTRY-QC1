@@ -48,6 +48,8 @@ export const ar = {
   "PPD Pending": "PPD معلّق",
   "PPD Overdue": "PPD متأخر",
   "PPD Done": "PPD مكتمل",
+  "PPD Taken": "تم أخذ PPD",
+  "PPD Not Taken": "لم يُؤخذ PPD",
   "Search name / file no / emp #": "بحث بالاسم / رقم الملف / الرقم الوظيفي",
   "Add Employee": "إضافة موظف",
   "Pending only": "المعلّق فقط",
