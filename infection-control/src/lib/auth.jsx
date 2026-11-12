@@ -43,8 +43,6 @@ export function AuthProvider({ children }) {
       canManageStock: !!user.can_manage_stock,
       canAdminStock: !!user.can_admin_stock,
       canViewEmployeeHealth: !!user.can_view_employee_health,
-      canViewNursingRounds: !!user.can_view_nursing_rounds,
-      canViewQualityRounds: !!user.can_view_quality_rounds,
       canViewHaiSurveillance: !!user.can_view_hai_surveillance,
       haiScope: user.hai_scope || null,
       obStages: user.ob_stages ? user.ob_stages.split(",").map((s) => s.trim()).filter(Boolean) : [],
@@ -94,8 +92,6 @@ export function AuthProvider({ children }) {
   const isOwner = session?.role === "owner";
   // Owner/IC always have it; a Ward Staff account can be granted just this one page (e.g. a doctor account).
   const canViewEmployeeHealth = isAdmin || !!session?.canViewEmployeeHealth;
-  const canViewNursingRounds = isAdmin || !!session?.canViewNursingRounds;
-  const canViewQualityRounds = isAdmin || !!session?.canViewQualityRounds;
   // Owner/IC always have it; a Ward Staff account can be granted this to see
   // and manage every department's stock (not just their own) without full
   // Owner/IC access elsewhere.
@@ -116,8 +112,6 @@ export function AuthProvider({ children }) {
         isAdmin,
         isOwner,
         canViewEmployeeHealth,
-        canViewNursingRounds,
-        canViewQualityRounds,
         canAdminStock,
         canViewHaiSurveillance,
         reloadConfig: loadConfig,
