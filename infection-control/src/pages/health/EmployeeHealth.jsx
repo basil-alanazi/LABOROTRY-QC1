@@ -553,7 +553,7 @@ export default function EmployeeHealth() {
   function vaccineSlots(vaccines) {
     return vaccines.map((item) => ({ item, doses: Array.from({ length: item.dose_schedule?.length || 1 }, (_, i) => i + 1) }));
   }
-  const CLINIC_BASE_HEADERS = ["#", "Name", "Emp ID", "File No", "Iqama No", "DOB", "Phone", "Department"];
+  const CLINIC_BASE_HEADERS = ["#", "Name", "Emp ID", "File No", "Iqama No", "DOB", "Phone", "Department", "Designation"];
   const CLINIC_INVEST_HEADERS = ["Investigation Status", "PPD Status", "PPD Result", "1st PPD", "2nd PPD", "PPD Next Due"];
   const CLINIC_STOOL_HEADERS = ["Stool/Urine Status", "Stool/Urine Test Date", "Stool/Urine Next Due"];
 
@@ -570,7 +570,7 @@ export default function EmployeeHealth() {
   }
   function buildGridRow(emp, idx, vaccines, kitchenMode) {
     const s = statuses.find((x) => x.employee_id === emp.id);
-    const base = [idx, emp.name, emp.employee_no, emp.file_no, emp.iqama_no, emp.date_of_birth || "", emp.phone, emp.department];
+    const base = [idx, emp.name, emp.employee_no, emp.file_no, emp.iqama_no, emp.date_of_birth || "", emp.phone, emp.department, emp.job_title];
     const invest = [
       INVESTIGATION_STATUSES.find((o) => o.value === s?.investigation_status)?.label || "",
       s?.ppd_status || "",
@@ -608,7 +608,7 @@ export default function EmployeeHealth() {
   }
   function buildCoreRow(emp, idx, kitchenMode) {
     const s = statuses.find((x) => x.employee_id === emp.id);
-    const base = [idx, emp.name, emp.employee_no, emp.file_no, emp.iqama_no, emp.date_of_birth || "", emp.phone, emp.department];
+    const base = [idx, emp.name, emp.employee_no, emp.file_no, emp.iqama_no, emp.date_of_birth || "", emp.phone, emp.department, emp.job_title];
     const invest = [
       INVESTIGATION_STATUSES.find((o) => o.value === s?.investigation_status)?.label || "",
       s?.ppd_status || "",
@@ -789,7 +789,12 @@ export default function EmployeeHealth() {
                   <td className="border-r border-slate-100 px-2 py-1">
                     <input className="input-cell w-20" value={emp.phone} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { phone: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
-                  <td className="border-r border-slate-100 px-2 py-1 whitespace-nowrap">{emp.department}</td>
+                  <td className="border-r border-slate-100 px-2 py-1">
+                    <input className="input-cell w-28" value={emp.department} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { department: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                  </td>
+                  <td className="border-r border-slate-100 px-2 py-1">
+                    <input className="input-cell w-28" value={emp.job_title || ""} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { job_title: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                  </td>
 
                   <td className="border-r border-slate-100 px-2 py-1">
                     <select
