@@ -30,7 +30,7 @@ const linkClass = ({ isActive }) =>
   }`;
 
 export default function Layout({ children }) {
-  const { session, logout, isAdmin, canViewEmployeeHealth, canViewNursingRounds, canViewQualityRounds, canViewHaiSurveillance } = useAuth();
+  const { session, logout, isAdmin, canViewEmployeeHealth, canViewHaiSurveillance } = useAuth();
   const { t, lang, toggleLang } = useLanguage();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -89,13 +89,13 @@ export default function Layout({ children }) {
           {t("Hand Hygiene")}
         </NavLink>
       )}
-      {canViewNursingRounds && (
+      {isAdmin && (
         <NavLink to="/nursing-rounds" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <ShieldCheck className="h-4 w-4" />
           {t("Nursing Daily Rounds")}
         </NavLink>
       )}
-      {canViewQualityRounds && (
+      {isAdmin && (
         <NavLink to="/quality-rounds" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <Sparkles className="h-4 w-4" />
           {t("Quality Daily Rounds")}
@@ -113,7 +113,7 @@ export default function Layout({ children }) {
           {t("HAI Surveillance")}
         </NavLink>
       )}
-      {(isAdmin || !(session?.canViewEmployeeHealth || session?.canViewNursingRounds || session?.canViewQualityRounds || session?.canViewHaiSurveillance)) && (
+      {(isAdmin || !(session?.canViewEmployeeHealth || session?.canViewHaiSurveillance)) && (
         <NavLink to="/stock" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <Package className="h-4 w-4" />
           {t("Stock Requests")}
