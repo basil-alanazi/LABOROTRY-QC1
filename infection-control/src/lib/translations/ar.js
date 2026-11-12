@@ -303,6 +303,10 @@ export const ar = {
   "Fri": "ج",
   "Sat": "س",
   "Daily tasks and files to upload — mark anything personal as \"just for me\".": "مهام وملفات يومية لرفعها — علّم أي شيء شخصي بـ \"خاص بي فقط\".",
+  "Visible to Infection Control & Owner only, unless marked Public. Mark anything personal as \"just for me\".":
+    "تظهر فقط لمكافحة العدوى والمالك، إلا إذا عُلّمت كـ \"عام\". علّم أي شيء شخصي بـ \"خاص بي فقط\".",
+  "Public": "عام",
+  "Public (everyone can see)": "عام (يقدر الكل يشوفه)",
   "Has task": "يوجد مهمة",
   "Needs file": "يحتاج ملف",
   "Today": "اليوم",
