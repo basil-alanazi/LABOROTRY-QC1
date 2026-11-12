@@ -106,6 +106,7 @@ export const ar = {
   "File #": "رقم الملف",
   "Iqama #": "رقم الإقامة",
   "Job title": "المسمى الوظيفي",
+  "Designation": "المسمى الوظيفي",
   "Date of birth": "تاريخ الميلاد",
   "Save": "حفظ",
   "Active": "نشط",
