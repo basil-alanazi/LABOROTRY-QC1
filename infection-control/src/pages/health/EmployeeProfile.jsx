@@ -21,6 +21,8 @@ function addMonths(dateStr, months) {
   return d.toISOString().slice(0, 10);
 }
 
+const DOC_TYPE_LABELS = { vaccination: "Vaccination", blood_test: "Blood Test", other: "Other" };
+
 const INVESTIGATION_LABELS = {
   review_due: "Doctor review due",
   sample_not_given: "Sample not given",
@@ -223,21 +225,32 @@ export default function EmployeeProfile() {
         </div>
       </Section>
 
-      {(employee.sehha_reports ?? []).length > 0 && (
-        <Section title={t("Sehha Platform Report")}>
-          <div className="flex flex-wrap gap-2">
-            {employee.sehha_reports.map((a, i) => (
-              <a
-                key={i}
-                href={attachmentUrl(a.path)}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1.5 rounded-lg border border-slate-100 px-3 py-2 text-sm font-medium text-teal-700 hover:underline"
-              >
-                <Paperclip className="h-3.5 w-3.5" />
-                {a.name || t("View")}
-              </a>
-            ))}
+      {(employee.employee_documents ?? []).length > 0 && (
+        <Section title={t("Employee Documents")}>
+          <div className="flex flex-col gap-3">
+            {["vaccination", "blood_test", "other"].map((docType) => {
+              const docs = employee.employee_documents.filter((d) => d.doc_type === docType);
+              if (docs.length === 0) return null;
+              return (
+                <div key={docType}>
+                  <p className="mb-1 text-xs font-semibold text-slate-400">{t(DOC_TYPE_LABELS[docType])}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {docs.map((a, i) => (
+                      <a
+                        key={i}
+                        href={attachmentUrl(a.path)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-100 px-3 py-2 text-sm font-medium text-teal-700 hover:underline"
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                        {t(a.label) || a.name || t("View")}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Section>
       )}
