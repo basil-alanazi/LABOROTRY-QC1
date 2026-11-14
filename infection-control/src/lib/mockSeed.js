@@ -366,10 +366,10 @@ export const health_item_types = [
   { id: "hit-2", name: "MMR (Measles, Mumps, Rubella)", category: "vaccine", recurrence_months: null, dose_schedule: [0, 1], kitchen_only: false, active: true, sort_order: 2 },
   { id: "hit-3", name: "Varicella (Chickenpox)", category: "vaccine", recurrence_months: null, dose_schedule: [0, 1], kitchen_only: false, active: true, sort_order: 3 },
   { id: "hit-4", name: "Influenza (Annual)", category: "vaccine", recurrence_months: 12, dose_schedule: [0], kitchen_only: false, active: true, sort_order: 4 },
-  { id: "hit-4b", name: "BCG (TB vaccine)", category: "vaccine", recurrence_months: null, dose_schedule: [0], kitchen_only: false, active: true, sort_order: 5 },
-  { id: "hit-5", name: "Tetanus toxoid", category: "vaccine", recurrence_months: null, dose_schedule: [0], kitchen_only: false, active: true, sort_order: 5 },
-  { id: "hit-6", name: "Meningococcal (Kitchen Staff)", category: "vaccine", recurrence_months: null, dose_schedule: [0], kitchen_only: true, active: true, sort_order: 6 },
-  { id: "hit-7", name: "Typhoid (Kitchen Staff)", category: "vaccine", recurrence_months: null, dose_schedule: [0], kitchen_only: true, active: true, sort_order: 7 },
+  { id: "hit-4b", name: "BCG (TB vaccine)", category: "vaccine", recurrence_months: null, dose_schedule: [0], kitchen_only: false, active: false, sort_order: 5 },
+  { id: "hit-5", name: "Tetanus toxoid", category: "vaccine", recurrence_months: null, dose_schedule: [0], kitchen_only: false, active: false, sort_order: 5 },
+  { id: "hit-6", name: "Meningococcal (Kitchen Staff)", category: "vaccine", recurrence_months: null, dose_schedule: [0], kitchen_only: true, active: false, sort_order: 6 },
+  { id: "hit-7", name: "Typhoid (Kitchen Staff)", category: "vaccine", recurrence_months: null, dose_schedule: [0], kitchen_only: true, active: false, sort_order: 7 },
   { id: "hit-8", name: "Hepatitis A (Kitchen Staff)", category: "vaccine", recurrence_months: null, dose_schedule: [0, 1, 6], kitchen_only: true, active: true, sort_order: 8 },
 ];
 
