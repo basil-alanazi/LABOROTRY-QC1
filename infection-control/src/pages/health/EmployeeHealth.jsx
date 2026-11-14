@@ -566,6 +566,35 @@ export default function EmployeeHealth() {
     setQrEmployee(null);
     setQrDataUrl("");
   }
+  async function uploadSehhaReportFile(emp, file) {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `sehha/${emp.id}/${Date.now()}-${safeName}`;
+    const { error } = await supabase.storage.from(EMP_HEALTH_ATTACHMENTS_BUCKET).upload(path, file);
+    if (error) throw error;
+    return { path, name: file.name };
+  }
+  async function addSehhaReports(emp, files) {
+    try {
+      const uploaded = await Promise.all(Array.from(files).map((f) => uploadSehhaReportFile(emp, f)));
+      const next = [...(emp.sehha_reports ?? []), ...uploaded];
+      const { error } = await supabase.from("employees").update({ sehha_reports: next }).eq("id", emp.id);
+      if (error) throw error;
+      setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, sehha_reports: next } : e)));
+      setQrEmployee((prev) => (prev && prev.id === emp.id ? { ...prev, sehha_reports: next } : prev));
+    } catch (err) {
+      flash({ type: "error", text: "Could not upload: " + err.message });
+    }
+  }
+  async function removeSehhaReport(emp, index) {
+    const next = (emp.sehha_reports ?? []).filter((_, i) => i !== index);
+    const { error } = await supabase.from("employees").update({ sehha_reports: next }).eq("id", emp.id);
+    if (error) {
+      flash({ type: "error", text: "Could not remove file: " + error.message });
+      return;
+    }
+    setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, sehha_reports: next } : e)));
+    setQrEmployee((prev) => (prev && prev.id === emp.id ? { ...prev, sehha_reports: next } : prev));
+  }
 
   const pendingReviewEmployees = useMemo(
     () => activeEmployees.filter((e) => statusFor(e.id).investigation_status !== "review_done").sort((a, b) => a.name.localeCompare(b.name)),
@@ -1538,6 +1567,29 @@ export default function EmployeeHealth() {
               <Printer className="h-4 w-4" />
               {t("Print Badge")}
             </button>
+
+            <div className="mt-4 border-t border-slate-100 pt-3 text-left print:hidden">
+              <p className="mb-2 text-xs font-bold text-slate-600">{t("Sehha Platform Report")}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {(qrEmployee.sehha_reports ?? []).map((a, i) => (
+                  <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
+                    <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                      <Paperclip className="h-3 w-3" />
+                      {a.name || t("View")}
+                    </a>
+                    <button onClick={() => removeSehhaReport(qrEmployee, i)} className="text-slate-400 hover:text-red-500">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+                <label className="flex cursor-pointer items-center gap-1 text-xs font-medium text-red-600 hover:underline">
+                  <Upload className="h-3.5 w-3.5" />
+                  {t("Attach Sehha report")}
+                  <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && addSehhaReports(qrEmployee, e.target.files)} />
+                </label>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400">{t("Visible to anyone who scans this employee's QR badge.")}</p>
+            </div>
           </div>
         </div>
       )}

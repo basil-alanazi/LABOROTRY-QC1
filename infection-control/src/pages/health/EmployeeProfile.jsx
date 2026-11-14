@@ -1,10 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Languages, LogIn, Printer } from "lucide-react";
+import { Languages, LogIn, Paperclip, Printer } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useLanguage } from "../../lib/i18n.jsx";
 import { fetchAllRows } from "../../lib/fetchAll";
 import rabiaLogo from "../../assets/rabia-logo.jpg";
+
+const EMP_HEALTH_ATTACHMENTS_BUCKET = "employee-health-attachments";
+
+function attachmentUrl(path) {
+  if (!path) return null;
+  return supabase.storage.from(EMP_HEALTH_ATTACHMENTS_BUCKET).getPublicUrl(path).data.publicUrl;
+}
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -215,6 +222,25 @@ export default function EmployeeProfile() {
           {visibleVaccines.length === 0 && <p className="text-sm text-slate-400">{t("No vaccination items configured.")}</p>}
         </div>
       </Section>
+
+      {(employee.sehha_reports ?? []).length > 0 && (
+        <Section title={t("Sehha Platform Report")}>
+          <div className="flex flex-wrap gap-2">
+            {employee.sehha_reports.map((a, i) => (
+              <a
+                key={i}
+                href={attachmentUrl(a.path)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 rounded-lg border border-slate-100 px-3 py-2 text-sm font-medium text-teal-700 hover:underline"
+              >
+                <Paperclip className="h-3.5 w-3.5" />
+                {a.name || t("View")}
+              </a>
+            ))}
+          </div>
+        </Section>
+      )}
 
       <Section title={t("PPD (Tuberculin Skin Test)")}>
         <StatusLine
