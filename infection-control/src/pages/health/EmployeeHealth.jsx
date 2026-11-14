@@ -29,6 +29,8 @@ function isImageAttachment(a) {
   return /\.(png|jpe?g|gif|webp|bmp)$/i.test(a?.name || a?.path || "");
 }
 
+const DOC_TYPE_LABELS = { vaccination: "Vaccination", blood_test: "Blood Test", other: "Other" };
+
 const INVESTIGATION_STATUSES = [
   { value: "review_due", label: "Doctor review due" },
   { value: "sample_not_given", label: "Sample not given" },
@@ -108,6 +110,7 @@ export default function EmployeeHealth() {
   const [nsiForm, setNsiForm] = useState({ employee_id: "", incident_date: todayStr(), notes: "" });
   const [qrEmployee, setQrEmployee] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
+  const [qrDocForm, setQrDocForm] = useState({ docType: "vaccination", vaccineId: "", customName: "" });
 
   const departments = config?.employee_departments ?? [];
 
@@ -568,6 +571,7 @@ export default function EmployeeHealth() {
   // --- QR employee profile badge ---
   function openQr(emp) {
     setQrEmployee(emp);
+    setQrDocForm({ docType: "vaccination", vaccineId: "", customName: "" });
     const url = `${window.location.origin}/employee-profile/${emp.id}`;
     QRCode.toDataURL(url, { width: 320, margin: 1 })
       .then(setQrDataUrl)
@@ -577,34 +581,34 @@ export default function EmployeeHealth() {
     setQrEmployee(null);
     setQrDataUrl("");
   }
-  async function uploadSehhaReportFile(emp, file) {
+  async function uploadEmployeeDocumentFile(emp, file) {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const path = `sehha/${emp.id}/${Date.now()}-${safeName}`;
+    const path = `documents/${emp.id}/${Date.now()}-${safeName}`;
     const { error } = await supabase.storage.from(EMP_HEALTH_ATTACHMENTS_BUCKET).upload(path, file);
     if (error) throw error;
     return { path, name: file.name };
   }
-  async function addSehhaReports(emp, files) {
+  async function addEmployeeDocument(emp, file, { docType, label }) {
     try {
-      const uploaded = await Promise.all(Array.from(files).map((f) => uploadSehhaReportFile(emp, f)));
-      const next = [...(emp.sehha_reports ?? []), ...uploaded];
-      const { error } = await supabase.from("employees").update({ sehha_reports: next }).eq("id", emp.id);
+      const uploaded = await uploadEmployeeDocumentFile(emp, file);
+      const next = [...(emp.employee_documents ?? []), { ...uploaded, doc_type: docType, label }];
+      const { error } = await supabase.from("employees").update({ employee_documents: next }).eq("id", emp.id);
       if (error) throw error;
-      setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, sehha_reports: next } : e)));
-      setQrEmployee((prev) => (prev && prev.id === emp.id ? { ...prev, sehha_reports: next } : prev));
+      setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, employee_documents: next } : e)));
+      setQrEmployee((prev) => (prev && prev.id === emp.id ? { ...prev, employee_documents: next } : prev));
     } catch (err) {
       flash({ type: "error", text: "Could not upload: " + err.message });
     }
   }
-  async function removeSehhaReport(emp, index) {
-    const next = (emp.sehha_reports ?? []).filter((_, i) => i !== index);
-    const { error } = await supabase.from("employees").update({ sehha_reports: next }).eq("id", emp.id);
+  async function removeEmployeeDocument(emp, index) {
+    const next = (emp.employee_documents ?? []).filter((_, i) => i !== index);
+    const { error } = await supabase.from("employees").update({ employee_documents: next }).eq("id", emp.id);
     if (error) {
       flash({ type: "error", text: "Could not remove file: " + error.message });
       return;
     }
-    setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, sehha_reports: next } : e)));
-    setQrEmployee((prev) => (prev && prev.id === emp.id ? { ...prev, sehha_reports: next } : prev));
+    setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, employee_documents: next } : e)));
+    setQrEmployee((prev) => (prev && prev.id === emp.id ? { ...prev, employee_documents: next } : prev));
   }
 
   const pendingReviewEmployees = useMemo(
@@ -1589,23 +1593,87 @@ export default function EmployeeHealth() {
             </button>
 
             <div className="mt-4 border-t border-slate-100 pt-3 text-left print:hidden">
-              <p className="mb-2 text-xs font-bold text-slate-600">{t("Sehha Platform Report")}</p>
-              <div className="flex flex-wrap items-center gap-2">
-                {(qrEmployee.sehha_reports ?? []).map((a, i) => (
-                  <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
-                    <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
-                      <Paperclip className="h-3 w-3" />
-                      {a.name || t("View")}
-                    </a>
-                    <button onClick={() => removeSehhaReport(qrEmployee, i)} className="text-slate-400 hover:text-red-500">
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
+              <p className="mb-2 text-xs font-bold text-slate-600">{t("Employee Documents")}</p>
+
+              {["vaccination", "blood_test", "other"].map((docType) => {
+                const docs = (qrEmployee.employee_documents ?? []).map((d, i) => ({ ...d, _i: i })).filter((d) => d.doc_type === docType);
+                if (docs.length === 0) return null;
+                return (
+                  <div key={docType} className="mb-2">
+                    <p className="text-[11px] font-semibold text-slate-400">{t(DOC_TYPE_LABELS[docType])}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      {docs.map((a) => (
+                        <span key={a._i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
+                          <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                            <Paperclip className="h-3 w-3" />
+                            {t(a.label) || a.name || t("View")}
+                          </a>
+                          <button onClick={() => removeEmployeeDocument(qrEmployee, a._i)} className="text-slate-400 hover:text-red-500">
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <select
+                  className="input-cell w-28"
+                  value={qrDocForm.docType}
+                  onChange={(e) => setQrDocForm({ docType: e.target.value, vaccineId: "", customName: "" })}
+                >
+                  <option value="vaccination">{t("Vaccination")}</option>
+                  <option value="blood_test">{t("Blood Test")}</option>
+                  <option value="other">{t("Other")}</option>
+                </select>
+                {qrDocForm.docType === "vaccination" && (
+                  <select className="input-cell w-36" value={qrDocForm.vaccineId} onChange={(e) => setQrDocForm({ ...qrDocForm, vaccineId: e.target.value })}>
+                    <option value="">{t("Select vaccine")}</option>
+                    {activeItemTypes.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {qrDocForm.docType === "other" && (
+                  <input
+                    className="input-cell w-32"
+                    value={qrDocForm.customName}
+                    onChange={(e) => setQrDocForm({ ...qrDocForm, customName: e.target.value })}
+                    placeholder={t("Document name")}
+                  />
+                )}
                 <label className="flex cursor-pointer items-center gap-1 text-xs font-medium text-red-600 hover:underline">
                   <Upload className="h-3.5 w-3.5" />
-                  {t("Attach Sehha report")}
-                  <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && addSehhaReports(qrEmployee, e.target.files)} />
+                  {t("Attach document")}
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      if (qrDocForm.docType === "vaccination") {
+                        const item = activeItemTypes.find((i) => i.id === qrDocForm.vaccineId);
+                        if (!item) {
+                          flash({ type: "error", text: "Select a vaccine first" });
+                          return;
+                        }
+                        addEmployeeDocument(qrEmployee, file, { docType: "vaccination", label: item.name });
+                      } else if (qrDocForm.docType === "blood_test") {
+                        addEmployeeDocument(qrEmployee, file, { docType: "blood_test", label: "Blood Test" });
+                      } else {
+                        if (!qrDocForm.customName.trim()) {
+                          flash({ type: "error", text: "Type a document name first" });
+                          return;
+                        }
+                        addEmployeeDocument(qrEmployee, file, { docType: "other", label: qrDocForm.customName.trim() });
+                      }
+                    }}
+                  />
                 </label>
               </div>
               <p className="mt-1 text-[11px] text-slate-400">{t("Visible to anyone who scans this employee's QR badge.")}</p>
