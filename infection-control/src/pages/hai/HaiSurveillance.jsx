@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, FileSpreadsheet, FileText, Plus, Trash2, UserPlus } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
@@ -187,6 +187,13 @@ export default function HaiSurveillance() {
   const allowedTabs = scopeTokens ? [...new Set(scopeTokens.flatMap((t) => SCOPE_TO_TABS[t] ?? []))] : null;
   const icuUnitsAllowed = scopeTokens ? scopeTokens.map((t) => SCOPE_TO_UNIT[t]).filter(Boolean) : null;
   const [tab, setTab] = useState(() => allowedTabs?.[0] ?? "icu");
+  // "Add Patient"/"Add Case" inserts a blank row right away so it's editable
+  // immediately. Tracks which rows are still that blank, unconfirmed state
+  // (not yet named) so leaving the Name cell without typing anything deletes
+  // the row instead of leaving an empty one behind — rather than every
+  // accidental click permanently cluttering the sheet. Cleared once a name
+  // is actually typed. A ref (not state) since it never needs to re-render.
+  const freshRowIds = useRef(new Set());
   const [patients, setPatients] = useState([]);
   const [vaeRows, setVaeRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -307,18 +314,36 @@ export default function HaiSurveillance() {
   }
 
   async function addPatient() {
-    const { error } = await supabase.from("hai_icu_surveillance").insert({
-      patient_name: "",
-      icu_type: activeIcuTypes[0] ?? "",
-      specimens: padArray([], ICU_SPECIMEN_SLOTS, emptySpecimen),
-      hai_event_types: [],
-      done_by: session?.username,
-    });
+    const { data, error } = await supabase
+      .from("hai_icu_surveillance")
+      .insert({
+        patient_name: "",
+        icu_type: activeIcuTypes[0] ?? "",
+        specimens: padArray([], ICU_SPECIMEN_SLOTS, emptySpecimen),
+        hai_event_types: [],
+        done_by: session?.username,
+      })
+      .select()
+      .single();
     if (error) return flash({ type: "error", text: "Could not add: " + error.message });
+    const insertedRow = Array.isArray(data) ? data[0] : data;
+    if (insertedRow) freshRowIds.current.add(insertedRow.id);
     loadAll();
   }
 
   async function savePatient(p) {
+    // A row added via "Add Patient" and left without a name: drop it
+    // instead of saving, so clicking the button and then clicking away
+    // doesn't leave a permanent blank row in the sheet.
+    if (freshRowIds.current.has(p.id)) {
+      if (!p.patient_name?.trim()) {
+        freshRowIds.current.delete(p.id);
+        await supabase.from("hai_icu_surveillance").delete().eq("id", p.id);
+        setPatients((prev) => prev.filter((x) => x.id !== p.id));
+        return;
+      }
+      freshRowIds.current.delete(p.id);
+    }
     // Filling in Date of Discharge almost always means the patient was
     // discharged — if Current Status was left on "admitted" (a separate
     // dropdown, easy to miss), bring it in line so the patient doesn't stay
@@ -430,19 +455,36 @@ export default function HaiSurveillance() {
   }
 
   async function addSsiCase() {
-    const { error } = await supabase.from("hai_ssi_surveillance").insert({
-      patient_name: "",
-      elective_emergency: "elective",
-      follow_up_duration: 30,
-      follow_ups: padArray([], SSI_FOLLOWUP_SLOTS, emptyFollowUp),
-      specimens: padArray([], SSI_SPECIMEN_SLOTS, emptySsiSpecimen),
-      done_by: session?.username,
-    });
+    const { data, error } = await supabase
+      .from("hai_ssi_surveillance")
+      .insert({
+        patient_name: "",
+        elective_emergency: "elective",
+        follow_up_duration: 30,
+        follow_ups: padArray([], SSI_FOLLOWUP_SLOTS, emptyFollowUp),
+        specimens: padArray([], SSI_SPECIMEN_SLOTS, emptySsiSpecimen),
+        done_by: session?.username,
+      })
+      .select()
+      .single();
     if (error) return flash({ type: "error", text: "Could not add: " + error.message });
+    const insertedRow = Array.isArray(data) ? data[0] : data;
+    if (insertedRow) freshRowIds.current.add(insertedRow.id);
     loadAll();
   }
 
   async function saveSsiCase(c) {
+    // A row added via "Add Case" and left without a name: drop it instead
+    // of saving (see savePatient's identical guard for ICU/NICU).
+    if (freshRowIds.current.has(c.id)) {
+      if (!c.patient_name?.trim()) {
+        freshRowIds.current.delete(c.id);
+        await supabase.from("hai_ssi_surveillance").delete().eq("id", c.id);
+        setSsiCases((prev) => prev.filter((x) => x.id !== c.id));
+        return;
+      }
+      freshRowIds.current.delete(c.id);
+    }
     // Once discharged (with a discharge date), auto-schedule the FIRST
     // follow-up's due date — discharge date + the case's follow-up duration
     // (30/90 days) — so it shows up on the doctor's tracker without needing
@@ -594,16 +636,33 @@ export default function HaiSurveillance() {
   }
 
   async function addObCase() {
-    const { error } = await supabase.from("hai_ob_surveillance").insert({
-      patient_name: "",
-      specimens: padArray([], OB_SPECIMEN_SLOTS, emptyObSpecimen),
-      done_by: session?.username,
-    });
+    const { data, error } = await supabase
+      .from("hai_ob_surveillance")
+      .insert({
+        patient_name: "",
+        specimens: padArray([], OB_SPECIMEN_SLOTS, emptyObSpecimen),
+        done_by: session?.username,
+      })
+      .select()
+      .single();
     if (error) return flash({ type: "error", text: "Could not add: " + error.message });
+    const insertedRow = Array.isArray(data) ? data[0] : data;
+    if (insertedRow) freshRowIds.current.add(insertedRow.id);
     loadAll();
   }
 
   async function saveObCase(c) {
+    // A row added via "Add Case" and left without a name: drop it instead
+    // of saving (see savePatient's identical guard for ICU/NICU).
+    if (freshRowIds.current.has(c.id)) {
+      if (!c.patient_name?.trim()) {
+        freshRowIds.current.delete(c.id);
+        await supabase.from("hai_ob_surveillance").delete().eq("id", c.id);
+        setObCases((prev) => prev.filter((x) => x.id !== c.id));
+        return;
+      }
+      freshRowIds.current.delete(c.id);
+    }
     await supabase
       .from("hai_ob_surveillance")
       .update({

@@ -81,6 +81,10 @@ class QueryBuilder {
     this._onConflict = (onConflict || "id").split(",");
     return this;
   }
+  delete() {
+    this._op = "delete";
+    return this;
+  }
 
   async _exec() {
     const rows = this.store.get(this.table) || [];
@@ -118,6 +122,11 @@ class QueryBuilder {
 
     if (this._op === "update") {
       filtered.forEach((r) => Object.assign(r, this._payload));
+      return { data: filtered, error: null };
+    }
+
+    if (this._op === "delete") {
+      this.store.set(this.table, rows.filter((r) => !filtered.includes(r)));
       return { data: filtered, error: null };
     }
 
