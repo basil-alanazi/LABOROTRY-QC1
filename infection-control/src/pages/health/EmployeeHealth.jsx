@@ -8,6 +8,7 @@ import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
+import AttachmentMarkupModal from "../../components/AttachmentMarkupModal";
 
 const TABS = [
   { key: "compliance", label: "Overdue & Missing" },
@@ -22,6 +23,10 @@ const EMP_HEALTH_ATTACHMENTS_BUCKET = "employee-health-attachments";
 function attachmentUrl(path) {
   if (!path) return null;
   return supabase.storage.from(EMP_HEALTH_ATTACHMENTS_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+function isImageAttachment(a) {
+  return /\.(png|jpe?g|gif|webp|bmp)$/i.test(a?.name || a?.path || "");
 }
 
 const INVESTIGATION_STATUSES = [
@@ -96,6 +101,7 @@ export default function EmployeeHealth() {
   const [filterDept, setFilterDept] = useState("");
   const [statusPopupEmployee, setStatusPopupEmployee] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
+  const [markupTarget, setMarkupTarget] = useState(null); // { kind: "investigation"|"nsi", emp?, nsiCase?, attachment }
   const [statusDrafts, setStatusDrafts] = useState({}); // employee_id -> status fields
   const [doseDrafts, setDoseDrafts] = useState({}); // "empId|itemId|doseNum" -> { date, batch }
   const [nsiForm, setNsiForm] = useState({ employee_id: "", incident_date: todayStr(), notes: "" });
@@ -518,6 +524,28 @@ export default function EmployeeHealth() {
     const next = (c.form_attachments ?? []).filter((_, i) => i !== index);
     updateNsiField(c.id, { form_attachments: next });
     await supabase.from("employee_nsi_followups").update({ form_attachments: next }).eq("id", c.id);
+  }
+  async function saveMarkupAnnotation(file) {
+    if (!markupTarget) return;
+    try {
+      if (markupTarget.kind === "investigation") {
+        const { emp } = markupTarget;
+        const uploaded = await uploadInvestigationFile(emp, file);
+        const current = statusFor(emp.id).investigation_attachments || [];
+        await saveStatus(emp, { investigation_attachments: [...current, uploaded] });
+      } else {
+        const { nsiCase } = markupTarget;
+        const uploaded = await uploadNsiFile(nsiCase, file);
+        const next = [...(nsiCase.form_attachments ?? []), uploaded];
+        updateNsiField(nsiCase.id, { form_attachments: next });
+        await supabase.from("employee_nsi_followups").update({ form_attachments: next }).eq("id", nsiCase.id);
+      }
+      flash({ type: "success", text: "Markup saved as a new attachment" });
+    } catch (err) {
+      flash({ type: "error", text: "Could not save markup: " + err.message });
+    } finally {
+      setMarkupTarget(null);
+    }
   }
   async function removeNsiCase(c) {
     const emp = employees.find((e) => e.id === c.employee_id);
@@ -1145,6 +1173,15 @@ export default function EmployeeHealth() {
                             <Paperclip className="h-3 w-3" />
                             {a.name || t("View")}
                           </a>
+                          {isImageAttachment(a) && (
+                            <button
+                              onClick={() => setMarkupTarget({ kind: "investigation", emp, attachment: a })}
+                              className="text-slate-400 hover:text-teal-600"
+                              title={t("Markup")}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          )}
                           <button onClick={() => removeInvestigationAttachment(emp, i)} className="text-slate-400 hover:text-red-500">
                             <Trash2 className="h-3 w-3" />
                           </button>
@@ -1258,6 +1295,15 @@ export default function EmployeeHealth() {
                             <Paperclip className="h-3 w-3" />
                             {a.name || t("View")}
                           </a>
+                          {isImageAttachment(a) && (
+                            <button
+                              onClick={() => setMarkupTarget({ kind: "nsi", nsiCase: c, attachment: a })}
+                              className="text-slate-400 hover:text-teal-600"
+                              title={t("Markup")}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          )}
                           <button onClick={() => removeNsiAttachment(c, i)} className="text-slate-400 hover:text-red-500">
                             <Trash2 className="h-3 w-3" />
                           </button>
@@ -1577,6 +1623,15 @@ export default function EmployeeHealth() {
             </button>
           </form>
         </div>
+      )}
+
+      {markupTarget && (
+        <AttachmentMarkupModal
+          imageUrl={attachmentUrl(markupTarget.attachment.path)}
+          fileName={markupTarget.attachment.name}
+          onCancel={() => setMarkupTarget(null)}
+          onSave={saveMarkupAnnotation}
+        />
       )}
     </div>
   );
