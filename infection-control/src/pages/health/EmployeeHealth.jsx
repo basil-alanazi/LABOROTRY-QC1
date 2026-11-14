@@ -87,6 +87,7 @@ export default function EmployeeHealth() {
   const [clinicDeptFilter, setClinicDeptFilter] = useState("");
   const [clinicSearch, setClinicSearch] = useState("");
   const [clinicPpdFilter, setClinicPpdFilter] = useState("");
+  const [clinicVaccineFilter, setClinicVaccineFilter] = useState("");
   const [pendingOnlyExport, setPendingOnlyExport] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [employees, setEmployees] = useState([]);
@@ -166,22 +167,32 @@ export default function EmployeeHealth() {
   }
   function applyClinicFilters(list) {
     const q = clinicSearch.trim().toLowerCase();
+    const bcgItem = activeItemTypes.find((i) => i.name.toLowerCase().includes("bcg"));
+    const vaccineItem = clinicVaccineFilter ? activeItemTypes.find((i) => i.id === clinicVaccineFilter) : null;
     return list.filter((e) => {
       if (clinicDeptFilter && e.department !== clinicDeptFilter) return false;
       if (clinicPpdFilter === "done" && ppdStateFor(e) !== "done") return false;
       if (clinicPpdFilter === "not_done" && ppdStateFor(e) === "done") return false;
-      if (q && !(e.file_no || "").toLowerCase().includes(q) && !(e.name || "").toLowerCase().includes(q) && !(e.employee_no || "").toLowerCase().includes(q))
+      if (clinicPpdFilter === "bcg_not_taken" && bcgItem && doseState(e.id, bcgItem).complete) return false;
+      if (vaccineItem && doseState(e.id, vaccineItem).complete) return false;
+      if (
+        q &&
+        !(e.file_no || "").toLowerCase().includes(q) &&
+        !(e.name || "").toLowerCase().includes(q) &&
+        !(e.employee_no || "").toLowerCase().includes(q) &&
+        !(e.department || "").toLowerCase().includes(q)
+      )
         return false;
       return true;
     });
   }
   const visibleRegularEmployees = useMemo(
     () => applyClinicFilters(regularEmployees),
-    [regularEmployees, clinicDeptFilter, clinicSearch, clinicPpdFilter, statuses]
+    [regularEmployees, clinicDeptFilter, clinicSearch, clinicPpdFilter, clinicVaccineFilter, statuses, records, activeItemTypes]
   );
   const visibleKitchenEmployees = useMemo(
     () => applyClinicFilters(kitchenEmployees),
-    [kitchenEmployees, clinicDeptFilter, clinicSearch, clinicPpdFilter, statuses]
+    [kitchenEmployees, clinicDeptFilter, clinicSearch, clinicPpdFilter, clinicVaccineFilter, statuses, records, activeItemTypes]
   );
   const regularVaccines = useMemo(() => activeItemTypes.filter((t) => !t.kitchen_only), [activeItemTypes]);
   const kitchenVaccines = activeItemTypes; // kitchen staff get every normal vaccine plus the kitchen-only ones
@@ -1095,12 +1106,21 @@ export default function EmployeeHealth() {
                 className="input w-48"
                 value={clinicSearch}
                 onChange={(e) => setClinicSearch(e.target.value)}
-                placeholder={t("Search name / file no / emp #")}
+                placeholder={t("Search name / file no / emp # / department")}
               />
               <select className="input w-36" value={clinicPpdFilter} onChange={(e) => setClinicPpdFilter(e.target.value)}>
                 <option value="">{t("All PPD")}</option>
                 <option value="done">{t("PPD Taken")}</option>
                 <option value="not_done">{t("PPD Not Taken")}</option>
+                <option value="bcg_not_taken">{t("BCG Not Taken")}</option>
+              </select>
+              <select className="input w-44" value={clinicVaccineFilter} onChange={(e) => setClinicVaccineFilter(e.target.value)}>
+                <option value="">{t("All Vaccines")}</option>
+                {activeItemTypes.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {t("Missing")}: {item.name}
+                  </option>
+                ))}
               </select>
               {canEdit && (
                 <button
