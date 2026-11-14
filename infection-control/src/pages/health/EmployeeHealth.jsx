@@ -162,7 +162,8 @@ export default function EmployeeHealth() {
     const q = clinicSearch.trim().toLowerCase();
     return list.filter((e) => {
       if (clinicDeptFilter && e.department !== clinicDeptFilter) return false;
-      if (clinicPpdFilter && ppdStateFor(e) !== clinicPpdFilter) return false;
+      if (clinicPpdFilter === "done" && ppdStateFor(e) !== "done") return false;
+      if (clinicPpdFilter === "not_done" && ppdStateFor(e) === "done") return false;
       if (q && !(e.file_no || "").toLowerCase().includes(q) && !(e.name || "").toLowerCase().includes(q) && !(e.employee_no || "").toLowerCase().includes(q))
         return false;
       return true;
@@ -1041,9 +1042,8 @@ export default function EmployeeHealth() {
               />
               <select className="input w-36" value={clinicPpdFilter} onChange={(e) => setClinicPpdFilter(e.target.value)}>
                 <option value="">{t("All PPD")}</option>
-                <option value="pending">{t("PPD Pending")}</option>
-                <option value="overdue">{t("PPD Overdue")}</option>
-                <option value="done">{t("PPD Done")}</option>
+                <option value="done">{t("PPD Taken")}</option>
+                <option value="not_done">{t("PPD Not Taken")}</option>
               </select>
               {canEdit && (
                 <button
