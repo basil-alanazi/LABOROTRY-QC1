@@ -689,6 +689,8 @@ export const ar = {
   "Markup": "تعليم",
   "Markup Attachment": "تعليم على المرفق",
   "Click to view & mark up": "اضغط للعرض والتعليم",
+  "Open in new tab": "فتح في تبويب جديد",
+  "Preview not available for this file type.": "لا تتوفر معاينة لهذا النوع من الملفات.",
   "Enter the note text": "أدخل نص الملاحظة",
   "Pen": "قلم",
   "Text": "نص",

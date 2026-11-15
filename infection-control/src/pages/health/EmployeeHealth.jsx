@@ -29,6 +29,10 @@ function isImageAttachment(a) {
   return /\.(png|jpe?g|gif|webp|bmp)$/i.test(a?.name || a?.path || "");
 }
 
+function isPdfAttachment(a) {
+  return /\.pdf$/i.test(a?.name || a?.path || "");
+}
+
 const DOC_TYPE_LABELS = { vaccination: "Vaccination", blood_test: "Blood Test", other: "Other" };
 
 const INVESTIGATION_STATUSES = [
@@ -106,7 +110,8 @@ export default function EmployeeHealth() {
   const [filterDept, setFilterDept] = useState("");
   const [statusPopupEmployee, setStatusPopupEmployee] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
-  const [markupTarget, setMarkupTarget] = useState(null); // { kind: "investigation"|"nsi", emp?, nsiCase?, attachment }
+  const [markupTarget, setMarkupTarget] = useState(null); // { kind: "investigation"|"nsi"|"document", emp?, nsiCase?, attachment }
+  const [previewAttachment, setPreviewAttachment] = useState(null); // { name, path }
   const [statusDrafts, setStatusDrafts] = useState({}); // employee_id -> status fields
   const [doseDrafts, setDoseDrafts] = useState({}); // "empId|itemId|doseNum" -> { date, batch }
   const [nsiForm, setNsiForm] = useState({ employee_id: "", incident_date: todayStr(), notes: "" });
@@ -658,10 +663,10 @@ export default function EmployeeHealth() {
               </div>
             ) : (
               <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
-                <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                <button type="button" onClick={() => setPreviewAttachment(a)} className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
                   <Paperclip className="h-3 w-3" />
                   {t(a.label) || a.name || t("View")}
-                </a>
+                </button>
                 <button onClick={() => removeEmployeeDocument(emp, i)} className="text-slate-400 hover:text-red-500">
                   <Trash2 className="h-3 w-3" />
                 </button>
@@ -1353,10 +1358,10 @@ export default function EmployeeHealth() {
                           </div>
                         ) : (
                           <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
-                            <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                            <button type="button" onClick={() => setPreviewAttachment(a)} className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
                               <Paperclip className="h-3 w-3" />
                               {a.name || t("View")}
-                            </a>
+                            </button>
                             <button onClick={() => removeInvestigationAttachment(emp, i)} className="text-slate-400 hover:text-red-500">
                               <Trash2 className="h-3 w-3" />
                             </button>
@@ -1489,10 +1494,10 @@ export default function EmployeeHealth() {
                           </div>
                         ) : (
                           <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
-                            <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                            <button type="button" onClick={() => setPreviewAttachment(a)} className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
                               <Paperclip className="h-3 w-3" />
                               {a.name || t("View")}
-                            </a>
+                            </button>
                             <button onClick={() => removeNsiAttachment(c, i)} className="text-slate-400 hover:text-red-500">
                               <Trash2 className="h-3 w-3" />
                             </button>
@@ -1764,10 +1769,10 @@ export default function EmployeeHealth() {
                           </div>
                         ) : (
                           <span key={a._i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
-                            <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                            <button type="button" onClick={() => setPreviewAttachment(a)} className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
                               <Paperclip className="h-3 w-3" />
                               {t(a.label) || a.name || t("View")}
-                            </a>
+                            </button>
                             <button onClick={() => removeEmployeeDocument(qrEmployee, a._i)} className="text-slate-400 hover:text-red-500">
                               <Trash2 className="h-3 w-3" />
                             </button>
@@ -1933,6 +1938,36 @@ export default function EmployeeHealth() {
           onCancel={() => setMarkupTarget(null)}
           onSave={saveMarkupAnnotation}
         />
+      )}
+
+      {previewAttachment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setPreviewAttachment(null)}>
+          <div className="flex h-[85vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
+              <p className="truncate text-sm font-semibold text-slate-800">{previewAttachment.name}</p>
+              <div className="flex shrink-0 items-center gap-3">
+                <a href={attachmentUrl(previewAttachment.path)} target="_blank" rel="noreferrer" className="text-xs font-medium text-teal-700 hover:underline">
+                  {t("Open in new tab")}
+                </a>
+                <button onClick={() => setPreviewAttachment(null)} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-50">
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden rounded-b-2xl bg-slate-100">
+              {isPdfAttachment(previewAttachment) ? (
+                <iframe src={attachmentUrl(previewAttachment.path)} title={previewAttachment.name} className="h-full w-full" />
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-slate-500">
+                  <p>{t("Preview not available for this file type.")}</p>
+                  <a href={attachmentUrl(previewAttachment.path)} target="_blank" rel="noreferrer" className="font-medium text-teal-700 hover:underline">
+                    {t("Open in new tab")}
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
