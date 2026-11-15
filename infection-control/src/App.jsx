@@ -112,7 +112,7 @@ export default function App() {
         <Route
           path="/nursing-rounds"
           element={
-            <ProtectedRoute adminOnly>
+            <ProtectedRoute nursingRoundsAccess>
               <Layout>
                 <NursingRounds />
               </Layout>
