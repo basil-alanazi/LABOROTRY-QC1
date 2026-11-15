@@ -130,10 +130,12 @@ export default function Layout({ children }) {
         <CalendarDays className="h-4 w-4" />
         {t("IPC Calendar")}
       </NavLink>
-      <NavLink to="/notes" className={linkClass} onClick={() => setSidebarOpen(false)}>
-        <NotebookPen className="h-4 w-4" />
-        {t("Notes")}
-      </NavLink>
+      {isAdmin && (
+        <NavLink to="/notes" className={linkClass} onClick={() => setSidebarOpen(false)}>
+          <NotebookPen className="h-4 w-4" />
+          {t("Notes")}
+        </NavLink>
+      )}
       <NavLink to="/messages" className={linkClass} onClick={() => setSidebarOpen(false)}>
         <MessageSquare className="h-4 w-4" />
         {t("Messages")}
