@@ -162,7 +162,7 @@ export default function App() {
         <Route
           path="/notes"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute adminOnly>
               <Layout>
                 <Notes />
               </Layout>
