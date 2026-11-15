@@ -20,10 +20,29 @@ export const ar = {
   "Settings": "الإعدادات",
   "IPC Calendar": "تقويم مكافحة العدوى",
   "Messages": "الرسائل",
+  "Notes": "الملاحظات",
   "Profile": "الملف الشخصي",
   "Log out": "تسجيل خروج",
   "Preview mode — sample data, not connected to a real database. Nothing is saved after a page refresh.":
     "وضع المعاينة — بيانات تجريبية غير متصلة بقاعدة بيانات حقيقية. لا يُحفظ أي شيء بعد تحديث الصفحة.",
+
+  // --- Notes ---
+  "Write notes, add tables, and print them like a document.": "اكتب ملاحظاتك، أضف جداول، واطبعها كأنها مستند.",
+  "Untitled Note": "ملاحظة بدون عنوان",
+  'No notes yet — tap "New" to start.': "لا توجد ملاحظات بعد — اضغط \"جديد\" للبدء.",
+  "Select a note or create a new one.": "اختر ملاحظة أو أنشئ واحدة جديدة.",
+  "Bold": "عريض",
+  "Italic": "مائل",
+  "Underline": "تسطير",
+  "Bullet list": "قائمة نقطية",
+  "Numbered list": "قائمة مرقمة",
+  "Insert table": "إدراج جدول",
+  "Number of rows": "عدد الصفوف",
+  "Number of columns": "عدد الأعمدة",
+  "Delete this note?": "حذف هذه الملاحظة؟",
+  "Delete": "حذف",
+  "Saved": "تم الحفظ",
+  "Print": "طباعة",
 
   // --- Login ---
   "Infection Control System": "نظام مكافحة العدوى",

@@ -12,6 +12,7 @@ import Login from "./pages/Login.jsx";
 const Settings = lazy(() => import("./pages/Settings.jsx"));
 const Profile = lazy(() => import("./pages/Profile.jsx"));
 const Messages = lazy(() => import("./pages/Messages.jsx"));
+const Notes = lazy(() => import("./pages/Notes.jsx"));
 const IpcCalendar = lazy(() => import("./pages/IpcCalendar.jsx"));
 const StockRequests = lazy(() => import("./pages/stock/StockRequests.jsx"));
 const EmployeeHealth = lazy(() => import("./pages/health/EmployeeHealth.jsx"));
@@ -154,6 +155,16 @@ export default function App() {
             <ProtectedRoute>
               <Layout>
                 <Messages />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notes"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Notes />
               </Layout>
             </ProtectedRoute>
           }
