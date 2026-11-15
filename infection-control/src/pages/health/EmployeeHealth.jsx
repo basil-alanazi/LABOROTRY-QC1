@@ -89,6 +89,7 @@ export default function EmployeeHealth() {
   const [clinicDeptFilter, setClinicDeptFilter] = useState("");
   const [clinicSearch, setClinicSearch] = useState("");
   const [clinicPpdFilter, setClinicPpdFilter] = useState("");
+  const [doctorReviewSearch, setDoctorReviewSearch] = useState("");
   const [clinicVaccineFilter, setClinicVaccineFilter] = useState("");
   const [clinicVaccineDoseFilter, setClinicVaccineDoseFilter] = useState("");
   const [pendingOnlyExport, setPendingOnlyExport] = useState(false);
@@ -631,6 +632,28 @@ export default function EmployeeHealth() {
     () => activeEmployees.filter((e) => !statusFor(e.id).ppd_status).sort((a, b) => a.name.localeCompare(b.name)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [activeEmployees, statusDrafts]
+  );
+
+  function matchesDoctorReviewSearch(emp) {
+    const q = doctorReviewSearch.trim().toLowerCase();
+    if (!q) return true;
+    if (!emp) return false;
+    return (emp.name || "").toLowerCase().includes(q) || (emp.employee_no || "").toLowerCase().includes(q) || (emp.file_no || "").toLowerCase().includes(q);
+  }
+  const visiblePendingReviewEmployees = useMemo(
+    () => pendingReviewEmployees.filter(matchesDoctorReviewSearch),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pendingReviewEmployees, doctorReviewSearch]
+  );
+  const visiblePendingPpdEmployees = useMemo(
+    () => pendingPpdEmployees.filter(matchesDoctorReviewSearch),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pendingPpdEmployees, doctorReviewSearch]
+  );
+  const visibleNsiCases = useMemo(
+    () => nsiCases.filter((c) => matchesDoctorReviewSearch(employees.find((e) => e.id === c.employee_id))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nsiCases, employees, doctorReviewSearch]
   );
 
   // --- Grid <-> export shared column/row builders ---
@@ -1222,12 +1245,18 @@ export default function EmployeeHealth() {
 
       {tab === "doctor-review" && (
         <div className="flex flex-col gap-8">
+          <input
+            className="input w-full max-w-sm"
+            value={doctorReviewSearch}
+            onChange={(e) => setDoctorReviewSearch(e.target.value)}
+            placeholder={t("Search name / employee # / hospital file #")}
+          />
           <div>
             <h2 className="mb-3 text-sm font-bold text-slate-800">
-              {t("Emp Clinic Pending Review")} ({pendingReviewEmployees.length})
+              {t("Emp Clinic Pending Review")} ({visiblePendingReviewEmployees.length})
             </h2>
             <div className="flex flex-col gap-3">
-              {pendingReviewEmployees.map((emp) => {
+              {visiblePendingReviewEmployees.map((emp) => {
                 const s = statusFor(emp.id);
                 const needed = neededVaccines(emp);
                 return (
@@ -1236,7 +1265,7 @@ export default function EmployeeHealth() {
                       <div>
                         <p className="font-semibold text-slate-800">{emp.name}</p>
                         <p className="text-xs text-slate-500">
-                          {emp.department} · {emp.employee_no}
+                          {emp.department} · {emp.employee_no} · {t("File #")}: {emp.file_no || "—"}
                         </p>
                       </div>
                       <select className="input-cell w-44" value={s.investigation_status || "review_due"} onChange={(e) => saveStatus(emp, { investigation_status: e.target.value })}>
@@ -1289,7 +1318,7 @@ export default function EmployeeHealth() {
                   </div>
                 );
               })}
-              {pendingReviewEmployees.length === 0 && <p className="text-sm text-slate-400">{t("Nothing pending doctor review 🎉")}</p>}
+              {visiblePendingReviewEmployees.length === 0 && <p className="text-sm text-slate-400">{t("Nothing pending doctor review 🎉")}</p>}
             </div>
           </div>
 
@@ -1314,13 +1343,16 @@ export default function EmployeeHealth() {
               </button>
             </form>
             <div className="flex flex-col gap-3">
-              {nsiCases.map((c) => {
+              {visibleNsiCases.map((c) => {
                 const emp = employees.find((e) => e.id === c.employee_id);
                 return (
                   <div key={c.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <p className="font-semibold text-slate-800">{emp?.name || "—"}</p>
+                        <p className="text-xs text-slate-500">
+                          {emp?.department} · {emp?.employee_no} · {t("File #")}: {emp?.file_no || "—"}
+                        </p>
                         <p className="text-xs text-slate-500">
                           {t("Incident date")}: {c.incident_date || "—"}
                         </p>
@@ -1404,22 +1436,24 @@ export default function EmployeeHealth() {
                   </div>
                 );
               })}
-              {nsiCases.length === 0 && <p className="text-sm text-slate-400">{t("No needle-stick injury cases on record.")}</p>}
+              {visibleNsiCases.length === 0 && <p className="text-sm text-slate-400">{t("No needle-stick injury cases on record.")}</p>}
             </div>
           </div>
 
           <div>
             <h2 className="mb-3 text-sm font-bold text-slate-800">
-              {t("PPD Pending Review")} ({pendingPpdEmployees.length})
+              {t("PPD Pending Review")} ({visiblePendingPpdEmployees.length})
             </h2>
             <div className="flex flex-col gap-2">
-              {pendingPpdEmployees.map((emp) => {
+              {visiblePendingPpdEmployees.map((emp) => {
                 const s = statusFor(emp.id);
                 return (
                   <div key={emp.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                     <div>
                       <p className="font-semibold text-slate-800">{emp.name}</p>
-                      <p className="text-xs text-slate-500">{emp.department}</p>
+                      <p className="text-xs text-slate-500">
+                        {emp.department} · {emp.employee_no} · {t("File #")}: {emp.file_no || "—"}
+                      </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <input
@@ -1440,7 +1474,7 @@ export default function EmployeeHealth() {
                   </div>
                 );
               })}
-              {pendingPpdEmployees.length === 0 && <p className="text-sm text-slate-400">{t("Everyone is up to date 🎉")}</p>}
+              {visiblePendingPpdEmployees.length === 0 && <p className="text-sm text-slate-400">{t("Everyone is up to date 🎉")}</p>}
             </div>
           </div>
         </div>
