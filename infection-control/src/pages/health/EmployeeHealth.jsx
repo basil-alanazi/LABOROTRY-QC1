@@ -559,6 +559,14 @@ export default function EmployeeHealth() {
         const uploaded = await uploadInvestigationFile(emp, file);
         const current = statusFor(emp.id).investigation_attachments || [];
         await saveStatus(emp, { investigation_attachments: [...current, uploaded] });
+      } else if (markupTarget.kind === "document") {
+        const { emp, attachment } = markupTarget;
+        const uploaded = await uploadEmployeeDocumentFile(emp, file);
+        const next = [...(emp.employee_documents ?? []), { ...uploaded, doc_type: attachment.doc_type, label: attachment.label }];
+        const { error } = await supabase.from("employees").update({ employee_documents: next }).eq("id", emp.id);
+        if (error) throw error;
+        setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, employee_documents: next } : e)));
+        setQrEmployee((prev) => (prev && prev.id === emp.id ? { ...prev, employee_documents: next } : prev));
       } else {
         const { nsiCase } = markupTarget;
         const uploaded = await uploadNsiFile(nsiCase, file);
@@ -621,6 +629,48 @@ export default function EmployeeHealth() {
     }
     setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, employee_documents: next } : e)));
     setQrEmployee((prev) => (prev && prev.id === emp.id ? { ...prev, employee_documents: next } : prev));
+  }
+
+  function renderEmployeeDocuments(emp) {
+    const docs = emp.employee_documents ?? [];
+    if (docs.length === 0) return null;
+    return (
+      <div className="mt-2">
+        <p className="text-[11px] font-semibold text-slate-400">{t("Employee Documents")}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          {docs.map((a, i) =>
+            isImageAttachment(a) ? (
+              <div key={i} className="group relative">
+                <button
+                  type="button"
+                  onClick={() => setMarkupTarget({ kind: "document", emp, attachment: a })}
+                  className="block h-16 w-16 overflow-hidden rounded-lg border border-slate-200 hover:ring-2 hover:ring-teal-500"
+                  title={t("Click to view & mark up")}
+                >
+                  <img src={attachmentUrl(a.path)} alt={a.name || ""} className="h-full w-full object-cover" />
+                </button>
+                <button
+                  onClick={() => removeEmployeeDocument(emp, i)}
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-slate-400 shadow hover:text-red-500"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
+                <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                  <Paperclip className="h-3 w-3" />
+                  {t(a.label) || a.name || t("View")}
+                </a>
+                <button onClick={() => removeEmployeeDocument(emp, i)} className="text-slate-400 hover:text-red-500">
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </span>
+            )
+          )}
+        </div>
+      </div>
+    );
   }
 
   const pendingReviewEmployees = useMemo(
@@ -1281,6 +1331,7 @@ export default function EmployeeHealth() {
                         {t("Needed vaccinations")}: {needed.join(" · ")}
                       </p>
                     )}
+                    {renderEmployeeDocuments(emp)}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {(s.investigation_attachments ?? []).map((a, i) =>
                         isImageAttachment(a) ? (
@@ -1377,6 +1428,7 @@ export default function EmployeeHealth() {
                         </button>
                       </div>
                     </div>
+                    {emp && renderEmployeeDocuments(emp)}
                     <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
                       <label className="flex items-center gap-1.5 text-xs text-slate-500">
                         {t("Report 1")}
@@ -1468,29 +1520,32 @@ export default function EmployeeHealth() {
               {visiblePendingPpdEmployees.map((emp) => {
                 const s = statusFor(emp.id);
                 return (
-                  <div key={emp.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                    <div>
-                      <p className="font-semibold text-slate-800">{emp.name}</p>
-                      <p className="text-xs text-slate-500">
-                        {emp.department} · {emp.employee_no} · {t("File #")}: {emp.file_no || "—"}
-                      </p>
+                  <div key={emp.id} className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-800">{emp.name}</p>
+                        <p className="text-xs text-slate-500">
+                          {emp.department} · {emp.employee_no} · {t("File #")}: {emp.file_no || "—"}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="date"
+                          className="input-cell w-32"
+                          value={s.ppd_test_date || ""}
+                          onChange={(e) => setStatusField(emp.id, { ppd_test_date: e.target.value, ppd_next_due_date: e.target.value ? addMonths(e.target.value, 12) : "" })}
+                        />
+                        <input className="input-cell w-28" placeholder={t("e.g. Negative")} value={s.ppd_result || ""} onChange={(e) => setStatusField(emp.id, { ppd_result: e.target.value })} />
+                        <button
+                          onClick={() => saveStatus(emp, { ppd_status: "done" })}
+                          className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          {t("Mark done")}
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="date"
-                        className="input-cell w-32"
-                        value={s.ppd_test_date || ""}
-                        onChange={(e) => setStatusField(emp.id, { ppd_test_date: e.target.value, ppd_next_due_date: e.target.value ? addMonths(e.target.value, 12) : "" })}
-                      />
-                      <input className="input-cell w-28" placeholder={t("e.g. Negative")} value={s.ppd_result || ""} onChange={(e) => setStatusField(emp.id, { ppd_result: e.target.value })} />
-                      <button
-                        onClick={() => saveStatus(emp, { ppd_status: "done" })}
-                        className="flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-700"
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        {t("Mark done")}
-                      </button>
-                    </div>
+                    {renderEmployeeDocuments(emp)}
                   </div>
                 );
               })}
@@ -1689,17 +1744,36 @@ export default function EmployeeHealth() {
                   <div key={docType} className="mb-2">
                     <p className="text-[11px] font-semibold text-slate-400">{t(DOC_TYPE_LABELS[docType])}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
-                      {docs.map((a) => (
-                        <span key={a._i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
-                          <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
-                            <Paperclip className="h-3 w-3" />
-                            {t(a.label) || a.name || t("View")}
-                          </a>
-                          <button onClick={() => removeEmployeeDocument(qrEmployee, a._i)} className="text-slate-400 hover:text-red-500">
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </span>
-                      ))}
+                      {docs.map((a) =>
+                        isImageAttachment(a) ? (
+                          <div key={a._i} className="group relative">
+                            <button
+                              type="button"
+                              onClick={() => setMarkupTarget({ kind: "document", emp: qrEmployee, attachment: a })}
+                              className="block h-16 w-16 overflow-hidden rounded-lg border border-slate-200 hover:ring-2 hover:ring-teal-500"
+                              title={t("Click to view & mark up")}
+                            >
+                              <img src={attachmentUrl(a.path)} alt={a.name || ""} className="h-full w-full object-cover" />
+                            </button>
+                            <button
+                              onClick={() => removeEmployeeDocument(qrEmployee, a._i)}
+                              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-slate-400 shadow hover:text-red-500"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span key={a._i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
+                            <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                              <Paperclip className="h-3 w-3" />
+                              {t(a.label) || a.name || t("View")}
+                            </a>
+                            <button onClick={() => removeEmployeeDocument(qrEmployee, a._i)} className="text-slate-400 hover:text-red-500">
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </span>
+                        )
+                      )}
                     </div>
                   </div>
                 );
