@@ -205,9 +205,7 @@ export default function Layout({ children }) {
             {t("Preview mode — sample data, not connected to a real database. Nothing is saved after a page refresh.")}
           </div>
         )}
-        <main className="flex-1 px-4 py-6 print:p-0">
-          <div className="mx-auto max-w-6xl">{children}</div>
-        </main>
+        <main className="flex-1 px-4 py-6 print:p-0">{children}</main>
       </div>
     </div>
   );
