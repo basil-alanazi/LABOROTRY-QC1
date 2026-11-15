@@ -688,6 +688,7 @@ export const ar = {
   "Cancel": "إلغاء",
   "Markup": "تعليم",
   "Markup Attachment": "تعليم على المرفق",
+  "Click to view & mark up": "اضغط للعرض والتعليم",
   "Enter the note text": "أدخل نص الملاحظة",
   "Pen": "قلم",
   "Text": "نص",
