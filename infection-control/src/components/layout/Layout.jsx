@@ -10,6 +10,7 @@ import {
   Languages,
   Menu,
   MessageSquare,
+  NotebookPen,
   Package,
   Settings as SettingsIcon,
   ShieldAlert,
@@ -128,6 +129,10 @@ export default function Layout({ children }) {
       <NavLink to="/ipc-calendar" className={linkClass} onClick={() => setSidebarOpen(false)}>
         <CalendarDays className="h-4 w-4" />
         {t("IPC Calendar")}
+      </NavLink>
+      <NavLink to="/notes" className={linkClass} onClick={() => setSidebarOpen(false)}>
+        <NotebookPen className="h-4 w-4" />
+        {t("Notes")}
       </NavLink>
       <NavLink to="/messages" className={linkClass} onClick={() => setSidebarOpen(false)}>
         <MessageSquare className="h-4 w-4" />

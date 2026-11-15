@@ -659,6 +659,18 @@ export const messages = [
   },
 ];
 
+export const notes = [
+  {
+    id: "note-1",
+    title: "Sample Note",
+    content: "<p>This is a sample note. You can write paragraphs, add tables, and print it.</p>",
+    created_by: "ic",
+    created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+    updated_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+    deleted: false,
+  },
+];
+
 export const ipc_calendar_tasks = [
   {
     id: "ipc-task-1",
