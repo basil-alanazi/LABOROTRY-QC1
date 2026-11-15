@@ -1282,26 +1282,36 @@ export default function EmployeeHealth() {
                       </p>
                     )}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      {(s.investigation_attachments ?? []).map((a, i) => (
-                        <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
-                          <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
-                            <Paperclip className="h-3 w-3" />
-                            {a.name || t("View")}
-                          </a>
-                          {isImageAttachment(a) && (
+                      {(s.investigation_attachments ?? []).map((a, i) =>
+                        isImageAttachment(a) ? (
+                          <div key={i} className="group relative">
                             <button
+                              type="button"
                               onClick={() => setMarkupTarget({ kind: "investigation", emp, attachment: a })}
-                              className="text-slate-400 hover:text-teal-600"
-                              title={t("Markup")}
+                              className="block h-16 w-16 overflow-hidden rounded-lg border border-slate-200 hover:ring-2 hover:ring-teal-500"
+                              title={t("Click to view & mark up")}
                             >
-                              <Pencil className="h-3 w-3" />
+                              <img src={attachmentUrl(a.path)} alt={a.name || ""} className="h-full w-full object-cover" />
                             </button>
-                          )}
-                          <button onClick={() => removeInvestigationAttachment(emp, i)} className="text-slate-400 hover:text-red-500">
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </span>
-                      ))}
+                            <button
+                              onClick={() => removeInvestigationAttachment(emp, i)}
+                              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-slate-400 shadow hover:text-red-500"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
+                            <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                              <Paperclip className="h-3 w-3" />
+                              {a.name || t("View")}
+                            </a>
+                            <button onClick={() => removeInvestigationAttachment(emp, i)} className="text-slate-400 hover:text-red-500">
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </span>
+                        )
+                      )}
                       <label className="flex cursor-pointer items-center gap-1 text-xs font-medium text-red-600 hover:underline">
                         <Upload className="h-3.5 w-3.5" />
                         {t("Attach blood test results")}
@@ -1407,26 +1417,36 @@ export default function EmployeeHealth() {
                       placeholder={t("Notes")}
                     />
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      {(c.form_attachments ?? []).map((a, i) => (
-                        <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
-                          <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
-                            <Paperclip className="h-3 w-3" />
-                            {a.name || t("View")}
-                          </a>
-                          {isImageAttachment(a) && (
+                      {(c.form_attachments ?? []).map((a, i) =>
+                        isImageAttachment(a) ? (
+                          <div key={i} className="group relative">
                             <button
+                              type="button"
                               onClick={() => setMarkupTarget({ kind: "nsi", nsiCase: c, attachment: a })}
-                              className="text-slate-400 hover:text-teal-600"
-                              title={t("Markup")}
+                              className="block h-16 w-16 overflow-hidden rounded-lg border border-slate-200 hover:ring-2 hover:ring-teal-500"
+                              title={t("Click to view & mark up")}
                             >
-                              <Pencil className="h-3 w-3" />
+                              <img src={attachmentUrl(a.path)} alt={a.name || ""} className="h-full w-full object-cover" />
                             </button>
-                          )}
-                          <button onClick={() => removeNsiAttachment(c, i)} className="text-slate-400 hover:text-red-500">
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </span>
-                      ))}
+                            <button
+                              onClick={() => removeNsiAttachment(c, i)}
+                              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-slate-400 shadow hover:text-red-500"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
+                            <a href={attachmentUrl(a.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                              <Paperclip className="h-3 w-3" />
+                              {a.name || t("View")}
+                            </a>
+                            <button onClick={() => removeNsiAttachment(c, i)} className="text-slate-400 hover:text-red-500">
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </span>
+                        )
+                      )}
                       <label className="flex cursor-pointer items-center gap-1 text-xs font-medium text-red-600 hover:underline">
                         <Upload className="h-3.5 w-3.5" />
                         {t("Attach form")}
