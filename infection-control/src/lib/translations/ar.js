@@ -13,6 +13,7 @@ export const ar = {
   "Daily IC Rounds": "الجولات اليومية لمكافحة العدوى",
   "Hand Hygiene": "نظافة اليدين",
   "Nursing Daily Rounds": "الجولات التمريضية اليومية",
+  "Rounds can only be recorded for today — no backdating.": "يمكن تسجيل الجولة لليوم الحالي فقط — لا يمكن تسجيلها بتاريخ سابق.",
   "Quality Daily Rounds": "جولات الجودة اليومية",
   "Trackers": "المتابعات",
   "HAI Surveillance": "ترصد عدوى المستشفى",
