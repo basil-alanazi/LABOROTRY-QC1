@@ -44,6 +44,7 @@ export function AuthProvider({ children }) {
       canAdminStock: !!user.can_admin_stock,
       canViewEmployeeHealth: !!user.can_view_employee_health,
       canViewHaiSurveillance: !!user.can_view_hai_surveillance,
+      canEnterNursingRounds: !!user.can_view_nursing_rounds,
       haiScope: user.hai_scope || null,
       obStages: user.ob_stages ? user.ob_stages.split(",").map((s) => s.trim()).filter(Boolean) : [],
       ssiStages: user.ssi_stages ? user.ssi_stages.split(",").map((s) => s.trim()).filter(Boolean) : [],
@@ -99,6 +100,10 @@ export function AuthProvider({ children }) {
   // Additive — on top of whatever else the account can already see (Stock
   // Requests, or a restricted "access only" page), not instead of it.
   const canViewHaiSurveillance = isAdmin || !!session?.canViewHaiSurveillance;
+  // A Ward Staff account can be granted just entry access to Nursing Daily
+  // Rounds — add today's round only (date is locked, same as any non-admin),
+  // no history table, no other department's findings.
+  const canEnterNursingRounds = isAdmin || !!session?.canEnterNursingRounds;
 
   return (
     <AuthContext.Provider
@@ -114,6 +119,7 @@ export function AuthProvider({ children }) {
         canViewEmployeeHealth,
         canAdminStock,
         canViewHaiSurveillance,
+        canEnterNursingRounds,
         reloadConfig: loadConfig,
       }}
     >

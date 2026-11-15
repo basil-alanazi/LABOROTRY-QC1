@@ -56,9 +56,14 @@ export default function NursingRounds() {
 
   async function loadAll() {
     setLoading(true);
-    const { data } = await fetchAllRows((from, to) =>
-      supabase.from("nursing_rounds").select("*").eq("deleted", false).order("date", { ascending: false }).order("created_at", { ascending: false }).range(from, to)
-    );
+    // Entry-only (non-admin) accounts never need anything beyond today's own
+    // submission, and shouldn't be able to pull other days' or departments'
+    // findings just by inspecting network traffic — so don't even fetch them.
+    const { data } = await fetchAllRows((from, to) => {
+      let q = supabase.from("nursing_rounds").select("*").eq("deleted", false);
+      if (!isAdmin) q = q.eq("date", todayStr());
+      return q.order("date", { ascending: false }).order("created_at", { ascending: false }).range(from, to);
+    });
     setRounds(data ?? []);
     setLoading(false);
   }
@@ -184,27 +189,29 @@ export default function NursingRounds() {
           <h1 className="text-xl font-bold text-slate-800">{t("Nursing Daily Rounds")}</h1>
           <p className="text-sm text-slate-500">{t("Quick MET / NOT MET check per department, with finding & corrective-action tracking.")}</p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={exportExcel}
-            disabled={visibleRounds.length === 0}
-            className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-          >
-            <FileSpreadsheet className="h-3.5 w-3.5" />
-            {t("Export Excel")}
-          </button>
-          <button
-            onClick={exportPdf}
-            disabled={visibleRounds.length === 0}
-            className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-          >
-            <FileText className="h-3.5 w-3.5" />
-            {t("Export PDF")}
-          </button>
-        </div>
+        {isAdmin && (
+          <div className="flex gap-2">
+            <button
+              onClick={exportExcel}
+              disabled={visibleRounds.length === 0}
+              className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5" />
+              {t("Export Excel")}
+            </button>
+            <button
+              onClick={exportPdf}
+              disabled={visibleRounds.length === 0}
+              className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              {t("Export PDF")}
+            </button>
+          </div>
+        )}
       </div>
 
-      {openCount > 0 && (
+      {isAdmin && openCount > 0 && (
         <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
           <AlertTriangle className="h-4 w-4" />
           {openCount} {t("of the findings are open and need follow-up")}
@@ -316,63 +323,67 @@ export default function NursingRounds() {
         </button>
       </form>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
-          {[
-            { key: "", label: "All" },
-            { key: "not_met", label: "NOT MET" },
-            { key: "open", label: "Open" },
-            { key: "closed", label: "Closed" },
-          ].map((o) => (
-            <button
-              key={o.key}
-              onClick={() => setFilterStatus(o.key)}
-              className={`rounded-md px-3 py-1 font-medium ${filterStatus === o.key ? "bg-teal-600 text-white" : "text-slate-500"}`}
-            >
-              {t(o.label)}
-            </button>
-          ))}
-        </div>
-        <select className="input w-44" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
-          <option value="">{t("All Departments")}</option>
-          {departments.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-      </div>
-      <p className="text-xs text-slate-500">{t("Export Excel/PDF exports exactly what's shown below — filter by department and/or status first.")}</p>
+      {isAdmin && (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+              {[
+                { key: "", label: "All" },
+                { key: "not_met", label: "NOT MET" },
+                { key: "open", label: "Open" },
+                { key: "closed", label: "Closed" },
+              ].map((o) => (
+                <button
+                  key={o.key}
+                  onClick={() => setFilterStatus(o.key)}
+                  className={`rounded-md px-3 py-1 font-medium ${filterStatus === o.key ? "bg-teal-600 text-white" : "text-slate-500"}`}
+                >
+                  {t(o.label)}
+                </button>
+              ))}
+            </div>
+            <select className="input w-44" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
+              <option value="">{t("All Departments")}</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="text-xs text-slate-500">{t("Export Excel/PDF exports exactly what's shown below — filter by department and/or status first.")}</p>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs text-slate-500">
-            <tr>
-              <th className="px-4 py-2 font-medium">{t("Date")}</th>
-              <th className="px-4 py-2 font-medium">{t("Department")}</th>
-              <th className="px-4 py-2 font-medium">{t("Result")}</th>
-              <th className="px-4 py-2 font-medium">{t("Status")}</th>
-              <th className="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleRounds.map((r) => (
-              <RoundRow
-                key={r.id}
-                r={r}
-                onDelete={() => removeRound(r)}
-                onToggleStatus={() => toggleStatus(r)}
-                onAddAttachment={(files) => addAttachment(r, files)}
-                onRemoveAttachment={(index) => removeAttachment(r, index)}
-                onFieldChange={(patch) => updateRoundField(r.id, patch)}
-                onFieldSave={() => saveRoundFields(rounds.find((x) => x.id === r.id))}
-              />
-            ))}
-          </tbody>
-        </table>
-        {!loading && visibleRounds.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No rounds recorded")}</p>}
-        {loading && <p className="p-6 text-center text-sm text-slate-400">{t("Loading...")}</p>}
-      </div>
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-left text-xs text-slate-500">
+                <tr>
+                  <th className="px-4 py-2 font-medium">{t("Date")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Department")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Result")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Status")}</th>
+                  <th className="px-4 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleRounds.map((r) => (
+                  <RoundRow
+                    key={r.id}
+                    r={r}
+                    onDelete={() => removeRound(r)}
+                    onToggleStatus={() => toggleStatus(r)}
+                    onAddAttachment={(files) => addAttachment(r, files)}
+                    onRemoveAttachment={(index) => removeAttachment(r, index)}
+                    onFieldChange={(patch) => updateRoundField(r.id, patch)}
+                    onFieldSave={() => saveRoundFields(rounds.find((x) => x.id === r.id))}
+                  />
+                ))}
+              </tbody>
+            </table>
+            {!loading && visibleRounds.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No rounds recorded")}</p>}
+            {loading && <p className="p-6 text-center text-sm text-slate-400">{t("Loading...")}</p>}
+          </div>
+        </>
+      )}
     </div>
   );
 }
