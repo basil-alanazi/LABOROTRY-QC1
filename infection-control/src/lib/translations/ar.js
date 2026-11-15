@@ -667,6 +667,7 @@ export const ar = {
   "Blood Test": "فحص دم",
   "Other": "أخرى",
   "Visible to anyone who scans this employee's QR badge.": "يظهر لأي شخص يمسح باركود هذا الموظف.",
+  "Search name / employee # / hospital file #": "بحث بالاسم / الرقم الوظيفي / رقم ملف المستشفى",
   "Emp Clinic Pending Review": "عيادة الموظفين — بانتظار المراجعة",
   "Needed vaccinations": "التطعيمات المطلوبة",
   "Attach blood test results": "إرفاق نتائج فحص الدم",
