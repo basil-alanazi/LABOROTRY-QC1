@@ -567,7 +567,7 @@ export default function EmployeeHealth() {
       } else if (markupTarget.kind === "document") {
         const { emp, attachment } = markupTarget;
         const uploaded = await uploadEmployeeDocumentFile(emp, file);
-        const next = [...(emp.employee_documents ?? []), { ...uploaded, doc_type: attachment.doc_type, label: attachment.label }];
+        const next = [...(emp.employee_documents ?? []), { ...uploaded, doc_type: attachment.doc_type, label: attachment.label, internal: true }];
         const { error } = await supabase.from("employees").update({ employee_documents: next }).eq("id", emp.id);
         if (error) throw error;
         setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, employee_documents: next } : e)));

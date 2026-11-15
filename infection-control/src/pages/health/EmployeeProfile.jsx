@@ -225,11 +225,11 @@ export default function EmployeeProfile() {
         </div>
       </Section>
 
-      {(employee.employee_documents ?? []).length > 0 && (
+      {(employee.employee_documents ?? []).filter((d) => !d.internal).length > 0 && (
         <Section title={t("Employee Documents")}>
           <div className="flex flex-col gap-3">
             {["vaccination", "blood_test", "other"].map((docType) => {
-              const docs = employee.employee_documents.filter((d) => d.doc_type === docType);
+              const docs = employee.employee_documents.filter((d) => d.doc_type === docType && !d.internal);
               if (docs.length === 0) return null;
               return (
                 <div key={docType}>
