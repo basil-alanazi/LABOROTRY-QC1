@@ -46,4 +46,5 @@ export const supabase =
         hai_ob_surveillance: seed.hai_ob_surveillance,
         hh_observations: seed.hh_observations,
         employee_nsi_followups: seed.employee_nsi_followups,
+        hai_monthly_indicators: seed.hai_monthly_indicators,
       });
