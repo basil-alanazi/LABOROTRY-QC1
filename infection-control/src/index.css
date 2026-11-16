@@ -6,6 +6,22 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Tahoma, Arial, sans-serif;
 }
 
+/* Printing a single card (QR profile, requisition slip, refusal form)
+   renders it through <PrintPortal>, which mounts outside #root directly
+   on <body> and marks <body> with data-print-portal while it's open.
+   Hiding #root then removes the whole single-page app from the print
+   flow instead of merely making it invisible, so the printed page is
+   exactly the portal's own height — not one page per screenful of the
+   (still laid-out) app behind it, and not repeated on every page the way
+   a `position: fixed` print area would be. Scoped to the attribute (not
+   a blanket #root rule) so pages that print their own in-place content,
+   like Notes, are unaffected. */
+@media print {
+  body[data-print-portal] #root {
+    display: none !important;
+  }
+}
+
 @layer components {
   .input {
     @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500;
