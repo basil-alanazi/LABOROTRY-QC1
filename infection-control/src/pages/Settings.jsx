@@ -36,7 +36,7 @@ const SSI_STAGE_OPTIONS = [
   { value: "DR_FW", label: "DR & FW (current status + date of discharge)" },
 ];
 const emptyNewStockItem = { department: "", name: "", unit: "unit", min_qty: "", max_qty: "", current_qty: "" };
-const emptyNewHealthItem = { name: "", category: "vaccine", recurrence_months: "", dose_schedule: "0", kitchen_only: false };
+const emptyNewHealthItem = { name: "", category: "vaccine", recurrence_months: "", dose_schedule: "0", kitchen_only: false, required_for_new_hire: false };
 
 function parseDoseSchedule(text) {
   const nums = (text || "0")
@@ -380,6 +380,7 @@ export default function Settings() {
         recurrence_months: item.recurrence_months === "" || item.recurrence_months == null ? null : Number(item.recurrence_months),
         dose_schedule: parseDoseSchedule(item.dose_schedule),
         kitchen_only: !!item.kitchen_only,
+        required_for_new_hire: !!item.required_for_new_hire,
         active: item.active,
       })
       .eq("id", item.id);
@@ -405,6 +406,7 @@ export default function Settings() {
       recurrence_months: newHealthItem.recurrence_months === "" ? null : Number(newHealthItem.recurrence_months),
       dose_schedule: parseDoseSchedule(newHealthItem.dose_schedule),
       kitchen_only: newHealthItem.kitchen_only,
+      required_for_new_hire: newHealthItem.required_for_new_hire,
       active: true,
       sort_order: maxSort + 1,
     });
@@ -872,6 +874,7 @@ export default function Settings() {
                 <th className="px-3 py-2 font-medium">{t("Dose Schedule (months after 1st dose)")}</th>
                 <th className="px-3 py-2 font-medium">{t("Repeats Every (months)")}</th>
                 <th className="px-3 py-2 font-medium">{t("Kitchen Staff Only")}</th>
+                <th className="px-3 py-2 font-medium">{t("New Hire Requisition")}</th>
                 <th className="px-3 py-2 font-medium">{t("Active")}</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -907,6 +910,9 @@ export default function Settings() {
                   </td>
                   <td className="px-3 py-2 text-center">
                     <input type="checkbox" checked={!!item.kitchen_only} onChange={(e) => updateHealthItemType(item.id, { kitchen_only: e.target.checked })} />
+                  </td>
+                  <td className="px-3 py-2 text-center" title={t('Show on the printed test requisition handed to a newly added employee')}>
+                    <input type="checkbox" checked={!!item.required_for_new_hire} onChange={(e) => updateHealthItemType(item.id, { required_for_new_hire: e.target.checked })} />
                   </td>
                   <td className="px-3 py-2">
                     <input type="checkbox" checked={item.active} onChange={(e) => updateHealthItemType(item.id, { active: e.target.checked })} />
@@ -956,6 +962,14 @@ export default function Settings() {
               onChange={(e) => setNewHealthItem({ ...newHealthItem, kitchen_only: e.target.checked })}
             />
             {t("Kitchen Staff only")}
+          </label>
+          <label className="flex items-center gap-1 text-xs text-slate-500">
+            <input
+              type="checkbox"
+              checked={newHealthItem.required_for_new_hire}
+              onChange={(e) => setNewHealthItem({ ...newHealthItem, required_for_new_hire: e.target.checked })}
+            />
+            {t("Show on new-hire requisition")}
           </label>
           <button
             onClick={addHealthItemType}
