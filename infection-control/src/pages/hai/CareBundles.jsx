@@ -5,12 +5,16 @@ import { useAuth } from "../../lib/auth.jsx";
 import { useLanguage } from "../../lib/i18n.jsx";
 import { fetchAllRows } from "../../lib/fetchAll";
 import { BUNDLE_TYPES, getBundleConfig } from "../../components/hai/careBundleConfigs";
+import { SECTIONED_FORMS, getSectionedFormConfig } from "../../components/hai/sectionedFormConfigs";
 import CareBundleFormModal from "../../components/hai/CareBundleFormModal";
+import SectionedFormModal from "../../components/hai/SectionedFormModal";
+
+const ALL_TYPES = [...BUNDLE_TYPES, ...SECTIONED_FORMS];
 
 export default function CareBundles() {
   const { session, isAdmin } = useAuth();
   const { t } = useLanguage();
-  const [bundleType, setBundleType] = useState(BUNDLE_TYPES[0].key);
+  const [bundleType, setBundleType] = useState(ALL_TYPES[0].key);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -18,6 +22,9 @@ export default function CareBundles() {
   const [message, setMessage] = useState(null);
 
   const config = getBundleConfig(bundleType);
+  const sectionedConfig = getSectionedFormConfig(bundleType);
+  const isSectioned = !!sectionedConfig;
+  const activeConfig = config ?? sectionedConfig;
 
   function flash(msg) {
     setMessage(msg);
@@ -65,7 +72,7 @@ export default function CareBundles() {
   }
 
   async function handleDelete(row) {
-    if (!confirm(`Delete this ${t(config.label)} for ${row.header?.patient_name || "—"}?`)) return;
+    if (!confirm(`Delete this ${t(activeConfig.label)} for ${row.header?.patient_name || "—"}?`)) return;
     await supabase.from("hai_care_bundle_forms").update({ deleted: true, deleted_by: session?.username, deleted_at: new Date().toISOString() }).eq("id", row.id);
     load();
   }
@@ -81,7 +88,7 @@ export default function CareBundles() {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap rounded-lg border border-slate-200 p-0.5 text-xs">
-          {BUNDLE_TYPES.map((b) => (
+          {ALL_TYPES.map((b) => (
             <button
               key={b.key}
               onClick={() => setBundleType(b.key)}
@@ -136,7 +143,7 @@ export default function CareBundles() {
                     {row.header?.department || "—"}
                   </td>
                   <td className="cursor-pointer px-3 py-2" onClick={() => setEditing(row)}>
-                    {(row.daily_rows ?? []).length}
+                    {isSectioned ? "—" : (row.daily_rows ?? []).length}
                   </td>
                   <td className="px-3 py-2 text-end">
                     {isAdmin && (
@@ -152,7 +159,12 @@ export default function CareBundles() {
         </table>
       </div>
 
-      {editing && <CareBundleFormModal config={config} record={editing.id ? editing : null} onSave={handleSave} onCancel={() => setEditing(null)} />}
+      {editing &&
+        (isSectioned ? (
+          <SectionedFormModal config={sectionedConfig} record={editing.id ? editing : null} onSave={handleSave} onCancel={() => setEditing(null)} />
+        ) : (
+          <CareBundleFormModal config={config} record={editing.id ? editing : null} onSave={handleSave} onCancel={() => setEditing(null)} />
+        ))}
     </div>
   );
 }
