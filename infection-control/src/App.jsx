@@ -25,6 +25,7 @@ const QualityRounds = lazy(() => import("./pages/quality-rounds/QualityRounds.js
 const Trackers = lazy(() => import("./pages/trackers/Trackers.jsx"));
 const HaiSurveillance = lazy(() => import("./pages/hai/HaiSurveillance.jsx"));
 const MonthlyIndicators = lazy(() => import("./pages/hai/MonthlyIndicators.jsx"));
+const CareBundles = lazy(() => import("./pages/hai/CareBundles.jsx"));
 
 function RouteLoading() {
   return (
@@ -156,6 +157,16 @@ export default function App() {
             <ProtectedRoute haiSurveillanceAccess>
               <Layout>
                 <MonthlyIndicators />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/hai-care-bundles"
+          element={
+            <ProtectedRoute haiSurveillanceAccess>
+              <Layout>
+                <CareBundles />
               </Layout>
             </ProtectedRoute>
           }
