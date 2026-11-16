@@ -10,6 +10,7 @@ import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
 import AttachmentMarkupModal from "../../components/AttachmentMarkupModal";
 import RefusalFormModal from "../../components/RefusalFormModal";
+import PrintPortal from "../../components/PrintPortal";
 import rabiaLogo from "../../assets/rabia-logo.jpg";
 
 const TABS = [
@@ -1904,13 +1905,6 @@ export default function EmployeeHealth() {
 
       {qrEmployee && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 print:hidden" onClick={closeQr}>
-          <style>{`
-            @media print {
-              body * { visibility: hidden; }
-              #qr-print-area, #qr-print-area * { visibility: visible; }
-              #qr-print-area { position: fixed; inset: 0; margin: auto; }
-            }
-          `}</style>
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 text-center shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-2">
               <h3 className="text-base font-semibold text-slate-800">{t("Employee QR Profile")}</h3>
@@ -1918,7 +1912,7 @@ export default function EmployeeHealth() {
                 ✕
               </button>
             </div>
-            <div id="qr-print-area" className="mt-3 flex flex-col items-center gap-2">
+            <div className="mt-3 flex flex-col items-center gap-2">
               {qrDataUrl && <img src={qrDataUrl} alt="QR code" className="h-56 w-56" />}
               <p className="text-sm font-semibold text-slate-700">{qrEmployee.name}</p>
               <p className="text-xs text-slate-500">
@@ -1932,6 +1926,15 @@ export default function EmployeeHealth() {
               <Printer className="h-4 w-4" />
               {t("Print Badge")}
             </button>
+            <PrintPortal>
+              <div className="flex flex-col items-center gap-2 p-10 text-center">
+                {qrDataUrl && <img src={qrDataUrl} alt="QR code" className="h-56 w-56" />}
+                <p className="text-sm font-semibold text-slate-700">{qrEmployee.name}</p>
+                <p className="text-xs text-slate-500">
+                  {qrEmployee.department} · {qrEmployee.employee_no}
+                </p>
+              </div>
+            </PrintPortal>
 
             <div className="mt-4 border-t border-slate-100 pt-3 text-left print:hidden">
               <p className="mb-2 text-xs font-bold text-slate-600">{t("Employee Documents")}</p>
@@ -2125,23 +2128,11 @@ export default function EmployeeHealth() {
         </div>
       )}
 
-      {requisitionEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 print:hidden" onClick={() => setRequisitionEmployee(null)}>
-          <style>{`
-            @media print {
-              body * { visibility: hidden; }
-              #requisition-print-area, #requisition-print-area * { visibility: visible; }
-              #requisition-print-area { position: fixed; inset: 0; margin: auto; }
-            }
-          `}</style>
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start justify-between gap-2 print:hidden">
-              <h3 className="text-base font-semibold text-slate-800">{t("Required Tests Requisition")}</h3>
-              <button onClick={() => setRequisitionEmployee(null)} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-50">
-                ✕
-              </button>
-            </div>
-            <div id="requisition-print-area" className="mt-3 flex flex-col gap-3">
+      {requisitionEmployee &&
+        (() => {
+          const requiredTests = itemTypes.filter((ty) => ty.active && ty.required_for_new_hire && (!ty.kitchen_only || requisitionEmployee.is_kitchen_staff));
+          const requisitionBody = (
+            <>
               <div className="flex flex-col items-center gap-1 border-b border-slate-200 pb-3 text-center">
                 <img src={rabiaLogo} alt="Rabia Hospital" className="h-14 w-14 object-contain" />
                 <p className="text-sm font-bold text-slate-800">{t("Rabia Hospital — Infection Control Department")}</p>
@@ -2164,16 +2155,12 @@ export default function EmployeeHealth() {
               <div>
                 <p className="mb-1 text-xs font-bold text-slate-600">{t("Required Tests")}</p>
                 <ul className="flex flex-col gap-1 rounded-lg border border-slate-200 p-2">
-                  {itemTypes
-                    .filter((ty) => ty.active && ty.required_for_new_hire && (!ty.kitchen_only || requisitionEmployee.is_kitchen_staff))
-                    .map((ty) => (
-                      <li key={ty.id} className="text-sm text-slate-700">
-                        • {ty.name}
-                      </li>
-                    ))}
-                  {itemTypes.filter((ty) => ty.active && ty.required_for_new_hire && (!ty.kitchen_only || requisitionEmployee.is_kitchen_staff)).length === 0 && (
-                    <li className="text-sm text-slate-400">{t("No tests configured — add them in Settings.")}</li>
-                  )}
+                  {requiredTests.map((ty) => (
+                    <li key={ty.id} className="text-sm text-slate-700">
+                      • {ty.name}
+                    </li>
+                  ))}
+                  {requiredTests.length === 0 && <li className="text-sm text-slate-400">{t("No tests configured — add them in Settings.")}</li>}
                 </ul>
               </div>
               <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-3 text-xs text-slate-500">
@@ -2182,17 +2169,32 @@ export default function EmployeeHealth() {
                 </span>
                 <span>{t("Signed: Infection Control Department")}</span>
               </div>
+            </>
+          );
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 print:hidden" onClick={() => setRequisitionEmployee(null)}>
+              <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-base font-semibold text-slate-800">{t("Required Tests Requisition")}</h3>
+                  <button onClick={() => setRequisitionEmployee(null)} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-50">
+                    ✕
+                  </button>
+                </div>
+                <div className="mt-3 flex flex-col gap-3">{requisitionBody}</div>
+                <button
+                  onClick={() => window.print()}
+                  className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 print:hidden"
+                >
+                  <Printer className="h-4 w-4" />
+                  {t("Print")}
+                </button>
+                <PrintPortal>
+                  <div className="flex flex-col gap-3 p-10">{requisitionBody}</div>
+                </PrintPortal>
+              </div>
             </div>
-            <button
-              onClick={() => window.print()}
-              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 print:hidden"
-            >
-              <Printer className="h-4 w-4" />
-              {t("Print")}
-            </button>
-          </div>
-        </div>
-      )}
+          );
+        })()}
 
       {refusalEmployee && (
         <RefusalFormModal

@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
 import { useLanguage } from "../lib/i18n.jsx";
 import rabiaLogo from "../assets/rabia-logo.jpg";
+import PrintPortal from "./PrintPortal";
 
 const REFUSAL_BUCKET = "employee-health-attachments";
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -62,7 +63,14 @@ export default function RefusalFormModal({ emp, vaccineItems, onClose, flash, on
     return { x: (e.clientX - rect.left) * (canvas.width / rect.width), y: (e.clientY - rect.top) * (canvas.height / rect.height) };
   }
   function handlePointerDown(e) {
+    e.preventDefault();
     drawingRef.current = true;
+    // Without this, the stroke stops the instant the pointer drifts past
+    // the canvas edge (easy to do on a short signature box) because the
+    // browser then stops sending pointermove to this element entirely —
+    // capturing the pointer keeps every move/up event routed here until
+    // the finger/mouse actually lifts, wherever on screen that happens.
+    e.currentTarget.setPointerCapture(e.pointerId);
     const ctx = canvasRef.current.getContext("2d");
     const p = canvasPoint(e);
     ctx.beginPath();
@@ -70,6 +78,7 @@ export default function RefusalFormModal({ emp, vaccineItems, onClose, flash, on
   }
   function handlePointerMove(e) {
     if (!drawingRef.current) return;
+    e.preventDefault();
     const ctx = canvasRef.current.getContext("2d");
     const p = canvasPoint(e);
     ctx.lineWidth = 2.5;
@@ -79,8 +88,9 @@ export default function RefusalFormModal({ emp, vaccineItems, onClose, flash, on
     ctx.stroke();
     setHasSignature(true);
   }
-  function handlePointerUp() {
+  function handlePointerUp(e) {
     drawingRef.current = false;
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   }
   function clearSignature() {
     const canvas = canvasRef.current;
@@ -153,13 +163,6 @@ export default function RefusalFormModal({ emp, vaccineItems, onClose, flash, on
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 print:hidden" onClick={onClose}>
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          #refusal-print-area, #refusal-print-area * { visibility: visible; }
-          #refusal-print-area { position: fixed; inset: 0; margin: auto; }
-        }
-      `}</style>
       <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <div>
@@ -230,7 +233,7 @@ export default function RefusalFormModal({ emp, vaccineItems, onClose, flash, on
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
-              onPointerLeave={handlePointerUp}
+              onPointerCancel={handlePointerUp}
             />
           </div>
         </div>
@@ -245,16 +248,10 @@ export default function RefusalFormModal({ emp, vaccineItems, onClose, flash, on
         </div>
       </div>
 
-      {printing && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4 print:hidden" onClick={() => setPrinting(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start justify-between gap-2 print:hidden">
-              <h3 className="text-base font-semibold text-slate-800">{t("Refusal Form")}</h3>
-              <button onClick={() => setPrinting(null)} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-50">
-                ✕
-              </button>
-            </div>
-            <div id="refusal-print-area" className="mt-3 flex flex-col gap-3">
+      {printing &&
+        (() => {
+          const printBody = (
+            <>
               <div className="flex flex-col items-center gap-1 border-b border-slate-200 pb-3 text-center">
                 <img src={rabiaLogo} alt="Rabia Hospital" className="h-14 w-14 object-contain" />
                 <p className="text-sm font-bold text-slate-800">{t("Rabia Hospital — Infection Control Department")}</p>
@@ -300,17 +297,32 @@ export default function RefusalFormModal({ emp, vaccineItems, onClose, flash, on
                 </span>
                 <span>{t("Signed: Infection Control Department")}</span>
               </div>
+            </>
+          );
+          return (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4 print:hidden" onClick={() => setPrinting(null)}>
+              <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-base font-semibold text-slate-800">{t("Refusal Form")}</h3>
+                  <button onClick={() => setPrinting(null)} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-50">
+                    ✕
+                  </button>
+                </div>
+                <div className="mt-3 flex flex-col gap-3">{printBody}</div>
+                <button
+                  onClick={() => window.print()}
+                  className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 print:hidden"
+                >
+                  <Printer className="h-4 w-4" />
+                  {t("Print")}
+                </button>
+                <PrintPortal>
+                  <div className="flex flex-col gap-3 p-10">{printBody}</div>
+                </PrintPortal>
+              </div>
             </div>
-            <button
-              onClick={() => window.print()}
-              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 print:hidden"
-            >
-              <Printer className="h-4 w-4" />
-              {t("Print")}
-            </button>
-          </div>
-        </div>
-      )}
+          );
+        })()}
     </div>
   );
 }
