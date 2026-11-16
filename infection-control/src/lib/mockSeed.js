@@ -462,6 +462,10 @@ export const employee_nsi_followups = [
   },
 ];
 
+export const hai_monthly_indicators = [
+  { id: "hmi-1", category: "hand_hygiene", month: "2026-01-01", data: { total_opportunities: 75, total_correct: 55 }, updated_by: "ic", updated_at: new Date().toISOString() },
+];
+
 export const disease_types = [
   { id: "dt-1", name: "Tuberculosis (TB)", active: true, sort_order: 1 },
   { id: "dt-2", name: "Measles", active: true, sort_order: 2 },

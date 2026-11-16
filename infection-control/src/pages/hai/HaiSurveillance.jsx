@@ -6,6 +6,7 @@ import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
+import MonthlyIndicatorsTab from "../../components/hai/MonthlyIndicatorsTab";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const addDaysToDateStr = (dateStr, days) => {
@@ -66,6 +67,7 @@ const TABS = [
   { key: "icu", label: "ICU/NICU Surveillance" },
   { key: "vae", label: "VAE Monitoring" },
   { key: "ssi", label: "SSI Surveillance" },
+  { key: "indicators", label: "Monthly Indicators" },
 ];
 
 const emptyObSpecimen = { type: "", date_collected: "", organism: "", mdro: false };
@@ -989,6 +991,8 @@ export default function HaiSurveillance() {
           onCommentChange={(c, comments) => updateSsiField(c.id, { comments })}
         />
       )}
+
+      {tab === "indicators" && <MonthlyIndicatorsTab isAdmin={isAdmin} />}
 
     </div>
   );
