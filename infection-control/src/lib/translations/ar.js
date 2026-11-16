@@ -802,4 +802,9 @@ export const ar = {
   "MDRO Care Bundle": "حزمة MDRO",
   "ICU VAE Care Bundle": "حزمة VAE — العناية المركزة",
   "NICU & PICU Ventilator Bundle": "حزمة التنفس الصناعي — حضانة/عناية الأطفال",
+  "SSI Care Bundle": "حزمة عدوى الجرح الجراحي",
+  "SSI Event Classification": "تصنيف حدث عدوى الجرح الجراحي",
+  "VAE Event Classification": "تصنيف حدث VAE",
+  "Organism & Sensitivity": "الكائن الدقيق والحساسية",
+  "Not documented": "غير موثّق",
 };
