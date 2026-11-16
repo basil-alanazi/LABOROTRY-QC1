@@ -9,6 +9,7 @@ import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
 import AttachmentMarkupModal from "../../components/AttachmentMarkupModal";
+import rabiaLogo from "../../assets/rabia-logo.jpg";
 
 const TABS = [
   { key: "compliance", label: "Overdue & Missing" },
@@ -116,6 +117,7 @@ export default function EmployeeHealth() {
   const [doseDrafts, setDoseDrafts] = useState({}); // "empId|itemId|doseNum" -> { date, batch }
   const [nsiForm, setNsiForm] = useState({ employee_id: "", incident_date: todayStr(), notes: "" });
   const [qrEmployee, setQrEmployee] = useState(null);
+  const [requisitionEmployee, setRequisitionEmployee] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [qrDocForm, setQrDocForm] = useState({ docType: "vaccination", vaccineId: "", customName: "" });
 
@@ -318,23 +320,28 @@ export default function EmployeeHealth() {
       flash({ type: "error", text: "Name and department are required" });
       return;
     }
-    const { error } = await supabase.from("employees").insert({
-      employee_no: employeeForm.employee_no.trim(),
-      name,
-      department: employeeForm.department,
-      job_title: employeeForm.job_title.trim(),
-      file_no: employeeForm.file_no.trim(),
-      iqama_no: employeeForm.iqama_no.trim(),
-      date_of_birth: employeeForm.date_of_birth || null,
-      phone: employeeForm.phone.trim(),
-      is_kitchen_staff: employeeForm.is_kitchen_staff,
-    });
+    const { data, error } = await supabase
+      .from("employees")
+      .insert({
+        employee_no: employeeForm.employee_no.trim(),
+        name,
+        department: employeeForm.department,
+        job_title: employeeForm.job_title.trim(),
+        file_no: employeeForm.file_no.trim(),
+        iqama_no: employeeForm.iqama_no.trim(),
+        date_of_birth: employeeForm.date_of_birth || null,
+        phone: employeeForm.phone.trim(),
+        is_kitchen_staff: employeeForm.is_kitchen_staff,
+      })
+      .select()
+      .single();
     if (error) {
       flash({ type: "error", text: "Could not add employee" });
     } else {
       setEmployeeForm(emptyEmployeeForm);
       loadAll();
       flash({ type: "success", text: "Employee added" });
+      setRequisitionEmployee(Array.isArray(data) ? data[0] : data);
     }
   }
 
@@ -953,6 +960,14 @@ export default function EmployeeHealth() {
                         className="shrink-0 rounded p-0.5 text-slate-300 hover:bg-slate-100 hover:text-teal-600"
                       >
                         <QrCode className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        title={t("Print required tests requisition")}
+                        onClick={() => setRequisitionEmployee(emp)}
+                        className="shrink-0 rounded p-0.5 text-slate-300 hover:bg-slate-100 hover:text-teal-600"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
                       </button>
                       {canEdit && (
                         <button
@@ -1959,6 +1974,75 @@ export default function EmployeeHealth() {
               {t("Save Changes")}
             </button>
           </form>
+        </div>
+      )}
+
+      {requisitionEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 print:hidden" onClick={() => setRequisitionEmployee(null)}>
+          <style>{`
+            @media print {
+              body * { visibility: hidden; }
+              #requisition-print-area, #requisition-print-area * { visibility: visible; }
+              #requisition-print-area { position: fixed; inset: 0; margin: auto; }
+            }
+          `}</style>
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-2 print:hidden">
+              <h3 className="text-base font-semibold text-slate-800">{t("Required Tests Requisition")}</h3>
+              <button onClick={() => setRequisitionEmployee(null)} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-50">
+                ✕
+              </button>
+            </div>
+            <div id="requisition-print-area" className="mt-3 flex flex-col gap-3">
+              <div className="flex flex-col items-center gap-1 border-b border-slate-200 pb-3 text-center">
+                <img src={rabiaLogo} alt="Rabia Hospital" className="h-14 w-14 object-contain" />
+                <p className="text-sm font-bold text-slate-800">{t("Rabia Hospital — Infection Control Department")}</p>
+                <p className="text-xs text-slate-500">{t("New Employee Health Screening Requisition")}</p>
+              </div>
+              <dl className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <dt className="text-xs text-slate-400">{t("Name")}</dt>
+                  <dd className="font-medium text-slate-800">{requisitionEmployee.name}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-slate-400">{t("Employee #")}</dt>
+                  <dd className="font-medium text-slate-800">{requisitionEmployee.employee_no || "—"}</dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className="text-xs text-slate-400">{t("Department")}</dt>
+                  <dd className="font-medium text-slate-800">{requisitionEmployee.department}</dd>
+                </div>
+              </dl>
+              <div>
+                <p className="mb-1 text-xs font-bold text-slate-600">{t("Required Tests")}</p>
+                <ul className="flex flex-col gap-1 rounded-lg border border-slate-200 p-2">
+                  {itemTypes
+                    .filter((ty) => ty.active && ty.required_for_new_hire && (!ty.kitchen_only || requisitionEmployee.is_kitchen_staff))
+                    .map((ty) => (
+                      <li key={ty.id} className="text-sm text-slate-700">
+                        • {ty.name}
+                      </li>
+                    ))}
+                  {itemTypes.filter((ty) => ty.active && ty.required_for_new_hire && (!ty.kitchen_only || requisitionEmployee.is_kitchen_staff)).length === 0 && (
+                    <li className="text-sm text-slate-400">{t("No tests configured — add them in Settings.")}</li>
+                  )}
+                </ul>
+              </div>
+              <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-3 text-xs text-slate-500">
+                <span>
+                  {t("Date")}: {todayStr()}
+                </span>
+                <span>{t("Signed: Infection Control Department")}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => window.print()}
+              className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 print:hidden"
+            >
+              <Printer className="h-4 w-4" />
+              {t("Print")}
+            </button>
+          </div>
         </div>
       )}
 

@@ -807,4 +807,16 @@ export const ar = {
   "VAE Event Classification": "تصنيف حدث VAE",
   "Organism & Sensitivity": "الكائن الدقيق والحساسية",
   "Not documented": "غير موثّق",
+
+  // --- New Hire Test Requisition ---
+  "Required Tests Requisition": "طلب التحاليل المطلوبة",
+  "Print required tests requisition": "طباعة طلب التحاليل المطلوبة",
+  "Rabia Hospital — Infection Control Department": "مستشفى رابية — قسم مكافحة العدوى",
+  "New Employee Health Screening Requisition": "طلب فحوصات صحية لموظف جديد",
+  "Required Tests": "التحاليل المطلوبة",
+  "No tests configured — add them in Settings.": "لا توجد تحاليل مُعرَّفة — أضفها من الإعدادات.",
+  "Signed: Infection Control Department": "توقيع: قسم مكافحة العدوى",
+  "New Hire Requisition": "طلب الموظف الجديد",
+  "Show on new-hire requisition": "إظهار في طلب الموظف الجديد",
+  "Show on the printed test requisition handed to a newly added employee": "يظهر في طلب التحاليل المطبوع الذي يُعطى للموظف الجديد",
 };
