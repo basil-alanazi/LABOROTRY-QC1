@@ -678,6 +678,36 @@ export default function EmployeeHealth() {
     );
   }
 
+  function renderVaccinationRequiredTable(emp) {
+    const visible = activeItemTypes.filter((t) => !t.kitchen_only || emp.is_kitchen_staff);
+    if (visible.length === 0) return null;
+    return (
+      <div className="w-full max-w-xs overflow-hidden rounded-lg border border-slate-300 text-xs">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-slate-50">
+              <th className="border-b border-slate-300 px-2 py-1 text-start font-semibold text-slate-700">{t("Vaccination required")}</th>
+              <th className="w-12 border-b border-s border-slate-300 px-2 py-1 text-center font-semibold text-slate-700">{t("Click")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((item) => {
+              const requested = requests.some((r) => r.employee_id === emp.id && r.item_type_id === item.id);
+              return (
+                <tr key={item.id}>
+                  <td className="border-b border-slate-200 px-2 py-1 text-slate-700">{item.name}</td>
+                  <td className="border-b border-s border-slate-200 px-2 py-1 text-center">
+                    <input type="checkbox" disabled={!canEdit} checked={requested} onChange={(e) => toggleVaccineRequest(emp, item, e.target.checked)} />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   const pendingReviewEmployees = useMemo(
     () => activeEmployees.filter((e) => statusFor(e.id).investigation_status !== "review_done").sort((a, b) => a.name.localeCompare(b.name)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1316,13 +1346,14 @@ export default function EmployeeHealth() {
                 const needed = neededVaccines(emp);
                 return (
                   <div key={emp.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold text-slate-800">{emp.name}</p>
                         <p className="text-xs text-slate-500">
                           {emp.department} · {emp.employee_no} · {t("File #")}: {emp.file_no || "—"}
                         </p>
                       </div>
+                      {renderVaccinationRequiredTable(emp)}
                       <select className="input-cell w-44" value={s.investigation_status || "review_due"} onChange={(e) => saveStatus(emp, { investigation_status: e.target.value })}>
                         {INVESTIGATION_STATUSES.map((o) => (
                           <option key={o.value} value={o.value}>

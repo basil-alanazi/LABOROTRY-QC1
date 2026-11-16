@@ -772,4 +772,6 @@ export const ar = {
   "ORIF": "تثبيت الكسور",
   "Others": "أخرى",
   "No. of Surgeries": "عدد العمليات",
+  "Vaccination required": "اللقاح المطلوب",
+  "Click": "اضغط",
 };
