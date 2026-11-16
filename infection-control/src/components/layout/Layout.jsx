@@ -4,6 +4,7 @@ import {
   Activity,
   CalendarDays,
   ClipboardCheck,
+  Dna,
   Droplets,
   FolderClock,
   HeartPulse,
@@ -112,6 +113,12 @@ export default function Layout({ children }) {
         <NavLink to="/hai-surveillance" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <Activity className="h-4 w-4" />
           {t("HAI Surveillance")}
+        </NavLink>
+      )}
+      {canViewHaiSurveillance && !(session?.haiScope && !isAdmin) && (
+        <NavLink to="/hai-monthly-indicators" className={linkClass} onClick={() => setSidebarOpen(false)}>
+          <Dna className="h-4 w-4" />
+          {t("Monthly IPC Indicator")}
         </NavLink>
       )}
       {(isAdmin || !(session?.canViewEmployeeHealth || session?.canViewHaiSurveillance)) && (

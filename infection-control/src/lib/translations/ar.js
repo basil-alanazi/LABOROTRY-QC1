@@ -728,7 +728,8 @@ export const ar = {
   "Employee not found.": "الموظف غير موجود.",
 
   // --- HAI Monthly Indicators ---
-  "Monthly Indicators": "المؤشرات الشهرية",
+  "Monthly IPC Indicator": "مؤشرات مكافحة العدوى الشهرية",
+  "Hand hygiene, device-associated infection rates, bundle compliance and surgery counts, by month.": "نظافة اليدين، معدلات العدوى المرتبطة بالأجهزة، نسبة الالتزام بالحزمة، وعدد العمليات، حسب الشهر.",
   "Benchmark": "المعيار المرجعي",
   "CLABSI — ICU": "CLABSI — العناية المركزة",
   "CAUTI — ICU": "CAUTI — العناية المركزة",
