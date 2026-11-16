@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, FileSpreadsheet, FileText, Paperclip, Pencil, Plus, Printer, QrCode, Save, Trash2, Upload, UserPlus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileSignature, FileSpreadsheet, FileText, Paperclip, Pencil, Plus, Printer, QrCode, Save, Trash2, Upload, UserPlus } from "lucide-react";
 import QRCode from "qrcode";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
@@ -9,6 +9,7 @@ import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
 import AttachmentMarkupModal from "../../components/AttachmentMarkupModal";
+import RefusalFormModal from "../../components/RefusalFormModal";
 import rabiaLogo from "../../assets/rabia-logo.jpg";
 
 const TABS = [
@@ -118,6 +119,7 @@ export default function EmployeeHealth() {
   const [nsiForm, setNsiForm] = useState({ employee_id: "", incident_date: todayStr(), notes: "" });
   const [qrEmployee, setQrEmployee] = useState(null);
   const [requisitionEmployee, setRequisitionEmployee] = useState(null);
+  const [refusalEmployee, setRefusalEmployee] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [qrDocForm, setQrDocForm] = useState({ docType: "vaccination", vaccineId: "", customName: "" });
 
@@ -968,6 +970,14 @@ export default function EmployeeHealth() {
                         className="shrink-0 rounded p-0.5 text-slate-300 hover:bg-slate-100 hover:text-teal-600"
                       >
                         <Printer className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        title={t("Refusal Form")}
+                        onClick={() => setRefusalEmployee(emp)}
+                        className="shrink-0 rounded p-0.5 text-slate-300 hover:bg-slate-100 hover:text-teal-600"
+                      >
+                        <FileSignature className="h-3.5 w-3.5" />
                       </button>
                       {canEdit && (
                         <button
@@ -2044,6 +2054,16 @@ export default function EmployeeHealth() {
             </button>
           </div>
         </div>
+      )}
+
+      {refusalEmployee && (
+        <RefusalFormModal
+          emp={refusalEmployee}
+          vaccineItems={activeItemTypes.filter((ty) => ty.category === "vaccine" && (!ty.kitchen_only || refusalEmployee.is_kitchen_staff))}
+          onClose={() => setRefusalEmployee(null)}
+          flash={flash}
+          onSaved={{ ppdRefused: (emp) => saveStatus(emp, { ppd_status: "refused" }) }}
+        />
       )}
 
       {markupTarget && (
