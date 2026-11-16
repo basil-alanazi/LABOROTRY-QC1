@@ -567,28 +567,36 @@ export default function EmployeeHealth() {
   }
   async function saveMarkupAnnotation(file) {
     if (!markupTarget) return;
+    // Editing an attachment that's already a markup copy (not the original
+    // source) updates that same entry in place instead of piling up another
+    // copy — the true original (what the employee sees) is only ever
+    // created once, the first time an attachment is marked up.
+    const editingExistingMarkup = !!markupTarget.attachment.is_markup;
     try {
       if (markupTarget.kind === "investigation") {
-        const { emp } = markupTarget;
-        const uploaded = await uploadInvestigationFile(emp, file);
+        const { emp, index } = markupTarget;
+        const uploaded = { ...(await uploadInvestigationFile(emp, file)), is_markup: true };
         const current = statusFor(emp.id).investigation_attachments || [];
-        await saveStatus(emp, { investigation_attachments: [...current, uploaded] });
+        const next = editingExistingMarkup ? current.map((a, i) => (i === index ? uploaded : a)) : [...current, uploaded];
+        await saveStatus(emp, { investigation_attachments: next });
       } else if (markupTarget.kind === "document") {
-        const { emp, attachment } = markupTarget;
-        const uploaded = await uploadEmployeeDocumentFile(emp, file);
-        const next = [...(emp.employee_documents ?? []), { ...uploaded, doc_type: attachment.doc_type, label: attachment.label, internal: true }];
+        const { emp, attachment, index } = markupTarget;
+        const uploaded = { ...(await uploadEmployeeDocumentFile(emp, file)), doc_type: attachment.doc_type, label: attachment.label, internal: true, is_markup: true };
+        const current = emp.employee_documents ?? [];
+        const next = editingExistingMarkup ? current.map((a, i) => (i === index ? uploaded : a)) : [...current, uploaded];
         const { error } = await supabase.from("employees").update({ employee_documents: next }).eq("id", emp.id);
         if (error) throw error;
         setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, employee_documents: next } : e)));
         setQrEmployee((prev) => (prev && prev.id === emp.id ? { ...prev, employee_documents: next } : prev));
       } else {
-        const { nsiCase } = markupTarget;
-        const uploaded = await uploadNsiFile(nsiCase, file);
-        const next = [...(nsiCase.form_attachments ?? []), uploaded];
+        const { nsiCase, index } = markupTarget;
+        const uploaded = { ...(await uploadNsiFile(nsiCase, file)), is_markup: true };
+        const current = nsiCase.form_attachments ?? [];
+        const next = editingExistingMarkup ? current.map((a, i) => (i === index ? uploaded : a)) : [...current, uploaded];
         updateNsiField(nsiCase.id, { form_attachments: next });
         await supabase.from("employee_nsi_followups").update({ form_attachments: next }).eq("id", nsiCase.id);
       }
-      flash({ type: "success", text: "Markup saved as a new attachment" });
+      flash({ type: "success", text: "Markup saved" });
     } catch (err) {
       flash({ type: "error", text: "Could not save markup: " + err.message });
     } finally {
@@ -657,7 +665,7 @@ export default function EmployeeHealth() {
               <div key={i} className="group relative">
                 <button
                   type="button"
-                  onClick={() => setMarkupTarget({ kind: "document", emp, attachment: a })}
+                  onClick={() => setMarkupTarget({ kind: "document", emp, attachment: a, index: i })}
                   className="block h-16 w-16 overflow-hidden rounded-lg border border-slate-200 hover:ring-2 hover:ring-teal-500"
                   title={t("Click to view & mark up")}
                 >
@@ -1399,7 +1407,7 @@ export default function EmployeeHealth() {
                           <div key={i} className="group relative">
                             <button
                               type="button"
-                              onClick={() => setMarkupTarget({ kind: "investigation", emp, attachment: a })}
+                              onClick={() => setMarkupTarget({ kind: "investigation", emp, attachment: a, index: i })}
                               className="block h-16 w-16 overflow-hidden rounded-lg border border-slate-200 hover:ring-2 hover:ring-teal-500"
                               title={t("Click to view & mark up")}
                             >
@@ -1535,7 +1543,7 @@ export default function EmployeeHealth() {
                           <div key={i} className="group relative">
                             <button
                               type="button"
-                              onClick={() => setMarkupTarget({ kind: "nsi", nsiCase: c, attachment: a })}
+                              onClick={() => setMarkupTarget({ kind: "nsi", nsiCase: c, attachment: a, index: i })}
                               className="block h-16 w-16 overflow-hidden rounded-lg border border-slate-200 hover:ring-2 hover:ring-teal-500"
                               title={t("Click to view & mark up")}
                             >
@@ -1810,7 +1818,7 @@ export default function EmployeeHealth() {
                           <div key={a._i} className="group relative">
                             <button
                               type="button"
-                              onClick={() => setMarkupTarget({ kind: "document", emp: qrEmployee, attachment: a })}
+                              onClick={() => setMarkupTarget({ kind: "document", emp: qrEmployee, attachment: a, index: a._i })}
                               className="block h-16 w-16 overflow-hidden rounded-lg border border-slate-200 hover:ring-2 hover:ring-teal-500"
                               title={t("Click to view & mark up")}
                             >
