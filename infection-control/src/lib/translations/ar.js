@@ -701,6 +701,7 @@ export const ar = {
   "Save Markup": "حفظ التعليم",
   "Saving...": "جارِ الحفظ...",
   "Markup saved as a new attachment": "تم حفظ التعليم كمرفق جديد",
+  "Markup saved": "تم حفظ التعليم",
   "PPD Pending Review": "فحص PPD — بانتظار المراجعة",
   "Mark done": "تمييز كمكتمل",
   "Follow-up reports": "تقارير المتابعة",
