@@ -17,12 +17,12 @@ function signatureUrl(path) {
 // item the employee is refusing right now (PPD and/or specific vaccines),
 // the employee signs once on screen, and it all saves as a single
 // printable document instead of one form per refused item.
-export default function RefusalFormModal({ emp, vaccineItems, onClose, flash, onSaved }) {
+export default function RefusalFormModal({ emp, vaccineItems, onClose, flash, onSaved, preselect }) {
   const { session } = useAuth();
   const { t } = useLanguage();
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [selected, setSelected] = useState({});
+  const [selected, setSelected] = useState(() => Object.fromEntries((preselect || []).map((k) => [k, true])));
   const [reason, setReason] = useState("");
   const [hasSignature, setHasSignature] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -121,7 +121,7 @@ export default function RefusalFormModal({ emp, vaccineItems, onClose, flash, on
       if (error) throw error;
 
       if (selected.ppd_1 || selected.ppd_2) {
-        await onSaved?.ppdRefused?.(emp);
+        await onSaved?.ppdRefused?.(emp, chosenKeys);
       }
       for (const key of chosenKeys) {
         if (key.startsWith("vaccine:")) {
