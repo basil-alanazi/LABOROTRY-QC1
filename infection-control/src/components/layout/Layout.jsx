@@ -4,6 +4,7 @@ import {
   Activity,
   CalendarDays,
   ClipboardCheck,
+  ClipboardList,
   Dna,
   Droplets,
   FolderClock,
@@ -119,6 +120,12 @@ export default function Layout({ children }) {
         <NavLink to="/hai-monthly-indicators" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <Dna className="h-4 w-4" />
           {t("Monthly IPC Indicator")}
+        </NavLink>
+      )}
+      {canViewHaiSurveillance && (
+        <NavLink to="/hai-care-bundles" className={linkClass} onClick={() => setSidebarOpen(false)}>
+          <ClipboardList className="h-4 w-4" />
+          {t("IPC Care Bundles")}
         </NavLink>
       )}
       {(isAdmin || !(session?.canViewEmployeeHealth || session?.canViewHaiSurveillance)) && (
