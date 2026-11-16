@@ -819,4 +819,20 @@ export const ar = {
   "New Hire Requisition": "طلب الموظف الجديد",
   "Show on new-hire requisition": "إظهار في طلب الموظف الجديد",
   "Show on the printed test requisition handed to a newly added employee": "يظهر في طلب التحاليل المطبوع الذي يُعطى للموظف الجديد",
+
+  // --- Refusal Form ---
+  "Refusal Form": "نموذج الرفض",
+  "Past refusals": "حالات الرفض السابقة",
+  "Report a new refusal": "تسجيل رفض جديد",
+  "Select everything the employee is refusing right now": "حدد كل ما يرفضه الموظف الآن",
+  "PPD Test — 1st attempt": "فحص PPD — المحاولة الأولى",
+  "PPD Test — 2nd attempt": "فحص PPD — المحاولة الثانية",
+  "Reason (optional)": "السبب (اختياري)",
+  "Employee signature": "توقيع الموظف",
+  "Clear": "مسح",
+  "Save & Print": "حفظ وطباعة",
+  "Refusal of Investigation/Vaccination": "رفض فحص/تطعيم",
+  "Select at least one refused item": "حدد عنصرًا واحدًا على الأقل تم رفضه",
+  "Employee signature is required": "توقيع الموظف مطلوب",
+  "Refusal recorded": "تم تسجيل الرفض",
 };
