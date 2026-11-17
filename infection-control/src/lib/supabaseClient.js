@@ -50,4 +50,8 @@ export const supabase =
         hai_care_bundle_forms: seed.hai_care_bundle_forms,
         employee_refusal_forms: seed.employee_refusal_forms,
         quality_policy_tracker: seed.quality_policy_tracker,
+        ic_test_sets: seed.ic_test_sets,
+        ic_test_questions: seed.ic_test_questions,
+        ic_test_access: seed.ic_test_access,
+        ic_test_attempts: seed.ic_test_attempts,
       });

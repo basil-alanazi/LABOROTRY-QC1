@@ -8,6 +8,7 @@ import {
   Dna,
   Droplets,
   FolderClock,
+  GraduationCap,
   HeartPulse,
   Languages,
   Menu,
@@ -102,6 +103,12 @@ export default function Layout({ children }) {
         <NavLink to="/quality-rounds" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <Sparkles className="h-4 w-4" />
           {t("Quality Daily Rounds")}
+        </NavLink>
+      )}
+      {isAdmin && (
+        <NavLink to="/ic-knowledge-test" className={linkClass} onClick={() => setSidebarOpen(false)}>
+          <GraduationCap className="h-4 w-4" />
+          {t("IC Knowledge Test")}
         </NavLink>
       )}
       {isAdmin && (
