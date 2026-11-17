@@ -310,6 +310,106 @@ export const quality_policy_tracker = [
   },
 ];
 
+export const ic_test_sets = [
+  { id: "icts-1", department: "Laboratory", title: "Laboratory Infection Control Test", policy_no: "APP-IPC-30", pass_score: 8, active: true, created_at: new Date().toISOString() },
+];
+
+export const ic_test_questions = [
+  {
+    id: "icq-1",
+    department: "Laboratory",
+    question_text: "A lab technologist removes gloves after processing blood tubes and is about to leave the lab. The correct action is:",
+    options: ["No hand hygiene is needed because gloves were worn", "Wash hands with soap and water before leaving the lab", "Wipe hands with a dry tissue", "Wash only if the gloves were torn"],
+    correct_index: 1,
+    sort_order: 1,
+    active: true,
+  },
+  {
+    id: "icq-2",
+    department: "Laboratory",
+    question_text: "Which practice is correct when leaving the lab area (corridor, cafeteria, offices)?",
+    options: ["Keep the lab coat on but remove gloves only", "Keep gloves on to avoid touching surfaces", "Take off gloves and lab coat and clean hands first", "Wear gloves outside only for short trips"],
+    correct_index: 2,
+    sort_order: 2,
+    active: true,
+  },
+  {
+    id: "icq-3",
+    department: "Laboratory",
+    question_text: "A blood tube breaks and blood spills on the bench. The correct response is:",
+    options: ["Wipe with a dry paper towel and discard", "Pour water to dilute it and leave it", "Leave it for housekeeping", "Wear PPE, cover with absorbent material, apply approved disinfectant for the full contact time, then clean up"],
+    correct_index: 3,
+    sort_order: 3,
+    active: true,
+  },
+  {
+    id: "icq-4",
+    department: "Laboratory",
+    question_text: "A tube breaks inside the centrifuge during a run. The correct response is:",
+    options: ["Switch off, keep the lid closed about 30 minutes for aerosols to settle, then clean with PPE and disinfect", "Open the lid immediately and remove the pieces", "Restart the run to finish the cycle", "Ignore it until the end of the shift"],
+    correct_index: 0,
+    sort_order: 4,
+    active: true,
+  },
+  {
+    id: "icq-5",
+    department: "Laboratory",
+    question_text: "Which procedure should be done inside a Class II biological safety cabinet?",
+    options: ["Labelling tubes", "Opening cultures or vortexing/aliquoting open infectious samples", "Entering results in the system", "Storing reagents"],
+    correct_index: 1,
+    sort_order: 5,
+    active: true,
+  },
+  {
+    id: "icq-6",
+    department: "Laboratory",
+    question_text: "The correct way to transport specimens to the lab is:",
+    options: ["Loose tubes in a pocket for speed", "In a tray, by hand, without a lid", "Sealed, leak-proof container inside a biohazard bag, with the request form in a separate pocket", "With the request form wrapped around the tube"],
+    correct_index: 2,
+    sort_order: 6,
+    active: true,
+  },
+  {
+    id: "icq-7",
+    department: "Laboratory",
+    question_text: "A phlebotomist gets a needlestick after drawing blood. The correct sequence is:",
+    options: ["Wash with soap and water, report immediately, then go for evaluation and baseline testing", "Squeeze hard, scrub with bleach, and report at end of shift", "Finish the remaining patients, then decide", "Report only if the patient is known positive"],
+    correct_index: 0,
+    sort_order: 7,
+    active: true,
+  },
+  {
+    id: "icq-8",
+    department: "Laboratory",
+    question_text: "Used blood tubes and other infectious lab waste are placed in:",
+    options: ["Black general-waste bag", "Yellow infectious medical-waste bag marked with the biohazard symbol", "Paper recycling bin", "The sink"],
+    correct_index: 1,
+    sort_order: 8,
+    active: true,
+  },
+  {
+    id: "icq-9",
+    department: "Laboratory",
+    question_text: "The lab identifies CRE (or MRSA) from a patient's culture. The next step is:",
+    options: ["Record it and wait for the monthly report", "Tell the patient's family", "Notify the Infection Control department and the ward per hospital policy", "Discard the isolate and repeat the test"],
+    correct_index: 2,
+    sort_order: 9,
+    active: true,
+  },
+  {
+    id: "icq-10",
+    department: "Laboratory",
+    question_text: "Hepatitis B protection for lab staff means:",
+    options: ["1 dose and no testing", "3 doses, then anti-HBs checked 1–2 months after the 3rd dose", "Vaccination only after an exposure", "Not required for lab staff"],
+    correct_index: 1,
+    sort_order: 10,
+    active: true,
+  },
+];
+
+export const ic_test_access = [];
+export const ic_test_attempts = [];
+
 export const culture_tracker = [
   {
     id: "cul-1",
@@ -417,6 +517,20 @@ export const employees = [
     date_of_birth: "1988-09-03",
     phone: "05xxxxxxx2",
     is_kitchen_staff: true,
+    active: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "emp-3",
+    employee_no: "E-1003",
+    name: "Reem Al-Zahrani",
+    department: "Laboratory",
+    job_title: "Lab Technologist",
+    file_no: "F-203",
+    iqama_no: "2xxxxxxxx3",
+    date_of_birth: "1992-02-20",
+    phone: "05xxxxxxx3",
+    is_kitchen_staff: false,
     active: true,
     created_at: new Date().toISOString(),
   },
