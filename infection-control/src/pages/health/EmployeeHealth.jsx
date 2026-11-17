@@ -11,6 +11,7 @@ import { fetchAllRows } from "../../lib/fetchAll";
 import AttachmentMarkupModal from "../../components/AttachmentMarkupModal";
 import RefusalFormModal from "../../components/RefusalFormModal";
 import PrintPortal from "../../components/PrintPortal";
+import CellDropdown from "../../components/CellDropdown";
 import rabiaLogo from "../../assets/rabia-logo.jpg";
 
 const TABS = [
@@ -122,8 +123,8 @@ export default function EmployeeHealth() {
   const [requisitionEmployee, setRequisitionEmployee] = useState(null);
   const [refusalEmployee, setRefusalEmployee] = useState(null);
   const [refusalPreselect, setRefusalPreselect] = useState(null);
-  const [ppdPopupEmployee, setPpdPopupEmployee] = useState(null);
-  const [vaccinePopup, setVaccinePopup] = useState(null); // { emp, item }
+  const [ppdPopupEmployee, setPpdPopupEmployee] = useState(null); // employee id whose PPD dropdown is open
+  const [vaccinePopup, setVaccinePopup] = useState(null); // { empId, itemId } of the open vaccine dropdown
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [qrDocForm, setQrDocForm] = useState({ docType: "vaccination", vaccineId: "", customName: "" });
 
@@ -1049,14 +1050,116 @@ export default function EmployeeHealth() {
                   <td className="border-r border-slate-100 px-2 py-1">
                     {(() => {
                       const badge = ppdBadgeInfo(s);
+                      const isOpen = ppdPopupEmployee?.id === emp.id;
                       return (
-                        <button
-                          type="button"
-                          onClick={() => setPpdPopupEmployee(emp)}
-                          className={`w-full rounded px-2 py-1 text-center text-xs font-medium whitespace-nowrap ${badge.cls} hover:opacity-80`}
-                        >
-                          {badge.text}
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              if (isOpen) {
+                                setPpdPopupEmployee(null);
+                                return;
+                              }
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setPpdPopupEmployee({ id: emp.id, top: rect.bottom + 4, left: rect.left });
+                            }}
+                            className={`w-full rounded px-2 py-1 text-center text-xs font-medium whitespace-nowrap ${badge.cls} hover:opacity-80`}
+                          >
+                            {badge.text}
+                          </button>
+                          {isOpen && (
+                            <CellDropdown top={ppdPopupEmployee.top} left={ppdPopupEmployee.left} onClose={() => setPpdPopupEmployee(null)}>
+                              <div className="mb-1 flex items-center justify-between">
+                                <p className="text-xs font-bold text-slate-600">{t("PPD")}</p>
+                                <button onClick={() => setPpdPopupEmployee(null)} className="rounded px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-50">
+                                  ✕
+                                </button>
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                <label className="flex flex-col gap-1 text-xs text-slate-500">
+                                  {t("PPD Status")}
+                                  <select className="input" value={s.ppd_status || ""} disabled={!canEdit} onChange={(e) => saveStatus(emp, { ppd_status: e.target.value })}>
+                                    <option value="">—</option>
+                                    <option value="done">{t("Done")}</option>
+                                    <option value="refused_1st">{t("Refused (1st)")}</option>
+                                    <option value="refused_2nd">{t("Refused (2nd)")}</option>
+                                  </select>
+                                </label>
+                                <label className="flex flex-col gap-1 text-xs text-slate-500">
+                                  {t("PPD Result")}
+                                  <input
+                                    className="input"
+                                    placeholder={t("e.g. Negative")}
+                                    value={s.ppd_result || ""}
+                                    disabled={!canEdit}
+                                    onChange={(e) => setStatusField(emp.id, { ppd_result: e.target.value })}
+                                    onBlur={() => saveStatusRow(emp)}
+                                  />
+                                </label>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <label className="flex flex-col gap-1 text-xs text-slate-500">
+                                    {t("1st PPD")}
+                                    <input
+                                      type="date"
+                                      className="input"
+                                      value={s.ppd_test_date || ""}
+                                      disabled={!canEdit}
+                                      onChange={(e) =>
+                                        setStatusField(emp.id, { ppd_test_date: e.target.value, ppd_next_due_date: e.target.value ? addMonths(e.target.value, 12) : "" })
+                                      }
+                                      onBlur={() => saveStatusRow(emp)}
+                                    />
+                                  </label>
+                                  <label className="flex flex-col gap-1 text-xs text-slate-500">
+                                    {t("2nd PPD")}
+                                    <input
+                                      type="date"
+                                      className="input"
+                                      value={s.ppd_2nd_test_date || ""}
+                                      disabled={!canEdit}
+                                      onChange={(e) =>
+                                        setStatusField(emp.id, {
+                                          ppd_2nd_test_date: e.target.value,
+                                          ppd_next_due_date: e.target.value ? addMonths(e.target.value, 12) : s.ppd_next_due_date,
+                                        })
+                                      }
+                                      onBlur={() => saveStatusRow(emp)}
+                                    />
+                                  </label>
+                                </div>
+                                <label className="flex flex-col gap-1 text-xs text-slate-500">
+                                  {t("PPD Next Due")}
+                                  <input
+                                    type="date"
+                                    className="input"
+                                    value={s.ppd_next_due_date || ""}
+                                    disabled={!canEdit}
+                                    onChange={(e) => setStatusField(emp.id, { ppd_next_due_date: e.target.value })}
+                                    onBlur={() => saveStatusRow(emp)}
+                                  />
+                                </label>
+                                {canEdit && (
+                                  <div className="mt-1 flex gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => openRefusalFor(emp, ["ppd_1"])}
+                                      className="flex-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                                    >
+                                      {t("Refuse — 1st attempt")}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => openRefusalFor(emp, ["ppd_2"])}
+                                      className="flex-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                                    >
+                                      {t("Refuse — 2nd attempt")}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </CellDropdown>
+                          )}
+                        </>
                       );
                     })()}
                   </td>
@@ -1098,15 +1201,80 @@ export default function EmployeeHealth() {
 
                   {slots.map(({ item }) => {
                     const badge = vaccineBadgeInfo(emp, item);
+                    const isOpen = vaccinePopup?.empId === emp.id && vaccinePopup?.itemId === item.id;
+                    const requested = requests.some((r) => r.employee_id === emp.id && r.item_type_id === item.id);
+                    const reqRow = requests.find((r) => r.employee_id === emp.id && r.item_type_id === item.id);
+                    const doses = vaccineSlots([item])[0].doses;
+                    const dropdownWidth = 288;
                     return (
                       <td key={item.id} className="border-r border-slate-100 px-2 py-1 text-center">
                         <button
                           type="button"
-                          onClick={() => setVaccinePopup({ emp, item })}
+                          onClick={(e) => {
+                            if (isOpen) {
+                              setVaccinePopup(null);
+                              return;
+                            }
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setVaccinePopup({ empId: emp.id, itemId: item.id, top: rect.bottom + 4, left: rect.right - dropdownWidth });
+                          }}
                           className={`w-full rounded px-2 py-1 text-xs font-medium whitespace-nowrap ${badge.cls} hover:opacity-80`}
                         >
                           {badge.text}
                         </button>
+                        {isOpen && (
+                          <CellDropdown top={vaccinePopup.top} left={vaccinePopup.left} width={dropdownWidth} onClose={() => setVaccinePopup(null)}>
+                              <div className="mb-1 flex items-center justify-between">
+                                <p className="text-xs font-bold text-slate-600">{item.name}</p>
+                                <button onClick={() => setVaccinePopup(null)} className="rounded px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-50">
+                                  ✕
+                                </button>
+                              </div>
+                              <label className="flex items-center gap-2 text-sm text-slate-700">
+                                <input type="checkbox" checked={requested} disabled={!canEdit} onChange={(e) => toggleVaccineRequest(emp, item, e.target.checked)} />
+                                {t("Required")}
+                              </label>
+                              {reqRow?.refused && <p className="mt-1 text-xs font-medium text-amber-600">{t("Refused")}</p>}
+                              {requested && (
+                                <div className="mt-2 flex flex-col gap-2">
+                                  {doses.map((d) => (
+                                    <div key={d} className="grid grid-cols-2 gap-2">
+                                      <label className="flex flex-col gap-1 text-xs text-slate-500">
+                                        D{d} Date
+                                        <input
+                                          type="date"
+                                          className="input"
+                                          value={getDoseField(emp.id, item.id, d, "date")}
+                                          disabled={!canEdit}
+                                          onChange={(e) => setDoseField(emp.id, item.id, d, "date", e.target.value)}
+                                          onBlur={() => saveDoseCell(emp, item, d)}
+                                        />
+                                      </label>
+                                      <label className="flex flex-col gap-1 text-xs text-slate-500">
+                                        D{d} Batch
+                                        <input
+                                          className="input"
+                                          value={getDoseField(emp.id, item.id, d, "batch")}
+                                          disabled={!canEdit}
+                                          onChange={(e) => setDoseField(emp.id, item.id, d, "batch", e.target.value)}
+                                          onBlur={() => saveDoseCell(emp, item, d)}
+                                        />
+                                      </label>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => openRefusalFor(emp, [`vaccine:${item.id}`])}
+                                  className="mt-2 w-full rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                                >
+                                  {t("Refuse this vaccine")}
+                                </button>
+                              )}
+                          </CellDropdown>
+                        )}
                       </td>
                     );
                   })}
@@ -1722,180 +1890,6 @@ export default function EmployeeHealth() {
                       ))
                     )}
                   </div>
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      )}
-
-      {ppdPopupEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setPpdPopupEmployee(null)}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            {(() => {
-              const emp = ppdPopupEmployee;
-              const s = statusFor(emp.id);
-              return (
-                <>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="text-base font-semibold text-slate-800">{t("PPD")}</h3>
-                      <p className="text-xs text-slate-500">
-                        {emp.name} · {emp.department}
-                      </p>
-                    </div>
-                    <button onClick={() => setPpdPopupEmployee(null)} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-50">
-                      ✕
-                    </button>
-                  </div>
-                  <div className="mt-3 flex flex-col gap-2">
-                    <label className="flex flex-col gap-1 text-xs text-slate-500">
-                      {t("PPD Status")}
-                      <select className="input" value={s.ppd_status || ""} disabled={!canEdit} onChange={(e) => saveStatus(emp, { ppd_status: e.target.value })}>
-                        <option value="">—</option>
-                        <option value="done">{t("Done")}</option>
-                        <option value="refused_1st">{t("Refused (1st)")}</option>
-                        <option value="refused_2nd">{t("Refused (2nd)")}</option>
-                      </select>
-                    </label>
-                    <label className="flex flex-col gap-1 text-xs text-slate-500">
-                      {t("PPD Result")}
-                      <input
-                        className="input"
-                        placeholder={t("e.g. Negative")}
-                        value={s.ppd_result || ""}
-                        disabled={!canEdit}
-                        onChange={(e) => setStatusField(emp.id, { ppd_result: e.target.value })}
-                        onBlur={() => saveStatusRow(emp)}
-                      />
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <label className="flex flex-col gap-1 text-xs text-slate-500">
-                        {t("1st PPD")}
-                        <input
-                          type="date"
-                          className="input"
-                          value={s.ppd_test_date || ""}
-                          disabled={!canEdit}
-                          onChange={(e) => setStatusField(emp.id, { ppd_test_date: e.target.value, ppd_next_due_date: e.target.value ? addMonths(e.target.value, 12) : "" })}
-                          onBlur={() => saveStatusRow(emp)}
-                        />
-                      </label>
-                      <label className="flex flex-col gap-1 text-xs text-slate-500">
-                        {t("2nd PPD")}
-                        <input
-                          type="date"
-                          className="input"
-                          value={s.ppd_2nd_test_date || ""}
-                          disabled={!canEdit}
-                          onChange={(e) =>
-                            setStatusField(emp.id, { ppd_2nd_test_date: e.target.value, ppd_next_due_date: e.target.value ? addMonths(e.target.value, 12) : s.ppd_next_due_date })
-                          }
-                          onBlur={() => saveStatusRow(emp)}
-                        />
-                      </label>
-                    </div>
-                    <label className="flex flex-col gap-1 text-xs text-slate-500">
-                      {t("PPD Next Due")}
-                      <input
-                        type="date"
-                        className="input"
-                        value={s.ppd_next_due_date || ""}
-                        disabled={!canEdit}
-                        onChange={(e) => setStatusField(emp.id, { ppd_next_due_date: e.target.value })}
-                        onBlur={() => saveStatusRow(emp)}
-                      />
-                    </label>
-                    {canEdit && (
-                      <div className="mt-1 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openRefusalFor(emp, ["ppd_1"])}
-                          className="flex-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-                        >
-                          {t("Refuse — 1st attempt")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openRefusalFor(emp, ["ppd_2"])}
-                          className="flex-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-                        >
-                          {t("Refuse — 2nd attempt")}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      )}
-
-      {vaccinePopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setVaccinePopup(null)}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            {(() => {
-              const { emp, item } = vaccinePopup;
-              const requested = requests.some((r) => r.employee_id === emp.id && r.item_type_id === item.id);
-              const reqRow = requests.find((r) => r.employee_id === emp.id && r.item_type_id === item.id);
-              const doses = vaccineSlots([item])[0].doses;
-              return (
-                <>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="text-base font-semibold text-slate-800">{item.name}</h3>
-                      <p className="text-xs text-slate-500">
-                        {emp.name} · {emp.department}
-                      </p>
-                    </div>
-                    <button onClick={() => setVaccinePopup(null)} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-50">
-                      ✕
-                    </button>
-                  </div>
-                  <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
-                    <input type="checkbox" checked={requested} disabled={!canEdit} onChange={(e) => toggleVaccineRequest(emp, item, e.target.checked)} />
-                    {t("Required")}
-                  </label>
-                  {reqRow?.refused && <p className="mt-1 text-xs font-medium text-amber-600">{t("Refused")}</p>}
-                  {requested && (
-                    <div className="mt-3 flex flex-col gap-2">
-                      {doses.map((d) => (
-                        <div key={d} className="grid grid-cols-2 gap-2">
-                          <label className="flex flex-col gap-1 text-xs text-slate-500">
-                            D{d} Date
-                            <input
-                              type="date"
-                              className="input"
-                              value={getDoseField(emp.id, item.id, d, "date")}
-                              disabled={!canEdit}
-                              onChange={(e) => setDoseField(emp.id, item.id, d, "date", e.target.value)}
-                              onBlur={() => saveDoseCell(emp, item, d)}
-                            />
-                          </label>
-                          <label className="flex flex-col gap-1 text-xs text-slate-500">
-                            D{d} Batch
-                            <input
-                              className="input"
-                              value={getDoseField(emp.id, item.id, d, "batch")}
-                              disabled={!canEdit}
-                              onChange={(e) => setDoseField(emp.id, item.id, d, "batch", e.target.value)}
-                              onBlur={() => saveDoseCell(emp, item, d)}
-                            />
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => openRefusalFor(emp, [`vaccine:${item.id}`])}
-                      className="mt-3 w-full rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
-                    >
-                      {t("Refuse this vaccine")}
-                    </button>
-                  )}
                 </>
               );
             })()}
