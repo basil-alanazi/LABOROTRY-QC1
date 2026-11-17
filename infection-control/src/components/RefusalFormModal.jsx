@@ -156,13 +156,15 @@ export default function RefusalFormModal({ emp, vaccineItems, onClose, flash, on
       if (selected.ppd_1 || selected.ppd_2) {
         await onSaved?.ppdRefused?.(emp, chosenKeys);
       }
-      for (const key of chosenKeys) {
-        if (key.startsWith("vaccine:")) {
-          const itemTypeId = key.slice("vaccine:".length);
-          await supabase
-            .from("employee_vaccine_requests")
-            .upsert({ employee_id: emp.id, item_type_id: itemTypeId, requested_by: session?.username, refused: true }, { onConflict: "employee_id,item_type_id" });
-        }
+      const refusedVaccineKeys = chosenKeys.filter((key) => key.startsWith("vaccine:"));
+      for (const key of refusedVaccineKeys) {
+        const itemTypeId = key.slice("vaccine:".length);
+        await supabase
+          .from("employee_vaccine_requests")
+          .upsert({ employee_id: emp.id, item_type_id: itemTypeId, requested_by: session?.username, refused: true }, { onConflict: "employee_id,item_type_id" });
+      }
+      if (refusedVaccineKeys.length > 0) {
+        await onSaved?.vaccineRefused?.(emp);
       }
 
       flash({ type: "success", text: "Refusal recorded" });
