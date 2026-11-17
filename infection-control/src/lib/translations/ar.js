@@ -824,6 +824,7 @@ export const ar = {
   "Rabia Hospital — Infection Control Department": "مستشفى رابية — قسم مكافحة العدوى",
   "New Employee Health Screening Requisition": "طلب فحوصات صحية لموظف جديد",
   "Required Tests": "التحاليل المطلوبة",
+  "Investigation Panel": "فحوصات التحاليل",
   "No tests configured — add them in Settings.": "لا توجد تحاليل مُعرَّفة — أضفها من الإعدادات.",
   "Signed: Infection Control Department": "توقيع: قسم مكافحة العدوى",
   "New Hire Requisition": "طلب الموظف الجديد",

@@ -45,8 +45,9 @@ const INVESTIGATION_STATUSES = [
   { value: "review_done", label: "Review done" },
 ];
 
-const INVESTIGATION_TESTS =
-  "Investigations covered: Rubella IgG, Varicella Zoster IgG, Measles IgG, Mumps IgG, HBs Ab, HCV Ab, HBs Ag, HIV 1&2 Abs + P24 combo";
+const INVESTIGATION_TEST_NAMES = ["Rubella IgG", "Varicella Zoster IgG", "Measles IgG", "Mumps IgG", "HBs Ab", "HCV Ab", "HBs Ag", "HIV 1&2 Abs + P24 combo"];
+
+const INVESTIGATION_TESTS = `Investigations covered: ${INVESTIGATION_TEST_NAMES.join(", ")}`;
 
 function addMonths(dateStr, months) {
   const d = new Date(dateStr);
@@ -275,7 +276,8 @@ export default function EmployeeHealth() {
     const empRequests = requests.filter((r) => r.employee_id === emp.id);
     const visibleVaccines = activeItemTypes.filter((t) => !t.kitchen_only || emp.is_kitchen_staff);
     for (const item of visibleVaccines) {
-      if (!empRequests.some((r) => r.item_type_id === item.id)) continue;
+      const reqRow = empRequests.find((r) => r.item_type_id === item.id);
+      if (!reqRow || reqRow.refused) continue;
       const state = doseState(emp.id, item);
       if (state.complete && !state.renewalDue) continue;
       if (!state.nextDueDate) {
@@ -296,10 +298,11 @@ export default function EmployeeHealth() {
     const rows = [];
     for (const emp of activeEmployees) {
       if (filterDept && emp.department !== filterDept) continue;
-      const empRequests = new Set(requests.filter((r) => r.employee_id === emp.id).map((r) => r.item_type_id));
+      const empRequests = requests.filter((r) => r.employee_id === emp.id);
       for (const item of activeItemTypes) {
         if (item.kitchen_only && !emp.is_kitchen_staff) continue;
-        if (!empRequests.has(item.id)) continue;
+        const reqRow = empRequests.find((r) => r.item_type_id === item.id);
+        if (!reqRow || reqRow.refused) continue;
         const state = doseState(emp.id, item);
         if (state.complete && !state.renewalDue) continue;
         const dueDate = state.nextDueDate;
@@ -2147,6 +2150,16 @@ export default function EmployeeHealth() {
                 </div>
               </dl>
               <div>
+                <p className="mb-1 text-xs font-bold text-slate-600">{t("Investigation Panel")}</p>
+                <ul className="flex flex-col gap-1 rounded-lg border border-slate-200 p-2">
+                  {INVESTIGATION_TEST_NAMES.map((name) => (
+                    <li key={name} className="text-sm text-slate-700">
+                      • {name}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
                 <p className="mb-1 text-xs font-bold text-slate-600">{t("Required Tests")}</p>
                 <ul className="flex flex-col gap-1 rounded-lg border border-slate-200 p-2">
                   {requiredTests.map((ty) => (
@@ -2203,6 +2216,7 @@ export default function EmployeeHealth() {
           onSaved={{
             ppdRefused: (emp, chosenKeys) =>
               saveStatus(emp, { ppd_status: chosenKeys?.includes("ppd_2") ? "refused_2nd" : chosenKeys?.includes("ppd_1") ? "refused_1st" : "refused" }),
+            vaccineRefused: () => loadAll(),
           }}
         />
       )}
