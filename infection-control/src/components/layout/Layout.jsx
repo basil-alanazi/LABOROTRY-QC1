@@ -34,7 +34,7 @@ const linkClass = ({ isActive }) =>
   }`;
 
 export default function Layout({ children }) {
-  const { session, logout, isAdmin, canViewEmployeeHealth, canViewHaiSurveillance, canEnterNursingRounds, canEnterQualityRounds } = useAuth();
+  const { session, logout, isAdmin, canViewEmployeeHealth, canViewHaiSurveillance, canEnterNursingRounds, canEnterQualityRounds, canEnterIcRounds } = useAuth();
   const { t, lang, toggleLang } = useLanguage();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -81,7 +81,7 @@ export default function Layout({ children }) {
           {t("Suspected/Confirmed Cases")}
         </NavLink>
       )}
-      {isAdmin && (
+      {canEnterIcRounds && (
         <NavLink to="/ic-rounds" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <ClipboardCheck className="h-4 w-4" />
           {t("Daily IC Rounds")}
@@ -135,7 +135,14 @@ export default function Layout({ children }) {
           {t("IPC Care Bundles")}
         </NavLink>
       )}
-      {(isAdmin || !(session?.canViewEmployeeHealth || session?.canViewHaiSurveillance)) && (
+      {(isAdmin ||
+        !(
+          session?.canViewEmployeeHealth ||
+          session?.canViewHaiSurveillance ||
+          session?.canEnterNursingRounds ||
+          session?.canEnterQualityRounds ||
+          session?.canEnterIcRounds
+        )) && (
         <NavLink to="/stock" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <Package className="h-4 w-4" />
           {t("Stock Requests")}
