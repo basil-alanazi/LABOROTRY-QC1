@@ -527,6 +527,8 @@ export const ar = {
   "days.": "يومًا.",
   "Expiry date auto-fills to 3 years after the issue date when you set/change it — you can still edit it manually anytime.":
     "يُملأ تاريخ الانتهاء تلقائيًا بعد 3 سنوات من تاريخ الإصدار عند تعيينه/تغييره — يمكنك دائمًا تعديله يدويًا.",
+  "Daily Rounds": "الجولات اليومية",
+  "Policy Tracker": "متابعة السياسات",
   "Add Policy": "إضافة سياسة",
   "Policy Name": "اسم السياسة",
   "Policy No": "رقم السياسة",

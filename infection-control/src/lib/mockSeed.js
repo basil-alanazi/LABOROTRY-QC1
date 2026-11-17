@@ -294,6 +294,22 @@ export const policy_tracker = [
   },
 ];
 
+export const quality_policy_tracker = [
+  {
+    id: "qpol-1",
+    policy_name: "Aerosol generating procedure",
+    policy_no: "APP-IPC-14",
+    issue_date: "2025-12-15",
+    revision_date: "2028-12-21",
+    expiry_date: "2028-12-21",
+    attachment_path: null,
+    attachment_name: "AGP.pdf",
+    renewed: false,
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+];
+
 export const culture_tracker = [
   {
     id: "cul-1",

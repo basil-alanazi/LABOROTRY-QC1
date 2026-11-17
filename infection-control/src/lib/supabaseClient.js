@@ -49,4 +49,5 @@ export const supabase =
         hai_monthly_indicators: seed.hai_monthly_indicators,
         hai_care_bundle_forms: seed.hai_care_bundle_forms,
         employee_refusal_forms: seed.employee_refusal_forms,
+        quality_policy_tracker: seed.quality_policy_tracker,
       });
