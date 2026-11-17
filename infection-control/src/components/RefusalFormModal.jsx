@@ -14,6 +14,29 @@ function signatureUrl(path) {
   return supabase.storage.from(REFUSAL_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
+// Builds the natural-language "...the opportunity to undergo X" / "I
+// voluntarily refuse X" phrase from whatever mix of PPD attempts and
+// vaccines was refused in this one report, following the wording of the
+// hospital's official PPD refusal letter.
+function refusalPhrase(items) {
+  const ppd = items.some((l) => l.startsWith("PPD Test"));
+  const vaccines = items.filter((l) => !l.startsWith("PPD Test"));
+  const parts = [];
+  if (ppd) parts.push("a Purified Protein Derivative (PPD) skin test for tuberculosis screening");
+  if (vaccines.length === 1) parts.push(`the ${vaccines[0]} vaccine`);
+  else if (vaccines.length > 1) parts.push(`the ${vaccines.slice(0, -1).join(", ")} and ${vaccines[vaccines.length - 1]} vaccines`);
+  if (parts.length <= 1) return parts[0] || "the above";
+  return parts.join(" and ");
+}
+
+// The official letter's exact title is PPD-specific; a report that also
+// (or only) covers a vaccine refusal uses the generic title instead.
+function refusalTitle(items) {
+  return items.length > 0 && items.every((l) => l.startsWith("PPD Test"))
+    ? "PPD (TUBERCULOSIS SKIN TEST) REFUSAL OF CONSENT AND ACKNOWLEDGMENT"
+    : "REFUSAL OF CONSENT AND ACKNOWLEDGMENT";
+}
+
 // One combined, signed refusal record per visit — the admin ticks every
 // item the employee is refusing right now (PPD and/or specific vaccines),
 // the employee signs once on screen, and it all saves as a single
@@ -250,52 +273,77 @@ export default function RefusalFormModal({ emp, vaccineItems, onClose, flash, on
 
       {printing &&
         (() => {
+          const refusalItems = printing.items ?? [];
+          const refusalDate = printing.created_at?.slice(0, 10) || todayStr();
+          const phrase = refusalPhrase(refusalItems);
+          const hasPpd = refusalItems.some((l) => l.startsWith("PPD Test"));
           const printBody = (
             <>
-              <div className="flex flex-col items-center gap-1 border-b border-slate-200 pb-3 text-center">
-                <img src={rabiaLogo} alt="Rabia Hospital" className="h-14 w-14 object-contain" />
-                <p className="text-sm font-bold text-slate-800">{t("Rabia Hospital — Infection Control Department")}</p>
-                <p className="text-xs text-slate-500">{t("Refusal of Investigation/Vaccination")}</p>
+              <div className="flex flex-col items-center gap-1 border-b border-slate-300 pb-3 text-center">
+                <img src={rabiaLogo} alt="Rabia Hospital" className="h-20 w-auto object-contain" />
+                <p className="mt-1 text-sm font-bold uppercase tracking-wide text-slate-800">{refusalTitle(refusalItems)}</p>
               </div>
-              <dl className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <dt className="text-xs text-slate-400">{t("Name")}</dt>
-                  <dd className="font-medium text-slate-800">{printing.header?.name}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-slate-400">{t("Employee #")}</dt>
-                  <dd className="font-medium text-slate-800">{printing.header?.employee_no || "—"}</dd>
-                </div>
-                <div className="col-span-2">
-                  <dt className="text-xs text-slate-400">{t("Department")}</dt>
-                  <dd className="font-medium text-slate-800">{printing.header?.department}</dd>
-                </div>
-              </dl>
-              <div>
-                <p className="mb-1 text-xs font-bold text-slate-600">{t("Refused")}</p>
-                <ul className="rounded-lg border border-slate-200 p-2">
-                  {(printing.items ?? []).map((label, i) => (
-                    <li key={i} className="text-sm text-slate-700">
-                      • {label}
-                    </li>
-                  ))}
+
+              <div className="text-sm">
+                <p className="mb-1 font-semibold text-slate-700">Employee Information:</p>
+                <ul className="flex flex-col gap-0.5 ps-4 text-slate-700">
+                  <li>
+                    <span className="text-slate-500">Employee Full Name: </span>
+                    {printing.header?.name}
+                  </li>
+                  <li>
+                    <span className="text-slate-500">Employee ID Number: </span>
+                    {printing.header?.employee_no || "—"}
+                  </li>
+                  <li>
+                    <span className="text-slate-500">Department: </span>
+                    {printing.header?.department}
+                  </li>
+                  <li>
+                    <span className="text-slate-500">Date: </span>
+                    {refusalDate}
+                  </li>
                 </ul>
               </div>
-              {printing.reason && (
-                <div>
-                  <p className="text-xs font-bold text-slate-600">{t("Reason")}</p>
-                  <p className="text-sm text-slate-700">{printing.reason}</p>
-                </div>
-              )}
-              <div>
-                <p className="mb-1 text-xs font-bold text-slate-600">{t("Employee signature")}</p>
-                {printing.signature_path && <img src={signatureUrl(printing.signature_path)} alt="" className="h-20 rounded border border-slate-200 bg-white" />}
+
+              <div className="text-sm leading-relaxed text-slate-700">
+                <p className="mb-1 font-semibold text-slate-700">Statement of Refusal:</p>
+                <p>
+                  I, <strong>{printing.header?.name}</strong>, hereby acknowledge that on {refusalDate}, I was offered and provided with the opportunity to undergo {phrase}.
+                </p>
+                <p className="mt-2">
+                  This{hasPpd ? " test" : ""} is a requirement of Rabia hospital policy and is conducted to help ensure a safe working environment for all employees
+                  {hasPpd ? " and to identify potential TB infection for early treatment." : "."}
+                </p>
+                <p className="mt-2">
+                  Despite understanding this purpose, I voluntarily refuse {phrase} at this time. I understand that my refusal may have consequences, which have been
+                  explained to me and I confirm that I have had the opportunity to ask questions regarding this and the implications of my refusal.
+                </p>
+                {printing.reason && (
+                  <p className="mt-2">
+                    <span className="font-semibold">Reason: </span>
+                    {printing.reason}
+                  </p>
+                )}
               </div>
-              <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-3 text-xs text-slate-500">
-                <span>
-                  {t("Date")}: {printing.created_at?.slice(0, 10) || todayStr()}
-                </span>
-                <span>{t("Signed: Infection Control Department")}</span>
+
+              <div className="mt-2 grid grid-cols-2 gap-4 border-t border-slate-300 pt-3">
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-slate-600">Employee Signature</p>
+                  {printing.signature_path && <img src={signatureUrl(printing.signature_path)} alt="" className="h-16" />}
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-slate-600">Date</p>
+                  <p className="text-sm text-slate-700">{refusalDate}</p>
+                </div>
+              </div>
+
+              <div className="mt-3 border-t border-slate-300 pt-2 text-center">
+                <p className="text-xs text-slate-500">This letter format approved by</p>
+                <div className="mt-3 flex justify-between px-4 text-xs font-semibold text-slate-600">
+                  <span>IPC HEAD</span>
+                  <span>Hospital Director</span>
+                </div>
               </div>
             </>
           );
