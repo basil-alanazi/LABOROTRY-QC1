@@ -99,6 +99,7 @@ export default function EmployeeHealth() {
   const [clinicSearch, setClinicSearch] = useState("");
   const [clinicPpdFilter, setClinicPpdFilter] = useState("");
   const [doctorReviewSearch, setDoctorReviewSearch] = useState("");
+  const [onlyMissingAttachments, setOnlyMissingAttachments] = useState(false);
   const [clinicVaccineFilter, setClinicVaccineFilter] = useState("");
   const [clinicVaccineDoseFilter, setClinicVaccineDoseFilter] = useState("");
   const [pendingOnlyExport, setPendingOnlyExport] = useState(false);
@@ -777,9 +778,12 @@ export default function EmployeeHealth() {
     return (emp.name || "").toLowerCase().includes(q) || (emp.employee_no || "").toLowerCase().includes(q) || (emp.file_no || "").toLowerCase().includes(q);
   }
   const visiblePendingReviewEmployees = useMemo(
-    () => pendingReviewEmployees.filter(matchesDoctorReviewSearch),
+    () =>
+      pendingReviewEmployees
+        .filter(matchesDoctorReviewSearch)
+        .filter((emp) => !onlyMissingAttachments || (statusFor(emp.id).investigation_attachments || []).length === 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pendingReviewEmployees, doctorReviewSearch]
+    [pendingReviewEmployees, doctorReviewSearch, onlyMissingAttachments, statusDrafts]
   );
   const visiblePendingPpdEmployees = useMemo(
     () => pendingPpdEmployees.filter(matchesDoctorReviewSearch),
@@ -1491,12 +1495,18 @@ export default function EmployeeHealth() {
 
       {tab === "doctor-review" && (
         <div className="flex flex-col gap-8">
-          <input
-            className="input w-full max-w-sm"
-            value={doctorReviewSearch}
-            onChange={(e) => setDoctorReviewSearch(e.target.value)}
-            placeholder={t("Search name / employee # / hospital file #")}
-          />
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              className="input w-full max-w-sm"
+              value={doctorReviewSearch}
+              onChange={(e) => setDoctorReviewSearch(e.target.value)}
+              placeholder={t("Search name / employee # / hospital file #")}
+            />
+            <label className="flex items-center gap-1.5 text-sm text-slate-600">
+              <input type="checkbox" checked={onlyMissingAttachments} onChange={(e) => setOnlyMissingAttachments(e.target.checked)} />
+              {t("Only employees with no files uploaded yet")}
+            </label>
+          </div>
           <div>
             <h2 className="mb-3 text-sm font-bold text-slate-800">
               {t("Emp Clinic Pending Review")} ({visiblePendingReviewEmployees.length})
