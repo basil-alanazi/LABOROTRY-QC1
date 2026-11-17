@@ -137,7 +137,7 @@ export default function App() {
         <Route
           path="/quality-rounds"
           element={
-            <ProtectedRoute adminOnly>
+            <ProtectedRoute qualityRoundsAccess>
               <Layout>
                 <QualityRounds />
               </Layout>

@@ -696,6 +696,7 @@ export const users = [
     display_name: "Quality Rounds — Staff",
     role: "staff",
     department: null,
+    can_view_quality_rounds: true,
     active: true,
     must_change_password: false,
     created_at: new Date().toISOString(),
