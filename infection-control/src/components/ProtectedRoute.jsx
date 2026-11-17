@@ -9,8 +9,9 @@ export default function ProtectedRoute({
   hideForRestrictedAccounts = false,
   haiSurveillanceAccess = false,
   nursingRoundsAccess = false,
+  qualityRoundsAccess = false,
 }) {
-  const { session, loading, isAdmin, canViewEmployeeHealth, canViewHaiSurveillance, canEnterNursingRounds } = useAuth();
+  const { session, loading, isAdmin, canViewEmployeeHealth, canViewHaiSurveillance, canEnterNursingRounds, canEnterQualityRounds } = useAuth();
 
   if (loading) return null;
   if (!session) return <Navigate to="/login" replace />;
@@ -19,6 +20,7 @@ export default function ProtectedRoute({
   if (employeeHealthOnly && !canViewEmployeeHealth) return <Navigate to="/profile" replace />;
   if (haiSurveillanceAccess && !canViewHaiSurveillance) return <Navigate to="/profile" replace />;
   if (nursingRoundsAccess && !canEnterNursingRounds) return <Navigate to="/profile" replace />;
+  if (qualityRoundsAccess && !canEnterQualityRounds) return <Navigate to="/profile" replace />;
   if (hideForRestrictedAccounts && !isAdmin) {
     if (session.canViewEmployeeHealth) return <Navigate to="/employee-health" replace />;
   }

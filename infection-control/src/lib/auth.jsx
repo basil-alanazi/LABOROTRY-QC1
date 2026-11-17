@@ -45,6 +45,7 @@ export function AuthProvider({ children }) {
       canViewEmployeeHealth: !!user.can_view_employee_health,
       canViewHaiSurveillance: !!user.can_view_hai_surveillance,
       canEnterNursingRounds: !!user.can_view_nursing_rounds,
+      canEnterQualityRounds: !!user.can_view_quality_rounds,
       haiScope: user.hai_scope || null,
       obStages: user.ob_stages ? user.ob_stages.split(",").map((s) => s.trim()).filter(Boolean) : [],
       ssiStages: user.ssi_stages ? user.ssi_stages.split(",").map((s) => s.trim()).filter(Boolean) : [],
@@ -104,6 +105,9 @@ export function AuthProvider({ children }) {
   // Rounds — add today's round only (date is locked, same as any non-admin),
   // no history table, no other department's findings.
   const canEnterNursingRounds = isAdmin || !!session?.canEnterNursingRounds;
+  // A Ward Staff account can be granted just entry access to Quality Daily
+  // Rounds, same shape as Nursing Daily Rounds above.
+  const canEnterQualityRounds = isAdmin || !!session?.canEnterQualityRounds;
 
   return (
     <AuthContext.Provider
@@ -120,6 +124,7 @@ export function AuthProvider({ children }) {
         canAdminStock,
         canViewHaiSurveillance,
         canEnterNursingRounds,
+        canEnterQualityRounds,
         reloadConfig: loadConfig,
       }}
     >

@@ -34,7 +34,7 @@ const linkClass = ({ isActive }) =>
   }`;
 
 export default function Layout({ children }) {
-  const { session, logout, isAdmin, canViewEmployeeHealth, canViewHaiSurveillance, canEnterNursingRounds } = useAuth();
+  const { session, logout, isAdmin, canViewEmployeeHealth, canViewHaiSurveillance, canEnterNursingRounds, canEnterQualityRounds } = useAuth();
   const { t, lang, toggleLang } = useLanguage();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -99,7 +99,7 @@ export default function Layout({ children }) {
           {t("Nursing Daily Rounds")}
         </NavLink>
       )}
-      {isAdmin && (
+      {canEnterQualityRounds && (
         <NavLink to="/quality-rounds" className={linkClass} onClick={() => setSidebarOpen(false)}>
           <Sparkles className="h-4 w-4" />
           {t("Quality Daily Rounds")}
