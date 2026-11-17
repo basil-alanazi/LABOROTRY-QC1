@@ -46,6 +46,7 @@ export function AuthProvider({ children }) {
       canViewHaiSurveillance: !!user.can_view_hai_surveillance,
       canEnterNursingRounds: !!user.can_view_nursing_rounds,
       canEnterQualityRounds: !!user.can_view_quality_rounds,
+      canEnterIcRounds: !!user.can_view_ic_rounds,
       haiScope: user.hai_scope || null,
       obStages: user.ob_stages ? user.ob_stages.split(",").map((s) => s.trim()).filter(Boolean) : [],
       ssiStages: user.ssi_stages ? user.ssi_stages.split(",").map((s) => s.trim()).filter(Boolean) : [],
@@ -108,6 +109,9 @@ export function AuthProvider({ children }) {
   // A Ward Staff account can be granted just entry access to Quality Daily
   // Rounds, same shape as Nursing Daily Rounds above.
   const canEnterQualityRounds = isAdmin || !!session?.canEnterQualityRounds;
+  // A Ward Staff account can be granted just entry access to Daily IC
+  // Rounds, same shape as Nursing/Quality Daily Rounds above.
+  const canEnterIcRounds = isAdmin || !!session?.canEnterIcRounds;
 
   return (
     <AuthContext.Provider
@@ -125,6 +129,7 @@ export function AuthProvider({ children }) {
         canViewHaiSurveillance,
         canEnterNursingRounds,
         canEnterQualityRounds,
+        canEnterIcRounds,
         reloadConfig: loadConfig,
       }}
     >

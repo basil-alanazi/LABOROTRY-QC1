@@ -107,7 +107,7 @@ export default function App() {
         <Route
           path="/ic-rounds"
           element={
-            <ProtectedRoute adminOnly>
+            <ProtectedRoute icRoundsAccess>
               <Layout>
                 <ICRounds />
               </Layout>

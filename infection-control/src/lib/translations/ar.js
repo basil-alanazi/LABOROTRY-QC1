@@ -638,6 +638,8 @@ export const ar = {
     "صلاحية الجولات التمريضية اليومية فقط — يرى فقط صفحة الجولات التمريضية اليومية بدلًا من طلبات المستلزمات",
   "Quality Daily Rounds access only — sees only the Quality Daily Rounds page instead of Stock Requests":
     "صلاحية جولات الجودة اليومية فقط — يرى فقط صفحة جولات الجودة اليومية بدلًا من طلبات المستلزمات",
+  "Daily IC Rounds access only — sees only the Daily IC Rounds page instead of Stock Requests":
+    "صلاحية الجولات اليومية لمكافحة العدوى فقط — يرى فقط صفحة الجولات اليومية لمكافحة العدوى بدلًا من طلبات المستلزمات",
   "HAI Surveillance access — also sees the HAI Surveillance page (in addition to whatever else this account can see)":
     "صلاحية ترصد عدوى المستشفى — يرى أيضًا صفحة ترصد عدوى المستشفى (بالإضافة لما يراه الحساب أصلًا)",
   "Scope:": "النطاق:",
