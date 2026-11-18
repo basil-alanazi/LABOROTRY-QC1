@@ -19,6 +19,9 @@ const emptyNewUser = {
   can_view_nursing_rounds: false,
   can_view_quality_rounds: false,
   can_view_ic_rounds: false,
+  can_submit_nursing_rounds: false,
+  can_submit_quality_rounds: false,
+  can_submit_ic_rounds: false,
   hai_scope: "",
   ssi_doctor: "",
 };
@@ -451,6 +454,9 @@ export default function Settings() {
       can_view_nursing_rounds: newUser.role === "staff" && newUser.can_view_nursing_rounds,
       can_view_quality_rounds: newUser.role === "staff" && newUser.can_view_quality_rounds,
       can_view_ic_rounds: newUser.role === "staff" && newUser.can_view_ic_rounds,
+      can_submit_nursing_rounds: newUser.role === "staff" && newUser.can_submit_nursing_rounds,
+      can_submit_quality_rounds: newUser.role === "staff" && newUser.can_submit_quality_rounds,
+      can_submit_ic_rounds: newUser.role === "staff" && newUser.can_submit_ic_rounds,
       hai_scope: newUser.role === "staff" && newUser.can_view_hai_surveillance ? newUser.hai_scope || null : null,
       ssi_doctor: newUser.role === "staff" && newUser.can_view_hai_surveillance && (newUser.hai_scope || "").includes("ssi") ? newUser.ssi_doctor.trim() || null : null,
       created_by: session?.username,
@@ -482,6 +488,9 @@ export default function Settings() {
         can_view_nursing_rounds: user.role === "staff" && !!user.can_view_nursing_rounds,
         can_view_quality_rounds: user.role === "staff" && !!user.can_view_quality_rounds,
         can_view_ic_rounds: user.role === "staff" && !!user.can_view_ic_rounds,
+        can_submit_nursing_rounds: user.role === "staff" && !!user.can_submit_nursing_rounds,
+        can_submit_quality_rounds: user.role === "staff" && !!user.can_submit_quality_rounds,
+        can_submit_ic_rounds: user.role === "staff" && !!user.can_submit_ic_rounds,
         hai_scope: user.role === "staff" && user.can_view_hai_surveillance ? user.hai_scope || null : null,
         ob_stages: user.role === "staff" && user.can_view_hai_surveillance ? user.ob_stages || null : null,
         ssi_stages: user.role === "staff" && user.can_view_hai_surveillance ? user.ssi_stages || null : null,
@@ -1126,7 +1135,17 @@ export default function Settings() {
                       checked={!!u.can_view_nursing_rounds}
                       onChange={(e) => updateUserField(u.id, { can_view_nursing_rounds: e.target.checked })}
                     />
-                    {t("Nursing Daily Rounds entry — can add today's round only; no history, no other department's findings")}
+                    {t("Nursing Daily Rounds access only — sees only the Nursing Daily Rounds page instead of Stock Requests")}
+                  </label>
+                )}
+                {u.role === "staff" && u.can_view_nursing_rounds && (
+                  <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:col-span-5 sm:pl-5">
+                    <input
+                      type="checkbox"
+                      checked={!!u.can_submit_nursing_rounds}
+                      onChange={(e) => updateUserField(u.id, { can_submit_nursing_rounds: e.target.checked })}
+                    />
+                    {t("Can also submit today's round (date locked to today — no backdating, no editing past rounds)")}
                   </label>
                 )}
                 {u.role === "staff" && (
@@ -1139,6 +1158,16 @@ export default function Settings() {
                     {t("Quality Daily Rounds access only — sees only the Quality Daily Rounds page instead of Stock Requests")}
                   </label>
                 )}
+                {u.role === "staff" && u.can_view_quality_rounds && (
+                  <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:col-span-5 sm:pl-5">
+                    <input
+                      type="checkbox"
+                      checked={!!u.can_submit_quality_rounds}
+                      onChange={(e) => updateUserField(u.id, { can_submit_quality_rounds: e.target.checked })}
+                    />
+                    {t("Can also submit today's round (date locked to today — no backdating, no editing past rounds)")}
+                  </label>
+                )}
                 {u.role === "staff" && (
                   <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-5">
                     <input
@@ -1147,6 +1176,16 @@ export default function Settings() {
                       onChange={(e) => updateUserField(u.id, { can_view_ic_rounds: e.target.checked })}
                     />
                     {t("Daily IC Rounds access only — sees only the Daily IC Rounds page instead of Stock Requests")}
+                  </label>
+                )}
+                {u.role === "staff" && u.can_view_ic_rounds && (
+                  <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:col-span-5 sm:pl-5">
+                    <input
+                      type="checkbox"
+                      checked={!!u.can_submit_ic_rounds}
+                      onChange={(e) => updateUserField(u.id, { can_submit_ic_rounds: e.target.checked })}
+                    />
+                    {t("Can also submit today's round (date locked to today — no backdating, no editing past rounds)")}
                   </label>
                 )}
                 {u.role === "staff" && u.can_view_hai_surveillance && (
@@ -1312,7 +1351,17 @@ export default function Settings() {
                   checked={newUser.can_view_nursing_rounds}
                   onChange={(e) => setNewUser({ ...newUser, can_view_nursing_rounds: e.target.checked })}
                 />
-                {t("Nursing Daily Rounds entry — can add today's round only; no history, no other department's findings")}
+                {t("Nursing Daily Rounds access only — sees only the Nursing Daily Rounds page instead of Stock Requests")}
+              </label>
+            )}
+            {newUser.role === "staff" && newUser.can_view_nursing_rounds && (
+              <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:col-span-4 sm:pl-5">
+                <input
+                  type="checkbox"
+                  checked={newUser.can_submit_nursing_rounds}
+                  onChange={(e) => setNewUser({ ...newUser, can_submit_nursing_rounds: e.target.checked })}
+                />
+                {t("Can also submit today's round (date locked to today — no backdating, no editing past rounds)")}
               </label>
             )}
             {newUser.role === "staff" && (
@@ -1325,6 +1374,16 @@ export default function Settings() {
                 {t("Quality Daily Rounds access only — sees only the Quality Daily Rounds page instead of Stock Requests")}
               </label>
             )}
+            {newUser.role === "staff" && newUser.can_view_quality_rounds && (
+              <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:col-span-4 sm:pl-5">
+                <input
+                  type="checkbox"
+                  checked={newUser.can_submit_quality_rounds}
+                  onChange={(e) => setNewUser({ ...newUser, can_submit_quality_rounds: e.target.checked })}
+                />
+                {t("Can also submit today's round (date locked to today — no backdating, no editing past rounds)")}
+              </label>
+            )}
             {newUser.role === "staff" && (
               <label className="flex items-center gap-1 text-xs text-slate-500 sm:col-span-4">
                 <input
@@ -1333,6 +1392,16 @@ export default function Settings() {
                   onChange={(e) => setNewUser({ ...newUser, can_view_ic_rounds: e.target.checked })}
                 />
                 {t("Daily IC Rounds access only — sees only the Daily IC Rounds page instead of Stock Requests")}
+              </label>
+            )}
+            {newUser.role === "staff" && newUser.can_view_ic_rounds && (
+              <label className="flex items-center gap-1.5 text-xs text-slate-500 sm:col-span-4 sm:pl-5">
+                <input
+                  type="checkbox"
+                  checked={newUser.can_submit_ic_rounds}
+                  onChange={(e) => setNewUser({ ...newUser, can_submit_ic_rounds: e.target.checked })}
+                />
+                {t("Can also submit today's round (date locked to today — no backdating, no editing past rounds)")}
               </label>
             )}
             {newUser.role === "staff" && newUser.can_view_hai_surveillance && (

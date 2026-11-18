@@ -42,7 +42,7 @@ function toReportRow(r) {
 }
 
 export default function ICRounds() {
-  const { session, config, isAdmin } = useAuth();
+  const { session, config, isAdmin, canSubmitIcRounds } = useAuth();
   const { t } = useLanguage();
   const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -109,7 +109,7 @@ export default function ICRounds() {
     }
 
     const { error } = await supabase.from("ic_rounds").insert({
-      date: form.date,
+      date: isAdmin ? form.date : todayStr(),
       department: form.department,
       result: form.result,
       finding: form.result === "not_met" ? form.finding.trim() : "",
@@ -211,12 +211,22 @@ export default function ICRounds() {
         </div>
       )}
 
-      {isAdmin && (
+      {(isAdmin || canSubmitIcRounds) && (
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">{t("New Round")}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label={t("Date")}>
-            <input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+            {isAdmin ? (
+              <input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+            ) : (
+              <input
+                type="date"
+                className="input bg-slate-50 text-slate-500"
+                value={todayStr()}
+                disabled
+                title={t("Rounds can only be recorded for today — no backdating.")}
+              />
+            )}
           </Field>
           <Field label={t("Department")}>
             <select className="input" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} required>
