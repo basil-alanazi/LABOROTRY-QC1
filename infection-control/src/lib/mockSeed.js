@@ -63,8 +63,52 @@ export const app_config = {
   hai_icu_types_pediatric: HAI_ICU_TYPES_PEDIATRIC,
 };
 
-export const nursing_rounds = [];
-export const quality_rounds = [];
+export const nursing_rounds = [
+  {
+    id: "nr-1",
+    date: "2026-10-01",
+    department: "ICU",
+    result: "met",
+    finding: "",
+    attachments: [],
+    corrective_action: "",
+    date_of_discussion: null,
+    status: "open",
+    done_by: "ic",
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: "nr-2",
+    date: today,
+    department: "NICU",
+    result: "not_met",
+    finding: "Hand hygiene station empty",
+    attachments: [],
+    corrective_action: "Refilled and logged with housekeeping",
+    date_of_discussion: today,
+    status: "open",
+    done_by: "ic",
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+];
+export const quality_rounds = [
+  {
+    id: "qr-1",
+    date: "2026-10-05",
+    department: "Laboratory",
+    result: "met",
+    finding: "",
+    attachments: [],
+    corrective_action: "",
+    date_of_discussion: null,
+    status: "open",
+    done_by: "ic",
+    deleted: false,
+    created_at: new Date().toISOString(),
+  },
+];
 
 export const hai_icu_surveillance = [
   {
