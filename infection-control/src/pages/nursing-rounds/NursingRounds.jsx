@@ -56,14 +56,12 @@ export default function NursingRounds() {
 
   async function loadAll() {
     setLoading(true);
-    // Entry-only (non-admin) accounts never need anything beyond today's own
-    // submission, and shouldn't be able to pull other days' or departments'
-    // findings just by inspecting network traffic — so don't even fetch them.
-    const { data } = await fetchAllRows((from, to) => {
-      let q = supabase.from("nursing_rounds").select("*").eq("deleted", false);
-      if (!isAdmin) q = q.eq("date", todayStr());
-      return q.order("date", { ascending: false }).order("created_at", { ascending: false }).range(from, to);
-    });
+    // A granted-but-non-admin account can view the full history (same as
+    // Quality/IC rounds) but can't add or edit anything — enforced below in
+    // the UI, not by narrowing what's fetched.
+    const { data } = await fetchAllRows((from, to) =>
+      supabase.from("nursing_rounds").select("*").eq("deleted", false).order("date", { ascending: false }).order("created_at", { ascending: false }).range(from, to)
+    );
     setRounds(data ?? []);
     setLoading(false);
   }
@@ -189,50 +187,39 @@ export default function NursingRounds() {
           <h1 className="text-xl font-bold text-slate-800">{t("Nursing Daily Rounds")}</h1>
           <p className="text-sm text-slate-500">{t("Quick MET / NOT MET check per department, with finding & corrective-action tracking.")}</p>
         </div>
-        {isAdmin && (
-          <div className="flex gap-2">
-            <button
-              onClick={exportExcel}
-              disabled={visibleRounds.length === 0}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5" />
-              {t("Export Excel")}
-            </button>
-            <button
-              onClick={exportPdf}
-              disabled={visibleRounds.length === 0}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              {t("Export PDF")}
-            </button>
-          </div>
-        )}
+        <div className="flex gap-2">
+          <button
+            onClick={exportExcel}
+            disabled={visibleRounds.length === 0}
+            className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" />
+            {t("Export Excel")}
+          </button>
+          <button
+            onClick={exportPdf}
+            disabled={visibleRounds.length === 0}
+            className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          >
+            <FileText className="h-3.5 w-3.5" />
+            {t("Export PDF")}
+          </button>
+        </div>
       </div>
 
-      {isAdmin && openCount > 0 && (
+      {openCount > 0 && (
         <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
           <AlertTriangle className="h-4 w-4" />
           {openCount} {t("of the findings are open and need follow-up")}
         </div>
       )}
 
+      {isAdmin && (
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">{t("New Round")}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label={t("Date")}>
-            {isAdmin ? (
-              <input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
-            ) : (
-              <input
-                type="date"
-                className="input bg-slate-50 text-slate-500"
-                value={todayStr()}
-                disabled
-                title={t("Rounds can only be recorded for today — no backdating.")}
-              />
-            )}
+            <input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
           </Field>
           <Field label={t("Department")}>
             <select className="input" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} required>
@@ -322,73 +309,71 @@ export default function NursingRounds() {
           {t("Save Round")}
         </button>
       </form>
-
-      {isAdmin && (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
-              {[
-                { key: "", label: "All" },
-                { key: "not_met", label: "NOT MET" },
-                { key: "open", label: "Open" },
-                { key: "closed", label: "Closed" },
-              ].map((o) => (
-                <button
-                  key={o.key}
-                  onClick={() => setFilterStatus(o.key)}
-                  className={`rounded-md px-3 py-1 font-medium ${filterStatus === o.key ? "bg-teal-600 text-white" : "text-slate-500"}`}
-                >
-                  {t(o.label)}
-                </button>
-              ))}
-            </div>
-            <select className="input w-44" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
-              <option value="">{t("All Departments")}</option>
-              {departments.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </div>
-          <p className="text-xs text-slate-500">{t("Export Excel/PDF exports exactly what's shown below — filter by department and/or status first.")}</p>
-
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs text-slate-500">
-                <tr>
-                  <th className="px-4 py-2 font-medium">{t("Date")}</th>
-                  <th className="px-4 py-2 font-medium">{t("Department")}</th>
-                  <th className="px-4 py-2 font-medium">{t("Result")}</th>
-                  <th className="px-4 py-2 font-medium">{t("Status")}</th>
-                  <th className="px-4 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleRounds.map((r) => (
-                  <RoundRow
-                    key={r.id}
-                    r={r}
-                    onDelete={() => removeRound(r)}
-                    onToggleStatus={() => toggleStatus(r)}
-                    onAddAttachment={(files) => addAttachment(r, files)}
-                    onRemoveAttachment={(index) => removeAttachment(r, index)}
-                    onFieldChange={(patch) => updateRoundField(r.id, patch)}
-                    onFieldSave={() => saveRoundFields(rounds.find((x) => x.id === r.id))}
-                  />
-                ))}
-              </tbody>
-            </table>
-            {!loading && visibleRounds.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No rounds recorded")}</p>}
-            {loading && <p className="p-6 text-center text-sm text-slate-400">{t("Loading...")}</p>}
-          </div>
-        </>
       )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+          {[
+            { key: "", label: "All" },
+            { key: "not_met", label: "NOT MET" },
+            { key: "open", label: "Open" },
+            { key: "closed", label: "Closed" },
+          ].map((o) => (
+            <button
+              key={o.key}
+              onClick={() => setFilterStatus(o.key)}
+              className={`rounded-md px-3 py-1 font-medium ${filterStatus === o.key ? "bg-teal-600 text-white" : "text-slate-500"}`}
+            >
+              {t(o.label)}
+            </button>
+          ))}
+        </div>
+        <select className="input w-44" value={filterDept} onChange={(e) => setFilterDept(e.target.value)}>
+          <option value="">{t("All Departments")}</option>
+          {departments.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      </div>
+      <p className="text-xs text-slate-500">{t("Export Excel/PDF exports exactly what's shown below — filter by department and/or status first.")}</p>
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-left text-xs text-slate-500">
+            <tr>
+              <th className="px-4 py-2 font-medium">{t("Date")}</th>
+              <th className="px-4 py-2 font-medium">{t("Department")}</th>
+              <th className="px-4 py-2 font-medium">{t("Result")}</th>
+              <th className="px-4 py-2 font-medium">{t("Status")}</th>
+              <th className="px-4 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleRounds.map((r) => (
+              <RoundRow
+                key={r.id}
+                r={r}
+                canEdit={isAdmin}
+                onDelete={() => removeRound(r)}
+                onToggleStatus={() => toggleStatus(r)}
+                onAddAttachment={(files) => addAttachment(r, files)}
+                onRemoveAttachment={(index) => removeAttachment(r, index)}
+                onFieldChange={(patch) => updateRoundField(r.id, patch)}
+                onFieldSave={() => saveRoundFields(rounds.find((x) => x.id === r.id))}
+              />
+            ))}
+          </tbody>
+        </table>
+        {!loading && visibleRounds.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No rounds recorded")}</p>}
+        {loading && <p className="p-6 text-center text-sm text-slate-400">{t("Loading...")}</p>}
+      </div>
     </div>
   );
 }
 
-function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttachment, onFieldChange, onFieldSave }) {
+function RoundRow({ r, canEdit, onDelete, onToggleStatus, onAddAttachment, onRemoveAttachment, onFieldChange, onFieldSave }) {
   const { t } = useLanguage();
   const notMet = r.result === "not_met";
   return (
@@ -410,9 +395,11 @@ function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttach
           )}
         </td>
         <td className="flex items-center justify-end gap-1 px-4 py-2">
-          <button onClick={onDelete} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {canEdit && (
+            <button onClick={onDelete} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </td>
       </tr>
       {notMet && (
@@ -422,19 +409,21 @@ function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttach
               <div className="rounded-lg bg-white px-3 py-2 text-xs">
                 <p className="mb-1 font-medium text-slate-500">{t("Finding / Observation")}</p>
                 <textarea
-                  className="input min-h-[60px] text-xs"
+                  className="input min-h-[60px] text-xs disabled:bg-slate-50 disabled:text-slate-600"
                   value={r.finding || ""}
                   onChange={(e) => onFieldChange({ finding: e.target.value })}
                   onBlur={onFieldSave}
+                  disabled={!canEdit}
                 />
               </div>
               <div className="rounded-lg bg-white px-3 py-2 text-xs">
                 <p className="mb-1 font-medium text-slate-500">{t("Corrective Action")}</p>
                 <textarea
-                  className="input min-h-[60px] text-xs"
+                  className="input min-h-[60px] text-xs disabled:bg-slate-50 disabled:text-slate-600"
                   value={r.corrective_action || ""}
                   onChange={(e) => onFieldChange({ corrective_action: e.target.value })}
                   onBlur={onFieldSave}
+                  disabled={!canEdit}
                 />
               </div>
             </div>
@@ -443,23 +432,26 @@ function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttach
                 {t("Date of discussion:")}
                 <input
                   type="date"
-                  className="input-cell w-32"
+                  className="input-cell w-32 disabled:bg-slate-50 disabled:text-slate-600"
                   value={r.date_of_discussion || ""}
                   onChange={(e) => onFieldChange({ date_of_discussion: e.target.value })}
                   onBlur={onFieldSave}
+                  disabled={!canEdit}
                 />
               </label>
               <span>{t("Recorded by: ")}{r.done_by || "—"}</span>
-              <button
-                onClick={onToggleStatus}
-                className={`ml-auto rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                  r.status === "closed" ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-teal-600 text-white hover:bg-teal-700"
-                }`}
-              >
-                {r.status === "closed" ? t("Reopen") : t("Mark Closed")}
-              </button>
+              {canEdit && (
+                <button
+                  onClick={onToggleStatus}
+                  className={`ml-auto rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                    r.status === "closed" ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-teal-600 text-white hover:bg-teal-700"
+                  }`}
+                >
+                  {r.status === "closed" ? t("Reopen") : t("Mark Closed")}
+                </button>
+              )}
             </div>
-            <AttachmentList attachments={r.attachments} onAdd={onAddAttachment} onRemove={onRemoveAttachment} />
+            <AttachmentList attachments={r.attachments} canEdit={canEdit} onAdd={onAddAttachment} onRemove={onRemoveAttachment} />
           </td>
         </tr>
       )}
@@ -467,7 +459,7 @@ function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttach
   );
 }
 
-function AttachmentList({ attachments, onAdd, onRemove }) {
+function AttachmentList({ attachments, canEdit, onAdd, onRemove }) {
   const { t } = useLanguage();
   const list = attachments ?? [];
   return (
@@ -480,18 +472,22 @@ function AttachmentList({ attachments, onAdd, onRemove }) {
                 <Paperclip className="h-3.5 w-3.5" />
                 {a.name || t("View attachment")}
               </a>
-              <button onClick={() => onRemove(i)} className="text-slate-400 hover:text-red-500">
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              {canEdit && (
+                <button onClick={() => onRemove(i)} className="text-slate-400 hover:text-red-500">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
             </span>
           ))}
         </div>
       )}
-      <label className="flex w-fit cursor-pointer items-center gap-1 font-medium text-red-600 hover:underline">
-        <Upload className="h-3.5 w-3.5" />
-        {list.length > 0 ? t("Add more attachments") : t("Upload attachment(s)")}
-        <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && onAdd(e.target.files)} />
-      </label>
+      {canEdit && (
+        <label className="flex w-fit cursor-pointer items-center gap-1 font-medium text-red-600 hover:underline">
+          <Upload className="h-3.5 w-3.5" />
+          {list.length > 0 ? t("Add more attachments") : t("Upload attachment(s)")}
+          <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && onAdd(e.target.files)} />
+        </label>
+      )}
     </div>
   );
 }

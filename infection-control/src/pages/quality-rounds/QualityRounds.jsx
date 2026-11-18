@@ -67,7 +67,7 @@ function toReportRow(r) {
 }
 
 export default function QualityRounds() {
-  const { session, config } = useAuth();
+  const { session, config, isAdmin } = useAuth();
   const { t } = useLanguage();
   const [tab, setTab] = useState("rounds");
   const [rounds, setRounds] = useState([]);
@@ -323,6 +323,7 @@ export default function QualityRounds() {
         </div>
       )}
 
+      {isAdmin && (
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">{t("New Round")}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -417,6 +418,7 @@ export default function QualityRounds() {
           {t("Save Round")}
         </button>
       </form>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
@@ -462,6 +464,7 @@ export default function QualityRounds() {
               <RoundRow
                 key={r.id}
                 r={r}
+                canEdit={isAdmin}
                 onDelete={() => removeRound(r)}
                 onToggleStatus={() => toggleStatus(r)}
                 onAddAttachment={(files) => addAttachment(r, files)}
@@ -481,6 +484,7 @@ export default function QualityRounds() {
       {tab === "policy" && (
         <div className="flex flex-col gap-4">
           <p className="text-xs text-slate-500">{t("Expiry date auto-fills to 3 years after the issue date when you set/change it — you can still edit it manually anytime.")}</p>
+          {isAdmin && (
           <div>
             <button
               onClick={() => setShowPolicyForm((v) => !v)}
@@ -490,7 +494,8 @@ export default function QualityRounds() {
               {t("Add Policy")}
             </button>
           </div>
-          {showPolicyForm && (
+          )}
+          {isAdmin && showPolicyForm && (
             <form onSubmit={addPolicy} className="grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-3 sm:items-center">
               <input className="input" placeholder={t("Policy Name")} value={policyForm.policy_name} onChange={(e) => setPolicyForm({ ...policyForm, policy_name: e.target.value })} required />
               <input className="input" placeholder={t("Policy No")} value={policyForm.policy_no} onChange={(e) => setPolicyForm({ ...policyForm, policy_no: e.target.value })} />
@@ -521,31 +526,33 @@ export default function QualityRounds() {
                   return (
                     <tr key={r.id} className="border-t border-slate-100">
                       <td className="px-3 py-1.5">
-                        <input className="input-cell" value={r.policy_name} onChange={(e) => updatePolicyField(r.id, { policy_name: e.target.value })} onBlur={() => savePolicy(r)} />
+                        <input className="input-cell disabled:bg-transparent disabled:text-slate-700" value={r.policy_name} onChange={(e) => updatePolicyField(r.id, { policy_name: e.target.value })} onBlur={() => savePolicy(r)} disabled={!isAdmin} />
                       </td>
                       <td className="px-3 py-1.5">
-                        <input className="input-cell w-24" value={r.policy_no} onChange={(e) => updatePolicyField(r.id, { policy_no: e.target.value })} onBlur={() => savePolicy(r)} />
+                        <input className="input-cell w-24 disabled:bg-transparent disabled:text-slate-700" value={r.policy_no} onChange={(e) => updatePolicyField(r.id, { policy_no: e.target.value })} onBlur={() => savePolicy(r)} disabled={!isAdmin} />
                       </td>
                       <td className="px-3 py-1.5">
-                        <input type="date" className="input-cell w-32" value={r.issue_date || ""} onChange={(e) => onPolicyIssueDateChange(r, e.target.value)} onBlur={() => savePolicy(r)} />
+                        <input type="date" className="input-cell w-32 disabled:bg-transparent disabled:text-slate-700" value={r.issue_date || ""} onChange={(e) => onPolicyIssueDateChange(r, e.target.value)} onBlur={() => savePolicy(r)} disabled={!isAdmin} />
                       </td>
                       <td className="px-3 py-1.5">
-                        <input type="date" className="input-cell w-32" value={r.revision_date || ""} onChange={(e) => updatePolicyField(r.id, { revision_date: e.target.value })} onBlur={() => savePolicy(r)} />
+                        <input type="date" className="input-cell w-32 disabled:bg-transparent disabled:text-slate-700" value={r.revision_date || ""} onChange={(e) => updatePolicyField(r.id, { revision_date: e.target.value })} onBlur={() => savePolicy(r)} disabled={!isAdmin} />
                       </td>
                       <td className="px-3 py-1.5">
-                        <input type="date" className="input-cell w-32" value={r.expiry_date || ""} onChange={(e) => updatePolicyField(r.id, { expiry_date: e.target.value })} onBlur={() => savePolicy(r)} />
+                        <input type="date" className="input-cell w-32 disabled:bg-transparent disabled:text-slate-700" value={r.expiry_date || ""} onChange={(e) => updatePolicyField(r.id, { expiry_date: e.target.value })} onBlur={() => savePolicy(r)} disabled={!isAdmin} />
                       </td>
                       <td className="px-3 py-1.5">{badge && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.cls}`}>{t(badge.label)}</span>}</td>
                       <td className="px-3 py-1.5 text-center">
-                        <input type="checkbox" checked={!!r.renewed} onChange={() => togglePolicyRenewed(r)} />
+                        <input type="checkbox" checked={!!r.renewed} onChange={() => togglePolicyRenewed(r)} disabled={!isAdmin} />
                       </td>
                       <td className="px-3 py-1.5">
-                        <AttachmentSlot path={r.attachment_path} name={r.attachment_name} onUpload={(f) => uploadPolicyAttachment(r, f)} />
+                        <AttachmentSlot path={r.attachment_path} name={r.attachment_name} canEdit={isAdmin} onUpload={(f) => uploadPolicyAttachment(r, f)} />
                       </td>
                       <td className="px-3 py-1.5">
-                        <button onClick={() => removePolicy(r)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {isAdmin && (
+                          <button onClick={() => removePolicy(r)} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -560,7 +567,7 @@ export default function QualityRounds() {
   );
 }
 
-function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttachment, onFieldChange, onFieldSave }) {
+function RoundRow({ r, canEdit, onDelete, onToggleStatus, onAddAttachment, onRemoveAttachment, onFieldChange, onFieldSave }) {
   const { t } = useLanguage();
   const notMet = r.result === "not_met";
   return (
@@ -582,9 +589,11 @@ function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttach
           )}
         </td>
         <td className="flex items-center justify-end gap-1 px-4 py-2">
-          <button onClick={onDelete} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {canEdit && (
+            <button onClick={onDelete} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </td>
       </tr>
       {notMet && (
@@ -594,19 +603,21 @@ function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttach
               <div className="rounded-lg bg-white px-3 py-2 text-xs">
                 <p className="mb-1 font-medium text-slate-500">{t("Finding / Observation")}</p>
                 <textarea
-                  className="input min-h-[60px] text-xs"
+                  className="input min-h-[60px] text-xs disabled:bg-slate-50 disabled:text-slate-600"
                   value={r.finding || ""}
                   onChange={(e) => onFieldChange({ finding: e.target.value })}
                   onBlur={onFieldSave}
+                  disabled={!canEdit}
                 />
               </div>
               <div className="rounded-lg bg-white px-3 py-2 text-xs">
                 <p className="mb-1 font-medium text-slate-500">{t("Corrective Action")}</p>
                 <textarea
-                  className="input min-h-[60px] text-xs"
+                  className="input min-h-[60px] text-xs disabled:bg-slate-50 disabled:text-slate-600"
                   value={r.corrective_action || ""}
                   onChange={(e) => onFieldChange({ corrective_action: e.target.value })}
                   onBlur={onFieldSave}
+                  disabled={!canEdit}
                 />
               </div>
             </div>
@@ -615,23 +626,26 @@ function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttach
                 {t("Date of discussion:")}
                 <input
                   type="date"
-                  className="input-cell w-32"
+                  className="input-cell w-32 disabled:bg-slate-50 disabled:text-slate-600"
                   value={r.date_of_discussion || ""}
                   onChange={(e) => onFieldChange({ date_of_discussion: e.target.value })}
                   onBlur={onFieldSave}
+                  disabled={!canEdit}
                 />
               </label>
               <span>{t("Recorded by: ")}{r.done_by || "—"}</span>
-              <button
-                onClick={onToggleStatus}
-                className={`ml-auto rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                  r.status === "closed" ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-teal-600 text-white hover:bg-teal-700"
-                }`}
-              >
-                {r.status === "closed" ? t("Reopen") : t("Mark Closed")}
-              </button>
+              {canEdit && (
+                <button
+                  onClick={onToggleStatus}
+                  className={`ml-auto rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                    r.status === "closed" ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-teal-600 text-white hover:bg-teal-700"
+                  }`}
+                >
+                  {r.status === "closed" ? t("Reopen") : t("Mark Closed")}
+                </button>
+              )}
             </div>
-            <AttachmentList attachments={r.attachments} onAdd={onAddAttachment} onRemove={onRemoveAttachment} />
+            <AttachmentList attachments={r.attachments} canEdit={canEdit} onAdd={onAddAttachment} onRemove={onRemoveAttachment} />
           </td>
         </tr>
       )}
@@ -639,7 +653,7 @@ function RoundRow({ r, onDelete, onToggleStatus, onAddAttachment, onRemoveAttach
   );
 }
 
-function AttachmentList({ attachments, onAdd, onRemove }) {
+function AttachmentList({ attachments, canEdit, onAdd, onRemove }) {
   const { t } = useLanguage();
   const list = attachments ?? [];
   return (
@@ -652,30 +666,38 @@ function AttachmentList({ attachments, onAdd, onRemove }) {
                 <Paperclip className="h-3.5 w-3.5" />
                 {a.name || t("View attachment")}
               </a>
-              <button onClick={() => onRemove(i)} className="text-slate-400 hover:text-red-500">
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              {canEdit && (
+                <button onClick={() => onRemove(i)} className="text-slate-400 hover:text-red-500">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
             </span>
           ))}
         </div>
       )}
-      <label className="flex w-fit cursor-pointer items-center gap-1 font-medium text-red-600 hover:underline">
-        <Upload className="h-3.5 w-3.5" />
-        {list.length > 0 ? t("Add more attachments") : t("Upload attachment(s)")}
-        <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && onAdd(e.target.files)} />
-      </label>
+      {canEdit && (
+        <label className="flex w-fit cursor-pointer items-center gap-1 font-medium text-red-600 hover:underline">
+          <Upload className="h-3.5 w-3.5" />
+          {list.length > 0 ? t("Add more attachments") : t("Upload attachment(s)")}
+          <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && onAdd(e.target.files)} />
+        </label>
+      )}
     </div>
   );
 }
 
-function AttachmentSlot({ path, name, onUpload }) {
+function AttachmentSlot({ path, name, canEdit, onUpload }) {
   const { t } = useLanguage();
-  return path ? (
-    <a href={attachmentUrl(path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline">
-      <Paperclip className="h-3.5 w-3.5" />
-      {name || t("View")}
-    </a>
-  ) : (
+  if (path) {
+    return (
+      <a href={attachmentUrl(path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline">
+        <Paperclip className="h-3.5 w-3.5" />
+        {name || t("View")}
+      </a>
+    );
+  }
+  if (!canEdit) return <span className="text-xs text-slate-400">—</span>;
+  return (
     <label className="flex cursor-pointer items-center gap-1 text-xs font-medium text-red-600 hover:underline">
       <Upload className="h-3.5 w-3.5" />
       {t("Upload")}
