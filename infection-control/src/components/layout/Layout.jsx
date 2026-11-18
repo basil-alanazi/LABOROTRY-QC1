@@ -55,7 +55,10 @@ export default function Layout({ children }) {
       if (!cancelled) setUnreadCount((data ?? []).length);
     }
     loadUnread();
-    const interval = setInterval(loadUnread, 15000);
+    // Realtime (below) handles the instant case; this is only a fallback
+    // in case that channel silently drops — infrequent on purpose so every
+    // logged-in account isn't hitting the database every few seconds.
+    const interval = setInterval(loadUnread, 90000);
     let channel;
     if (!supabase.isMock) {
       channel = supabase.channel("layout-messages").on("postgres_changes", { event: "*", schema: "public", table: "messages" }, loadUnread).subscribe();

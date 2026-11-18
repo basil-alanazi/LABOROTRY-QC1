@@ -141,7 +141,9 @@ class QueryBuilder {
     else if (this._limit) filtered = filtered.slice(0, this._limit);
 
     if (this._single) {
-      return filtered[0] ? { data: filtered[0], error: null } : { data: null, error: { message: "not found" } };
+      // Mirrors real PostgREST's error shape for a no-match .single() (code
+      // PGRST116) so callers that branch on it behave the same in mock mode.
+      return filtered[0] ? { data: filtered[0], error: null } : { data: null, error: { code: "PGRST116", message: "not found" } };
     }
     return { data: filtered, error: null };
   }
