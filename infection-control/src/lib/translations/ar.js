@@ -640,6 +640,8 @@ export const ar = {
     "صلاحية جولات الجودة اليومية فقط — يرى فقط صفحة جولات الجودة اليومية بدلًا من طلبات المستلزمات",
   "Daily IC Rounds access only — sees only the Daily IC Rounds page instead of Stock Requests":
     "صلاحية الجولات اليومية لمكافحة العدوى فقط — يرى فقط صفحة الجولات اليومية لمكافحة العدوى بدلًا من طلبات المستلزمات",
+  "Can also submit today's round (date locked to today — no backdating, no editing past rounds)":
+    "يقدر أيضًا يسجّل جولة اليوم (التاريخ مقفول على اليوم — بدون تعديل تاريخ أو تعديل جولات سابقة)",
   "HAI Surveillance access — also sees the HAI Surveillance page (in addition to whatever else this account can see)":
     "صلاحية ترصد عدوى المستشفى — يرى أيضًا صفحة ترصد عدوى المستشفى (بالإضافة لما يراه الحساب أصلًا)",
   "Scope:": "النطاق:",

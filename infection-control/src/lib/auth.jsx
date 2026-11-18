@@ -47,6 +47,9 @@ export function AuthProvider({ children }) {
       canEnterNursingRounds: !!user.can_view_nursing_rounds,
       canEnterQualityRounds: !!user.can_view_quality_rounds,
       canEnterIcRounds: !!user.can_view_ic_rounds,
+      canSubmitNursingRounds: !!user.can_submit_nursing_rounds,
+      canSubmitQualityRounds: !!user.can_submit_quality_rounds,
+      canSubmitIcRounds: !!user.can_submit_ic_rounds,
       haiScope: user.hai_scope || null,
       obStages: user.ob_stages ? user.ob_stages.split(",").map((s) => s.trim()).filter(Boolean) : [],
       ssiStages: user.ssi_stages ? user.ssi_stages.split(",").map((s) => s.trim()).filter(Boolean) : [],
@@ -121,16 +124,17 @@ export function AuthProvider({ children }) {
   // Additive — on top of whatever else the account can already see (Stock
   // Requests, or a restricted "access only" page), not instead of it.
   const canViewHaiSurveillance = isAdmin || !!session?.canViewHaiSurveillance;
-  // A Ward Staff account can be granted just entry access to Nursing Daily
-  // Rounds — add today's round only (date is locked, same as any non-admin),
-  // no history table, no other department's findings.
+  // A Ward Staff account can be granted view-only access to a round page —
+  // full history (old and new rounds), nothing writable.
   const canEnterNursingRounds = isAdmin || !!session?.canEnterNursingRounds;
-  // A Ward Staff account can be granted just entry access to Quality Daily
-  // Rounds, same shape as Nursing Daily Rounds above.
   const canEnterQualityRounds = isAdmin || !!session?.canEnterQualityRounds;
-  // A Ward Staff account can be granted just entry access to Daily IC
-  // Rounds, same shape as Nursing/Quality Daily Rounds above.
   const canEnterIcRounds = isAdmin || !!session?.canEnterIcRounds;
+  // On top of view access, a Ward Staff account can additionally be granted
+  // "submit" rights — add today's round only (date is locked), no editing
+  // or backdating past entries, same as the view-only account otherwise.
+  const canSubmitNursingRounds = isAdmin || !!session?.canSubmitNursingRounds;
+  const canSubmitQualityRounds = isAdmin || !!session?.canSubmitQualityRounds;
+  const canSubmitIcRounds = isAdmin || !!session?.canSubmitIcRounds;
 
   return (
     <AuthContext.Provider
@@ -149,6 +153,9 @@ export function AuthProvider({ children }) {
         canEnterNursingRounds,
         canEnterQualityRounds,
         canEnterIcRounds,
+        canSubmitNursingRounds,
+        canSubmitQualityRounds,
+        canSubmitIcRounds,
         reloadConfig: loadConfig,
       }}
     >

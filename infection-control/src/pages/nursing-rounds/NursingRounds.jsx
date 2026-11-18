@@ -42,7 +42,7 @@ function toReportRow(r) {
 }
 
 export default function NursingRounds() {
-  const { session, config, isAdmin } = useAuth();
+  const { session, config, isAdmin, canSubmitNursingRounds } = useAuth();
   const { t } = useLanguage();
   const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,9 +56,9 @@ export default function NursingRounds() {
 
   async function loadAll() {
     setLoading(true);
-    // A granted-but-non-admin account can view the full history (same as
-    // Quality/IC rounds) but can't add or edit anything — enforced below in
-    // the UI, not by narrowing what's fetched.
+    // A granted-but-non-admin account can always view the full history (same
+    // as Quality/IC rounds); whether it can also submit today's round is
+    // enforced below in the UI, not by narrowing what's fetched.
     const { data } = await fetchAllRows((from, to) =>
       supabase.from("nursing_rounds").select("*").eq("deleted", false).order("date", { ascending: false }).order("created_at", { ascending: false }).range(from, to)
     );
@@ -214,12 +214,22 @@ export default function NursingRounds() {
         </div>
       )}
 
-      {isAdmin && (
+      {(isAdmin || canSubmitNursingRounds) && (
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">{t("New Round")}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label={t("Date")}>
-            <input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+            {isAdmin ? (
+              <input type="date" className="input" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+            ) : (
+              <input
+                type="date"
+                className="input bg-slate-50 text-slate-500"
+                value={todayStr()}
+                disabled
+                title={t("Rounds can only be recorded for today — no backdating.")}
+              />
+            )}
           </Field>
           <Field label={t("Department")}>
             <select className="input" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} required>
