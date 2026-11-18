@@ -366,6 +366,7 @@ export default function NursingRounds() {
                 key={r.id}
                 r={r}
                 canEdit={isAdmin}
+                canToggleStatus={isAdmin || canSubmitNursingRounds}
                 onDelete={() => removeRound(r)}
                 onToggleStatus={() => toggleStatus(r)}
                 onAddAttachment={(files) => addAttachment(r, files)}
@@ -383,7 +384,7 @@ export default function NursingRounds() {
   );
 }
 
-function RoundRow({ r, canEdit, onDelete, onToggleStatus, onAddAttachment, onRemoveAttachment, onFieldChange, onFieldSave }) {
+function RoundRow({ r, canEdit, canToggleStatus, onDelete, onToggleStatus, onAddAttachment, onRemoveAttachment, onFieldChange, onFieldSave }) {
   const { t } = useLanguage();
   const notMet = r.result === "not_met";
   return (
@@ -450,7 +451,7 @@ function RoundRow({ r, canEdit, onDelete, onToggleStatus, onAddAttachment, onRem
                 />
               </label>
               <span>{t("Recorded by: ")}{r.done_by || "—"}</span>
-              {canEdit && (
+              {canToggleStatus && (
                 <button
                   onClick={onToggleStatus}
                   className={`ml-auto rounded-lg px-3 py-1.5 text-xs font-semibold ${
