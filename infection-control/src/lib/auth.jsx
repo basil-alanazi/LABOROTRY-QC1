@@ -58,19 +58,38 @@ export function AuthProvider({ children }) {
   async function login(username, password) {
     // Username match is case-insensitive (staff on shared tablets often
     // don't match the exact case it was created with) — password is not.
-    const query = supabase.from("users").select("*").ilike("username", username).eq("active", true);
     // Offline preview mode has no real security to protect — compare
     // plaintext there so the seeded demo accounts keep working.
-    const { data: user } = supabase.isMock
-      ? await query.eq("password", password).single()
-      : await query.eq("password_hash", await sha256Hex(password)).single();
+    const hashedPassword = supabase.isMock ? null : await sha256Hex(password);
 
-    if (!user) return { ok: false, error: "Incorrect username or password" };
+    // A busy free-tier database can return a transient 503 under load —
+    // that's a server problem, not a wrong password, so retry a couple
+    // times before giving up rather than telling the user their
+    // credentials are wrong when the query never actually ran.
+    let lastError = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 500 * attempt));
+      try {
+        const query = supabase.from("users").select("*").ilike("username", username).eq("active", true);
+        const { data: user, error } = supabase.isMock
+          ? await query.eq("password", password).single()
+          : await query.eq("password_hash", hashedPassword).single();
 
-    const s = toSession(user);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-    setSession(s);
-    return { ok: true };
+        if (user) {
+          const s = toSession(user);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+          setSession(s);
+          return { ok: true };
+        }
+        // PGRST116 = "no rows" from .single() — a real username/password
+        // mismatch, not a server hiccup, so no point retrying that.
+        if (error?.code === "PGRST116") return { ok: false, error: "Incorrect username or password" };
+        lastError = error;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    return { ok: false, error: lastError ? "Server is busy — please try again in a moment" : "Incorrect username or password" };
   }
 
   async function changePassword(newPassword) {
