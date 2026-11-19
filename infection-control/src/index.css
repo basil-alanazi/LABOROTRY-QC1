@@ -50,4 +50,27 @@ body {
     z-index: 3;
     background-color: #f8fafc;
   }
+  /* ICU/SSI/OB rows have a dedicated leading pencil (edit-lock) column
+     before Patient Name — freeze it too, right next to the name, so the
+     pencil you're looking at never scrolls out of view from the patient
+     it belongs to. */
+  .sticky-pencil-col {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    width: 2.5rem;
+  }
+  .hai-grid thead .sticky-pencil-col {
+    z-index: 3;
+    background-color: #f8fafc;
+  }
+  .sticky-name-col-after-pencil {
+    position: sticky;
+    left: 2.5rem;
+    z-index: 2;
+  }
+  .hai-grid thead .sticky-name-col-after-pencil {
+    z-index: 3;
+    background-color: #f8fafc;
+  }
 }

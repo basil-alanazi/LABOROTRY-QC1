@@ -272,6 +272,8 @@ export const ar = {
   "Mark complete": "وضع علامة مكتمل",
   "Open": "مفتوح",
   "Edit this row": "تعديل هذا السطر",
+  "Set the Date of Discharge before changing Current Status away from Admitted": "لازم تحط تاريخ الخروج (Date of Discharge) قبل ما تغيّر الحالة الحالية من Admitted",
+  "Search by MRN/ID...": "بحث برقم الملف...",
   "Done editing": "تم التعديل",
   "A fixed 3-stage pipeline — OR → Delivery → Female Ward. Each stage's dedicated account (Settings → User Accounts, department = \"OR\" / \"Delivery\" / \"Female Ward\", or an OB/Delivery scope with specific stages granted) fills in only its own section, which opens once the previous stage is marked complete.":
     "مسار ثابت من 3 مراحل — غرفة العمليات ← الولادة ← الجناح النسائي. كل حساب مخصّص لمرحلته (الإعدادات ← حسابات المستخدمين، القسم = \"OR\"/\"Delivery\"/\"Female Ward\"، أو صلاحية عدوى الجرح/الولادة بمراحل محددة) يملأ قسمه فقط، والذي يُفتح بمجرد وضع علامة اكتمال على المرحلة السابقة.",
