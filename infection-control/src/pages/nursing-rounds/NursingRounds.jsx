@@ -424,7 +424,7 @@ function RoundRow({ r, canEdit, canToggleStatus, onDelete, onToggleStatus, onAdd
                   value={r.finding || ""}
                   onChange={(e) => onFieldChange({ finding: e.target.value })}
                   onBlur={onFieldSave}
-                  disabled={!canEdit}
+                  disabled={!canToggleStatus}
                 />
               </div>
               <div className="rounded-lg bg-white px-3 py-2 text-xs">
@@ -434,7 +434,7 @@ function RoundRow({ r, canEdit, canToggleStatus, onDelete, onToggleStatus, onAdd
                   value={r.corrective_action || ""}
                   onChange={(e) => onFieldChange({ corrective_action: e.target.value })}
                   onBlur={onFieldSave}
-                  disabled={!canEdit}
+                  disabled={!canToggleStatus}
                 />
               </div>
             </div>
@@ -447,7 +447,7 @@ function RoundRow({ r, canEdit, canToggleStatus, onDelete, onToggleStatus, onAdd
                   value={r.date_of_discussion || ""}
                   onChange={(e) => onFieldChange({ date_of_discussion: e.target.value })}
                   onBlur={onFieldSave}
-                  disabled={!canEdit}
+                  disabled={!canToggleStatus}
                 />
               </label>
               <span>{t("Recorded by: ")}{r.done_by || "—"}</span>
