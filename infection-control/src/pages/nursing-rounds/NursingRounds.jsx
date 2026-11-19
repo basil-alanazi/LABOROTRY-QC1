@@ -462,7 +462,7 @@ function RoundRow({ r, canEdit, canToggleStatus, onDelete, onToggleStatus, onAdd
                 </button>
               )}
             </div>
-            <AttachmentList attachments={r.attachments} canEdit={canEdit} onAdd={onAddAttachment} onRemove={onRemoveAttachment} />
+            <AttachmentList attachments={r.attachments} canEdit={canEdit} canUpload={canToggleStatus} onAdd={onAddAttachment} onRemove={onRemoveAttachment} />
           </td>
         </tr>
       )}
@@ -470,7 +470,7 @@ function RoundRow({ r, canEdit, canToggleStatus, onDelete, onToggleStatus, onAdd
   );
 }
 
-function AttachmentList({ attachments, canEdit, onAdd, onRemove }) {
+function AttachmentList({ attachments, canEdit, canUpload, onAdd, onRemove }) {
   const { t } = useLanguage();
   const list = attachments ?? [];
   return (
@@ -492,7 +492,7 @@ function AttachmentList({ attachments, canEdit, onAdd, onRemove }) {
           ))}
         </div>
       )}
-      {canEdit && (
+      {canUpload && (
         <label className="flex w-fit cursor-pointer items-center gap-1 font-medium text-red-600 hover:underline">
           <Upload className="h-3.5 w-3.5" />
           {list.length > 0 ? t("Add more attachments") : t("Upload attachment(s)")}

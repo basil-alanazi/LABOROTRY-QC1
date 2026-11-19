@@ -11,6 +11,7 @@ import { fetchAllRows } from "../../lib/fetchAll";
 import AttachmentMarkupModal from "../../components/AttachmentMarkupModal";
 import RefusalFormModal from "../../components/RefusalFormModal";
 import AcceptanceFormModal from "../../components/AcceptanceFormModal";
+import NsiFormModal from "../../components/NsiFormModal";
 import PrintPortal from "../../components/PrintPortal";
 import CellDropdown from "../../components/CellDropdown";
 import rabiaLogo from "../../assets/rabia-logo.jpg";
@@ -78,6 +79,7 @@ const emptyStatus = {
   ppd_2nd_test_date: "",
   ppd_next_due_date: "",
   ppd_batch_no: "",
+  ppd_positive_attachments: [],
   stool_urine_status: "",
   stool_urine_test_date: "",
   stool_urine_next_due_date: "",
@@ -122,12 +124,12 @@ export default function EmployeeHealth() {
   const [previewAttachment, setPreviewAttachment] = useState(null); // { name, path }
   const [statusDrafts, setStatusDrafts] = useState({}); // employee_id -> status fields
   const [doseDrafts, setDoseDrafts] = useState({}); // "empId|itemId|doseNum" -> { date, batch }
-  const [nsiForm, setNsiForm] = useState({ employee_id: "", incident_date: todayStr(), notes: "" });
   const [qrEmployee, setQrEmployee] = useState(null);
   const [requisitionEmployee, setRequisitionEmployee] = useState(null);
   const [refusalEmployee, setRefusalEmployee] = useState(null);
   const [refusalPreselect, setRefusalPreselect] = useState(null);
   const [acceptanceModal, setAcceptanceModal] = useState(null); // { emp, item, batchNo, dateGiven }
+  const [nsiFormTarget, setNsiFormTarget] = useState(null); // { nsiCase, emp } whose Form 293 is open
   const [ppdPopupEmployee, setPpdPopupEmployee] = useState(null); // employee id whose PPD dropdown is open
   const [vaccinePopup, setVaccinePopup] = useState(null); // { empId, itemId } of the open vaccine dropdown
   const [qrDataUrl, setQrDataUrl] = useState("");
@@ -424,6 +426,7 @@ export default function EmployeeHealth() {
         ppd_2nd_test_date: merged.ppd_2nd_test_date || null,
         ppd_next_due_date: merged.ppd_next_due_date || null,
         ppd_batch_no: merged.ppd_batch_no || "",
+        ppd_positive_attachments: merged.ppd_positive_attachments || [],
         stool_urine_status: merged.stool_urine_status || null,
         stool_urine_test_date: merged.stool_urine_test_date || null,
         stool_urine_next_due_date: merged.stool_urine_next_due_date || null,
@@ -443,6 +446,12 @@ export default function EmployeeHealth() {
         batchNo: merged.ppd_batch_no.trim(),
         dateGiven: merged.ppd_2nd_test_date || merged.ppd_test_date || todayStr(),
       });
+    }
+    // PPD just turned positive — flag the Chest X-ray/PCR/AFB reports as
+    // required so they don't get forgotten; the three upload slots stay
+    // visible and marked missing in the popup until all are attached.
+    if (merged.ppd_result === "positive" && existingStatus?.ppd_result !== "positive") {
+      flash({ type: "error", text: t("PPD positive — upload the Chest X-ray, PCR and AFB reports") });
     }
     loadAll();
   }
@@ -548,6 +557,23 @@ export default function EmployeeHealth() {
       flash({ type: "error", text: "Could not upload: " + err.message });
     }
   }
+  // --- PPD positive follow-up: Chest X-ray / PCR / AFB reports ---
+  async function uploadPpdPositiveFile(emp, file, kind) {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${emp.id}/ppd-positive/${kind}-${Date.now()}-${safeName}`;
+    const { error } = await supabase.storage.from(EMP_HEALTH_ATTACHMENTS_BUCKET).upload(path, file);
+    if (error) throw error;
+    return { path, name: file.name, kind };
+  }
+  async function setPpdPositiveAttachment(emp, file, kind) {
+    try {
+      const uploaded = await uploadPpdPositiveFile(emp, file, kind);
+      const current = (statusFor(emp.id).ppd_positive_attachments || []).filter((a) => a.kind !== kind);
+      await saveStatus(emp, { ppd_positive_attachments: [...current, uploaded] });
+    } catch (err) {
+      flash({ type: "error", text: "Could not upload: " + err.message });
+    }
+  }
   function removeInvestigationAttachment(emp, index) {
     const current = statusFor(emp.id).investigation_attachments || [];
     saveStatus(emp, { investigation_attachments: current.filter((_, i) => i !== index) });
@@ -566,23 +592,17 @@ export default function EmployeeHealth() {
   }
 
   // --- Doctor Review: needle-stick injury (NSI) follow-ups ---
-  async function addNsiCase(e) {
-    e.preventDefault();
-    if (!nsiForm.employee_id) {
-      flash({ type: "error", text: "Select an employee" });
-      return;
-    }
+  async function addNsiCase(emp) {
     const { error } = await supabase.from("employee_nsi_followups").insert({
-      employee_id: nsiForm.employee_id,
-      incident_date: nsiForm.incident_date || null,
-      notes: nsiForm.notes.trim(),
+      employee_id: emp.id,
+      incident_date: todayStr(),
+      notes: "",
       done_by: session?.username,
     });
     if (error) {
       flash({ type: "error", text: "Could not add case" });
       return;
     }
-    setNsiForm({ employee_id: "", incident_date: todayStr(), notes: "" });
     loadAll();
     flash({ type: "success", text: "NSI case added" });
   }
@@ -814,11 +834,6 @@ export default function EmployeeHealth() {
     () => pendingPpdEmployees.filter(matchesDoctorReviewSearch),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pendingPpdEmployees, doctorReviewSearch]
-  );
-  const visibleNsiCases = useMemo(
-    () => nsiCases.filter((c) => matchesDoctorReviewSearch(employees.find((e) => e.id === c.employee_id))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [nsiCases, employees, doctorReviewSearch]
   );
 
   // --- Grid <-> export shared column/row builders ---
@@ -1109,7 +1124,7 @@ export default function EmployeeHealth() {
                             {badge.text}
                           </button>
                           {isOpen && (
-                            <CellDropdown top={ppdPopupEmployee.top} left={ppdPopupEmployee.left} onClose={() => setPpdPopupEmployee(null)}>
+                            <CellDropdown top={ppdPopupEmployee.top} left={ppdPopupEmployee.left} width={340} onClose={() => setPpdPopupEmployee(null)}>
                               <div className="mb-1 flex items-center justify-between">
                                 <p className="text-xs font-bold text-slate-600">{t("PPD")}</p>
                                 <button onClick={() => setPpdPopupEmployee(null)} className="rounded px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-50">
@@ -1128,15 +1143,54 @@ export default function EmployeeHealth() {
                                 </label>
                                 <label className="flex flex-col gap-1 text-xs text-slate-500">
                                   {t("PPD Result")}
-                                  <input
+                                  <select
                                     className="input"
-                                    placeholder={t("e.g. Negative")}
                                     value={s.ppd_result || ""}
                                     disabled={!rowEditing || !canEdit}
-                                    onChange={(e) => setStatusField(emp.id, { ppd_result: e.target.value })}
-                                    onBlur={() => saveStatusRow(emp)}
-                                  />
+                                    onChange={(e) => saveStatus(emp, { ppd_result: e.target.value })}
+                                  >
+                                    <option value="">—</option>
+                                    <option value="negative">{t("Negative")}</option>
+                                    <option value="positive">{t("Positive")}</option>
+                                    <option value="unknown">{t("Unknown")}</option>
+                                  </select>
                                 </label>
+                                {s.ppd_result === "positive" && (
+                                  <div className="rounded-lg border border-red-200 bg-red-50 p-2">
+                                    <p className="mb-1 text-xs font-semibold text-red-700">{t("Required: Chest X-ray, PCR, AFB")}</p>
+                                    <div className="flex flex-col gap-1">
+                                      {[
+                                        ["xray", "Chest X-ray report"],
+                                        ["pcr", "PCR report"],
+                                        ["afb", "AFB report"],
+                                      ].map(([kind, label]) => {
+                                        const existing = (s.ppd_positive_attachments || []).find((a) => a.kind === kind);
+                                        return (
+                                          <div key={kind} className="flex items-center justify-between gap-2 text-xs">
+                                            {existing ? (
+                                              <a href={attachmentUrl(existing.path)} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                                                <Paperclip className="h-3 w-3" />
+                                                {t(label)}
+                                              </a>
+                                            ) : (
+                                              <span className="text-red-600">{t(label)} — {t("missing")}</span>
+                                            )}
+                                            {canEdit && (
+                                              <label className="flex cursor-pointer items-center gap-1 text-slate-500 hover:text-teal-700">
+                                                <Upload className="h-3.5 w-3.5" />
+                                                <input
+                                                  type="file"
+                                                  className="hidden"
+                                                  onChange={(e) => e.target.files?.[0] && setPpdPositiveAttachment(emp, e.target.files[0], kind)}
+                                                />
+                                              </label>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
                                 <label className="flex flex-col gap-1 text-xs text-slate-500">
                                   {t("Batch/Lot No")}
                                   <input
@@ -1207,6 +1261,79 @@ export default function EmployeeHealth() {
                                     </button>
                                   </div>
                                 )}
+
+                                <div className="mt-2 border-t border-slate-200 pt-2">
+                                  <div className="mb-1 flex items-center justify-between">
+                                    <p className="text-xs font-bold text-slate-600">{t("NSI Follow Up")}</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => addNsiCase(emp)}
+                                      className="flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-0.5 text-xs font-medium text-teal-700 hover:bg-teal-50"
+                                    >
+                                      <Plus className="h-3.5 w-3.5" />
+                                      {t("Add Incident")}
+                                    </button>
+                                  </div>
+                                  <div className="flex flex-col gap-2">
+                                    {nsiCases
+                                      .filter((c) => c.employee_id === emp.id)
+                                      .map((c) => (
+                                        <div key={c.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                                          <div className="flex items-center justify-between gap-2">
+                                            <input
+                                              type="date"
+                                              className="input-cell flex-1"
+                                              value={c.incident_date || ""}
+                                              onChange={(e) => updateNsiField(c.id, { incident_date: e.target.value })}
+                                              onBlur={() => saveNsiCase(c, {})}
+                                            />
+                                            <button onClick={() => removeNsiCase(c)} className="shrink-0 rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600">
+                                              <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                          </div>
+                                          <label className="mt-1 flex items-center gap-1.5 text-xs text-slate-600">
+                                            <input type="checkbox" checked={c.doctor_reviewed} onChange={(e) => saveNsiCase(c, { doctor_reviewed: e.target.checked })} />
+                                            {t("Doctor reviewed")}
+                                          </label>
+                                          <input
+                                            className="input mt-1 w-full text-xs"
+                                            value={c.notes || ""}
+                                            onChange={(e) => updateNsiField(c.id, { notes: e.target.value })}
+                                            onBlur={() => saveNsiCase(c, {})}
+                                            placeholder={t("Notes")}
+                                          />
+                                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                            {(c.form_attachments ?? []).map((a, i) => (
+                                              <span key={i} className="flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-xs text-slate-600">
+                                                <button type="button" onClick={() => setPreviewAttachment(a)} className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
+                                                  <Paperclip className="h-3 w-3" />
+                                                  {a.name || t("View")}
+                                                </button>
+                                                <button onClick={() => removeNsiAttachment(c, i)} className="text-slate-400 hover:text-red-500">
+                                                  <Trash2 className="h-3 w-3" />
+                                                </button>
+                                              </span>
+                                            ))}
+                                            <label className="flex cursor-pointer items-center gap-1 text-xs font-medium text-red-600 hover:underline">
+                                              <Upload className="h-3.5 w-3.5" />
+                                              {t("Attach")}
+                                              <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && addNsiAttachments(c, e.target.files)} />
+                                            </label>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => setNsiFormTarget({ nsiCase: c, emp })}
+                                            className="mt-1.5 w-full rounded-lg bg-teal-600 px-2 py-1 text-xs font-medium text-white hover:bg-teal-700"
+                                          >
+                                            {t("Fill NSI Form 293")}
+                                          </button>
+                                        </div>
+                                      ))}
+                                    {nsiCases.filter((c) => c.employee_id === emp.id).length === 0 && (
+                                      <p className="text-xs text-slate-400">{t("No needle-stick injury cases on record.")}</p>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             </CellDropdown>
                           )}
@@ -1631,135 +1758,6 @@ export default function EmployeeHealth() {
                 );
               })}
               {visiblePendingReviewEmployees.length === 0 && <p className="text-sm text-slate-400">{t("Nothing pending doctor review 🎉")}</p>}
-            </div>
-          </div>
-
-          <div>
-            <h2 className="mb-3 text-sm font-bold text-slate-800">
-              {t("NSI Follow Up")} ({nsiCases.length})
-            </h2>
-            <form onSubmit={addNsiCase} className="mb-3 grid grid-cols-1 gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-4 sm:grid-cols-4 sm:items-center">
-              <select className="input" value={nsiForm.employee_id} onChange={(e) => setNsiForm({ ...nsiForm, employee_id: e.target.value })} required>
-                <option value="">{t("Employee")}</option>
-                {activeEmployees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name}
-                  </option>
-                ))}
-              </select>
-              <input type="date" className="input" value={nsiForm.incident_date} onChange={(e) => setNsiForm({ ...nsiForm, incident_date: e.target.value })} />
-              <input className="input" value={nsiForm.notes} onChange={(e) => setNsiForm({ ...nsiForm, notes: e.target.value })} placeholder={t("Notes")} />
-              <button type="submit" className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
-                <Plus className="h-4 w-4" />
-                {t("Add Incident")}
-              </button>
-            </form>
-            <div className="flex flex-col gap-3">
-              {visibleNsiCases.map((c) => {
-                const emp = employees.find((e) => e.id === c.employee_id);
-                return (
-                  <div key={c.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-slate-800">{emp?.name || "—"}</p>
-                        <p className="text-xs text-slate-500">
-                          {emp?.department} · {emp?.employee_no} · {t("File #")}: {emp?.file_no || "—"}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {t("Incident date")}: {c.incident_date || "—"}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
-                          <input type="checkbox" checked={c.doctor_reviewed} onChange={(e) => saveNsiCase(c, { doctor_reviewed: e.target.checked })} />
-                          {t("Doctor reviewed")}
-                        </label>
-                        <button onClick={() => removeNsiCase(c)} className="rounded-lg p-1 text-slate-300 hover:bg-red-50 hover:text-red-600">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    {emp && renderEmployeeDocuments(emp)}
-                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      <label className="flex items-center gap-1.5 text-xs text-slate-500">
-                        {t("Report 1")}
-                        <input
-                          type="date"
-                          className="input-cell flex-1"
-                          value={c.report_1_date || ""}
-                          onChange={(e) => updateNsiField(c.id, { report_1_date: e.target.value })}
-                          onBlur={() => saveNsiCase(c, {})}
-                        />
-                      </label>
-                      <label className="flex items-center gap-1.5 text-xs text-slate-500">
-                        {t("Report 2")}
-                        <input
-                          type="date"
-                          className="input-cell flex-1"
-                          value={c.report_2_date || ""}
-                          onChange={(e) => updateNsiField(c.id, { report_2_date: e.target.value })}
-                          onBlur={() => saveNsiCase(c, {})}
-                        />
-                      </label>
-                      <label className="flex items-center gap-1.5 text-xs text-slate-500">
-                        {t("Report 3")}
-                        <input
-                          type="date"
-                          className="input-cell flex-1"
-                          value={c.report_3_date || ""}
-                          onChange={(e) => updateNsiField(c.id, { report_3_date: e.target.value })}
-                          onBlur={() => saveNsiCase(c, {})}
-                        />
-                      </label>
-                    </div>
-                    <input
-                      className="input mt-2 w-full text-sm"
-                      value={c.notes || ""}
-                      onChange={(e) => updateNsiField(c.id, { notes: e.target.value })}
-                      onBlur={() => saveNsiCase(c, {})}
-                      placeholder={t("Notes")}
-                    />
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      {(c.form_attachments ?? []).map((a, i) =>
-                        isImageAttachment(a) ? (
-                          <div key={i} className="group relative">
-                            <button
-                              type="button"
-                              onClick={() => setMarkupTarget({ kind: "nsi", nsiCase: c, attachment: a, index: i })}
-                              className="block h-16 w-16 overflow-hidden rounded-lg border border-slate-200 hover:ring-2 hover:ring-teal-500"
-                              title={t("Click to view & mark up")}
-                            >
-                              <img src={attachmentUrl(a.path)} alt={a.name || ""} className="h-full w-full object-cover" />
-                            </button>
-                            <button
-                              onClick={() => removeNsiAttachment(c, i)}
-                              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-slate-400 shadow hover:text-red-500"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ) : (
-                          <span key={i} className="flex items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
-                            <button type="button" onClick={() => setPreviewAttachment(a)} className="flex items-center gap-1 font-medium text-teal-700 hover:underline">
-                              <Paperclip className="h-3 w-3" />
-                              {a.name || t("View")}
-                            </button>
-                            <button onClick={() => removeNsiAttachment(c, i)} className="text-slate-400 hover:text-red-500">
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </span>
-                        )
-                      )}
-                      <label className="flex cursor-pointer items-center gap-1 text-xs font-medium text-red-600 hover:underline">
-                        <Upload className="h-3.5 w-3.5" />
-                        {t("Attach form")}
-                        <input type="file" multiple className="hidden" onChange={(e) => e.target.files?.length && addNsiAttachments(c, e.target.files)} />
-                      </label>
-                    </div>
-                  </div>
-                );
-              })}
-              {visibleNsiCases.length === 0 && <p className="text-sm text-slate-400">{t("No needle-stick injury cases on record.")}</p>}
             </div>
           </div>
 
@@ -2282,6 +2280,16 @@ export default function EmployeeHealth() {
           batchNo={acceptanceModal.batchNo}
           dateGiven={acceptanceModal.dateGiven}
           onClose={() => setAcceptanceModal(null)}
+          flash={flash}
+          onSaved={() => loadAll()}
+        />
+      )}
+
+      {nsiFormTarget && (
+        <NsiFormModal
+          nsiCase={nsiFormTarget.nsiCase}
+          emp={nsiFormTarget.emp}
+          onClose={() => setNsiFormTarget(null)}
           flash={flash}
           onSaved={() => loadAll()}
         />
