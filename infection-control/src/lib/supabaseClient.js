@@ -49,6 +49,7 @@ export const supabase =
         hai_monthly_indicators: seed.hai_monthly_indicators,
         hai_care_bundle_forms: seed.hai_care_bundle_forms,
         employee_refusal_forms: seed.employee_refusal_forms,
+        employee_acceptance_forms: seed.employee_acceptance_forms ?? [],
         quality_policy_tracker: seed.quality_policy_tracker,
         ic_test_sets: seed.ic_test_sets,
         ic_test_questions: seed.ic_test_questions,

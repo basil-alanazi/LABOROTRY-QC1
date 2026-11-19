@@ -104,15 +104,20 @@ class QueryBuilder {
       const items = Array.isArray(this._payload) ? this._payload : [this._payload];
       const upserted = [];
       for (const it of items) {
-        const existing = rows.find((r) => this._onConflict.every((col) => r[col] === it[col]));
-        if (existing) Object.assign(existing, it);
-        else {
+        const idx = rows.findIndex((r) => this._onConflict.every((col) => r[col] === it[col]));
+        if (idx === -1) {
           const created = { id: uid(), created_at: new Date().toISOString(), ...it };
           rows.push(created);
           upserted.push(created);
           continue;
         }
-        upserted.push(existing);
+        // A fresh object, not a mutation of the old one in place — a caller
+        // that captured the pre-upsert row earlier (e.g. to compare old vs
+        // new values) keeps seeing the old snapshot, same as a real
+        // Postgres round-trip would never retroactively touch it.
+        const merged = { ...rows[idx], ...it };
+        rows[idx] = merged;
+        upserted.push(merged);
       }
       this.store.set(this.table, rows);
       return { data: upserted, error: null };
