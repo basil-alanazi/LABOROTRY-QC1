@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, FileSignature, FileSpreadsheet, FileText, Paperclip, Pencil, Plus, Printer, QrCode, Save, Trash2, Upload, UserPlus } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, FileSignature, FileSpreadsheet, FileText, Paperclip, Pencil, Plus, Printer, QrCode, Save, Trash2, Upload, UserPlus } from "lucide-react";
 import QRCode from "qrcode";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
@@ -129,6 +129,10 @@ export default function EmployeeHealth() {
   const [vaccinePopup, setVaccinePopup] = useState(null); // { empId, itemId } of the open vaccine dropdown
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [qrDocForm, setQrDocForm] = useState({ docType: "vaccination", vaccineId: "", customName: "" });
+  // Clinic grid rows start locked (read-only) even for an admin — a row's
+  // pencil icon must be clicked to unlock its fields, so a stray tap/scroll
+  // on the grid (especially on mobile) can't accidentally change a value.
+  const [editingRows, setEditingRows] = useState({}); // employee id -> bool
 
   const departments = config?.employee_departments ?? [];
 
@@ -961,14 +965,23 @@ export default function EmployeeHealth() {
           <tbody>
             {groupEmployees.map((emp, idx) => {
               const s = statusFor(emp.id);
+              const rowEditing = !!editingRows[emp.id];
               return (
                 <tr key={emp.id} className="border-t border-slate-100 align-top">
                   <td className="sticky left-0 z-10 w-10 border-r border-slate-100 bg-white px-1 py-1 text-center">
-                    {canEdit && (
-                      <button onClick={() => removeEmployee(emp)} title={t("Remove employee")} className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                    <div className="flex items-center justify-center gap-0.5">
+                      {canEdit && (
+                        <EditLockToggle
+                          editing={rowEditing}
+                          onToggle={() => setEditingRows((prev) => ({ ...prev, [emp.id]: !prev[emp.id] }))}
+                        />
+                      )}
+                      {canEdit && (
+                        <button onClick={() => removeEmployee(emp)} title={t("Remove employee")} className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-600">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="sticky left-10 z-10 w-10 border-r border-slate-100 bg-white px-2 py-1">{idx + 1}</td>
                   <td className="sticky left-20 z-10 border-r border-slate-100 bg-white px-2 py-1">
@@ -981,7 +994,7 @@ export default function EmployeeHealth() {
                           employeeStatus(emp).severity === "red" ? "bg-red-500" : employeeStatus(emp).severity === "yellow" ? "bg-amber-400" : "bg-emerald-500"
                         }`}
                       />
-                      <input className="input-cell" value={emp.name} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { name: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                      <input className="input-cell" value={emp.name} disabled={!rowEditing || !canEdit} onChange={(e) => updateEmployeeField(emp.id, { name: e.target.value })} onBlur={() => saveEmployee(emp)} />
                       <button
                         type="button"
                         title={t("Employee QR profile")}
@@ -1019,32 +1032,32 @@ export default function EmployeeHealth() {
                     </div>
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input className="input-cell w-16" value={emp.employee_no} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { employee_no: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                    <input className="input-cell w-16" value={emp.employee_no} disabled={!rowEditing || !canEdit} onChange={(e) => updateEmployeeField(emp.id, { employee_no: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input className="input-cell w-16" value={emp.file_no} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { file_no: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                    <input className="input-cell w-16" value={emp.file_no} disabled={!rowEditing || !canEdit} onChange={(e) => updateEmployeeField(emp.id, { file_no: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input className="input-cell w-20" value={emp.iqama_no} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { iqama_no: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                    <input className="input-cell w-20" value={emp.iqama_no} disabled={!rowEditing || !canEdit} onChange={(e) => updateEmployeeField(emp.id, { iqama_no: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input type="date" className="input-cell w-28" value={emp.date_of_birth || ""} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { date_of_birth: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                    <input type="date" className="input-cell w-28" value={emp.date_of_birth || ""} disabled={!rowEditing || !canEdit} onChange={(e) => updateEmployeeField(emp.id, { date_of_birth: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input className="input-cell w-20" value={emp.phone} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { phone: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                    <input className="input-cell w-20" value={emp.phone} disabled={!rowEditing || !canEdit} onChange={(e) => updateEmployeeField(emp.id, { phone: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input className="input-cell w-28" value={emp.department} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { department: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                    <input className="input-cell w-28" value={emp.department} disabled={!rowEditing || !canEdit} onChange={(e) => updateEmployeeField(emp.id, { department: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input className="input-cell w-28" value={emp.job_title || ""} disabled={!canEdit} onChange={(e) => updateEmployeeField(emp.id, { job_title: e.target.value })} onBlur={() => saveEmployee(emp)} />
+                    <input className="input-cell w-28" value={emp.job_title || ""} disabled={!rowEditing || !canEdit} onChange={(e) => updateEmployeeField(emp.id, { job_title: e.target.value })} onBlur={() => saveEmployee(emp)} />
                   </td>
 
                   <td className="border-r border-slate-100 px-2 py-1">
                     <select
                       className="input-cell w-32"
                       value={s.investigation_status || "review_due"}
-                      disabled={!canEdit}
+                      disabled={!rowEditing || !canEdit}
                       onChange={(e) => saveStatus(emp, { investigation_status: e.target.value })}
                     >
                       {INVESTIGATION_STATUSES.map((o) => (
@@ -1085,7 +1098,7 @@ export default function EmployeeHealth() {
                               <div className="flex flex-col gap-2">
                                 <label className="flex flex-col gap-1 text-xs text-slate-500">
                                   {t("PPD Status")}
-                                  <select className="input" value={s.ppd_status || ""} disabled={!canEdit} onChange={(e) => saveStatus(emp, { ppd_status: e.target.value })}>
+                                  <select className="input" value={s.ppd_status || ""} disabled={!rowEditing || !canEdit} onChange={(e) => saveStatus(emp, { ppd_status: e.target.value })}>
                                     <option value="">—</option>
                                     <option value="done">{t("Done")}</option>
                                     <option value="refused_1st">{t("Refused (1st)")}</option>
@@ -1098,7 +1111,7 @@ export default function EmployeeHealth() {
                                     className="input"
                                     placeholder={t("e.g. Negative")}
                                     value={s.ppd_result || ""}
-                                    disabled={!canEdit}
+                                    disabled={!rowEditing || !canEdit}
                                     onChange={(e) => setStatusField(emp.id, { ppd_result: e.target.value })}
                                     onBlur={() => saveStatusRow(emp)}
                                   />
@@ -1110,7 +1123,7 @@ export default function EmployeeHealth() {
                                       type="date"
                                       className="input"
                                       value={s.ppd_test_date || ""}
-                                      disabled={!canEdit}
+                                      disabled={!rowEditing || !canEdit}
                                       onChange={(e) =>
                                         setStatusField(emp.id, { ppd_test_date: e.target.value, ppd_next_due_date: e.target.value ? addMonths(e.target.value, 12) : "" })
                                       }
@@ -1123,7 +1136,7 @@ export default function EmployeeHealth() {
                                       type="date"
                                       className="input"
                                       value={s.ppd_2nd_test_date || ""}
-                                      disabled={!canEdit}
+                                      disabled={!rowEditing || !canEdit}
                                       onChange={(e) =>
                                         setStatusField(emp.id, {
                                           ppd_2nd_test_date: e.target.value,
@@ -1140,7 +1153,7 @@ export default function EmployeeHealth() {
                                     type="date"
                                     className="input"
                                     value={s.ppd_next_due_date || ""}
-                                    disabled={!canEdit}
+                                    disabled={!rowEditing || !canEdit}
                                     onChange={(e) => setStatusField(emp.id, { ppd_next_due_date: e.target.value })}
                                     onBlur={() => saveStatusRow(emp)}
                                   />
@@ -1177,7 +1190,7 @@ export default function EmployeeHealth() {
                         <select
                           className="input-cell w-20"
                           value={s.stool_urine_status || ""}
-                          disabled={!canEdit}
+                          disabled={!rowEditing || !canEdit}
                           onChange={(e) => saveStatus(emp, { stool_urine_status: e.target.value })}
                         >
                           <option value="">—</option>
@@ -1191,19 +1204,19 @@ export default function EmployeeHealth() {
                           type="date"
                           className="input-cell w-28"
                           value={s.stool_urine_test_date || ""}
-                          disabled={!canEdit}
+                          disabled={!rowEditing || !canEdit}
                           onChange={(e) => setStatusField(emp.id, { stool_urine_test_date: e.target.value, stool_urine_next_due_date: e.target.value ? addMonths(e.target.value, 6) : "" })}
                           onBlur={() => saveStatusRow(emp)}
                         />
                       </td>
                       <td className="border-r border-amber-100 bg-amber-50/30 px-2 py-1">
-                        <input type="date" className="input-cell w-28" value={s.stool_urine_next_due_date || ""} disabled={!canEdit} onChange={(e) => setStatusField(emp.id, { stool_urine_next_due_date: e.target.value })} onBlur={() => saveStatusRow(emp)} />
+                        <input type="date" className="input-cell w-28" value={s.stool_urine_next_due_date || ""} disabled={!rowEditing || !canEdit} onChange={(e) => setStatusField(emp.id, { stool_urine_next_due_date: e.target.value })} onBlur={() => saveStatusRow(emp)} />
                       </td>
                     </>
                   )}
 
                   <td className="border-r border-slate-100 px-2 py-1">
-                    <input className="input-cell w-32" value={s.icn_remarks || ""} disabled={!canEdit} onChange={(e) => setStatusField(emp.id, { icn_remarks: e.target.value })} onBlur={() => saveStatusRow(emp)} />
+                    <input className="input-cell w-32" value={s.icn_remarks || ""} disabled={!rowEditing || !canEdit} onChange={(e) => setStatusField(emp.id, { icn_remarks: e.target.value })} onBlur={() => saveStatusRow(emp)} />
                   </td>
 
                   {slots.map(({ item }) => {
@@ -1238,7 +1251,7 @@ export default function EmployeeHealth() {
                                 </button>
                               </div>
                               <label className="flex items-center gap-2 text-sm text-slate-700">
-                                <input type="checkbox" checked={requested} disabled={!canEdit} onChange={(e) => toggleVaccineRequest(emp, item, e.target.checked)} />
+                                <input type="checkbox" checked={requested} disabled={!rowEditing || !canEdit} onChange={(e) => toggleVaccineRequest(emp, item, e.target.checked)} />
                                 {t("Required")}
                               </label>
                               {reqRow?.refused && <p className="mt-1 text-xs font-medium text-amber-600">{t("Refused")}</p>}
@@ -1252,7 +1265,7 @@ export default function EmployeeHealth() {
                                           type="date"
                                           className="input"
                                           value={getDoseField(emp.id, item.id, d, "date")}
-                                          disabled={!canEdit}
+                                          disabled={!rowEditing || !canEdit}
                                           onChange={(e) => setDoseField(emp.id, item.id, d, "date", e.target.value)}
                                           onBlur={() => saveDoseCell(emp, item, d)}
                                         />
@@ -1262,7 +1275,7 @@ export default function EmployeeHealth() {
                                         <input
                                           className="input"
                                           value={getDoseField(emp.id, item.id, d, "batch")}
-                                          disabled={!canEdit}
+                                          disabled={!rowEditing || !canEdit}
                                           onChange={(e) => setDoseField(emp.id, item.id, d, "batch", e.target.value)}
                                           onBlur={() => saveDoseCell(emp, item, d)}
                                         />
@@ -2270,5 +2283,23 @@ export default function EmployeeHealth() {
         </div>
       )}
     </div>
+  );
+}
+
+// One pencil per clinic row — locked by default even for an admin, so a
+// tap/scroll on the grid (especially on mobile) can't accidentally change a
+// value. Tapping it unlocks every field in that row, tapping again (now a
+// checkmark) locks it back.
+function EditLockToggle({ editing, onToggle }) {
+  const { t } = useLanguage();
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={editing ? t("Done editing") : t("Edit this row")}
+      className={`rounded p-1 ${editing ? "bg-teal-50 text-teal-600" : "text-slate-300 hover:bg-slate-100 hover:text-slate-600"}`}
+    >
+      {editing ? <Check className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+    </button>
   );
 }
