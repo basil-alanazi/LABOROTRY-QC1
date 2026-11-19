@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, FileSpreadsheet, FileText, Plus, Trash2, UserPlus } from "lucide-react";
+import { AlertTriangle, Check, FileSpreadsheet, FileText, Pencil, Plus, Trash2, UserPlus } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { useLanguage } from "../../lib/i18n.jsx";
@@ -8,6 +8,7 @@ import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
+const monthYearLabel = () => new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
 const addDaysToDateStr = (dateStr, days) => {
   const d = new Date(`${dateStr}T00:00:00`);
   d.setDate(d.getDate() + days);
@@ -35,6 +36,12 @@ const IC_ONLY_HEADERS = ["Date of Birth", "National ID", "Mobile", "Nationality"
 // below, but their existing patients/follow-ups stay fully intact and
 // editable from the All Patients grid.
 const RETIRED_SSI_DOCTORS = ["Dr.Rezk"];
+
+// Treating Doctor is a fixed list, not free text, so the By Doctor tracker
+// can group cases reliably — a case recorded under an older/retired doctor
+// (see RETIRED_SSI_DOCTORS) keeps its own value even though it's not one of
+// these options.
+const SSI_DOCTOR_OPTIONS = ["DR.JAMILA", "DR RASHA", "DR.JAKLIN"];
 
 const STATUS_OPTIONS = ["admitted", "discharged", "transferred", "referred", "expired", "other"];
 const statusLabel = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "—");
@@ -459,6 +466,7 @@ export default function HaiSurveillance() {
       .from("hai_ssi_surveillance")
       .insert({
         patient_name: "",
+        month: monthYearLabel(),
         elective_emergency: "elective",
         follow_up_duration: 30,
         follow_ups: padArray([], SSI_FOLLOWUP_SLOTS, emptyFollowUp),
@@ -1097,7 +1105,7 @@ function parseDobInput(text) {
   if (day < 1 || day > 31 || month < 1 || month > 12) return null;
   return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }
-function DobInput({ value, onFieldChange, onCommit, dischargeBg = "" }) {
+function DobInput({ value, onFieldChange, onCommit, dischargeBg = "", disabled }) {
   const [text, setText] = useState(() => formatDobDisplay(value));
   useEffect(() => setText(formatDobDisplay(value)), [value]);
 
@@ -1139,6 +1147,7 @@ function DobInput({ value, onFieldChange, onCommit, dischargeBg = "" }) {
       value={text}
       onChange={handleChange}
       onBlur={handleBlur}
+      disabled={disabled}
     />
   );
 }
@@ -1146,15 +1155,15 @@ function DobInput({ value, onFieldChange, onCommit, dischargeBg = "" }) {
 // Date of Birth/National ID/Mobile/Nationality — Infection Control's own
 // patient-identity fields, rendered only for admin (Owner/IC); department
 // accounts never see these cells at all, matching IC_ONLY_HEADERS above.
-function IcOnlyCells({ isAdmin, record, onFieldChange, onFieldBlurSave, onDobCommit, dischargeBg = "" }) {
+function IcOnlyCells({ isAdmin, record, onFieldChange, onFieldBlurSave, onDobCommit, dischargeBg = "", editing = true }) {
   if (!isAdmin) return null;
   const cellClass = dischargeBg || "bg-slate-50";
   return (
     <>
-      <td className={`${cellClass} px-1.5 py-0.5`}><DobInput value={record.date_of_birth} onFieldChange={onFieldChange} onCommit={onDobCommit} dischargeBg={dischargeBg} /></td>
-      <td className={`${cellClass} px-1.5 py-0.5`}><GridText value={record.national_id} onChange={(e) => onFieldChange({ national_id: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[6rem] ${dischargeBg}`} /></td>
-      <td className={`${cellClass} px-1.5 py-0.5`}><GridText value={record.mobile} onChange={(e) => onFieldChange({ mobile: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[6rem] ${dischargeBg}`} /></td>
-      <td className={`${cellClass} px-1.5 py-0.5`}><GridText value={record.nationality} onChange={(e) => onFieldChange({ nationality: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[5.5rem] ${dischargeBg}`} /></td>
+      <td className={`${cellClass} px-1.5 py-0.5`}><DobInput value={record.date_of_birth} onFieldChange={onFieldChange} onCommit={onDobCommit} dischargeBg={dischargeBg} disabled={!editing} /></td>
+      <td className={`${cellClass} px-1.5 py-0.5`}><GridText value={record.national_id} onChange={(e) => onFieldChange({ national_id: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[6rem] ${dischargeBg}`} /></td>
+      <td className={`${cellClass} px-1.5 py-0.5`}><GridText value={record.mobile} onChange={(e) => onFieldChange({ mobile: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[6rem] ${dischargeBg}`} /></td>
+      <td className={`${cellClass} px-1.5 py-0.5`}><GridText value={record.nationality} onChange={(e) => onFieldChange({ nationality: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[5.5rem] ${dischargeBg}`} /></td>
     </>
   );
 }
@@ -1257,6 +1266,7 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
 
 function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecimenFieldChange, onSpecimenMdroToggle, onHaiDetectedToggle, onEventTypeToggle, onUpdatedInSehaToggle, onStatusAfterDischargeToggle, onDobCommit, onRemove }) {
   const { t } = useLanguage();
+  const [editing, setEditing] = useState(false);
   const unitBeforeHospital = !!(p.hospital_admission_date && p.unit_admission_date && p.unit_admission_date < p.hospital_admission_date);
   const nameCellClass = identityCellClass(p.current_status, p.updated_in_seha, p.updated_in_seha_status, hasActiveDevice(p));
   // Once "Status After Discharge" is ticked, the whole row goes dark green —
@@ -1268,28 +1278,28 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <input
           type="checkbox"
-          disabled={!isAdmin}
+          disabled={!editing || !isAdmin}
           checked={!!p.updated_in_seha}
           onChange={(e) => onUpdatedInSehaToggle(e.target.checked)}
           title={sehaSyncState(p.current_status, p.updated_in_seha, p.updated_in_seha_status) === "stale" ? t("Updated in Seha before — status has changed since, needs a fresh update") : undefined}
         />
       </td>
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} className={dischargeBg} /></td>
-      <td className={`sticky-name-col px-1.5 py-0.5 ${dischargeBg || nameCellClass || rowBg || "bg-white"}`}><GridText value={p.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[8rem] ${dischargeBg || nameCellClass}`} /></td>
-      <td className={`px-1.5 py-0.5 ${dischargeBg || nameCellClass || rowBg}`}><GridText value={p.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[5rem] ${dischargeBg || nameCellClass}`} /></td>
-      <IcOnlyCells isAdmin={isAdmin} record={p} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} onDobCommit={onDobCommit} dischargeBg={dischargeBg} />
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.age} onChange={(e) => onFieldChange({ age: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[3.5rem] ${dischargeBg}`} /></td>
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
+      <td className={`sticky-name-col px-1.5 py-0.5 ${dischargeBg || nameCellClass || rowBg || "bg-white"}`}><GridText value={p.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[8rem] ${dischargeBg || nameCellClass}`} /></td>
+      <td className={`px-1.5 py-0.5 ${dischargeBg || nameCellClass || rowBg}`}><GridText value={p.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[5rem] ${dischargeBg || nameCellClass}`} /></td>
+      <IcOnlyCells isAdmin={isAdmin} record={p} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} onDobCommit={onDobCommit} dischargeBg={dischargeBg} editing={editing} />
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.age} onChange={(e) => onFieldChange({ age: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[3.5rem] ${dischargeBg}`} /></td>
       <td className={`px-1.5 py-0.5 ${rowBg}`}>
-        <select className={`input-cell w-full ${dischargeBg}`} value={p.gender} onChange={(e) => onFieldChange({ gender: e.target.value })} onBlur={onFieldBlurSave}>
+        <select className={`input-cell w-full ${dischargeBg}`} disabled={!editing} value={p.gender} onChange={(e) => onFieldChange({ gender: e.target.value })} onBlur={onFieldBlurSave}>
           <option value="">—</option>
           <option value="M">M</option>
           <option value="F">F</option>
         </select>
       </td>
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.bed_no} onChange={(e) => onFieldChange({ bed_no: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[3.5rem] ${dischargeBg}`} /></td>
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={p.hospital_admission_date} onChange={(e) => onFieldChange({ hospital_admission_date: e.target.value })} onBlur={onFieldBlurSave} className={dischargeBg} /></td>
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.bed_no} onChange={(e) => onFieldChange({ bed_no: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[3.5rem] ${dischargeBg}`} /></td>
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={p.hospital_admission_date} onChange={(e) => onFieldChange({ hospital_admission_date: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
       <td className={`px-1.5 py-0.5 ${rowBg}`}>
-        <select className={`input-cell w-full min-w-[5.5rem] ${dischargeBg}`} value={p.icu_type} onChange={(e) => onFieldChange({ icu_type: e.target.value })} onBlur={onFieldBlurSave}>
+        <select className={`input-cell w-full min-w-[5.5rem] ${dischargeBg}`} disabled={!editing} value={p.icu_type} onChange={(e) => onFieldChange({ icu_type: e.target.value })} onBlur={onFieldBlurSave}>
           <option value="">—</option>
           {icuTypes.map((type) => (
             <option key={type} value={type}>{type}</option>
@@ -1301,22 +1311,23 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
           value={p.unit_admission_date}
           onChange={(e) => onFieldChange({ unit_admission_date: e.target.value })}
           onBlur={onFieldBlurSave}
+          disabled={!editing}
           className={unitBeforeHospital ? "border-red-400 bg-red-50" : dischargeBg}
         />
         {unitBeforeHospital && <p className="mt-0.5 whitespace-nowrap text-[10px] font-medium text-red-600">{t("Before hospital admission")}</p>}
       </td>
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.admission_diagnosis} onChange={(e) => onFieldChange({ admission_diagnosis: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[8rem] ${dischargeBg}`} /></td>
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.admission_diagnosis} onChange={(e) => onFieldChange({ admission_diagnosis: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[8rem] ${dischargeBg}`} /></td>
 
-      <td className={`px-1.5 py-0.5 border-l-2 border-slate-800 ${rowBg}`}><GridDate value={p.central_line_insertion} onChange={(e) => onFieldChange({ central_line_insertion: e.target.value })} onBlur={onFieldBlurSave} className={dischargeBg} /></td>
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={p.central_line_removed} onChange={(e) => onFieldChange({ central_line_removed: e.target.value })} onBlur={onFieldBlurSave} className={dischargeBg} /></td>
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={p.urinary_catheter_insertion} onChange={(e) => onFieldChange({ urinary_catheter_insertion: e.target.value })} onBlur={onFieldBlurSave} className={dischargeBg} /></td>
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={p.urinary_catheter_removed} onChange={(e) => onFieldChange({ urinary_catheter_removed: e.target.value })} onBlur={onFieldBlurSave} className={dischargeBg} /></td>
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={p.ventilator_insertion} onChange={(e) => onFieldChange({ ventilator_insertion: e.target.value })} onBlur={onFieldBlurSave} className={dischargeBg} /></td>
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={p.ventilator_removed} onChange={(e) => onFieldChange({ ventilator_removed: e.target.value })} onBlur={onFieldBlurSave} className={dischargeBg} /></td>
+      <td className={`px-1.5 py-0.5 border-l-2 border-slate-800 ${rowBg}`}><GridDate value={p.central_line_insertion} onChange={(e) => onFieldChange({ central_line_insertion: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={p.central_line_removed} onChange={(e) => onFieldChange({ central_line_removed: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={p.urinary_catheter_insertion} onChange={(e) => onFieldChange({ urinary_catheter_insertion: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={p.urinary_catheter_removed} onChange={(e) => onFieldChange({ urinary_catheter_removed: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={p.ventilator_insertion} onChange={(e) => onFieldChange({ ventilator_insertion: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={p.ventilator_removed} onChange={(e) => onFieldChange({ ventilator_removed: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
 
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.device_reinsertion_note} onChange={(e) => onFieldChange({ device_reinsertion_note: e.target.value })} onBlur={onFieldBlurSave} className={dischargeBg} /></td>
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.signs_symptoms} onChange={(e) => onFieldChange({ signs_symptoms: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[7rem] ${dischargeBg}`} /></td>
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={p.date_onset_symptoms} onChange={(e) => onFieldChange({ date_onset_symptoms: e.target.value })} onBlur={onFieldBlurSave} className={dischargeBg} /></td>
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.device_reinsertion_note} onChange={(e) => onFieldChange({ device_reinsertion_note: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.signs_symptoms} onChange={(e) => onFieldChange({ signs_symptoms: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[7rem] ${dischargeBg}`} /></td>
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={p.date_onset_symptoms} onChange={(e) => onFieldChange({ date_onset_symptoms: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
 
       {p.specimens.map((s, i) => (
         <SpecimenCells
@@ -1328,54 +1339,75 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
           onBlur={onFieldBlurSave}
           onMdroToggle={(checked) => onSpecimenMdroToggle(i, checked)}
           rowBg={rowBg}
+          editing={editing}
         />
       ))}
 
-      <td className={`px-1.5 py-0.5 border-l-2 border-slate-800 ${rowBg}`}><GridText value={p.other_specimens} onChange={(e) => onFieldChange({ other_specimens: e.target.value })} onBlur={onFieldBlurSave} className={dischargeBg} /></td>
+      <td className={`px-1.5 py-0.5 border-l-2 border-slate-800 ${rowBg}`}><GridText value={p.other_specimens} onChange={(e) => onFieldChange({ other_specimens: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
       <td className={`px-1.5 py-0.5 text-center ${rowBg}`}>
-        <input type="checkbox" checked={!!p.hai_detected} onChange={(e) => onHaiDetectedToggle(e.target.checked)} />
+        <input type="checkbox" disabled={!editing} checked={!!p.hai_detected} onChange={(e) => onHaiDetectedToggle(e.target.checked)} />
       </td>
       {EVENT_TYPES.map((type, i) => (
         <td key={type} className={`px-1.5 py-0.5 text-center ${i === 0 ? "border-l-2 border-slate-800" : ""} ${rowBg}`}>
-          <input type="checkbox" disabled={!p.hai_detected} checked={(p.hai_event_types ?? []).includes(type)} onChange={() => onEventTypeToggle(type)} />
+          <input type="checkbox" disabled={!editing || !p.hai_detected} checked={(p.hai_event_types ?? []).includes(type)} onChange={() => onEventTypeToggle(type)} />
         </td>
       ))}
 
-      <td className={`px-1.5 py-0.5 border-l-2 border-slate-800 ${rowBg}`}><GridDate value={p.date_of_discharge} onChange={(e) => onFieldChange({ date_of_discharge: e.target.value })} onBlur={onFieldBlurSave} className={dischargeBg} /></td>
+      <td className={`px-1.5 py-0.5 border-l-2 border-slate-800 ${rowBg}`}><GridDate value={p.date_of_discharge} onChange={(e) => onFieldChange({ date_of_discharge: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
       <td className={`px-1.5 py-0.5 ${rowBg}`}>
-        <select className={`input-cell w-full ${dischargeBg}`} value={p.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
+        <select className={`input-cell w-full ${dischargeBg}`} disabled={!editing} value={p.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>{t(statusLabel(s))}</option>
           ))}
         </select>
       </td>
       <td className={`px-1.5 py-0.5 text-center ${rowBg}`}>
-        <input type="checkbox" checked={!!p.status_after_discharge} onChange={(e) => onStatusAfterDischargeToggle(e.target.checked)} />
+        <input type="checkbox" disabled={!editing} checked={!!p.status_after_discharge} onChange={(e) => onStatusAfterDischargeToggle(e.target.checked)} />
       </td>
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[7rem] ${dischargeBg}`} /></td>
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[7rem] ${dischargeBg}`} /></td>
       <td className={`px-1.5 py-0.5 ${rowBg}`}>
-        {isAdmin && (
-          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-            <Trash2 className="h-4 w-4" />
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
+          {isAdmin && (
+            <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </td>
     </tr>
+  );
+}
+
+// One pencil per row — locked by default so a tap/scroll on the grid can't
+// accidentally change a value; tapping it unlocks every field in that row
+// for editing, tapping again (now a checkmark) locks it back.
+function EditLockToggle({ editing, onToggle }) {
+  const { t } = useLanguage();
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={editing ? t("Done editing") : t("Edit this row")}
+      className={`rounded-lg p-1.5 ${editing ? "bg-teal-50 text-teal-600" : "text-slate-400 hover:bg-slate-100"}`}
+    >
+      {editing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+    </button>
   );
 }
 
 // Renders one specimen's slot — 5 cells (Type/Date Collected/Date of
 // Result/Organism/MDRO) when hasDateResult, or 4 (no Date of Result) for
 // the SSI sheet's single specimen slot.
-function SpecimenCells({ specimen, hasDateResult, onChange, onBlur, onMdroToggle, divider, rowBg = "" }) {
+function SpecimenCells({ specimen, hasDateResult, onChange, onBlur, onMdroToggle, divider, rowBg = "", editing = true }) {
   return (
     <>
-      <td className={`px-1.5 py-0.5 ${divider ? "border-l-2 border-slate-800" : ""} ${rowBg}`}><GridText value={specimen.type} onChange={(e) => onChange({ type: e.target.value })} onBlur={onBlur} className={`min-w-[5.5rem] ${rowBg}`} /></td>
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={specimen.date_collected} onChange={(e) => onChange({ date_collected: e.target.value })} onBlur={onBlur} className={rowBg} /></td>
-      {hasDateResult && <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={specimen.date_result} onChange={(e) => onChange({ date_result: e.target.value })} onBlur={onBlur} className={rowBg} /></td>}
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={specimen.organism} onChange={(e) => onChange({ organism: e.target.value })} onBlur={onBlur} className={`min-w-[5.5rem] ${rowBg}`} /></td>
+      <td className={`px-1.5 py-0.5 ${divider ? "border-l-2 border-slate-800" : ""} ${rowBg}`}><GridText value={specimen.type} onChange={(e) => onChange({ type: e.target.value })} onBlur={onBlur} disabled={!editing} className={`min-w-[5.5rem] ${rowBg}`} /></td>
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={specimen.date_collected} onChange={(e) => onChange({ date_collected: e.target.value })} onBlur={onBlur} disabled={!editing} className={rowBg} /></td>
+      {hasDateResult && <td className={`px-1.5 py-0.5 ${rowBg}`}><GridDate value={specimen.date_result} onChange={(e) => onChange({ date_result: e.target.value })} onBlur={onBlur} disabled={!editing} className={rowBg} /></td>}
+      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={specimen.organism} onChange={(e) => onChange({ organism: e.target.value })} onBlur={onBlur} disabled={!editing} className={`min-w-[5.5rem] ${rowBg}`} /></td>
       <td className={`px-1.5 py-0.5 text-center ${rowBg}`}>
-        <input type="checkbox" checked={!!specimen.mdro} onChange={(e) => onMdroToggle(e.target.checked)} />
+        <input type="checkbox" disabled={!editing} checked={!!specimen.mdro} onChange={(e) => onMdroToggle(e.target.checked)} />
       </td>
     </>
   );
@@ -1528,65 +1560,73 @@ function VaeMonitoringTab({ patients, vaeRows, pediatricIcuTypes, session, isAdm
 
 function PedVaeRow({ d, index, isAdmin, onFieldChange, onFieldBlurSave, onToggle, onRemove }) {
   const { t } = useLanguage();
+  const [editing, setEditing] = useState(false);
   const rowBg = d.updated_in_seha ? "bg-emerald-200" : "";
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
       <td className={`sticky-name-col px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>{index}</td>
-      <td className="px-1.5 py-0.5"><GridDate value={d.date} onChange={(e) => onFieldChange({ date: e.target.value })} onBlur={onFieldBlurSave} /></td>
-      <td className="px-1.5 py-0.5"><GridText value={d.mv_day} onChange={(e) => onFieldChange({ mv_day: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[3.5rem]" /></td>
-      <td className="px-1.5 py-0.5"><GridText value={d.daily_min_map ?? ""} onChange={(e) => onFieldChange({ daily_min_map: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[5rem]" /></td>
-      <td className="px-1.5 py-0.5"><GridText value={d.daily_min_fio2 ?? ""} onChange={(e) => onFieldChange({ daily_min_fio2: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridDate value={d.date} onChange={(e) => onFieldChange({ date: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} /></td>
+      <td className="px-1.5 py-0.5"><GridText value={d.mv_day} onChange={(e) => onFieldChange({ mv_day: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[3.5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridText value={d.daily_min_map ?? ""} onChange={(e) => onFieldChange({ daily_min_map: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridText value={d.daily_min_fio2 ?? ""} onChange={(e) => onFieldChange({ daily_min_fio2: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[5rem]" /></td>
       <td className="px-1.5 py-0.5 border-l-2 border-slate-800">
-        <select className="input-cell w-full" value={d.ped_vae ? "Yes" : "No"} onChange={(e) => onToggle("ped_vae", e.target.value === "Yes")}>
+        <select className="input-cell w-full" disabled={!editing} value={d.ped_vae ? "Yes" : "No"} onChange={(e) => onToggle("ped_vae", e.target.value === "Yes")}>
           <option value="No">{t("No")}</option>
           <option value="Yes">{t("Yes")}</option>
         </select>
       </td>
       <td className="px-1.5 py-0.5 text-center">
-        <input type="checkbox" disabled={!isAdmin} checked={!!d.updated_in_seha} onChange={(e) => onToggle("updated_in_seha", e.target.checked)} />
+        <input type="checkbox" disabled={!editing || !isAdmin} checked={!!d.updated_in_seha} onChange={(e) => onToggle("updated_in_seha", e.target.checked)} />
       </td>
       <td className="px-1.5 py-0.5">
-        {isAdmin && (
-          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-            <Trash2 className="h-4 w-4" />
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
+          {isAdmin && (
+            <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );
 }
 
 function VaeRow({ d, index, isAdmin, onFieldChange, onFieldBlurSave, onToggle, onRemove }) {
+  const [editing, setEditing] = useState(false);
   const rowBg = d.updated_in_seha ? "bg-emerald-200" : "";
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
       <td className={`sticky-name-col px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>{index}</td>
-      <td className="px-1.5 py-0.5"><GridDate value={d.date} onChange={(e) => onFieldChange({ date: e.target.value })} onBlur={onFieldBlurSave} /></td>
-      <td className="px-1.5 py-0.5"><GridText value={d.mv_day} onChange={(e) => onFieldChange({ mv_day: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[3.5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridDate value={d.date} onChange={(e) => onFieldChange({ date: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} /></td>
+      <td className="px-1.5 py-0.5"><GridText value={d.mv_day} onChange={(e) => onFieldChange({ mv_day: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[3.5rem]" /></td>
 
-      <td className="px-1.5 py-0.5 border-l-2 border-slate-800"><GridText value={d.daily_min_peep ?? ""} onChange={(e) => onFieldChange({ daily_min_peep: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[5rem]" /></td>
-      <td className="px-1.5 py-0.5"><GridText value={d.daily_min_fio2 ?? ""} onChange={(e) => onFieldChange({ daily_min_fio2: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[5rem]" /></td>
-      <td className="px-1.5 py-0.5"><GridDate value={d.vac_date_of_event} onChange={(e) => onFieldChange({ vac_date_of_event: e.target.value })} onBlur={onFieldBlurSave} /></td>
+      <td className="px-1.5 py-0.5 border-l-2 border-slate-800"><GridText value={d.daily_min_peep ?? ""} onChange={(e) => onFieldChange({ daily_min_peep: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridText value={d.daily_min_fio2 ?? ""} onChange={(e) => onFieldChange({ daily_min_fio2: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridDate value={d.vac_date_of_event} onChange={(e) => onFieldChange({ vac_date_of_event: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} /></td>
 
-      <td className="px-1.5 py-0.5 text-center border-l-2 border-slate-800"><input type="checkbox" checked={!!d.temp_abnormal} onChange={(e) => onToggle("temp_abnormal", e.target.checked)} /></td>
-      <td className="px-1.5 py-0.5 text-center"><input type="checkbox" checked={!!d.wbc_abnormal} onChange={(e) => onToggle("wbc_abnormal", e.target.checked)} /></td>
-      <td className="px-1.5 py-0.5 text-center"><input type="checkbox" checked={!!d.new_antimicrobial} onChange={(e) => onToggle("new_antimicrobial", e.target.checked)} /></td>
-      <td className="px-1.5 py-0.5"><GridText value={d.qad ?? ""} onChange={(e) => onFieldChange({ qad: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[3.5rem]" /></td>
-      <td className="px-1.5 py-0.5"><GridDate value={d.ivac_date_of_event} onChange={(e) => onFieldChange({ ivac_date_of_event: e.target.value })} onBlur={onFieldBlurSave} /></td>
+      <td className="px-1.5 py-0.5 text-center border-l-2 border-slate-800"><input type="checkbox" disabled={!editing} checked={!!d.temp_abnormal} onChange={(e) => onToggle("temp_abnormal", e.target.checked)} /></td>
+      <td className="px-1.5 py-0.5 text-center"><input type="checkbox" disabled={!editing} checked={!!d.wbc_abnormal} onChange={(e) => onToggle("wbc_abnormal", e.target.checked)} /></td>
+      <td className="px-1.5 py-0.5 text-center"><input type="checkbox" disabled={!editing} checked={!!d.new_antimicrobial} onChange={(e) => onToggle("new_antimicrobial", e.target.checked)} /></td>
+      <td className="px-1.5 py-0.5"><GridText value={d.qad ?? ""} onChange={(e) => onFieldChange({ qad: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[3.5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridDate value={d.ivac_date_of_event} onChange={(e) => onFieldChange({ ivac_date_of_event: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} /></td>
 
-      <td className="px-1.5 py-0.5 text-center border-l-2 border-slate-800"><input type="checkbox" checked={!!d.positive_culture} onChange={(e) => onToggle("positive_culture", e.target.checked)} /></td>
-      <td className="px-1.5 py-0.5 text-center"><input type="checkbox" checked={!!d.purulent_resp_secretions} onChange={(e) => onToggle("purulent_resp_secretions", e.target.checked)} /></td>
-      <td className="px-1.5 py-0.5"><GridDate value={d.pvap_date_of_event} onChange={(e) => onFieldChange({ pvap_date_of_event: e.target.value })} onBlur={onFieldBlurSave} /></td>
+      <td className="px-1.5 py-0.5 text-center border-l-2 border-slate-800"><input type="checkbox" disabled={!editing} checked={!!d.positive_culture} onChange={(e) => onToggle("positive_culture", e.target.checked)} /></td>
+      <td className="px-1.5 py-0.5 text-center"><input type="checkbox" disabled={!editing} checked={!!d.purulent_resp_secretions} onChange={(e) => onToggle("purulent_resp_secretions", e.target.checked)} /></td>
+      <td className="px-1.5 py-0.5"><GridDate value={d.pvap_date_of_event} onChange={(e) => onFieldChange({ pvap_date_of_event: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} /></td>
 
       <td className="px-1.5 py-0.5 text-center">
-        <input type="checkbox" disabled={!isAdmin} checked={!!d.updated_in_seha} onChange={(e) => onToggle("updated_in_seha", e.target.checked)} />
+        <input type="checkbox" disabled={!editing || !isAdmin} checked={!!d.updated_in_seha} onChange={(e) => onToggle("updated_in_seha", e.target.checked)} />
       </td>
       <td className="px-1.5 py-0.5">
-        {isAdmin && (
-          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-            <Trash2 className="h-4 w-4" />
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
+          {isAdmin && (
+            <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );
@@ -1699,6 +1739,7 @@ function SsiRow({
   onPatosToggle, onSsiDetectedToggle, onUpdatedInSehaToggle, onMarkComplete, onReopen, onDobCommit, onRemove,
 }) {
   const { t } = useLanguage();
+  const [editing, setEditing] = useState(false);
   function canEditSsi(group) {
     return isAdmin || session?.department === group || (session?.ssiStages ?? []).includes(group);
   }
@@ -1706,21 +1747,26 @@ function SsiRow({
 
   // DR and OR are plain, always-editable fields now — only DR & FW keeps the
   // "Mark complete" step, and it's no longer gated behind DR/OR completion.
-  const drDisabled = !canEditSsi("DR");
-  const orDisabled = !canEditSsi("OR");
+  // Every field also needs the row unlocked with the pencil first.
+  const drDisabled = !editing || !canEditSsi("DR");
+  const orDisabled = !editing || !canEditSsi("OR");
   // Current Status/Date of Discharge stay editable even after "Mark complete" —
   // a patient's discharge status can change after the DR&FW notes are finalized,
   // so it shouldn't need an admin "Reopen" every time it's updated.
-  const drFwFieldsDisabled = !canEditSsi("DR_FW");
+  const drFwFieldsDisabled = !editing || !canEditSsi("DR_FW");
   const nameCellClass = identityCellClass(c.current_status, c.updated_in_seha, c.updated_in_seha_status, false);
   const rowBg = sehaRowClass(c.current_status, c.updated_in_seha, c.updated_in_seha_status);
+  // A case recorded under a doctor outside the fixed list (e.g. a retired
+  // one — see RETIRED_SSI_DOCTORS) keeps its own value as a selectable
+  // option instead of silently losing/blanking it.
+  const doctorOptions = c.treating_doctor && !SSI_DOCTOR_OPTIONS.includes(c.treating_doctor) ? [...SSI_DOCTOR_OPTIONS, c.treating_doctor] : SSI_DOCTOR_OPTIONS;
 
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <input
           type="checkbox"
-          disabled={!isAdmin}
+          disabled={!editing || !isAdmin}
           checked={!!c.updated_in_seha}
           onChange={(e) => onUpdatedInSehaToggle(e.target.checked)}
           title={sehaSyncState(c.current_status, c.updated_in_seha, c.updated_in_seha_status) === "stale" ? t("Updated in Seha before — status has changed since, needs a fresh update") : undefined}
@@ -1730,7 +1776,7 @@ function SsiRow({
       <td className="px-1.5 py-0.5"><GridText value={c.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} /></td>
       <td className={`sticky-name-col px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className={`min-w-[8rem] ${nameCellClass}`} /></td>
       <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className={`min-w-[5rem] ${nameCellClass}`} /></td>
-      <IcOnlyCells isAdmin={isAdmin} record={c} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} onDobCommit={onDobCommit} />
+      <IcOnlyCells isAdmin={isAdmin} record={c} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} onDobCommit={onDobCommit} editing={editing} />
       <td className="px-1.5 py-0.5">
         <select className="input-cell w-full min-w-[5.5rem]" disabled={drDisabled} value={c.unit} onChange={(e) => onFieldChange({ unit: e.target.value })} onBlur={onFieldBlurSave}>
           <option value="">—</option>
@@ -1748,7 +1794,14 @@ function SsiRow({
         </select>
       </td>
       <td className="px-1.5 py-0.5"><GridText value={c.admission_diagnosis} onChange={(e) => onFieldChange({ admission_diagnosis: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[8rem]" /></td>
-      <td className="px-1.5 py-0.5"><GridText value={c.treating_doctor} onChange={(e) => onFieldChange({ treating_doctor: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} placeholder={t("Dr...")} className="min-w-[6.5rem]" /></td>
+      <td className="px-1.5 py-0.5">
+        <select className="input-cell w-full min-w-[6.5rem]" disabled={drDisabled} value={c.treating_doctor || ""} onChange={(e) => onFieldChange({ treating_doctor: e.target.value })} onBlur={onFieldBlurSave}>
+          <option value="">—</option>
+          {doctorOptions.map((d) => (
+            <option key={d} value={d}>{d}</option>
+          ))}
+        </select>
+      </td>
       <td className="px-1.5 py-0.5"><GridText value={c.surgical_procedure_type} onChange={(e) => onFieldChange({ surgical_procedure_type: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className="min-w-[7rem]" /></td>
       <td className="px-1.5 py-0.5"><GridDate value={c.date_of_procedure} onChange={(e) => onFieldChange({ date_of_procedure: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} /></td>
 
@@ -1784,20 +1837,20 @@ function SsiRow({
       </td>
 
       <td className="px-1.5 py-0.5">
-        <select className="input-cell w-full" value={c.patos ? "Yes" : "No"} onChange={(e) => onPatosToggle(e.target.value === "Yes")}>
+        <select className="input-cell w-full" disabled={!editing} value={c.patos ? "Yes" : "No"} onChange={(e) => onPatosToggle(e.target.value === "Yes")}>
           <option value="No">{t("No")}</option>
           <option value="Yes">{t("Yes")}</option>
         </select>
       </td>
       <td className="px-1.5 py-0.5">
-        <select className="input-cell w-full" value={c.follow_up_duration} onChange={(e) => onFieldChange({ follow_up_duration: Number(e.target.value) })} onBlur={onFieldBlurSave}>
+        <select className="input-cell w-full" disabled={!editing} value={c.follow_up_duration} onChange={(e) => onFieldChange({ follow_up_duration: Number(e.target.value) })} onBlur={onFieldBlurSave}>
           <option value={30}>{t("30 days")}</option>
           <option value={90}>{t("90 days")}</option>
         </select>
       </td>
 
       {c.follow_ups.map((f, i) => (
-        <FollowUpCells key={i} followUp={f} divider={i === 0} onChange={(patch) => onFollowUpFieldChange(i, patch)} onBlur={onFieldBlurSave} />
+        <FollowUpCells key={i} followUp={f} divider={i === 0} onChange={(patch) => onFollowUpFieldChange(i, patch)} onBlur={onFieldBlurSave} editing={editing} />
       ))}
 
       {c.specimens.map((s, i) => (
@@ -1809,14 +1862,15 @@ function SsiRow({
           onChange={(patch) => onSpecimenFieldChange(i, patch)}
           onBlur={onFieldBlurSave}
           onMdroToggle={(checked) => onSpecimenMdroToggle(i, checked)}
+          editing={editing}
         />
       ))}
 
-      <td className="px-1.5 py-0.5"><GridText value={c.other_specimens} onChange={(e) => onFieldChange({ other_specimens: e.target.value })} onBlur={onFieldBlurSave} /></td>
+      <td className="px-1.5 py-0.5"><GridText value={c.other_specimens} onChange={(e) => onFieldChange({ other_specimens: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} /></td>
       <td className="px-1.5 py-0.5 text-center">
-        <input type="checkbox" checked={!!c.ssi_detected} onChange={(e) => onSsiDetectedToggle(e.target.checked)} />
+        <input type="checkbox" disabled={!editing} checked={!!c.ssi_detected} onChange={(e) => onSsiDetectedToggle(e.target.checked)} />
       </td>
-      <td className="px-1.5 py-0.5"><GridText value={c.type_of_ssi} onChange={(e) => onFieldChange({ type_of_ssi: e.target.value })} onBlur={onFieldBlurSave} disabled={!c.ssi_detected} className="min-w-[6.5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridText value={c.type_of_ssi} onChange={(e) => onFieldChange({ type_of_ssi: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing || !c.ssi_detected} className="min-w-[6.5rem]" /></td>
 
       <td className="px-1.5 py-0.5 border-l-2 border-slate-800">
         <select className="input-cell w-full" disabled={drFwFieldsDisabled} value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
@@ -1830,33 +1884,34 @@ function SsiRow({
         <StageActionCell open={true} done={drFwDone} canEdit={canEditSsi("DR_FW")} canReopen={isAdmin} completedBy={c.dr_fw_completed_by} onMarkComplete={() => onMarkComplete("dr_fw")} onReopen={() => onReopen("dr_fw")} />
       </td>
 
-      <td className="px-1.5 py-0.5"><GridText value={c.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[7rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridText value={c.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[7rem]" /></td>
       <td className="px-1.5 py-0.5">
-        {isAdmin && (
+        <div className="flex items-center gap-1">
+          <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
           <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
             <Trash2 className="h-4 w-4" />
           </button>
-        )}
+        </div>
       </td>
     </tr>
   );
 }
 
-function FollowUpCells({ followUp, onChange, onBlur, divider }) {
+function FollowUpCells({ followUp, onChange, onBlur, divider, editing = true }) {
   const { t } = useLanguage();
   return (
     <>
-      <td className={`px-1.5 py-0.5 ${divider ? "border-l-2 border-slate-800" : ""}`}><GridText value={followUp.type} onChange={(e) => onChange({ type: e.target.value })} onBlur={onBlur} placeholder={t("OPD/ER/Phone/Virtual")} className="min-w-[6.5rem]" /></td>
-      <td className="px-1.5 py-0.5"><GridDate value={followUp.date} onChange={(e) => onChange({ date: e.target.value })} onBlur={onBlur} /></td>
+      <td className={`px-1.5 py-0.5 ${divider ? "border-l-2 border-slate-800" : ""}`}><GridText value={followUp.type} onChange={(e) => onChange({ type: e.target.value })} onBlur={onBlur} disabled={!editing} placeholder={t("OPD/ER/Phone/Virtual")} className="min-w-[6.5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridDate value={followUp.date} onChange={(e) => onChange({ date: e.target.value })} onBlur={onBlur} disabled={!editing} /></td>
       {SIGN_FIELDS.map((f) => (
         <td key={f} className="px-1.5 py-0.5">
-          <SignSelect value={followUp[f]} onChange={(e) => onChange({ [f]: e.target.value })} onBlur={onBlur} />
+          <SignSelect value={followUp[f]} onChange={(e) => onChange({ [f]: e.target.value })} onBlur={onBlur} disabled={!editing} />
         </td>
       ))}
       <td className="px-1.5 py-0.5">
-        <SwabSelect value={followUp.surgical_site_swab_sent} onChange={(e) => onChange({ surgical_site_swab_sent: e.target.value })} onBlur={onBlur} />
+        <SwabSelect value={followUp.surgical_site_swab_sent} onChange={(e) => onChange({ surgical_site_swab_sent: e.target.value })} onBlur={onBlur} disabled={!editing} />
       </td>
-      <td className="px-1.5 py-0.5"><GridText value={followUp.wound_status} onChange={(e) => onChange({ wound_status: e.target.value })} onBlur={onBlur} className="min-w-[5.5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridText value={followUp.wound_status} onChange={(e) => onChange({ wound_status: e.target.value })} onBlur={onBlur} disabled={!editing} className="min-w-[5.5rem]" /></td>
     </>
   );
 }
@@ -1970,6 +2025,7 @@ function StageActionCell({ open, done, canEdit, canReopen, completedBy, onMarkCo
 
 function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComplete, onReopen, onSpecimenFieldChange, onSpecimenMdroToggle, onSsiDetectedToggle, onUpdatedInSehaToggle, onDobCommit, onRemove }) {
   const { t } = useLanguage();
+  const [editing, setEditing] = useState(false);
   const orDone = !!c.or_completed_at;
   const deliveryDone = !!c.delivery_completed_at;
   const fwDone = !!c.fw_completed_at;
@@ -1980,9 +2036,9 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
     return isAdmin || session?.department === dept || (session?.obStages ?? []).includes(dept);
   }
 
-  const orDisabled = orDone || !canEdit("OR");
-  const deliveryDisabled = !deliveryOpen || deliveryDone || !canEdit("Delivery");
-  const fwDisabled = !fwOpen || fwDone || !canEdit("Female Ward");
+  const orDisabled = !editing || orDone || !canEdit("OR");
+  const deliveryDisabled = !editing || !deliveryOpen || deliveryDone || !canEdit("Delivery");
+  const fwDisabled = !editing || !fwOpen || fwDone || !canEdit("Female Ward");
   const specimen = c.specimens?.[0] ?? emptyObSpecimen;
   const nameCellClass = identityCellClass(c.current_status, c.updated_in_seha, c.updated_in_seha_status, false);
   const rowBg = sehaRowClass(c.current_status, c.updated_in_seha, c.updated_in_seha_status);
@@ -1992,17 +2048,17 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <input
           type="checkbox"
-          disabled={!isAdmin}
+          disabled={!editing || !isAdmin}
           checked={!!c.updated_in_seha}
           onChange={(e) => onUpdatedInSehaToggle(e.target.checked)}
           title={sehaSyncState(c.current_status, c.updated_in_seha, c.updated_in_seha_status) === "stale" ? t("Updated in Seha before — status has changed since, needs a fresh update") : undefined}
         />
       </td>
-      <td className={`sticky-name-col px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[8rem] ${nameCellClass}`} /></td>
-      <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} className={`min-w-[5rem] ${nameCellClass}`} /></td>
-      <IcOnlyCells isAdmin={isAdmin} record={c} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} onDobCommit={onDobCommit} />
-      <td className="px-1.5 py-0.5"><GridText value={c.age} onChange={(e) => onFieldChange({ age: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[3.5rem]" /></td>
-      <td className="px-1.5 py-0.5"><GridText value={c.admission_diagnosis} onChange={(e) => onFieldChange({ admission_diagnosis: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[8rem]" /></td>
+      <td className={`sticky-name-col px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[8rem] ${nameCellClass}`} /></td>
+      <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[5rem] ${nameCellClass}`} /></td>
+      <IcOnlyCells isAdmin={isAdmin} record={c} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} onDobCommit={onDobCommit} editing={editing} />
+      <td className="px-1.5 py-0.5"><GridText value={c.age} onChange={(e) => onFieldChange({ age: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[3.5rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridText value={c.admission_diagnosis} onChange={(e) => onFieldChange({ admission_diagnosis: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[8rem]" /></td>
 
       <td className="px-1.5 py-0.5"><GridDate value={c.date_of_procedure} onChange={(e) => onFieldChange({ date_of_procedure: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} /></td>
       <td className="px-1.5 py-0.5"><GridText value={c.surgical_procedure_type} onChange={(e) => onFieldChange({ surgical_procedure_type: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} className="min-w-[7rem]" /></td>
@@ -2011,14 +2067,14 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
       <td className="px-1.5 py-0.5"><GridText value={c.duration_of_surgery} onChange={(e) => onFieldChange({ duration_of_surgery: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} className="min-w-[5rem]" /></td>
       <td className="px-1.5 py-0.5"><GridText value={c.or_notes} onChange={(e) => onFieldChange({ or_notes: e.target.value })} onBlur={onFieldBlurSave} disabled={orDisabled} className="min-w-[8rem]" /></td>
       <td className="px-1.5 py-0.5">
-        <StageActionCell open={true} done={orDone} canEdit={canEdit("OR")} canReopen={isAdmin} completedBy={c.or_completed_by} onMarkComplete={() => onMarkComplete("or")} onReopen={() => onReopen("or")} />
+        <StageActionCell open={true} done={orDone} canEdit={editing && canEdit("OR")} canReopen={isAdmin} completedBy={c.or_completed_by} onMarkComplete={() => onMarkComplete("or")} onReopen={() => onReopen("or")} />
       </td>
 
       <td className="px-1.5 py-0.5 border-l-2 border-slate-800"><GridDate value={c.delivery_date} onChange={(e) => onFieldChange({ delivery_date: e.target.value })} onBlur={onFieldBlurSave} disabled={deliveryDisabled} /></td>
       <td className="px-1.5 py-0.5"><GridText value={c.delivery_signs_symptoms} onChange={(e) => onFieldChange({ delivery_signs_symptoms: e.target.value })} onBlur={onFieldBlurSave} disabled={deliveryDisabled} className="min-w-[7rem]" /></td>
       <td className="px-1.5 py-0.5"><GridText value={c.delivery_notes} onChange={(e) => onFieldChange({ delivery_notes: e.target.value })} onBlur={onFieldBlurSave} disabled={deliveryDisabled} className="min-w-[8rem]" /></td>
       <td className="px-1.5 py-0.5">
-        <StageActionCell open={deliveryOpen} done={deliveryDone} canEdit={canEdit("Delivery")} canReopen={isAdmin} completedBy={c.delivery_completed_by} onMarkComplete={() => onMarkComplete("delivery")} onReopen={() => onReopen("delivery")} />
+        <StageActionCell open={deliveryOpen} done={deliveryDone} canEdit={editing && canEdit("Delivery")} canReopen={isAdmin} completedBy={c.delivery_completed_by} onMarkComplete={() => onMarkComplete("delivery")} onReopen={() => onReopen("delivery")} />
       </td>
 
       <td className="px-1.5 py-0.5 border-l-2 border-slate-800"><GridDate value={c.fw_date} onChange={(e) => onFieldChange({ fw_date: e.target.value })} onBlur={onFieldBlurSave} disabled={fwDisabled} /></td>
@@ -2032,23 +2088,26 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
       <td className="px-1.5 py-0.5 text-center"><input type="checkbox" disabled={fwDisabled} checked={!!c.ssi_detected} onChange={(e) => onSsiDetectedToggle(e.target.checked)} /></td>
       <td className="px-1.5 py-0.5"><GridText value={c.type_of_ssi} onChange={(e) => onFieldChange({ type_of_ssi: e.target.value })} onBlur={onFieldBlurSave} disabled={fwDisabled || !c.ssi_detected} className="min-w-[6.5rem]" /></td>
       <td className="px-1.5 py-0.5">
-        <StageActionCell open={fwOpen} done={fwDone} canEdit={canEdit("Female Ward")} canReopen={isAdmin} completedBy={c.fw_completed_by} onMarkComplete={() => onMarkComplete("fw")} onReopen={() => onReopen("fw")} />
+        <StageActionCell open={fwOpen} done={fwDone} canEdit={editing && canEdit("Female Ward")} canReopen={isAdmin} completedBy={c.fw_completed_by} onMarkComplete={() => onMarkComplete("fw")} onReopen={() => onReopen("fw")} />
       </td>
 
       <td className="px-1.5 py-0.5">
-        <select className="input-cell w-full" value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
+        <select className="input-cell w-full" disabled={!editing} value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>{t(statusLabel(s))}</option>
           ))}
         </select>
       </td>
-      <td className="px-1.5 py-0.5"><GridText value={c.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} className="min-w-[8rem]" /></td>
+      <td className="px-1.5 py-0.5"><GridText value={c.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[8rem]" /></td>
       <td className="px-1.5 py-0.5">
-        {isAdmin && (
-          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-            <Trash2 className="h-4 w-4" />
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
+          {isAdmin && (
+            <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );
