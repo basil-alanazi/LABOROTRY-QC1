@@ -390,12 +390,10 @@ export default function HaiSurveillance() {
       }
       freshRowIds.current.delete(p.id);
     }
-    // Filling in Date of Discharge almost always means the patient was
-    // discharged — if Current Status was left on "admitted" (a separate
-    // dropdown, easy to miss), bring it in line so the patient doesn't stay
-    // stuck under the Admitted filter indefinitely.
-    const current_status = p.current_status === "admitted" && p.date_of_discharge ? "discharged" : p.current_status;
-    if (current_status !== p.current_status) updatePatientField(p.id, { current_status });
+    // Filling in Date of Discharge does NOT by itself move the patient out
+    // of Admitted — Current Status has to be changed explicitly too, so a
+    // patient is never discharged/transferred by typing a date alone.
+    const current_status = p.current_status;
     // Current Status can't move away from Admitted on its own — the Date of
     // Discharge has to be filled in too, so a patient never gets marked
     // discharged/transferred/etc with no date to back it up.
@@ -540,6 +538,10 @@ export default function HaiSurveillance() {
       }
       freshRowIds.current.delete(c.id);
     }
+    // Filling in Date of Discharge does NOT by itself move the case out of
+    // Admitted — Current Status has to be changed explicitly too, so a case
+    // is never discharged/transferred by typing a date alone.
+    let current_status = c.current_status;
     // Once discharged (with a discharge date), auto-schedule the FIRST
     // follow-up's due date — discharge date + the case's follow-up duration
     // (30/90 days) — so it shows up on the doctor's tracker without needing
@@ -547,14 +549,6 @@ export default function HaiSurveillance() {
     // only while every follow-up slot is still completely empty, so saving
     // the row again later (or toggling admitted/discharged back and forth)
     // never re-fires it into a second/third slot with the same date.
-    // Same reasoning as markSsiStageComplete above: if DR & FW was already
-    // marked complete and the discharge date gets filled in afterwards,
-    // Current Status should follow rather than stay stuck on "admitted".
-    let current_status = c.current_status;
-    if (current_status === "admitted" && c.date_of_discharge && c.dr_fw_completed_at) {
-      current_status = "discharged";
-      updateSsiField(c.id, { current_status });
-    }
     let follow_ups = c.follow_ups ?? [];
     if (current_status === "discharged" && c.date_of_discharge && follow_ups.every((f) => !f.date)) {
       const dueDate = addDaysToDateStr(c.date_of_discharge, c.follow_up_duration || 30);

@@ -10,6 +10,7 @@ import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
 import AttachmentMarkupModal from "../../components/AttachmentMarkupModal";
 import RefusalFormModal from "../../components/RefusalFormModal";
+import AcceptanceFormModal from "../../components/AcceptanceFormModal";
 import PrintPortal from "../../components/PrintPortal";
 import CellDropdown from "../../components/CellDropdown";
 import rabiaLogo from "../../assets/rabia-logo.jpg";
@@ -76,6 +77,7 @@ const emptyStatus = {
   ppd_test_date: "",
   ppd_2nd_test_date: "",
   ppd_next_due_date: "",
+  ppd_batch_no: "",
   stool_urine_status: "",
   stool_urine_test_date: "",
   stool_urine_next_due_date: "",
@@ -125,6 +127,7 @@ export default function EmployeeHealth() {
   const [requisitionEmployee, setRequisitionEmployee] = useState(null);
   const [refusalEmployee, setRefusalEmployee] = useState(null);
   const [refusalPreselect, setRefusalPreselect] = useState(null);
+  const [acceptanceModal, setAcceptanceModal] = useState(null); // { emp, item, batchNo, dateGiven }
   const [ppdPopupEmployee, setPpdPopupEmployee] = useState(null); // employee id whose PPD dropdown is open
   const [vaccinePopup, setVaccinePopup] = useState(null); // { empId, itemId } of the open vaccine dropdown
   const [qrDataUrl, setQrDataUrl] = useState("");
@@ -409,6 +412,7 @@ export default function EmployeeHealth() {
   // so a select's onChange can update + persist a field in one step.
   async function saveStatus(emp, patch) {
     const merged = { ...statusFor(emp.id), ...patch };
+    const existingStatus = statuses.find((s) => s.employee_id === emp.id);
     setStatusDrafts((prev) => ({ ...prev, [emp.id]: merged }));
     await supabase.from("employee_clinic_status").upsert(
       {
@@ -419,6 +423,7 @@ export default function EmployeeHealth() {
         ppd_test_date: merged.ppd_test_date || null,
         ppd_2nd_test_date: merged.ppd_2nd_test_date || null,
         ppd_next_due_date: merged.ppd_next_due_date || null,
+        ppd_batch_no: merged.ppd_batch_no || "",
         stool_urine_status: merged.stool_urine_status || null,
         stool_urine_test_date: merged.stool_urine_test_date || null,
         stool_urine_next_due_date: merged.stool_urine_next_due_date || null,
@@ -429,6 +434,16 @@ export default function EmployeeHealth() {
       },
       { onConflict: "employee_id" }
     );
+    // A fresh Batch/Lot No just got entered for the PPD test — prompt the
+    // employee to sign an acceptance acknowledgment for it right away.
+    if ((merged.ppd_batch_no || "").trim() && (merged.ppd_batch_no || "").trim() !== (existingStatus?.ppd_batch_no || "").trim()) {
+      setAcceptanceModal({
+        emp,
+        item: "PPD Test",
+        batchNo: merged.ppd_batch_no.trim(),
+        dateGiven: merged.ppd_2nd_test_date || merged.ppd_test_date || todayStr(),
+      });
+    }
     loadAll();
   }
   function saveStatusRow(emp) {
@@ -506,7 +521,13 @@ export default function EmployeeHealth() {
       },
       { onConflict: "employee_id,item_type_id,dose_number" }
     );
-    if (error) flash({ type: "error", text: "Could not save dose: " + error.message });
+    if (error) {
+      flash({ type: "error", text: "Could not save dose: " + error.message });
+    } else if (batchVal.trim() && batchVal.trim() !== (existing?.batch_no || "").trim()) {
+      // A fresh Batch/Lot No just got entered for this dose — prompt the
+      // employee to sign an acceptance acknowledgment for it right away.
+      setAcceptanceModal({ emp, item: `${item.name} — Dose ${doseNum}`, batchNo: batchVal.trim(), dateGiven: dateVal });
+    }
     loadAll();
   }
 
@@ -1113,6 +1134,16 @@ export default function EmployeeHealth() {
                                     value={s.ppd_result || ""}
                                     disabled={!rowEditing || !canEdit}
                                     onChange={(e) => setStatusField(emp.id, { ppd_result: e.target.value })}
+                                    onBlur={() => saveStatusRow(emp)}
+                                  />
+                                </label>
+                                <label className="flex flex-col gap-1 text-xs text-slate-500">
+                                  {t("Batch/Lot No")}
+                                  <input
+                                    className="input"
+                                    value={s.ppd_batch_no || ""}
+                                    disabled={!rowEditing || !canEdit}
+                                    onChange={(e) => setStatusField(emp.id, { ppd_batch_no: e.target.value })}
                                     onBlur={() => saveStatusRow(emp)}
                                   />
                                 </label>
@@ -2241,6 +2272,18 @@ export default function EmployeeHealth() {
               saveStatus(emp, { ppd_status: chosenKeys?.includes("ppd_2") ? "refused_2nd" : chosenKeys?.includes("ppd_1") ? "refused_1st" : "refused" }),
             vaccineRefused: () => loadAll(),
           }}
+        />
+      )}
+
+      {acceptanceModal && (
+        <AcceptanceFormModal
+          emp={acceptanceModal.emp}
+          item={acceptanceModal.item}
+          batchNo={acceptanceModal.batchNo}
+          dateGiven={acceptanceModal.dateGiven}
+          onClose={() => setAcceptanceModal(null)}
+          flash={flash}
+          onSaved={() => loadAll()}
         />
       )}
 

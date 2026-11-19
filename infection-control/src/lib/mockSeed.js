@@ -645,6 +645,7 @@ export const hai_monthly_indicators = [
 export const hai_care_bundle_forms = [];
 
 export const employee_refusal_forms = [];
+export const employee_acceptance_forms = [];
 
 export const disease_types = [
   { id: "dt-1", name: "Tuberculosis (TB)", active: true, sort_order: 1 },
