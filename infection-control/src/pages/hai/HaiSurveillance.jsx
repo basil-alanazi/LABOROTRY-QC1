@@ -19,6 +19,33 @@ const addDaysToDateStr = (dateStr, days) => {
 // else in its existing order.
 const byUpdatedInSehaLast = (a, b) => (a.updated_in_seha ? 1 : 0) - (b.updated_in_seha ? 1 : 0);
 
+// SSI's "Month" column is free text ("NOV 2026", "NOV2026", "OCT", ...),
+// not a real date — some older bulk-imported cases have a Date of
+// Procedure that doesn't match their actual month (an import artifact), so
+// sorting on that field can put an old case next to a current one. Month
+// is what staff actually trust, so parse it into a sortable year*12+month
+// value instead — a bare "OCT" with no year is assumed to be this year.
+const MONTH_ABBR = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+function parseMonthLabel(label) {
+  if (!label) return null;
+  const m = label.trim().match(/^([A-Za-z]{3})[A-Za-z]*\.?\s*(\d{4})?/);
+  if (!m) return null;
+  const monthIdx = MONTH_ABBR[m[1].toLowerCase()];
+  if (monthIdx === undefined) return null;
+  const year = m[2] ? parseInt(m[2], 10) : new Date().getFullYear();
+  return year * 12 + monthIdx;
+}
+// Most recent month first; cases with an unparseable/blank month sink to
+// the bottom rather than being scattered in with dated ones.
+function byMonthLabelDesc(a, b) {
+  const ma = parseMonthLabel(a.month);
+  const mb = parseMonthLabel(b.month);
+  if (ma === null && mb === null) return 0;
+  if (ma === null) return 1;
+  if (mb === null) return -1;
+  return mb - ma;
+}
+
 // The Status filter only ever offers Admitted/Discharged/All — "Discharged"
 // is really "no longer admitted", so it also catches transferred, referred,
 // expired and other, not just the literal "discharged" status.
@@ -275,7 +302,7 @@ export default function HaiSurveillance() {
     [visiblePatients, vaeAllowedIcuTypes]
   );
   const visibleSsiCases = useMemo(
-    () => ssiCases.filter((c) => matchesStatusFilter(c.current_status, statusFilter)).slice().sort(byUpdatedInSehaLast),
+    () => ssiCases.filter((c) => matchesStatusFilter(c.current_status, statusFilter)).slice().sort(byMonthLabelDesc).sort(byUpdatedInSehaLast),
     [ssiCases, statusFilter]
   );
 
@@ -1370,7 +1397,7 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
         </select>
       </td>
       <td className={`px-1.5 py-0.5 text-center ${rowBg}`}>
-        <input type="checkbox" disabled={!editing} checked={!!p.status_after_discharge} onChange={(e) => onStatusAfterDischargeToggle(e.target.checked)} />
+        <input type="checkbox" disabled={!editing || !isAdmin} checked={!!p.status_after_discharge} onChange={(e) => onStatusAfterDischargeToggle(e.target.checked)} />
       </td>
       <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[7rem] ${dischargeBg}`} /></td>
       <td className={`px-1.5 py-0.5 ${rowBg}`}>
