@@ -233,6 +233,7 @@ export default function HaiSurveillance() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [statusFilter, setStatusFilter] = useState("admitted");
+  const [mrnSearch, setMrnSearch] = useState("");
   const [ssiCases, setSsiCases] = useState([]);
   const [ssiView, setSsiView] = useState("all"); // "all" | "doctor"
   const [selectedDoctor, setSelectedDoctor] = useState("");
@@ -289,10 +290,15 @@ export default function HaiSurveillance() {
     () => patients.filter((p) => matchesStatusFilter(p.current_status, statusFilter)),
     [patients, statusFilter]
   );
-  const visibleIcuUnitPatients = useMemo(
-    () => visiblePatients.filter((p) => activeIcuTypes.includes(p.icu_type)).slice().sort(byUpdatedInSehaLast),
-    [visiblePatients, activeIcuTypes]
-  );
+  const visibleIcuUnitPatients = useMemo(() => {
+    const term = mrnSearch.trim().toLowerCase();
+    return visiblePatients
+      .filter((p) => activeIcuTypes.includes(p.icu_type))
+      .filter((p) => !term || (p.mrn || "").toLowerCase().includes(term))
+      .slice()
+      .sort(byMonthLabelDesc)
+      .sort(byUpdatedInSehaLast);
+  }, [visiblePatients, activeIcuTypes, mrnSearch]);
   // VAE Monitoring isn't split by Adult/Pediatric sub-tab, but a scoped
   // account should still only see ventilated patients in the ICU unit(s)
   // it's allowed into — never the other unit's patients.
@@ -301,10 +307,15 @@ export default function HaiSurveillance() {
     () => visiblePatients.filter((p) => p.ventilator_insertion && vaeAllowedIcuTypes.includes(p.icu_type)),
     [visiblePatients, vaeAllowedIcuTypes]
   );
-  const visibleSsiCases = useMemo(
-    () => ssiCases.filter((c) => matchesStatusFilter(c.current_status, statusFilter)).slice().sort(byMonthLabelDesc).sort(byUpdatedInSehaLast),
-    [ssiCases, statusFilter]
-  );
+  const visibleSsiCases = useMemo(() => {
+    const term = mrnSearch.trim().toLowerCase();
+    return ssiCases
+      .filter((c) => matchesStatusFilter(c.current_status, statusFilter))
+      .filter((c) => !term || (c.mrn || "").toLowerCase().includes(term))
+      .slice()
+      .sort(byMonthLabelDesc)
+      .sort(byUpdatedInSehaLast);
+  }, [ssiCases, statusFilter, mrnSearch]);
 
   // Each doctor's own tracker — live-derived from the same SSI records (never
   // a separate copy): one row per follow-up visit that has a date, for every
@@ -385,6 +396,14 @@ export default function HaiSurveillance() {
     // stuck under the Admitted filter indefinitely.
     const current_status = p.current_status === "admitted" && p.date_of_discharge ? "discharged" : p.current_status;
     if (current_status !== p.current_status) updatePatientField(p.id, { current_status });
+    // Current Status can't move away from Admitted on its own — the Date of
+    // Discharge has to be filled in too, so a patient never gets marked
+    // discharged/transferred/etc with no date to back it up.
+    if (current_status !== "admitted" && !p.date_of_discharge) {
+      flash({ type: "error", text: t("Set the Date of Discharge before changing Current Status away from Admitted") });
+      loadAll();
+      return;
+    }
     await supabase
       .from("hai_icu_surveillance")
       .update({
@@ -541,6 +560,14 @@ export default function HaiSurveillance() {
       const dueDate = addDaysToDateStr(c.date_of_discharge, c.follow_up_duration || 30);
       follow_ups = follow_ups.map((f, i) => (i === 0 ? { ...f, date: dueDate } : f));
       updateSsiField(c.id, { follow_ups });
+    }
+    // Current Status can't move away from Admitted on its own — the Date of
+    // Discharge has to be filled in too (see savePatient's identical guard
+    // for ICU/NICU).
+    if (current_status !== "admitted" && !c.date_of_discharge) {
+      flash({ type: "error", text: t("Set the Date of Discharge before changing Current Status away from Admitted") });
+      loadAll();
+      return;
     }
     await supabase
       .from("hai_ssi_surveillance")
@@ -911,6 +938,15 @@ export default function HaiSurveillance() {
               {s === "all" ? t("All") : t(statusLabel(s))}
             </button>
           ))}
+          {(tab === "icu" || tab === "ssi") && (
+            <input
+              type="text"
+              className="input ml-auto w-48"
+              placeholder={t("Search by MRN/ID...")}
+              value={mrnSearch}
+              onChange={(e) => setMrnSearch(e.target.value)}
+            />
+          )}
         </div>
       )}
 
@@ -1211,10 +1247,10 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
         <table className="w-full text-sm hai-grid">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
-              <th rowSpan={2} className="border-b border-slate-200 px-1.5 py-1"></th>
+              <th rowSpan={2} className="sticky-pencil-col border-b border-slate-200 px-1.5 py-1"></th>
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t("Updated in Seha")}</th>
               {["Month", "Patient Name", "MRN/ID"].map((h) => (
-                <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${h === "Patient Name" ? "sticky-name-col" : ""}`}>{t(h)}</th>
+                <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${h === "Patient Name" ? "sticky-name-col-after-pencil" : ""}`}>{t(h)}</th>
               ))}
               {isAdmin && IC_ONLY_HEADERS.map((h) => (
                 <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 bg-slate-100 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
@@ -1307,7 +1343,7 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
   const rowBg = dischargeBg || sehaRowClass(p.current_status, p.updated_in_seha, p.updated_in_seha_status) || deviceActiveRowClass(p);
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
-      <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
+      <td className={`sticky-pencil-col px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
       </td>
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
@@ -1320,7 +1356,7 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
         />
       </td>
       <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
-      <td className={`sticky-name-col px-1.5 py-0.5 ${dischargeBg || nameCellClass || rowBg || "bg-white"}`}><GridText value={p.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[8rem] ${dischargeBg || nameCellClass}`} /></td>
+      <td className={`sticky-name-col-after-pencil px-1.5 py-0.5 ${dischargeBg || nameCellClass || rowBg || "bg-white"}`}><GridText value={p.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[8rem] ${dischargeBg || nameCellClass}`} /></td>
       <td className={`px-1.5 py-0.5 ${dischargeBg || nameCellClass || rowBg}`}><GridText value={p.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[5rem] ${dischargeBg || nameCellClass}`} /></td>
       <IcOnlyCells isAdmin={isAdmin} record={p} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} onDobCommit={onDobCommit} dischargeBg={dischargeBg} editing={editing} />
       <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.age} onChange={(e) => onFieldChange({ age: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[3.5rem] ${dischargeBg}`} /></td>
@@ -1686,7 +1722,7 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
         <table className="w-full text-sm hai-grid">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
-              <th rowSpan={2} className="border-b border-slate-200 px-1.5 py-1"></th>
+              <th rowSpan={2} className="sticky-pencil-col border-b border-slate-200 px-1.5 py-1"></th>
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t("Updated in Seha")}</th>
               <th colSpan={isAdmin ? 14 : 10} className="border-b border-slate-200 bg-cyan-100 px-1.5 py-0.5 text-center font-semibold text-cyan-900">DR</th>
               <th colSpan={4} className="border-b border-l-2 border-slate-800 bg-green-100 px-1.5 py-0.5 text-center font-semibold text-green-900">OR</th>
@@ -1706,7 +1742,7 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
             </tr>
             <tr>
               {["Month", "Patient Name", "MRN/ID"].map((h) => (
-                <th key={`dr-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${h === "Patient Name" ? "sticky-name-col" : ""}`}>{t(h)}</th>
+                <th key={`dr-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${h === "Patient Name" ? "sticky-name-col-after-pencil" : ""}`}>{t(h)}</th>
               ))}
               {isAdmin && IC_ONLY_HEADERS.map((h) => (
                 <th key={`dr-${h}`} className="whitespace-nowrap bg-slate-100 px-1.5 py-0.5 font-medium">{t(h)}</th>
@@ -1800,7 +1836,7 @@ function SsiRow({
 
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
-      <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
+      <td className={`sticky-pencil-col px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
       </td>
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
@@ -1814,7 +1850,7 @@ function SsiRow({
       </td>
 
       <td className="px-1.5 py-0.5"><GridText value={c.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} /></td>
-      <td className={`sticky-name-col px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className={`min-w-[8rem] ${nameCellClass}`} /></td>
+      <td className={`sticky-name-col-after-pencil px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className={`min-w-[8rem] ${nameCellClass}`} /></td>
       <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className={`min-w-[5rem] ${nameCellClass}`} /></td>
       <IcOnlyCells isAdmin={isAdmin} record={c} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} onDobCommit={onDobCommit} editing={editing} />
       <td className="px-1.5 py-0.5">
@@ -1971,10 +2007,10 @@ function ObSurveillanceTab({ cases, loading, session, isAdmin, onAddCase, onUpda
         <table className="w-full text-sm hai-grid">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
-              <th rowSpan={2} className="border-b border-slate-200 px-1.5 py-1"></th>
+              <th rowSpan={2} className="sticky-pencil-col border-b border-slate-200 px-1.5 py-1"></th>
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t("Updated in Seha")}</th>
               {["Patient Name", "MRN/ID"].map((h) => (
-                <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${h === "Patient Name" ? "sticky-name-col" : ""}`}>{t(h)}</th>
+                <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${h === "Patient Name" ? "sticky-name-col-after-pencil" : ""}`}>{t(h)}</th>
               ))}
               {isAdmin && IC_ONLY_HEADERS.map((h) => (
                 <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 bg-slate-100 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
@@ -2083,7 +2119,7 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
 
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
-      <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
+      <td className={`sticky-pencil-col px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
       </td>
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
@@ -2095,7 +2131,7 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
           title={sehaSyncState(c.current_status, c.updated_in_seha, c.updated_in_seha_status) === "stale" ? t("Updated in Seha before — status has changed since, needs a fresh update") : undefined}
         />
       </td>
-      <td className={`sticky-name-col px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[8rem] ${nameCellClass}`} /></td>
+      <td className={`sticky-name-col-after-pencil px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[8rem] ${nameCellClass}`} /></td>
       <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[5rem] ${nameCellClass}`} /></td>
       <IcOnlyCells isAdmin={isAdmin} record={c} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} onDobCommit={onDobCommit} editing={editing} />
       <td className="px-1.5 py-0.5"><GridText value={c.age} onChange={(e) => onFieldChange({ age: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[3.5rem]" /></td>
