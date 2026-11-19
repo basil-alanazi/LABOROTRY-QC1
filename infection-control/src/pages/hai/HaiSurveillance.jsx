@@ -325,6 +325,7 @@ export default function HaiSurveillance() {
       .from("hai_icu_surveillance")
       .insert({
         patient_name: "",
+        month: monthYearLabel(),
         icu_type: activeIcuTypes[0] ?? "",
         specimens: padArray([], ICU_SPECIMEN_SLOTS, emptySpecimen),
         hai_event_types: [],
