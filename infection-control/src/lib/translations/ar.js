@@ -271,6 +271,8 @@ export const ar = {
   "Reopen": "إعادة فتح",
   "Mark complete": "وضع علامة مكتمل",
   "Open": "مفتوح",
+  "Edit this row": "تعديل هذا السطر",
+  "Done editing": "تم التعديل",
   "A fixed 3-stage pipeline — OR → Delivery → Female Ward. Each stage's dedicated account (Settings → User Accounts, department = \"OR\" / \"Delivery\" / \"Female Ward\", or an OB/Delivery scope with specific stages granted) fills in only its own section, which opens once the previous stage is marked complete.":
     "مسار ثابت من 3 مراحل — غرفة العمليات ← الولادة ← الجناح النسائي. كل حساب مخصّص لمرحلته (الإعدادات ← حسابات المستخدمين، القسم = \"OR\"/\"Delivery\"/\"Female Ward\"، أو صلاحية عدوى الجرح/الولادة بمراحل محددة) يملأ قسمه فقط، والذي يُفتح بمجرد وضع علامة اكتمال على المرحلة السابقة.",
   "Surgical Procedure Type": "نوع الإجراء الجراحي",
