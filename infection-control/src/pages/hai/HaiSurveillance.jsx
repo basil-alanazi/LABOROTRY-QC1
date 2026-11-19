@@ -1184,6 +1184,7 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
         <table className="w-full text-sm hai-grid">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
+              <th rowSpan={2} className="border-b border-slate-200 px-1.5 py-1"></th>
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t("Updated in Seha")}</th>
               {["Month", "Patient Name", "MRN/ID"].map((h) => (
                 <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${h === "Patient Name" ? "sticky-name-col" : ""}`}>{t(h)}</th>
@@ -1270,12 +1271,18 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
   const [editing, setEditing] = useState(false);
   const unitBeforeHospital = !!(p.hospital_admission_date && p.unit_admission_date && p.unit_admission_date < p.hospital_admission_date);
   const nameCellClass = identityCellClass(p.current_status, p.updated_in_seha, p.updated_in_seha_status, hasActiveDevice(p));
-  // Once "Status After Discharge" is ticked, the whole row goes dark green —
-  // it's the terminal state for the row, so it wins over any other highlight.
-  const dischargeBg = p.status_after_discharge ? "bg-green-700" : "";
+  // Once "Status After Discharge" is ticked, the whole row goes green — it's
+  // the terminal state for the row, so it wins over any other highlight.
+  // Kept light (not a dark shade) so a locked/disabled field's gray text
+  // still reads against it — a disabled .input-cell's background goes
+  // transparent, letting this color show straight through.
+  const dischargeBg = p.status_after_discharge ? "bg-green-300" : "";
   const rowBg = dischargeBg || sehaRowClass(p.current_status, p.updated_in_seha, p.updated_in_seha_status) || deviceActiveRowClass(p);
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
+      <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
+        <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
+      </td>
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <input
           type="checkbox"
@@ -1367,14 +1374,11 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
       </td>
       <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[7rem] ${dischargeBg}`} /></td>
       <td className={`px-1.5 py-0.5 ${rowBg}`}>
-        <div className="flex items-center gap-1">
-          <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
-          {isAdmin && (
-            <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        {isAdmin && (
+          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
       </td>
     </tr>
   );
@@ -1565,7 +1569,12 @@ function PedVaeRow({ d, index, isAdmin, onFieldChange, onFieldBlurSave, onToggle
   const rowBg = d.updated_in_seha ? "bg-emerald-200" : "";
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
-      <td className={`sticky-name-col px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>{index}</td>
+      <td className={`sticky-name-col px-1.5 py-0.5 ${rowBg || "bg-white"}`}>
+        <div className="flex items-center justify-center gap-1">
+          <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
+          <span>{index}</span>
+        </div>
+      </td>
       <td className="px-1.5 py-0.5"><GridDate value={d.date} onChange={(e) => onFieldChange({ date: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} /></td>
       <td className="px-1.5 py-0.5"><GridText value={d.mv_day} onChange={(e) => onFieldChange({ mv_day: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[3.5rem]" /></td>
       <td className="px-1.5 py-0.5"><GridText value={d.daily_min_map ?? ""} onChange={(e) => onFieldChange({ daily_min_map: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[5rem]" /></td>
@@ -1580,14 +1589,11 @@ function PedVaeRow({ d, index, isAdmin, onFieldChange, onFieldBlurSave, onToggle
         <input type="checkbox" disabled={!editing || !isAdmin} checked={!!d.updated_in_seha} onChange={(e) => onToggle("updated_in_seha", e.target.checked)} />
       </td>
       <td className="px-1.5 py-0.5">
-        <div className="flex items-center gap-1">
-          <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
-          {isAdmin && (
-            <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        {isAdmin && (
+          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
       </td>
     </tr>
   );
@@ -1598,7 +1604,12 @@ function VaeRow({ d, index, isAdmin, onFieldChange, onFieldBlurSave, onToggle, o
   const rowBg = d.updated_in_seha ? "bg-emerald-200" : "";
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
-      <td className={`sticky-name-col px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>{index}</td>
+      <td className={`sticky-name-col px-1.5 py-0.5 ${rowBg || "bg-white"}`}>
+        <div className="flex items-center justify-center gap-1">
+          <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
+          <span>{index}</span>
+        </div>
+      </td>
       <td className="px-1.5 py-0.5"><GridDate value={d.date} onChange={(e) => onFieldChange({ date: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} /></td>
       <td className="px-1.5 py-0.5"><GridText value={d.mv_day} onChange={(e) => onFieldChange({ mv_day: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[3.5rem]" /></td>
 
@@ -1620,14 +1631,11 @@ function VaeRow({ d, index, isAdmin, onFieldChange, onFieldBlurSave, onToggle, o
         <input type="checkbox" disabled={!editing || !isAdmin} checked={!!d.updated_in_seha} onChange={(e) => onToggle("updated_in_seha", e.target.checked)} />
       </td>
       <td className="px-1.5 py-0.5">
-        <div className="flex items-center gap-1">
-          <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
-          {isAdmin && (
-            <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        {isAdmin && (
+          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
       </td>
     </tr>
   );
@@ -1651,6 +1659,7 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
         <table className="w-full text-sm hai-grid">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
+              <th rowSpan={2} className="border-b border-slate-200 px-1.5 py-1"></th>
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t("Updated in Seha")}</th>
               <th colSpan={isAdmin ? 14 : 10} className="border-b border-slate-200 bg-cyan-100 px-1.5 py-0.5 text-center font-semibold text-cyan-900">DR</th>
               <th colSpan={4} className="border-b border-l-2 border-slate-800 bg-green-100 px-1.5 py-0.5 text-center font-semibold text-green-900">OR</th>
@@ -1764,6 +1773,9 @@ function SsiRow({
 
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
+      <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
+        <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
+      </td>
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <input
           type="checkbox"
@@ -1887,12 +1899,9 @@ function SsiRow({
 
       <td className="px-1.5 py-0.5"><GridText value={c.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[7rem]" /></td>
       <td className="px-1.5 py-0.5">
-        <div className="flex items-center gap-1">
-          <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
-          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
+        <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+          <Trash2 className="h-4 w-4" />
+        </button>
       </td>
     </tr>
   );
@@ -1935,6 +1944,7 @@ function ObSurveillanceTab({ cases, loading, session, isAdmin, onAddCase, onUpda
         <table className="w-full text-sm hai-grid">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
+              <th rowSpan={2} className="border-b border-slate-200 px-1.5 py-1"></th>
               <th rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t("Updated in Seha")}</th>
               {["Patient Name", "MRN/ID"].map((h) => (
                 <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom ${h === "Patient Name" ? "sticky-name-col" : ""}`}>{t(h)}</th>
@@ -2047,6 +2057,9 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
+        <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
+      </td>
+      <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <input
           type="checkbox"
           disabled={!editing || !isAdmin}
@@ -2101,14 +2114,11 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
       </td>
       <td className="px-1.5 py-0.5"><GridText value={c.comments} onChange={(e) => onFieldChange({ comments: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className="min-w-[8rem]" /></td>
       <td className="px-1.5 py-0.5">
-        <div className="flex items-center gap-1">
-          <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
-          {isAdmin && (
-            <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        {isAdmin && (
+          <button onClick={onRemove} className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
       </td>
     </tr>
   );
