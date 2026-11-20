@@ -249,6 +249,31 @@ export default function HaiSurveillance() {
   // accidental click permanently cluttering the sheet. Cleared once a name
   // is actually typed. A ref (not state) since it never needs to re-render.
   const freshRowIds = useRef(new Set());
+  // Every onFieldChange here patches the FULL local row, and save-on-blur
+  // sends that whole row back to Supabase — so if this tab has been open
+  // a while (or in two tabs at once) and some OTHER field changed on the
+  // server in the meantime (another device, another session), blurring an
+  // unrelated field would silently overwrite that change with this tab's
+  // stale copy. Tracks, per row id, only the field names this tab has
+  // actually edited since its own last load, so a save can re-fetch the
+  // row fresh and apply just those — never anything this tab never touched.
+  const dirtyFieldsRef = useRef({});
+  function markFieldsDirty(id, patch) {
+    const prev = dirtyFieldsRef.current[id] || new Set();
+    Object.keys(patch).forEach((k) => prev.add(k));
+    dirtyFieldsRef.current[id] = prev;
+  }
+  async function fetchFreshMerged(table, id, local) {
+    const dirty = dirtyFieldsRef.current[id];
+    if (!dirty || dirty.size === 0) return local;
+    const { data: fresh } = await supabase.from(table).select("*").eq("id", id).single();
+    if (!fresh) return local;
+    const merged = { ...fresh };
+    dirty.forEach((key) => {
+      merged[key] = local[key];
+    });
+    return merged;
+  }
   const [patients, setPatients] = useState([]);
   const [vaeRows, setVaeRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -381,6 +406,7 @@ export default function HaiSurveillance() {
   const ssiCount = useMemo(() => ssiCases.filter((c) => c.current_status === "admitted" && c.ssi_detected).length, [ssiCases]);
 
   function updatePatientField(id, patch) {
+    markFieldsDirty(id, patch);
     setPatients((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }
 
@@ -403,19 +429,24 @@ export default function HaiSurveillance() {
     loadAll();
   }
 
-  async function savePatient(p) {
+  async function savePatient(rawP) {
     // A row added via "Add Patient" and left without a name: drop it
     // instead of saving, so clicking the button and then clicking away
     // doesn't leave a permanent blank row in the sheet.
-    if (freshRowIds.current.has(p.id)) {
-      if (!p.patient_name?.trim()) {
-        freshRowIds.current.delete(p.id);
-        await supabase.from("hai_icu_surveillance").delete().eq("id", p.id);
-        setPatients((prev) => prev.filter((x) => x.id !== p.id));
+    if (freshRowIds.current.has(rawP.id)) {
+      if (!rawP.patient_name?.trim()) {
+        freshRowIds.current.delete(rawP.id);
+        await supabase.from("hai_icu_surveillance").delete().eq("id", rawP.id);
+        setPatients((prev) => prev.filter((x) => x.id !== rawP.id));
         return;
       }
-      freshRowIds.current.delete(p.id);
+      freshRowIds.current.delete(rawP.id);
     }
+    // Re-fetch and overlay only the fields this tab actually edited, so a
+    // stale local copy (this tab left open while another session updated
+    // the same patient) can never silently wipe that other change out —
+    // see dirtyFieldsRef's definition above for why this is needed.
+    const p = await fetchFreshMerged("hai_icu_surveillance", rawP.id, rawP);
     // Filling in Date of Discharge does NOT by itself move the patient out
     // of Admitted — Current Status has to be changed explicitly too, so a
     // patient is never discharged/transferred by typing a date alone.
@@ -466,6 +497,7 @@ export default function HaiSurveillance() {
         updated_in_seha_status: p.updated_in_seha ? p.updated_in_seha_status || null : null,
       })
       .eq("id", p.id);
+    delete dirtyFieldsRef.current[p.id];
   }
 
   async function removePatient(p) {
@@ -529,6 +561,7 @@ export default function HaiSurveillance() {
   }
 
   function updateSsiField(id, patch) {
+    markFieldsDirty(id, patch);
     setSsiCases((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
 
@@ -552,18 +585,21 @@ export default function HaiSurveillance() {
     loadAll();
   }
 
-  async function saveSsiCase(c) {
+  async function saveSsiCase(rawC) {
     // A row added via "Add Case" and left without a name: drop it instead
     // of saving (see savePatient's identical guard for ICU/NICU).
-    if (freshRowIds.current.has(c.id)) {
-      if (!c.patient_name?.trim()) {
-        freshRowIds.current.delete(c.id);
-        await supabase.from("hai_ssi_surveillance").delete().eq("id", c.id);
-        setSsiCases((prev) => prev.filter((x) => x.id !== c.id));
+    if (freshRowIds.current.has(rawC.id)) {
+      if (!rawC.patient_name?.trim()) {
+        freshRowIds.current.delete(rawC.id);
+        await supabase.from("hai_ssi_surveillance").delete().eq("id", rawC.id);
+        setSsiCases((prev) => prev.filter((x) => x.id !== rawC.id));
         return;
       }
-      freshRowIds.current.delete(c.id);
+      freshRowIds.current.delete(rawC.id);
     }
+    // Re-fetch and overlay only the fields this tab actually edited — see
+    // dirtyFieldsRef's definition above for why this is needed.
+    const c = await fetchFreshMerged("hai_ssi_surveillance", rawC.id, rawC);
     // Filling in Date of Discharge does NOT by itself move the case out of
     // Admitted — Current Status has to be changed explicitly too, so a case
     // is never discharged/transferred by typing a date alone.
@@ -624,6 +660,7 @@ export default function HaiSurveillance() {
         updated_in_seha_status: c.updated_in_seha ? c.updated_in_seha_status || null : null,
       })
       .eq("id", c.id);
+    delete dirtyFieldsRef.current[c.id];
   }
 
   async function removeSsiCase(c) {
@@ -715,6 +752,7 @@ export default function HaiSurveillance() {
   }
 
   function updateObField(id, patch) {
+    markFieldsDirty(id, patch);
     setObCases((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
 
@@ -734,18 +772,21 @@ export default function HaiSurveillance() {
     loadAll();
   }
 
-  async function saveObCase(c) {
+  async function saveObCase(rawC) {
     // A row added via "Add Case" and left without a name: drop it instead
     // of saving (see savePatient's identical guard for ICU/NICU).
-    if (freshRowIds.current.has(c.id)) {
-      if (!c.patient_name?.trim()) {
-        freshRowIds.current.delete(c.id);
-        await supabase.from("hai_ob_surveillance").delete().eq("id", c.id);
-        setObCases((prev) => prev.filter((x) => x.id !== c.id));
+    if (freshRowIds.current.has(rawC.id)) {
+      if (!rawC.patient_name?.trim()) {
+        freshRowIds.current.delete(rawC.id);
+        await supabase.from("hai_ob_surveillance").delete().eq("id", rawC.id);
+        setObCases((prev) => prev.filter((x) => x.id !== rawC.id));
         return;
       }
-      freshRowIds.current.delete(c.id);
+      freshRowIds.current.delete(rawC.id);
     }
+    // Re-fetch and overlay only the fields this tab actually edited — see
+    // dirtyFieldsRef's definition above for why this is needed.
+    const c = await fetchFreshMerged("hai_ob_surveillance", rawC.id, rawC);
     await supabase
       .from("hai_ob_surveillance")
       .update({
@@ -779,6 +820,7 @@ export default function HaiSurveillance() {
         updated_in_seha_status: c.updated_in_seha ? c.updated_in_seha_status || null : null,
       })
       .eq("id", c.id);
+    delete dirtyFieldsRef.current[c.id];
     flash({ type: "success", text: "Saved" });
   }
 
