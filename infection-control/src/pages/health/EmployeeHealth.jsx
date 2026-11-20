@@ -466,6 +466,14 @@ export default function EmployeeHealth() {
     setVaccinePopup(null);
   }
 
+  // Manual entry point for viewing/adding Acceptance Forms, mirroring
+  // openRefusalFor — the modal's own history list already covers every
+  // past acceptance for this employee regardless of which vaccine/PPD
+  // dose triggered it, so this just needs a blank slate to open into.
+  function openAcceptanceFor(emp) {
+    setAcceptanceModal({ emp, item: "", batchNo: "", dateGiven: todayStr() });
+  }
+
   function ppdBadgeInfo(s) {
     if (!s?.ppd_status) return { text: t("Pending"), cls: "bg-red-50 text-red-700" };
     if (s.ppd_status === "done") return { text: t("Done"), cls: "bg-emerald-50 text-emerald-700" };
@@ -1054,6 +1062,14 @@ export default function EmployeeHealth() {
                         className="shrink-0 rounded p-0.5 text-slate-300 hover:bg-slate-100 hover:text-teal-600"
                       >
                         <FileSignature className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        title={t("Acceptance Form")}
+                        onClick={() => openAcceptanceFor(emp)}
+                        className="shrink-0 rounded p-0.5 text-slate-300 hover:bg-slate-100 hover:text-teal-600"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
                       </button>
                       {canEdit && (
                         <button

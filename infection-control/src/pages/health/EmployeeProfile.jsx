@@ -44,6 +44,8 @@ export default function EmployeeProfile() {
   const [records, setRecords] = useState([]);
   const [requests, setRequests] = useState([]);
   const [nsiCases, setNsiCases] = useState([]);
+  const [refusals, setRefusals] = useState([]);
+  const [acceptances, setAcceptances] = useState([]);
   const [license, setLicense] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -52,15 +54,18 @@ export default function EmployeeProfile() {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      const [{ data: emp }, { data: types }, { data: recs }, { data: reqs }, { data: statuses }, { data: nsi }, { data: licenses }] = await Promise.all([
-        supabase.from("employees").select("*").eq("id", employeeId).single(),
-        supabase.from("health_item_types").select("*").order("sort_order"),
-        fetchAllRows((from, to) => supabase.from("employee_health_records").select("*").eq("employee_id", employeeId).range(from, to)),
-        fetchAllRows((from, to) => supabase.from("employee_vaccine_requests").select("*").eq("employee_id", employeeId).range(from, to)),
-        supabase.from("employee_clinic_status").select("*").eq("employee_id", employeeId),
-        fetchAllRows((from, to) => supabase.from("employee_nsi_followups").select("*").eq("employee_id", employeeId).range(from, to)),
-        fetchAllRows((from, to) => supabase.from("baladiya_licenses").select("*").eq("deleted", false).range(from, to)),
-      ]);
+      const [{ data: emp }, { data: types }, { data: recs }, { data: reqs }, { data: statuses }, { data: nsi }, { data: licenses }, { data: refusalForms }, { data: acceptanceForms }] =
+        await Promise.all([
+          supabase.from("employees").select("*").eq("id", employeeId).single(),
+          supabase.from("health_item_types").select("*").order("sort_order"),
+          fetchAllRows((from, to) => supabase.from("employee_health_records").select("*").eq("employee_id", employeeId).range(from, to)),
+          fetchAllRows((from, to) => supabase.from("employee_vaccine_requests").select("*").eq("employee_id", employeeId).range(from, to)),
+          supabase.from("employee_clinic_status").select("*").eq("employee_id", employeeId),
+          fetchAllRows((from, to) => supabase.from("employee_nsi_followups").select("*").eq("employee_id", employeeId).range(from, to)),
+          fetchAllRows((from, to) => supabase.from("baladiya_licenses").select("*").eq("deleted", false).range(from, to)),
+          fetchAllRows((from, to) => supabase.from("employee_refusal_forms").select("*").eq("employee_id", employeeId).eq("deleted", false).range(from, to)),
+          fetchAllRows((from, to) => supabase.from("employee_acceptance_forms").select("*").eq("employee_id", employeeId).eq("deleted", false).range(from, to)),
+        ]);
       if (cancelled) return;
       if (!emp) {
         setNotFound(true);
@@ -73,6 +78,8 @@ export default function EmployeeProfile() {
       setRequests(reqs ?? []);
       setStatus((statuses ?? [])[0] || null);
       setNsiCases((nsi ?? []).filter((c) => !c.deleted));
+      setRefusals((refusalForms ?? []).sort((a, b) => (b.created_at || "").localeCompare(a.created_at || "")));
+      setAcceptances((acceptanceForms ?? []).sort((a, b) => (b.created_at || "").localeCompare(a.created_at || "")));
       const lic = (licenses ?? []).find((l) => (emp.employee_no && l.employee_no === emp.employee_no) || l.name === emp.name);
       setLicense(lic || null);
       setLoading(false);
@@ -305,6 +312,52 @@ export default function EmployeeProfile() {
                 <p className="mt-1 text-xs text-slate-500">
                   {t("Follow-up reports")}: {[c.report_1_date, c.report_2_date, c.report_3_date].filter(Boolean).join(", ") || t("None yet")}
                 </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section title={t("Signed Acceptance Forms")}>
+        {acceptances.length === 0 ? (
+          <p className="text-sm text-slate-400">{t("No acceptance forms on record.")}</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {acceptances.map((a) => (
+              <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2 text-sm">
+                <span className="font-medium text-slate-700">
+                  {a.date_given || a.created_at?.slice(0, 10)} — {t(a.item)}
+                  {a.batch_no ? ` (${a.batch_no})` : ""}
+                </span>
+                {a.signature_path && (
+                  <a href={attachmentUrl(a.signature_path)} target="_blank" rel="noreferrer" className="text-xs font-medium text-teal-700 hover:underline">
+                    {t("View signature")}
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section title={t("Signed Refusal Forms")}>
+        {refusals.length === 0 ? (
+          <p className="text-sm text-slate-400">{t("No refusal forms on record.")}</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {refusals.map((r) => (
+              <div key={r.id} className="rounded-lg border border-slate-100 px-3 py-2 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium text-slate-700">
+                    {r.created_at?.slice(0, 10)} — {(r.items ?? []).map((i) => t(i)).join(", ")}
+                  </span>
+                  {r.signature_path && (
+                    <a href={attachmentUrl(r.signature_path)} target="_blank" rel="noreferrer" className="text-xs font-medium text-teal-700 hover:underline">
+                      {t("View signature")}
+                    </a>
+                  )}
+                </div>
+                {r.reason && <p className="mt-1 text-xs text-slate-500">{t("Reason")}: {r.reason}</p>}
               </div>
             ))}
           </div>

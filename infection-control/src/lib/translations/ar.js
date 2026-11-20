@@ -961,4 +961,9 @@ export const ar = {
   "Doctor Signature": "توقيع الطبيب",
   "Employee Health Physician": "طبيب صحة الموظفين",
   "Physician Signature": "توقيع الطبيب المعالج",
+  "No acceptance forms on record.": "لا توجد نماذج موافقة مسجلة.",
+  "View signature": "عرض التوقيع",
+  "No refusal forms on record.": "لا توجد نماذج رفض مسجلة.",
+  "Signed Acceptance Forms": "نماذج الموافقة الموقّعة",
+  "Signed Refusal Forms": "نماذج الرفض الموقّعة",
 };
