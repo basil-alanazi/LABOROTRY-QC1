@@ -1327,13 +1327,18 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
   const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
   const unitBeforeHospital = !!(p.hospital_admission_date && p.unit_admission_date && p.unit_admission_date < p.hospital_admission_date);
-  const nameCellClass = identityCellClass(p.current_status, p.updated_in_seha, p.updated_in_seha_status, hasActiveDevice(p));
+  // Date of Discharge filled in but Current Status never flipped off
+  // Admitted (the two no longer change together automatically — see
+  // savePatient in this same file) — flag it brown so it doesn't sit
+  // unnoticed in the list, same as SsiRow's identical check.
+  const dischargeStuck = p.current_status === "admitted" && !!p.date_of_discharge;
+  const nameCellClass = dischargeStuck ? "bg-[#e3c9a3] border-[#b08d57]" : identityCellClass(p.current_status, p.updated_in_seha, p.updated_in_seha_status, hasActiveDevice(p));
   // Once "Status After Discharge" is ticked, the whole row goes green — it's
   // the terminal state for the row, so it wins over any other highlight.
   // Kept light (not a dark shade) so a locked/disabled field's gray text
   // still reads against it — a disabled .input-cell's background goes
   // transparent, letting this color show straight through.
-  const dischargeBg = p.status_after_discharge ? "bg-green-300" : "";
+  const dischargeBg = dischargeStuck ? "bg-[#e3c9a3]" : p.status_after_discharge ? "bg-green-300" : "";
   const rowBg = dischargeBg || sehaRowClass(p.current_status, p.updated_in_seha, p.updated_in_seha_status) || deviceActiveRowClass(p);
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
@@ -1821,8 +1826,13 @@ function SsiRow({
   // a patient's discharge status can change after the DR&FW notes are finalized,
   // so it shouldn't need an admin "Reopen" every time it's updated.
   const drFwFieldsDisabled = !editing || !canEditSsi("DR_FW");
-  const nameCellClass = identityCellClass(c.current_status, c.updated_in_seha, c.updated_in_seha_status, false);
-  const rowBg = sehaRowClass(c.current_status, c.updated_in_seha, c.updated_in_seha_status);
+  // Date of Discharge filled in but Current Status never flipped off
+  // Admitted (the two no longer change together automatically — see
+  // saveSsiCase in this same file) — flag it brown so it doesn't sit
+  // unnoticed in the list.
+  const dischargeStuck = c.current_status === "admitted" && !!c.date_of_discharge;
+  const nameCellClass = dischargeStuck ? "bg-[#e3c9a3] border-[#b08d57]" : identityCellClass(c.current_status, c.updated_in_seha, c.updated_in_seha_status, false);
+  const rowBg = dischargeStuck ? "bg-[#e3c9a3]" : sehaRowClass(c.current_status, c.updated_in_seha, c.updated_in_seha_status);
   // A case recorded under a doctor outside the fixed list (e.g. a retired
   // one — see RETIRED_SSI_DOCTORS) keeps its own value as a selectable
   // option instead of silently losing/blanking it.
