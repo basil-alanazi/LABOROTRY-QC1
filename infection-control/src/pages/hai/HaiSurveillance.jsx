@@ -96,6 +96,27 @@ function padArray(arr, length, emptyItem) {
   return next;
 }
 
+// "Add Patient"/"Add Case" inserts a blank row and relies on a blur handler
+// to drop it again if it's left without a name — but that handler only
+// fires if the user stays on the page long enough to click away from it.
+// Closing the tab, navigating off, or a lost connection right after adding
+// one skips that blur entirely, and the in-memory tracking of "this row is
+// still fresh" (a plain useRef Set) doesn't survive a reload either, so the
+// row is orphaned for good. This is a second, self-healing net: on every
+// load, any row still blank well past the time someone could plausibly
+// still be typing a name into it (1 hour) gets soft-deleted here instead of
+// piling up silently.
+const STALE_BLANK_ROW_MS = 60 * 60 * 1000;
+async function discardStaleBlankRows(table, rows) {
+  const stale = rows.filter((r) => !r.patient_name?.trim() && Date.now() - new Date(r.created_at).getTime() > STALE_BLANK_ROW_MS);
+  if (stale.length === 0) return rows;
+  await Promise.all(
+    stale.map((r) => supabase.from(table).update({ deleted: true, deleted_by: "system-cleanup", deleted_at: new Date().toISOString() }).eq("id", r.id))
+  );
+  const staleIds = new Set(stale.map((r) => r.id));
+  return rows.filter((r) => !staleIds.has(r.id));
+}
+
 const TABS = [
   { key: "icu", label: "ICU/NICU Surveillance" },
   { key: "vae", label: "VAE Monitoring" },
@@ -264,16 +285,21 @@ export default function HaiSurveillance() {
       fetchAllRows((from, to) => supabase.from("hai_ssi_surveillance").select("*").eq("deleted", false).order("date_of_procedure", { ascending: false }).range(from, to)),
       fetchAllRows((from, to) => supabase.from("hai_ob_surveillance").select("*").eq("deleted", false).order("created_at", { ascending: false }).range(from, to)),
     ]);
-    setPatients((pts ?? []).map((p) => ({ ...p, specimens: padArray(p.specimens, ICU_SPECIMEN_SLOTS, emptySpecimen) })));
+    const [icuRows, ssiRows, obRows] = await Promise.all([
+      discardStaleBlankRows("hai_icu_surveillance", pts ?? []),
+      discardStaleBlankRows("hai_ssi_surveillance", ssi ?? []),
+      discardStaleBlankRows("hai_ob_surveillance", ob ?? []),
+    ]);
+    setPatients(icuRows.map((p) => ({ ...p, specimens: padArray(p.specimens, ICU_SPECIMEN_SLOTS, emptySpecimen) })));
     setVaeRows(vae ?? []);
     setSsiCases(
-      (ssi ?? []).map((c) => ({
+      ssiRows.map((c) => ({
         ...c,
         follow_ups: padArray(c.follow_ups, SSI_FOLLOWUP_SLOTS, emptyFollowUp),
         specimens: padArray(c.specimens, SSI_SPECIMEN_SLOTS, emptySsiSpecimen),
       }))
     );
-    setObCases((ob ?? []).map((c) => ({ ...c, specimens: padArray(c.specimens, OB_SPECIMEN_SLOTS, emptyObSpecimen) })));
+    setObCases(obRows.map((c) => ({ ...c, specimens: padArray(c.specimens, OB_SPECIMEN_SLOTS, emptyObSpecimen) })));
     setLoading(false);
   }
 
