@@ -379,8 +379,15 @@ export default function HaiSurveillance() {
     if (!selectedDoctor) return [];
     const fileNo = doctorFileNoFilter.trim().toLowerCase();
     const rows = [];
+    // Case/punctuation-insensitive — a doctor-locked account's configured
+    // name (users.ssi_doctor) and the treating_doctor values actually
+    // typed into cases have drifted out of exact sync before (e.g.
+    // "Dr.Jamila" vs "DR.JAMILA"), silently hiding every one of that
+    // doctor's cases from their own tracker.
+    const normalizeDoctorName = (name) => (name || "").trim().toUpperCase().replace(/[.\s]+/g, "");
+    const selectedNormalized = normalizeDoctorName(selectedDoctor);
     ssiCases
-      .filter((c) => (c.treating_doctor || "").trim() === selectedDoctor)
+      .filter((c) => normalizeDoctorName(c.treating_doctor) === selectedNormalized)
       .filter((c) => !fileNo || (c.mrn || "").toLowerCase().includes(fileNo))
       .forEach((c) => {
         (c.follow_ups ?? []).forEach((f, i) => {
@@ -1894,6 +1901,11 @@ function SsiRow({
   // a patient's discharge status can change after the DR&FW notes are finalized,
   // so it shouldn't need an admin "Reopen" every time it's updated.
   const drFwFieldsDisabled = !editing || !canEditSsi("DR_FW");
+  // The 3-visit follow-up tracker is the OB/GYN doctors' own clinical
+  // record — restricted to admin and the doctor-locked accounts (OBG@1/2/3,
+  // via session.ssiDoctor), not every DR/OR/FW ward-stage account that can
+  // otherwise edit this row.
+  const followUpEditable = isAdmin || !!session?.ssiDoctor;
   // Date of Discharge filled in but Current Status never flipped off
   // Admitted (the two no longer change together automatically — see
   // saveSsiCase in this same file) — flag it brown so it doesn't sit
@@ -1998,7 +2010,7 @@ function SsiRow({
       </td>
 
       {c.follow_ups.map((f, i) => (
-        <FollowUpCells key={i} followUp={f} divider={i === 0} onChange={(patch) => onFollowUpFieldChange(i, patch)} onBlur={onFieldBlurSave} editing={editing} />
+        <FollowUpCells key={i} followUp={f} divider={i === 0} onChange={(patch) => onFollowUpFieldChange(i, patch)} onBlur={onFieldBlurSave} editing={editing && followUpEditable} />
       ))}
 
       {c.specimens.map((s, i) => (
