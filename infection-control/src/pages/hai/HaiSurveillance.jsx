@@ -284,15 +284,25 @@ export default function HaiSurveillance() {
   }
   // Current Status is saved the moment it's picked (see the status <select>
   // in each row): the list is filtered to Admitted by default, so a row
-  // switched to Transferred/Discharged drops out of view immediately — its
-  // blur never fired, the change was never saved, and the patient came back
-  // as Admitted on the next reload. When that save is refused (no Date of
-  // Discharge yet), put the row back to Admitted on screen too, so it
-  // doesn't vanish looking saved when it wasn't.
-  function revertUnsavedStatus(setRows, id) {
-    const dirty = dirtyFieldsRef.current[id];
-    if (dirty) delete dirty.current_status;
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, current_status: "admitted" } : r)));
+  // switched to Transferred/Discharged dropped out of view immediately —
+  // its blur never fired, the change was never saved, and the patient came
+  // back as Admitted on the next reload.
+  //
+  // When that save has to wait for the Date of Discharge (SSI puts Current
+  // Status BEFORE the date, so staff naturally pick it first), the row is
+  // "held": kept on screen with the chosen status even though it no longer
+  // matches the filter, and saved together with the date once it's typed.
+  const [heldRowIds, setHeldRowIds] = useState(() => new Set());
+  function holdRow(id) {
+    setHeldRowIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }
+  function releaseRow(id) {
+    setHeldRowIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   }
   const [patients, setPatients] = useState([]);
   const [vaeRows, setVaeRows] = useState([]);
@@ -324,6 +334,7 @@ export default function HaiSurveillance() {
 
   async function loadAll() {
     setLoading(true);
+    setHeldRowIds(new Set());
     const [{ data: pts }, { data: vae }, { data: ssi }, { data: ob }] = await Promise.all([
       fetchAllRows((from, to) => supabase.from("hai_icu_surveillance").select("*").eq("deleted", false).order("unit_admission_date", { ascending: false }).range(from, to)),
       fetchAllRows((from, to) => supabase.from("hai_vae_monitoring").select("*").order("date", { ascending: false }).range(from, to)),
@@ -358,8 +369,8 @@ export default function HaiSurveillance() {
   }
 
   const visiblePatients = useMemo(
-    () => patients.filter((p) => matchesStatusFilter(p.current_status, statusFilter)),
-    [patients, statusFilter]
+    () => patients.filter((p) => heldRowIds.has(p.id) || matchesStatusFilter(p.current_status, statusFilter)),
+    [patients, statusFilter, heldRowIds]
   );
   const visibleIcuUnitPatients = useMemo(() => {
     const term = mrnSearch.trim().toLowerCase();
@@ -381,12 +392,12 @@ export default function HaiSurveillance() {
   const visibleSsiCases = useMemo(() => {
     const term = mrnSearch.trim().toLowerCase();
     return ssiCases
-      .filter((c) => matchesStatusFilter(c.current_status, statusFilter))
+      .filter((c) => heldRowIds.has(c.id) || matchesStatusFilter(c.current_status, statusFilter))
       .filter((c) => !term || (c.mrn || "").toLowerCase().includes(term))
       .slice()
       .sort(byDateDesc("date_of_procedure"))
       .sort(byUpdatedInSehaLast);
-  }, [ssiCases, statusFilter, mrnSearch]);
+  }, [ssiCases, statusFilter, mrnSearch, heldRowIds]);
 
   // Each doctor's own tracker — live-derived from the same SSI records (never
   // a separate copy): one row per follow-up visit that has a date, for every
@@ -438,6 +449,9 @@ export default function HaiSurveillance() {
 
   function updatePatientField(id, patch) {
     markFieldsDirty(id, patch);
+    // Keep the row on screen from the moment its status changes until that
+    // change is saved (see holdRow) — otherwise it unmounts mid-edit.
+    if ("current_status" in patch) holdRow(id);
     setPatients((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
   }
 
@@ -491,8 +505,8 @@ export default function HaiSurveillance() {
     // edit in progress AND silently snapping this row's own selection back
     // to Admitted once the date was then typed and saved on its own.
     if (current_status !== "admitted" && !p.date_of_discharge) {
-      revertUnsavedStatus(setPatients, p.id);
-      flash({ type: "error", text: t("Set the Date of Discharge before changing Current Status away from Admitted") });
+      holdRow(p.id);
+      flash({ type: "error", text: t("Now enter the Date of Discharge — the status is saved together with it") });
       return;
     }
     await supabase
@@ -534,6 +548,7 @@ export default function HaiSurveillance() {
       })
       .eq("id", p.id);
     clearSavedDirty(p.id, p);
+    releaseRow(p.id);
   }
 
   async function removePatient(p) {
@@ -598,6 +613,9 @@ export default function HaiSurveillance() {
 
   function updateSsiField(id, patch) {
     markFieldsDirty(id, patch);
+    // Keep the row on screen from the moment its status changes until that
+    // change is saved (see holdRow) — otherwise it unmounts mid-edit.
+    if ("current_status" in patch) holdRow(id);
     setSsiCases((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
 
@@ -666,8 +684,8 @@ export default function HaiSurveillance() {
     // Discharge has to be filled in too (see savePatient's identical guard
     // for ICU/NICU, including why this no longer calls loadAll()).
     if (current_status !== "admitted" && !c.date_of_discharge) {
-      revertUnsavedStatus(setSsiCases, c.id);
-      flash({ type: "error", text: t("Set the Date of Discharge before changing Current Status away from Admitted") });
+      holdRow(c.id);
+      flash({ type: "error", text: t("Now enter the Date of Discharge — the status is saved together with it") });
       return;
     }
     await supabase
@@ -706,6 +724,7 @@ export default function HaiSurveillance() {
       })
       .eq("id", c.id);
     clearSavedDirty(c.id, c);
+    releaseRow(c.id);
   }
 
   async function removeSsiCase(c) {
@@ -866,6 +885,7 @@ export default function HaiSurveillance() {
       })
       .eq("id", c.id);
     clearSavedDirty(c.id, c);
+    releaseRow(c.id);
     flash({ type: "success", text: "Saved" });
   }
 
