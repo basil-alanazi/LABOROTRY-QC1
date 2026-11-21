@@ -1,41 +1,44 @@
 /** @type {import('tailwindcss').Config} */
-// Warm "Claude-style" theme: cream backgrounds, warm greys and a clay accent.
-// The app's classes still say teal-* / slate-* everywhere — those names are
-// remapped here, so the whole site changes colour without touching pages.
-const clay = {
-  50: "#FBF3EE",
-  100: "#F6E3D9",
-  200: "#EEC7B4",
-  300: "#E3A487",
-  400: "#D97757",
-  500: "#C96442",
-  600: "#B4553A",
-  700: "#954530",
-  800: "#783826",
-  900: "#5E2C1E",
-  950: "#341810",
+// Warm cream theme with a soft copper accent. The app's classes still say
+// teal-* / slate-* everywhere — those names are remapped here, so the whole
+// site changes colour without touching pages.
+const copper = {
+  50: "#FBF4EE",
+  100: "#F5E6DA",
+  200: "#EBCBB4",
+  300: "#DDA886",
+  400: "#CB8660",
+  500: "#BC7049",
+  600: "#AD6340",
+  700: "#8F4F33",
+  800: "#723F29",
+  900: "#5A3221",
+  950: "#321B11",
 };
 const warm = {
-  50: "#F5F4ED",
-  100: "#EEECE2",
-  200: "#E3E0D5",
-  300: "#CFCBBE",
-  400: "#A9A497",
-  500: "#878276",
-  600: "#66625A",
-  700: "#4A4740",
-  800: "#33312C",
-  900: "#22211E",
-  950: "#141412",
+  50: "#FAF6F0",
+  100: "#F3ECE3",
+  200: "#E9E0D4",
+  300: "#D8CDBF",
+  400: "#A99D8F",
+  500: "#867969",
+  600: "#675A4D",
+  700: "#4C4138",
+  800: "#352C25",
+  900: "#251E19",
+  950: "#16110E",
 };
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
     extend: {
       colors: {
-        teal: clay,
+        teal: copper,
         slate: warm,
-        white: "#FFFEFB",
+        white: "#FFFDF9",
+      },
+      fontFamily: {
+        serif: ['"Lora"', "Georgia", "serif"],
       },
     },
   },

@@ -30,7 +30,7 @@ import rabiaLogo from "../../assets/rabia-logo.jpg";
 
 const linkClass = ({ isActive }) =>
   `flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-    isActive ? "bg-teal-600 text-white" : "text-slate-600 hover:bg-teal-50 hover:text-teal-700"
+    isActive ? "bg-teal-600 text-white shadow-sm" : "text-slate-600 hover:bg-white/70 hover:text-teal-700"
   }`;
 
 export default function Layout({ children }) {
@@ -156,14 +156,14 @@ export default function Layout({ children }) {
       )}
 
       <aside
-        className={`fixed inset-y-0 start-0 z-30 flex w-64 flex-col border-e border-slate-200 bg-white transition-transform md:static md:translate-x-0 print:hidden ${
+        className={`fixed inset-y-0 start-0 z-30 flex w-64 flex-col border-e border-slate-200 bg-slate-100 transition-transform md:static md:translate-x-0 print:hidden ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-4">
           <div className="flex min-w-0 flex-col gap-1">
             <img src={rabiaLogo} alt="Rabia Hospital" className="h-12 w-auto max-w-[9.5rem] object-contain object-left rtl:object-right" />
-            <span className="text-sm font-bold text-teal-700">{t("Infection Control")}</span>
+            <span className="font-serif text-sm font-semibold text-teal-700">{t("Infection Control")}</span>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="text-slate-400 hover:text-slate-600 md:hidden">
             <X className="h-5 w-5" />
