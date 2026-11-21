@@ -460,10 +460,15 @@ export default function HaiSurveillance() {
     const current_status = p.current_status;
     // Current Status can't move away from Admitted on its own — the Date of
     // Discharge has to be filled in too, so a patient never gets marked
-    // discharged/transferred/etc with no date to back it up.
+    // discharged/transferred/etc with no date to back it up. Just skip the
+    // write and leave the row's local state alone (no loadAll()) — a nurse
+    // very often picks Current Status before typing the Date of Discharge
+    // (that's the column order), which used to blur-save mid-sequence, hit
+    // this guard, and reload the whole table — wiping every other unsaved
+    // edit in progress AND silently snapping this row's own selection back
+    // to Admitted once the date was then typed and saved on its own.
     if (current_status !== "admitted" && !p.date_of_discharge) {
       flash({ type: "error", text: t("Set the Date of Discharge before changing Current Status away from Admitted") });
-      loadAll();
       return;
     }
     await supabase
@@ -626,10 +631,9 @@ export default function HaiSurveillance() {
     }
     // Current Status can't move away from Admitted on its own — the Date of
     // Discharge has to be filled in too (see savePatient's identical guard
-    // for ICU/NICU).
+    // for ICU/NICU, including why this no longer calls loadAll()).
     if (current_status !== "admitted" && !c.date_of_discharge) {
       flash({ type: "error", text: t("Set the Date of Discharge before changing Current Status away from Admitted") });
-      loadAll();
       return;
     }
     await supabase
