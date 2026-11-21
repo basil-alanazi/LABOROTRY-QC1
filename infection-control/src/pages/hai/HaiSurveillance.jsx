@@ -8,7 +8,6 @@ import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
-const monthYearLabel = () => new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
 const addDaysToDateStr = (dateStr, days) => {
   const d = new Date(`${dateStr}T00:00:00`);
   d.setDate(d.getDate() + days);
@@ -19,46 +18,32 @@ const addDaysToDateStr = (dateStr, days) => {
 // else in its existing order.
 const byUpdatedInSehaLast = (a, b) => (a.updated_in_seha ? 1 : 0) - (b.updated_in_seha ? 1 : 0);
 
-// SSI's "Month" column is free text ("NOV 2026", "NOV2026", "OCT", ...),
-// not a real date — some older bulk-imported cases have a Date of
-// Procedure that doesn't match their actual month (an import artifact), so
-// sorting on that field can put an old case next to a current one. Month
-// is what staff actually trust, so parse it into a sortable year*12+month
-// value instead. A bare "OCT" with no year used to be assumed to be THIS
-// year — fine for a case entered today, but it silently misdated every
-// older bulk-imported case whose Month was typed without one, making
-// them sort as if they were this year's and scattering them in with
-// genuinely current cases ("months and months" all mixed together). Now a
-// missing year falls back to the year of that same case's own stored date
-// field (still reliable even when the exact month drifted from it), and
-// only falls back further to the current year if that date is also blank.
-const MONTH_ABBR = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
-function parseMonthLabel(label, fallbackDateStr) {
-  if (!label) return null;
-  const m = label.trim().match(/^([A-Za-z]{3})[A-Za-z]*\.?\s*(\d{4})?/);
-  if (!m) return null;
-  const monthIdx = MONTH_ABBR[m[1].toLowerCase()];
-  if (monthIdx === undefined) return null;
-  let year;
-  if (m[2]) {
-    year = parseInt(m[2], 10);
-  } else {
-    const fallbackYear = fallbackDateStr ? new Date(fallbackDateStr).getFullYear() : NaN;
-    year = Number.isFinite(fallbackYear) ? fallbackYear : new Date().getFullYear();
-  }
-  return year * 12 + monthIdx;
+// The "Month" column used to be free text staff typed by hand ("NOV
+// 2026", "NOV2026", "OCT", ...) — inconsistent (one case "November",
+// another "Nov") and, when the year was left off (the common case),
+// ambiguous enough that sorting by it scattered old and current cases
+// together. It's now always derived from the record's own real date
+// column (Date of Procedure for SSI, Unit Admission Date for ICU/NICU)
+// and rendered in one fixed "Mon-YY" format — never hand-typed, so it
+// can't drift into a different style or lose its year.
+const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function formatMonthLabel(dateStr) {
+  if (!dateStr) return "";
+  const [y, m] = dateStr.split("-");
+  const idx = parseInt(m, 10) - 1;
+  if (!y || idx < 0 || idx > 11) return "";
+  return `${MONTH_SHORT[idx]}-${y.slice(-2)}`;
 }
-// Most recent month first; cases with an unparseable/blank month sink to
-// the bottom rather than being scattered in with dated ones. `dateField`
-// names the record's own real date column to use as the year fallback.
-function byMonthLabelDesc(dateField) {
+// Most recent date first; blank dates sink to the bottom rather than
+// being scattered in with dated ones.
+function byDateDesc(dateField) {
   return (a, b) => {
-    const ma = parseMonthLabel(a.month, a[dateField]);
-    const mb = parseMonthLabel(b.month, b[dateField]);
-    if (ma === null && mb === null) return 0;
-    if (ma === null) return 1;
-    if (mb === null) return -1;
-    return mb - ma;
+    const da = a[dateField] ? new Date(a[dateField]).getTime() : null;
+    const db = b[dateField] ? new Date(b[dateField]).getTime() : null;
+    if (da === null && db === null) return 0;
+    if (da === null) return 1;
+    if (db === null) return -1;
+    return db - da;
   };
 }
 
@@ -363,7 +348,7 @@ export default function HaiSurveillance() {
       .filter((p) => activeIcuTypes.includes(p.icu_type))
       .filter((p) => !term || (p.mrn || "").toLowerCase().includes(term))
       .slice()
-      .sort(byMonthLabelDesc("unit_admission_date"))
+      .sort(byDateDesc("unit_admission_date"))
       .sort(byUpdatedInSehaLast);
   }, [visiblePatients, activeIcuTypes, mrnSearch]);
   // VAE Monitoring isn't split by Adult/Pediatric sub-tab, but a scoped
@@ -380,7 +365,7 @@ export default function HaiSurveillance() {
       .filter((c) => matchesStatusFilter(c.current_status, statusFilter))
       .filter((c) => !term || (c.mrn || "").toLowerCase().includes(term))
       .slice()
-      .sort(byMonthLabelDesc("date_of_procedure"))
+      .sort(byDateDesc("date_of_procedure"))
       .sort(byUpdatedInSehaLast);
   }, [ssiCases, statusFilter, mrnSearch]);
 
@@ -442,7 +427,6 @@ export default function HaiSurveillance() {
       .from("hai_icu_surveillance")
       .insert({
         patient_name: "",
-        month: monthYearLabel(),
         icu_type: activeIcuTypes[0] ?? "",
         specimens: padArray([], ICU_SPECIMEN_SLOTS, emptySpecimen),
         hai_event_types: [],
@@ -494,7 +478,7 @@ export default function HaiSurveillance() {
     await supabase
       .from("hai_icu_surveillance")
       .update({
-        month: p.month,
+        month: formatMonthLabel(p.unit_admission_date),
         patient_name: p.patient_name,
         mrn: p.mrn,
         age: p.age,
@@ -602,7 +586,6 @@ export default function HaiSurveillance() {
       .from("hai_ssi_surveillance")
       .insert({
         patient_name: "",
-        month: monthYearLabel(),
         elective_emergency: "elective",
         follow_up_duration: 30,
         follow_ups: padArray([], SSI_FOLLOWUP_SLOTS, emptyFollowUp),
@@ -659,7 +642,7 @@ export default function HaiSurveillance() {
     await supabase
       .from("hai_ssi_surveillance")
       .update({
-        month: c.month,
+        month: formatMonthLabel(c.date_of_procedure),
         patient_name: c.patient_name,
         mrn: c.mrn,
         unit: c.unit,
@@ -742,7 +725,7 @@ export default function HaiSurveillance() {
           "ASA Score", "Wound Class", "Duration of Surgery", "PATOS", "Follow-up Duration", "SSI Detected", "Type of SSI", "Current Status", "Date of Discharge", "Updated in Seha", "Comments", "Recorded By",
         ],
         rows: visibleSsiCases.map((c) => [
-          c.month, c.patient_name, c.mrn, ...(isAdmin ? [c.date_of_birth || "", c.national_id, c.mobile, c.nationality] : []), c.unit, c.age, c.gender, c.admission_diagnosis, c.treating_doctor, c.surgical_procedure_type, c.date_of_procedure || "", c.elective_emergency,
+          formatMonthLabel(c.date_of_procedure), c.patient_name, c.mrn, ...(isAdmin ? [c.date_of_birth || "", c.national_id, c.mobile, c.nationality] : []), c.unit, c.age, c.gender, c.admission_diagnosis, c.treating_doctor, c.surgical_procedure_type, c.date_of_procedure || "", c.elective_emergency,
           c.asa_score, c.wound_class, c.duration_of_surgery, c.patos ? "Yes" : "No", `${c.follow_up_duration} days`,
           c.ssi_detected ? "Yes" : "No", c.type_of_ssi, statusLabel(c.current_status), c.date_of_discharge || "", c.updated_in_seha ? "Yes" : "No", c.comments, c.done_by,
         ]),
@@ -765,7 +748,7 @@ export default function HaiSurveillance() {
   ];
   function doctorTrackerRow({ case: c, followUp: f }) {
     return [
-      c.month, c.patient_name, c.mrn, c.date_of_procedure || "", c.treating_doctor, f.date || "",
+      formatMonthLabel(c.date_of_procedure), c.patient_name, c.mrn, c.date_of_procedure || "", c.treating_doctor, f.date || "",
       f.fever || "", f.pain_tenderness || "", f.redness || "", f.swelling || "", f.purulent_discharge || "", f.wound_dehiscence || "", f.surgical_site_swab_sent || "", c.comments,
     ];
   }
@@ -923,7 +906,7 @@ export default function HaiSurveillance() {
           "Ventilator Insertion", "Ventilator Removed", "Signs & Symptoms", "Onset Date", "HAI Detected", "Event Types", "Date of Discharge", "Current Status", "Status After Discharge", "Comments", "Recorded By",
         ],
         rows: visibleIcuUnitPatients.map((p) => [
-          p.month, p.patient_name, p.mrn, ...(isAdmin ? [p.date_of_birth || "", p.national_id, p.mobile, p.nationality] : []), p.age, p.gender, p.bed_no, p.icu_type, p.hospital_admission_date || "", p.unit_admission_date || "", p.admission_diagnosis,
+          formatMonthLabel(p.unit_admission_date), p.patient_name, p.mrn, ...(isAdmin ? [p.date_of_birth || "", p.national_id, p.mobile, p.nationality] : []), p.age, p.gender, p.bed_no, p.icu_type, p.hospital_admission_date || "", p.unit_admission_date || "", p.admission_diagnosis,
           p.central_line_insertion || "", p.central_line_removed || "", p.urinary_catheter_insertion || "", p.urinary_catheter_removed || "",
           p.ventilator_insertion || "", p.ventilator_removed || "", p.signs_symptoms, p.date_onset_symptoms || "",
           p.hai_detected ? "Yes" : "No", (p.hai_event_types ?? []).join(", "), p.date_of_discharge || "", statusLabel(p.current_status), p.status_after_discharge ? "Yes" : "No", p.comments, p.done_by,
@@ -1182,7 +1165,7 @@ function DoctorTrackerTable({ doctor, rows, onFollowUpFieldChange, onFieldBlurSa
         <tbody>
           {rows.map(({ case: c, followUp: f, index: i }) => (
             <tr key={`${c.id}-${i}`} className="border-t border-slate-100">
-              <td className="whitespace-nowrap px-2 py-1.5">{c.month}</td>
+              <td className="whitespace-nowrap px-2 py-1.5">{formatMonthLabel(c.date_of_procedure) || "—"}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.patient_name}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.mrn}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.date_of_procedure || "—"}</td>
@@ -1453,7 +1436,7 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
           title={sehaSyncState(p.current_status, p.updated_in_seha, p.updated_in_seha_status) === "stale" ? t("Updated in Seha before — status has changed since, needs a fresh update") : undefined}
         />
       </td>
-      <td className={`px-1.5 py-0.5 ${rowBg}`}><GridText value={p.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
+      <td className={`whitespace-nowrap px-1.5 py-0.5 text-center text-slate-500 ${dischargeBg || rowBg}`}>{formatMonthLabel(p.unit_admission_date) || "—"}</td>
       <td className={`sticky-name-col-after-pencil px-1.5 py-0.5 ${dischargeBg || nameCellClass || rowBg || "bg-white"}`}><GridText value={p.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[8rem] ${dischargeBg || nameCellClass}`} /></td>
       <td className={`px-1.5 py-0.5 ${dischargeBg || nameCellClass || rowBg}`}><GridText value={p.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={`min-w-[5rem] ${dischargeBg || nameCellClass}`} /></td>
       <IcOnlyCells isAdmin={isAdmin} record={p} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} onDobCommit={onDobCommit} dischargeBg={dischargeBg} editing={editing} />
@@ -1967,7 +1950,7 @@ function SsiRow({
         />
       </td>
 
-      <td className="px-1.5 py-0.5"><GridText value={c.month} onChange={(e) => onFieldChange({ month: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} /></td>
+      <td className="whitespace-nowrap px-1.5 py-0.5 text-center text-slate-500">{formatMonthLabel(c.date_of_procedure) || "—"}</td>
       <td className={`sticky-name-col-after-pencil px-1.5 py-0.5 ${nameCellClass || rowBg || "bg-white"}`}><GridText value={c.patient_name} onChange={(e) => onFieldChange({ patient_name: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className={`min-w-[8rem] ${nameCellClass}`} /></td>
       <td className={`px-1.5 py-0.5 ${nameCellClass}`}><GridText value={c.mrn} onChange={(e) => onFieldChange({ mrn: e.target.value })} onBlur={onFieldBlurSave} disabled={drDisabled} className={`min-w-[5rem] ${nameCellClass}`} /></td>
       <IcOnlyCells isAdmin={isAdmin} record={c} onFieldChange={onFieldChange} onFieldBlurSave={onFieldBlurSave} onDobCommit={onDobCommit} editing={editing} />
