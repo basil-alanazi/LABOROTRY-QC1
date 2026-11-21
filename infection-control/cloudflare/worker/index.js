@@ -5,9 +5,9 @@
 //   /api/db           POST {table, op, ...}           -> {data, error}
 //   /api/storage/:bucket/:path   PUT (file body)      -> {data:{path}, error}
 //   /files/:bucket/:path         GET                  -> the file (public, like Supabase public buckets)
-//   everything else                                   -> the built React app (static assets)
+//   everything else                                   -> the built React app (from R2, _site/)
 //
-// Bindings (see wrangler.toml): DB (D1), FILES (R2), ASSETS (static site),
+// Bindings (see wrangler.toml): DB (D1), FILES (R2: attachments + the built site),
 // secret SESSION_SECRET (random string, set with `wrangler secret put`).
 import { TABLES } from "./schema.js";
 import { runQuery, ApiError } from "./query.js";
@@ -120,6 +120,12 @@ const BUCKETS = new Set([
   "ic-round-attachments",
 ]);
 
+// A path segment of "." / ".." / "" is refused. Dots inside a file name
+// ("scan..pdf") are fine — staff uploads have them.
+function badPath(p) {
+  return p.split("/").some((seg) => seg === "" || seg === "." || seg === "..");
+}
+
 function splitStoragePath(pathname, prefix) {
   const rest = pathname.slice(prefix.length);
   const slash = rest.indexOf("/");
@@ -130,7 +136,7 @@ function splitStoragePath(pathname, prefix) {
     .split("/")
     .map(decodeURIComponent)
     .join("/");
-  if (!BUCKETS.has(bucket) || !path || path.includes("..")) return null;
+  if (!BUCKETS.has(bucket) || !path || badPath(path)) return null;
   return { bucket, path, key: `${bucket}/${path}` };
 }
 
@@ -152,7 +158,7 @@ async function handleRemove(request, env, session) {
   if (!session) throw new ApiError("Not signed in", "AUTH");
   const { bucket, paths } = await request.json();
   if (!BUCKETS.has(bucket) || !Array.isArray(paths)) throw new ApiError("Bad request", "STORAGE");
-  await env.FILES.delete(paths.filter((p) => typeof p === "string" && !p.includes("..")).map((p) => `${bucket}/${p}`));
+  await env.FILES.delete(paths.filter((p) => typeof p === "string" && !badPath(p)).map((p) => `${bucket}/${p}`));
   return json({ data: paths.map((p) => ({ name: p })), error: null });
 }
 
@@ -172,13 +178,35 @@ async function handleFile(request, env, url) {
   return new Response(obj.body, { headers });
 }
 
+// The built React app lives in R2 under "_site/". Hashed files under
+// /assets/ are cached for a year; any other path that isn't a real file is
+// a client-side route, so it gets index.html (single-page app).
+const SITE_PREFIX = "_site/";
+async function serveSite(request, env, pathname) {
+  if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
+  let key = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));
+  if (badPath(key)) return new Response("Not found", { status: 404 });
+  let obj = await env.FILES.get(SITE_PREFIX + key);
+  if (!obj && !key.startsWith("assets/")) {
+    key = "index.html";
+    obj = await env.FILES.get(SITE_PREFIX + key);
+  }
+  if (!obj) return new Response("Not found", { status: 404 });
+  const headers = new Headers();
+  obj.writeHttpMetadata(headers);
+  headers.set("etag", obj.httpEtag);
+  headers.set("cache-control", key.startsWith("assets/") ? "public, max-age=31536000, immutable" : "no-cache");
+  if (request.headers.get("if-none-match") === obj.httpEtag) return new Response(null, { status: 304, headers });
+  return new Response(request.method === "HEAD" ? null : obj.body, { headers });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const { pathname } = url;
     try {
       if (pathname.startsWith("/files/") && request.method === "GET") return await handleFile(request, env, url);
-      if (!pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
+      if (!pathname.startsWith("/api/")) return await serveSite(request, env, pathname);
 
       if (!env.SESSION_SECRET) throw new ApiError("Server not configured (SESSION_SECRET missing)", "CONFIG");
       const session = await getSession(request, env);

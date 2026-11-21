@@ -5,8 +5,8 @@
   "scripts": {
     "schema": "node scripts/build-schema.mjs",
     "build:site": "cd .. && VITE_BACKEND=cloudflare npm run build",
-    "dev": "npm run build:site && wrangler dev",
-    "deploy": "npm run build:site && wrangler deploy"
+    "dev": "npm run build:site && node scripts/upload-site.mjs --local && wrangler dev",
+    "deploy": "npm run build:site && node scripts/upload-site.mjs --remote && wrangler deploy"
   },
   "devDependencies": {
     "wrangler": "^4.40.0"
