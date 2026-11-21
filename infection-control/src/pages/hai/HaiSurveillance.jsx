@@ -615,10 +615,20 @@ export default function HaiSurveillance() {
     // Re-fetch and overlay only the fields this tab actually edited — see
     // dirtyFieldsRef's definition above for why this is needed.
     const c = await fetchFreshMerged("hai_ssi_surveillance", rawC.id, rawC);
-    // Filling in Date of Discharge does NOT by itself move the case out of
-    // Admitted — Current Status has to be changed explicitly too, so a case
-    // is never discharged/transferred by typing a date alone.
     let current_status = c.current_status;
+    // SSI-specific (unlike ICU/NICU, which still requires both fields typed
+    // explicitly): a Date of Discharge on its own now promotes the case out
+    // of Admitted straight to Discharged. Staff kept entering just the date
+    // and expecting that alone to count as discharging the patient — the
+    // previous two-step requirement (change Current Status separately)
+    // left cases stuck showing Admitted with a discharge date sitting
+    // right next to it. Any other explicit status (Transferred, Referred,
+    // Expired, Other) still needs its own date before it can save — this
+    // only auto-fills the single most common case.
+    if (current_status === "admitted" && c.date_of_discharge) {
+      current_status = "discharged";
+      updateSsiField(c.id, { current_status });
+    }
     // Once discharged (with a discharge date), auto-schedule the FIRST
     // follow-up's due date — discharge date + the case's follow-up duration
     // (30/90 days) — so it shows up on the doctor's tracker without needing
