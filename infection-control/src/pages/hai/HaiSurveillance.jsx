@@ -395,10 +395,14 @@ export default function HaiSurveillance() {
           rows.push({ case: c, followUp: f, index: i });
         });
       });
-    // Newest case added goes last — ssiCases itself is fetched newest
-    // surgery date first, which isn't the same thing a nurse means by "new
-    // patient", so sort this tracker by when the record was created instead.
-    rows.sort((a, b) => new Date(a.case.created_at || 0) - new Date(b.case.created_at || 0));
+    // Sorted by Date of Surgery (earliest first) so the doctor's own tracker
+    // reads as an ordered list rather than whatever order cases were entered.
+    // Missing dates sort last instead of jumbling in at the top.
+    rows.sort((a, b) => {
+      const da = a.case.date_of_procedure ? new Date(a.case.date_of_procedure).getTime() : Infinity;
+      const db = b.case.date_of_procedure ? new Date(b.case.date_of_procedure).getTime() : Infinity;
+      return da - db;
+    });
     return rows;
   }, [ssiCases, selectedDoctor, doctorFileNoFilter]);
   const visibleObCases = useMemo(
@@ -1055,7 +1059,7 @@ export default function HaiSurveillance() {
 
       {tab === "ssi" && (
         <div className="flex flex-wrap items-center gap-2">
-          {isAdmin && (
+          {(isAdmin || lockedDoctor) && (
             <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
               {[
                 { key: "all", label: "All Patients" },
