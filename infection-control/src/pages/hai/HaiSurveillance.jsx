@@ -1780,6 +1780,10 @@ function VaeRow({ d, index, isAdmin, onFieldChange, onFieldBlurSave, onToggle, o
 
 function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase, onUpdateField, onSave, onRemove, onUpdateFollowUp, onUpdateSpecimen, onMarkComplete, onReopen }) {
   const { t } = useLanguage();
+  // The 3-visit follow-up tracker is the OB/GYN doctors' own clinical
+  // record — DR/OR/FW ward-stage accounts (no session.ssiDoctor) shouldn't
+  // even see these columns, not just have them disabled.
+  const followUpVisible = isAdmin || !!session?.ssiDoctor;
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-slate-500">
@@ -1803,9 +1807,13 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
               {["PATOS", "Follow-up Duration"].map((h) => (
                 <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
               ))}
-              <th colSpan={10} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">{t("1st Follow Up")}</th>
-              <th colSpan={10} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">{t("2nd Follow Up")}</th>
-              <th colSpan={10} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">{t("3rd Follow Up")}</th>
+              {followUpVisible && (
+                <>
+                  <th colSpan={10} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">{t("1st Follow Up")}</th>
+                  <th colSpan={10} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">{t("2nd Follow Up")}</th>
+                  <th colSpan={10} className="border-b border-slate-200 px-1.5 py-0.5 text-center font-medium">{t("3rd Follow Up")}</th>
+                </>
+              )}
               <th colSpan={4} className="border-b border-l-2 border-slate-800 px-1.5 py-0.5 text-center font-medium">{t("Specimen Information")}</th>
               {["Other Specimens", "SSI Detected", "Type of SSI"].map((h) => (
                 <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
@@ -1827,7 +1835,7 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
               {["Elective/Emergency", "ASA Score", "Wound Class", "Duration of Surgery"].map((h, i) => (
                 <th key={`or-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 ? "border-l-2 border-slate-800" : ""}`}>{t(h)}</th>
               ))}
-              {[1, 2, 3].flatMap((slot) =>
+              {followUpVisible && [1, 2, 3].flatMap((slot) =>
                 ["Type", "Date", "Fever", "Pain/Tenderness", "Redness", "Swelling", "Purulent Discharge", "Wound Dehiscence", "Surgical Site Swab Sent", "Wound Status"].map((h, i) => (
                   <th key={`${slot}-${h}`} className={`whitespace-nowrap px-1.5 py-0.5 font-medium ${i === 0 && slot === 1 ? "border-l-2 border-slate-800" : ""}`}>{t(h)}</th>
                 ))
@@ -1849,6 +1857,7 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
                 units={units}
                 session={session}
                 isAdmin={isAdmin}
+                followUpVisible={followUpVisible}
                 onFieldChange={(patch) => onUpdateField(c.id, patch)}
                 onFieldBlurSave={() => onSave(c)}
                 onFollowUpFieldChange={(i, patch) => onUpdateFollowUp(c, i, patch)}
@@ -1882,7 +1891,7 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
 }
 
 function SsiRow({
-  c, units, session, isAdmin, onFieldChange, onFieldBlurSave, onFollowUpFieldChange, onSpecimenFieldChange, onSpecimenMdroToggle,
+  c, units, session, isAdmin, followUpVisible, onFieldChange, onFieldBlurSave, onFollowUpFieldChange, onSpecimenFieldChange, onSpecimenMdroToggle,
   onPatosToggle, onSsiDetectedToggle, onUpdatedInSehaToggle, onMarkComplete, onReopen, onDobCommit, onRemove,
 }) {
   const { t } = useLanguage();
@@ -1904,8 +1913,9 @@ function SsiRow({
   // The 3-visit follow-up tracker is the OB/GYN doctors' own clinical
   // record — restricted to admin and the doctor-locked accounts (OBG@1/2/3,
   // via session.ssiDoctor), not every DR/OR/FW ward-stage account that can
-  // otherwise edit this row.
-  const followUpEditable = isAdmin || !!session?.ssiDoctor;
+  // otherwise edit this row. DR/OR/FW accounts don't even see the columns
+  // (followUpVisible, computed once in SsiSurveillanceTab).
+  const followUpEditable = followUpVisible;
   // Date of Discharge filled in but Current Status never flipped off
   // Admitted (the two no longer change together automatically — see
   // saveSsiCase in this same file) — flag it brown so it doesn't sit
@@ -2009,7 +2019,7 @@ function SsiRow({
         </select>
       </td>
 
-      {c.follow_ups.map((f, i) => (
+      {followUpVisible && c.follow_ups.map((f, i) => (
         <FollowUpCells key={i} followUp={f} divider={i === 0} onChange={(patch) => onFollowUpFieldChange(i, patch)} onBlur={onFieldBlurSave} editing={editing && followUpEditable} />
       ))}
 
