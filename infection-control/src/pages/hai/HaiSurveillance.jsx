@@ -276,6 +276,19 @@ export default function HaiSurveillance() {
   }
   // After a save, forget only the edits that were saved — an edit made
   // while the save was in flight stays pending for the next save.
+  // Rows only save when their ✓ is pressed, so warn before the page is
+  // closed or reloaded with edits still waiting for it.
+  useEffect(() => {
+    function warnUnsaved(e) {
+      const pending = Object.values(dirtyFieldsRef.current).some((d) => d && Object.keys(d).length);
+      if (!pending) return;
+      e.preventDefault();
+      e.returnValue = t("You have unsaved changes — press ✓ on the row to save them");
+    }
+    window.addEventListener("beforeunload", warnUnsaved);
+    return () => window.removeEventListener("beforeunload", warnUnsaved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   function clearSavedDirty(id, saved) {
     const dirty = dirtyFieldsRef.current[id];
     if (!dirty) return;
@@ -288,10 +301,11 @@ export default function HaiSurveillance() {
   // its blur never fired, the change was never saved, and the patient came
   // back as Admitted on the next reload.
   //
-  // When that save has to wait for the Date of Discharge (SSI puts Current
-  // Status BEFORE the date, so staff naturally pick it first), the row is
-  // "held": kept on screen with the chosen status even though it no longer
-  // matches the filter, and saved together with the date once it's typed.
+  // Rows now save only when their ✓ is pressed, and a row whose status was
+  // changed is "held": kept on screen with the chosen status (even though
+  // it no longer matches the filter) until that save goes through — e.g.
+  // SSI puts Current Status BEFORE the date, so staff pick it first and
+  // type the Date of Discharge after.
   const [heldRowIds, setHeldRowIds] = useState(() => new Set());
   function holdRow(id) {
     setHeldRowIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
@@ -363,9 +377,13 @@ export default function HaiSurveillance() {
     loadAll();
   }, []);
 
+  // Each new message gets its full 3 seconds — an older message's timer
+  // no longer clears a newer one early.
+  const flashTimerRef = useRef(null);
   function flash(msg) {
     setMessage(msg);
-    setTimeout(() => setMessage(null), 3000);
+    clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = setTimeout(() => setMessage(null), 3000);
   }
 
   const visiblePatients = useMemo(
@@ -437,8 +455,8 @@ export default function HaiSurveillance() {
     return rows;
   }, [ssiCases, selectedDoctor, doctorFileNoFilter]);
   const visibleObCases = useMemo(
-    () => obCases.filter((c) => matchesStatusFilter(c.current_status, statusFilter)).slice().sort(byUpdatedInSehaLast),
-    [obCases, statusFilter]
+    () => obCases.filter((c) => heldRowIds.has(c.id) || matchesStatusFilter(c.current_status, statusFilter)).slice().sort(byUpdatedInSehaLast),
+    [obCases, statusFilter, heldRowIds]
   );
 
   const haiCount = useMemo(
@@ -482,7 +500,7 @@ export default function HaiSurveillance() {
         freshRowIds.current.delete(rawP.id);
         await supabase.from("hai_icu_surveillance").delete().eq("id", rawP.id);
         setPatients((prev) => prev.filter((x) => x.id !== rawP.id));
-        return;
+        return true;
       }
       freshRowIds.current.delete(rawP.id);
     }
@@ -506,10 +524,10 @@ export default function HaiSurveillance() {
     // to Admitted once the date was then typed and saved on its own.
     if (current_status !== "admitted" && !p.date_of_discharge) {
       holdRow(p.id);
-      flash({ type: "error", text: t("Now enter the Date of Discharge — the status is saved together with it") });
-      return;
+      flash({ type: "error", text: t("Set the Date of Discharge before changing Current Status away from Admitted") });
+      return false;
     }
-    await supabase
+    const { error: saveError } = await supabase
       .from("hai_icu_surveillance")
       .update({
         month: formatMonthLabel(p.unit_admission_date),
@@ -547,8 +565,14 @@ export default function HaiSurveillance() {
         updated_in_seha_status: p.updated_in_seha ? p.updated_in_seha_status || null : null,
       })
       .eq("id", p.id);
+    if (saveError) {
+      flash({ type: "error", text: t("Could not save") + ": " + saveError.message });
+      return false;
+    }
     clearSavedDirty(p.id, p);
     releaseRow(p.id);
+    flash({ type: "success", text: t("Saved") });
+    return true;
   }
 
   async function removePatient(p) {
@@ -646,7 +670,7 @@ export default function HaiSurveillance() {
         freshRowIds.current.delete(rawC.id);
         await supabase.from("hai_ssi_surveillance").delete().eq("id", rawC.id);
         setSsiCases((prev) => prev.filter((x) => x.id !== rawC.id));
-        return;
+        return true;
       }
       freshRowIds.current.delete(rawC.id);
     }
@@ -685,10 +709,10 @@ export default function HaiSurveillance() {
     // for ICU/NICU, including why this no longer calls loadAll()).
     if (current_status !== "admitted" && !c.date_of_discharge) {
       holdRow(c.id);
-      flash({ type: "error", text: t("Now enter the Date of Discharge — the status is saved together with it") });
-      return;
+      flash({ type: "error", text: t("Set the Date of Discharge before changing Current Status away from Admitted") });
+      return false;
     }
-    await supabase
+    const { error: saveError } = await supabase
       .from("hai_ssi_surveillance")
       .update({
         month: formatMonthLabel(c.date_of_procedure),
@@ -723,8 +747,14 @@ export default function HaiSurveillance() {
         updated_in_seha_status: c.updated_in_seha ? c.updated_in_seha_status || null : null,
       })
       .eq("id", c.id);
+    if (saveError) {
+      flash({ type: "error", text: t("Could not save") + ": " + saveError.message });
+      return false;
+    }
     clearSavedDirty(c.id, c);
     releaseRow(c.id);
+    flash({ type: "success", text: t("Saved") });
+    return true;
   }
 
   async function removeSsiCase(c) {
@@ -817,6 +847,7 @@ export default function HaiSurveillance() {
 
   function updateObField(id, patch) {
     markFieldsDirty(id, patch);
+    if ("current_status" in patch) holdRow(id);
     setObCases((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
 
@@ -844,14 +875,14 @@ export default function HaiSurveillance() {
         freshRowIds.current.delete(rawC.id);
         await supabase.from("hai_ob_surveillance").delete().eq("id", rawC.id);
         setObCases((prev) => prev.filter((x) => x.id !== rawC.id));
-        return;
+        return true;
       }
       freshRowIds.current.delete(rawC.id);
     }
     // Re-fetch and overlay only the fields this tab actually edited — see
     // dirtyFieldsRef's definition above for why this is needed.
     const c = await fetchFreshMerged("hai_ob_surveillance", rawC.id, rawC);
-    await supabase
+    const { error: saveError } = await supabase
       .from("hai_ob_surveillance")
       .update({
         patient_name: c.patient_name,
@@ -884,8 +915,14 @@ export default function HaiSurveillance() {
         updated_in_seha_status: c.updated_in_seha ? c.updated_in_seha_status || null : null,
       })
       .eq("id", c.id);
+    if (saveError) {
+      flash({ type: "error", text: t("Could not save") + ": " + saveError.message });
+      return false;
+    }
     clearSavedDirty(c.id, c);
     releaseRow(c.id);
+    flash({ type: "success", text: t("Saved") });
+    return true;
     flash({ type: "success", text: "Saved" });
   }
 
@@ -1427,24 +1464,22 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
                 icuTypes={icuTypes}
                 isAdmin={isAdmin}
                 onFieldChange={(patch) => onUpdateField(p.id, patch)}
-                onFieldBlurSave={() => onSave(p)}
+                onFieldBlurSave={() => {}}
+                onSaveRow={() => onSave(p)}
                 onSpecimenFieldChange={(i, patch) => onUpdateSpecimen(p, i, patch)}
-                onSpecimenMdroToggle={(i, checked) => onSave(onUpdateSpecimen(p, i, { mdro: checked }))}
+                onSpecimenMdroToggle={(i, checked) => onUpdateSpecimen(p, i, { mdro: checked })}
                 onHaiDetectedToggle={(checked) => {
                   onUpdateField(p.id, { hai_detected: checked });
-                  onSave({ ...p, hai_detected: checked });
                 }}
-                onEventTypeToggle={(type) => onSave(onToggleEventType(p, type))}
+                onEventTypeToggle={(type) => onToggleEventType(p, type)}
                 onUpdatedInSehaToggle={(checked) => {
                   const patch = { updated_in_seha: checked, updated_in_seha_status: checked ? p.current_status : null };
                   onUpdateField(p.id, patch);
-                  onSave({ ...p, ...patch });
                 }}
                 onStatusAfterDischargeToggle={(checked) => {
                   onUpdateField(p.id, { status_after_discharge: checked });
-                  onSave({ ...p, status_after_discharge: checked });
                 }}
-                onDobCommit={(patch) => onSave({ ...p, ...patch })}
+                onDobCommit={(patch) => onUpdateField(p.id, patch)}
                 onRemove={() => onRemove(p)}
               />
             ))}
@@ -1456,9 +1491,21 @@ function IcuSurveillanceTab({ patients, loading, icuTypes, isAdmin, onAddPatient
   );
 }
 
-function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecimenFieldChange, onSpecimenMdroToggle, onHaiDetectedToggle, onEventTypeToggle, onUpdatedInSehaToggle, onStatusAfterDischargeToggle, onDobCommit, onRemove }) {
+function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSaveRow, onSpecimenFieldChange, onSpecimenMdroToggle, onHaiDetectedToggle, onEventTypeToggle, onUpdatedInSehaToggle, onStatusAfterDischargeToggle, onDobCommit, onRemove }) {
   const { t } = useLanguage();
-  const [editing, setEditing] = useState(false);
+  // A blank row (just added) opens ready to type. Nothing in the row is
+  // saved until the ✓ is pressed — then the whole row is saved at once,
+  // and it only locks again if that save went through.
+  const [editing, setEditing] = useState(() => !p.patient_name);
+  const [saving, setSaving] = useState(false);
+  async function toggleEditing() {
+    if (!editing) return setEditing(true);
+    if (saving) return;
+    setSaving(true);
+    const ok = await onSaveRow();
+    setSaving(false);
+    if (ok !== false) setEditing(false);
+  }
   const unitBeforeHospital = !!(p.hospital_admission_date && p.unit_admission_date && p.unit_admission_date < p.hospital_admission_date);
   // Date of Discharge filled in but Current Status never flipped off
   // Admitted (the two no longer change together automatically — see
@@ -1476,7 +1523,7 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
       <td className={`sticky-pencil-col px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
-        <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
+        <EditLockToggle editing={editing} saving={saving} onToggle={toggleEditing} />
       </td>
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <input
@@ -1558,7 +1605,7 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
 
       <td className={`px-1.5 py-0.5 border-l-2 border-slate-800 ${rowBg}`}><GridDate value={p.date_of_discharge} onChange={(e) => onFieldChange({ date_of_discharge: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
       <td className={`px-1.5 py-0.5 ${rowBg}`}>
-        <select className={`input-cell w-full ${dischargeBg}`} disabled={!editing} value={p.current_status} onChange={(e) => { onFieldChange({ current_status: e.target.value }); onFieldBlurSave(); }}>
+        <select className={`input-cell w-full ${dischargeBg}`} disabled={!editing} value={p.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })}>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>{t(statusLabel(s))}</option>
           ))}
@@ -1582,14 +1629,15 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
 // One pencil per row — locked by default so a tap/scroll on the grid can't
 // accidentally change a value; tapping it unlocks every field in that row
 // for editing, tapping again (now a checkmark) locks it back.
-function EditLockToggle({ editing, onToggle }) {
+function EditLockToggle({ editing, onToggle, saving = false }) {
   const { t } = useLanguage();
   return (
     <button
       type="button"
       onClick={onToggle}
-      title={editing ? t("Done editing") : t("Edit this row")}
-      className={`rounded-lg p-1.5 ${editing ? "bg-teal-50 text-teal-600" : "text-slate-400 hover:bg-slate-100"}`}
+      disabled={saving}
+      title={editing ? t("Save") : t("Edit this row")}
+      className={`rounded-lg p-1.5 ${editing ? "bg-teal-600 text-white shadow hover:bg-teal-700" : "text-slate-400 hover:bg-slate-100"} ${saving ? "opacity-50" : ""}`}
     >
       {editing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
     </button>
@@ -1917,26 +1965,24 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
                 isAdmin={isAdmin}
                 followUpVisible={followUpVisible}
                 onFieldChange={(patch) => onUpdateField(c.id, patch)}
-                onFieldBlurSave={() => onSave(c)}
+                onFieldBlurSave={() => {}}
+                onSaveRow={() => onSave(c)}
                 onFollowUpFieldChange={(i, patch) => onUpdateFollowUp(c, i, patch)}
                 onSpecimenFieldChange={(i, patch) => onUpdateSpecimen(c, i, patch)}
-                onSpecimenMdroToggle={(i, checked) => onSave(onUpdateSpecimen(c, i, { mdro: checked }))}
+                onSpecimenMdroToggle={(i, checked) => onUpdateSpecimen(c, i, { mdro: checked })}
                 onPatosToggle={(value) => {
                   onUpdateField(c.id, { patos: value });
-                  onSave({ ...c, patos: value });
                 }}
                 onSsiDetectedToggle={(checked) => {
                   onUpdateField(c.id, { ssi_detected: checked });
-                  onSave({ ...c, ssi_detected: checked });
                 }}
                 onUpdatedInSehaToggle={(checked) => {
                   const patch = { updated_in_seha: checked, updated_in_seha_status: checked ? c.current_status : null };
                   onUpdateField(c.id, patch);
-                  onSave({ ...c, ...patch });
                 }}
                 onMarkComplete={(prefix) => onMarkComplete(c, prefix)}
                 onReopen={(prefix) => onReopen(c, prefix)}
-                onDobCommit={(patch) => onSave({ ...c, ...patch })}
+                onDobCommit={(patch) => onUpdateField(c.id, patch)}
                 onRemove={() => onRemove(c)}
               />
             ))}
@@ -1949,11 +1995,23 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
 }
 
 function SsiRow({
-  c, units, session, isAdmin, followUpVisible, onFieldChange, onFieldBlurSave, onFollowUpFieldChange, onSpecimenFieldChange, onSpecimenMdroToggle,
+  c, units, session, isAdmin, followUpVisible, onFieldChange, onFieldBlurSave, onSaveRow, onFollowUpFieldChange, onSpecimenFieldChange, onSpecimenMdroToggle,
   onPatosToggle, onSsiDetectedToggle, onUpdatedInSehaToggle, onMarkComplete, onReopen, onDobCommit, onRemove,
 }) {
   const { t } = useLanguage();
-  const [editing, setEditing] = useState(false);
+  // A blank row (just added) opens ready to type. Nothing in the row is
+  // saved until the ✓ is pressed — then the whole row is saved at once,
+  // and it only locks again if that save went through.
+  const [editing, setEditing] = useState(() => !c.patient_name);
+  const [saving, setSaving] = useState(false);
+  async function toggleEditing() {
+    if (!editing) return setEditing(true);
+    if (saving) return;
+    setSaving(true);
+    const ok = await onSaveRow();
+    setSaving(false);
+    if (ok !== false) setEditing(false);
+  }
   function canEditSsi(group) {
     return isAdmin || session?.department === group || (session?.ssiStages ?? []).includes(group);
   }
@@ -1989,7 +2047,7 @@ function SsiRow({
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
       <td className={`sticky-pencil-col px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
-        <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
+        <EditLockToggle editing={editing} saving={saving} onToggle={toggleEditing} />
       </td>
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <input
@@ -2101,7 +2159,7 @@ function SsiRow({
       <td className="px-1.5 py-0.5"><GridText value={c.type_of_ssi} onChange={(e) => onFieldChange({ type_of_ssi: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing || !c.ssi_detected} className="min-w-[6.5rem]" /></td>
 
       <td className="px-1.5 py-0.5 border-l-2 border-slate-800">
-        <select className="input-cell w-full" disabled={drFwFieldsDisabled} value={c.current_status} onChange={(e) => { onFieldChange({ current_status: e.target.value }); onFieldBlurSave(); }}>
+        <select className="input-cell w-full" disabled={drFwFieldsDisabled} value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })}>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>{t(statusLabel(s))}</option>
           ))}
@@ -2198,21 +2256,20 @@ function ObSurveillanceTab({ cases, loading, session, isAdmin, onAddCase, onUpda
                 session={session}
                 isAdmin={isAdmin}
                 onFieldChange={(patch) => onUpdateField(c.id, patch)}
-                onFieldBlurSave={() => onSave(c)}
+                onFieldBlurSave={() => {}}
+                onSaveRow={() => onSave(c)}
                 onMarkComplete={(prefix) => onMarkComplete(c, prefix)}
                 onReopen={(prefix) => onReopen(c, prefix)}
                 onSpecimenFieldChange={(patch) => onUpdateSpecimen(c, 0, patch)}
-                onSpecimenMdroToggle={(checked) => onSave(onUpdateSpecimen(c, 0, { mdro: checked }))}
+                onSpecimenMdroToggle={(checked) => onUpdateSpecimen(c, 0, { mdro: checked })}
                 onSsiDetectedToggle={(checked) => {
                   onUpdateField(c.id, { ssi_detected: checked });
-                  onSave({ ...c, ssi_detected: checked });
                 }}
                 onUpdatedInSehaToggle={(checked) => {
                   const patch = { updated_in_seha: checked, updated_in_seha_status: checked ? c.current_status : null };
                   onUpdateField(c.id, patch);
-                  onSave({ ...c, ...patch });
                 }}
-                onDobCommit={(patch) => onSave({ ...c, ...patch })}
+                onDobCommit={(patch) => onUpdateField(c.id, patch)}
                 onRemove={() => onRemove(c)}
               />
             ))}
@@ -2249,9 +2306,21 @@ function StageActionCell({ open, done, canEdit, canReopen, completedBy, onMarkCo
   return <span className="whitespace-nowrap text-xs font-medium text-amber-600">{t("Open")}</span>;
 }
 
-function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComplete, onReopen, onSpecimenFieldChange, onSpecimenMdroToggle, onSsiDetectedToggle, onUpdatedInSehaToggle, onDobCommit, onRemove }) {
+function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onSaveRow, onMarkComplete, onReopen, onSpecimenFieldChange, onSpecimenMdroToggle, onSsiDetectedToggle, onUpdatedInSehaToggle, onDobCommit, onRemove }) {
   const { t } = useLanguage();
-  const [editing, setEditing] = useState(false);
+  // A blank row (just added) opens ready to type. Nothing in the row is
+  // saved until the ✓ is pressed — then the whole row is saved at once,
+  // and it only locks again if that save went through.
+  const [editing, setEditing] = useState(() => !c.patient_name);
+  const [saving, setSaving] = useState(false);
+  async function toggleEditing() {
+    if (!editing) return setEditing(true);
+    if (saving) return;
+    setSaving(true);
+    const ok = await onSaveRow();
+    setSaving(false);
+    if (ok !== false) setEditing(false);
+  }
   const orDone = !!c.or_completed_at;
   const deliveryDone = !!c.delivery_completed_at;
   const fwDone = !!c.fw_completed_at;
@@ -2272,7 +2341,7 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
   return (
     <tr className={`border-t border-slate-100 hover:bg-slate-50 ${rowBg}`}>
       <td className={`sticky-pencil-col px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
-        <EditLockToggle editing={editing} onToggle={() => setEditing((v) => !v)} />
+        <EditLockToggle editing={editing} saving={saving} onToggle={toggleEditing} />
       </td>
       <td className={`px-1.5 py-0.5 text-center ${rowBg || "bg-white"}`}>
         <input
@@ -2321,7 +2390,7 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
       </td>
 
       <td className="px-1.5 py-0.5">
-        <select className="input-cell w-full" disabled={!editing} value={c.current_status} onChange={(e) => { onFieldChange({ current_status: e.target.value }); onFieldBlurSave(); }}>
+        <select className="input-cell w-full" disabled={!editing} value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })}>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>{t(statusLabel(s))}</option>
           ))}

@@ -43,6 +43,8 @@ export const ar = {
   "Delete this note?": "حذف هذه الملاحظة؟",
   "Delete": "حذف",
   "Saved": "تم الحفظ",
+  "Could not save": "ما انحفظ",
+  "You have unsaved changes — press ✓ on the row to save them": "عندك تعديلات ما انحفظت — اضغط ✓ على السطر عشان تنحفظ",
   "Print": "طباعة",
 
   // --- Login ---
@@ -273,7 +275,6 @@ export const ar = {
   "Open": "مفتوح",
   "Edit this row": "تعديل هذا السطر",
   "Set the Date of Discharge before changing Current Status away from Admitted": "لازم تحط تاريخ الخروج (Date of Discharge) قبل ما تغيّر الحالة الحالية من Admitted",
-  "Now enter the Date of Discharge — the status is saved together with it": "الحين اكتب تاريخ الخروج (Date of Discharge) — الحالة تنحفظ معه",
   "Search by MRN/ID...": "بحث برقم الملف...",
   "Done editing": "تم التعديل",
   "A fixed 3-stage pipeline — OR → Delivery → Female Ward. Each stage's dedicated account (Settings → User Accounts, department = \"OR\" / \"Delivery\" / \"Female Ward\", or an OB/Delivery scope with specific stages granted) fills in only its own section, which opens once the previous stage is marked complete.":
