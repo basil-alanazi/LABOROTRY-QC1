@@ -90,7 +90,13 @@ export default function StockRequests() {
 
   async function loadItems() {
     const { data } = await fetchAllRows((from, to) =>
-      supabase.from("stock_items").select("*").eq("active", true).order("sort_order").range(from, to)
+      {
+        // Department staff only ever see their own department's catalog —
+        // don't download every department's items (~1,800 rows) for them.
+        let q = supabase.from("stock_items").select("*").eq("active", true);
+        if (!isStockAdmin && myDepartment) q = q.eq("department", myDepartment);
+        return q.order("sort_order").range(from, to);
+      }
     );
     setItems(data ?? []);
   }
@@ -104,7 +110,10 @@ export default function StockRequests() {
     const { data } = await fetchAllRows((from, to) => {
       let query = supabase.from("stock_requests").select("*").order("created_at", { ascending: false }).range(from, to);
       if (!isStockAdmin) {
-        query = query.eq("department", myDepartment);
+        // Recent usage only — the full history grows every day and was being
+        // downloaded on every visit. Admins pick a month (or All time) instead.
+        const since = new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10);
+        query = query.eq("department", myDepartment).gte("date", since);
       } else if (filterDepts.length > 0) {
         query = query.in("department", filterDepts);
       }
@@ -157,10 +166,9 @@ export default function StockRequests() {
       .from("stock_daily_checks")
       .select("*")
       .eq("date", checkDate)
-      .in(
-        "item_id",
-        dailyCheckItems.map((i) => i.id)
-      );
+      // By department, not .in(item_id, [...]) — a department with a few
+      // hundred items made that request too long for the server to accept.
+      .eq("department", activeDepartment);
     const map = {};
     for (const item of dailyCheckItems) {
       map[item.id] = (data ?? []).find((r) => r.item_id === item.id) || emptyDailyCheck(item.id);

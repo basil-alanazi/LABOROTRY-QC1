@@ -35,9 +35,14 @@ const INDEX = {
   ipc_calendar_tasks: [["task_date"], ["created_by"]],
   messages: [["sender_username"], ["recipient_username", "read_at"]],
   stock_daily_checks: [["item_id"], ["department", "date"]],
-  stock_requests: [["department", "date"], ["item_id"]],
+  stock_requests: [["department", "date"], ["item_id"], ["created_at"], ["date"]],
   stock_items: [["department"]],
   ic_test_attempts: [["employee_id"]],
+  hai_ssi_surveillance: [["date_of_procedure"]],
+  hai_icu_surveillance: [["unit_admission_date"]],
+  ic_rounds: [["date"]],
+  nursing_rounds: [["date"]],
+  employees: [["name"]],
 };
 
 const SQL_TYPE = { u: "TEXT", s: "TEXT", d: "TEXT", z: "TEXT", h: "TEXT", j: "TEXT", b: "INTEGER", i: "INTEGER", n: "REAL" };

@@ -4,11 +4,15 @@
 //   supabase.from(t).select/insert/update/upsert/delete + eq/neq/gt/gte/lt/lte/
 //     in/is/ilike/like/match/not + order/limit/range/single/maybeSingle
 //   supabase.storage.from(bucket).upload/getPublicUrl/remove
-//   supabase.channel(name).on(...).subscribe()  (polls every 10s — D1 has no realtime)
+//   supabase.channel(name).on(...).subscribe()  (polls every 60s — D1 has no realtime)
 // Used when the site is built with VITE_BACKEND=cloudflare.
 
 const TOKEN_KEY = "ic_cf_token";
-const POLL_MS = 10000;
+// D1 has no realtime, so subscribed channels re-run their callbacks on a
+// timer. Every tick is a Worker request per open tab, which counts against
+// Cloudflare's daily request allowance — so poll once a minute, only while
+// the tab is visible, plus right away when the tab comes back into view.
+const POLL_MS = 60000;
 
 export function getToken() {
   try {
@@ -195,16 +199,23 @@ class PollingChannel {
     return this;
   }
   subscribe(statusCb) {
-    this.timer = setInterval(() => {
-      if (document.visibilityState !== "visible") return;
+    const fire = () => {
       for (const cb of this.callbacks) cb({ eventType: "*", new: {}, old: {} });
+    };
+    this.timer = setInterval(() => {
+      if (document.visibilityState === "visible") fire();
     }, POLL_MS);
+    this.onVisible = () => {
+      if (document.visibilityState === "visible") fire();
+    };
+    document.addEventListener("visibilitychange", this.onVisible);
     statusCb?.("SUBSCRIBED");
     return this;
   }
   unsubscribe() {
     clearInterval(this.timer);
     this.timer = null;
+    if (this.onVisible) document.removeEventListener("visibilitychange", this.onVisible);
     return Promise.resolve("ok");
   }
 }

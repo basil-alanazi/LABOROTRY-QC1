@@ -58,14 +58,16 @@ export default function Layout({ children }) {
     // Realtime (below) handles the instant case; this is only a fallback
     // in case that channel silently drops — infrequent on purpose so every
     // logged-in account isn't hitting the database every few seconds.
-    const interval = setInterval(loadUnread, 90000);
+    // On Cloudflare the channel below is itself a once-a-minute poll, so
+    // this extra timer would only double the requests.
+    const interval = supabase.isCloudflare ? null : setInterval(loadUnread, 90000);
     let channel;
     if (!supabase.isMock) {
       channel = supabase.channel("layout-messages").on("postgres_changes", { event: "*", schema: "public", table: "messages" }, loadUnread).subscribe();
     }
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
       if (channel) supabase.removeChannel(channel);
     };
   }, [session?.username]);
