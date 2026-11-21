@@ -5,6 +5,7 @@ import { useAuth } from "../lib/auth.jsx";
 import { useLanguage } from "../lib/i18n.jsx";
 import rabiaLogo from "../assets/rabia-logo.jpg";
 import PrintPortal from "./PrintPortal";
+import { fmtDate } from "../lib/dates";
 
 const NSI_BUCKET = "employee-health-attachments";
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -244,7 +245,7 @@ export default function NsiFormModal({ nsiCase, emp, onClose, flash, onSaved }) 
           <div>
             <h3 className="text-base font-semibold text-slate-800">{t("NSI Form 293")}</h3>
             <p className="text-xs text-slate-500">
-              {emp.name} · {emp.employee_no} · {t("Incident date")}: {nsiCase.incident_date || "—"}
+              {emp.name} · {emp.employee_no} · {t("Incident date")}: {fmtDate(nsiCase.incident_date) || "—"}
             </p>
           </div>
           <button onClick={onClose} className="rounded-lg px-2 py-1 text-sm text-slate-400 hover:bg-slate-50">
@@ -452,8 +453,8 @@ export default function NsiFormModal({ nsiCase, emp, onClose, flash, onSaved }) 
               <div className="border-x-2 border-b-2 border-slate-800 p-3 text-xs text-slate-800">
                 <p className="mb-1 font-bold">Part A. To be filled up by the staff</p>
                 <p className="font-semibold">I. Incident:</p>
-                <p>a. Date/Time of Incident: {data.incident_date || "—"} {data.incident_time || ""}</p>
-                <p>b. Date/Time of Reporting: {data.reporting_date || "—"} {data.reporting_time || ""}</p>
+                <p>a. Date/Time of Incident: {fmtDate(data.incident_date) || "—"} {data.incident_time || ""}</p>
+                <p>b. Date/Time of Reporting: {fmtDate(data.reporting_date) || "—"} {data.reporting_time || ""}</p>
                 <p>c. Location: {data.location || "—"}</p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <div>
@@ -502,12 +503,12 @@ export default function NsiFormModal({ nsiCase, emp, onClose, flash, onSaved }) 
                   <div>
                     <p className="text-xs font-semibold text-slate-600">Doctor: {data.doctor_name || "—"} ({data.doctor_designation || "—"})</p>
                     {savedSigPaths.doctor && <img src={fileUrl(savedSigPaths.doctor)} alt="" className="h-12" />}
-                    <p className="text-xs text-slate-600">Date: {data.doctor_sign_date || "—"}</p>
+                    <p className="text-xs text-slate-600">Date: {fmtDate(data.doctor_sign_date) || "—"}</p>
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-slate-600">Employee Health Physician: {data.physician_name || "—"}</p>
                     {savedSigPaths.physician && <img src={fileUrl(savedSigPaths.physician)} alt="" className="h-12" />}
-                    <p className="text-xs text-slate-600">Date: {data.physician_sign_date || "—"}</p>
+                    <p className="text-xs text-slate-600">Date: {fmtDate(data.physician_sign_date) || "—"}</p>
                   </div>
                 </div>
               </div>

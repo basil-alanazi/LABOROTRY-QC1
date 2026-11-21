@@ -5,6 +5,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { useLanguage } from "../../lib/i18n.jsx";
 import { fetchAllRows } from "../../lib/fetchAll";
 import rabiaLogo from "../../assets/rabia-logo.jpg";
+import { fmtDate } from "../../lib/dates";
 
 const EMP_HEALTH_ATTACHMENTS_BUCKET = "employee-health-attachments";
 
@@ -120,7 +121,7 @@ export default function EmployeeProfile() {
   const header = (
     <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 print:hidden">
       <div className="flex items-center gap-2 text-teal-700">
-        <img src={rabiaLogo} alt="Rabia Hospital" className="h-9 w-9 rounded-md object-contain" />
+        <img src={rabiaLogo} alt="Rabia Hospital" className="h-12 w-auto object-contain" />
         <span className="text-lg font-bold">{t("Infection Control")}</span>
       </div>
       <div className="flex items-center gap-2">
@@ -274,7 +275,7 @@ export default function EmployeeProfile() {
         <StatusLine
           label={t("PPD")}
           ok={status?.ppd_status === "done" && !ppdOverdue}
-          detail={!status?.ppd_status ? t("Not done") : ppdOverdue ? `${t("Overdue since")} ${status.ppd_next_due_date}` : `${t("Done")} — ${status.ppd_test_date || ""}`}
+          detail={!status?.ppd_status ? t("Not done") : ppdOverdue ? `${t("Overdue since")} ${fmtDate(status.ppd_next_due_date)}` : `${t("Done")} — ${fmtDate(status.ppd_test_date) || ""}`}
         />
       </Section>
 
@@ -287,8 +288,8 @@ export default function EmployeeProfile() {
               !status?.stool_urine_status
                 ? t("Not done")
                 : stoolOverdue
-                ? `${t("Overdue since")} ${status.stool_urine_next_due_date}`
-                : `${t("Done")} — ${status.stool_urine_test_date || ""}`
+                ? `${t("Overdue since")} ${fmtDate(status.stool_urine_next_due_date)}`
+                : `${t("Done")} — ${fmtDate(status.stool_urine_test_date) || ""}`
             }
           />
         </Section>
@@ -303,7 +304,7 @@ export default function EmployeeProfile() {
               <div key={c.id} className="rounded-lg border border-slate-100 px-3 py-2 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium text-slate-700">
-                    {t("Incident")}: {c.incident_date || "—"}
+                    {t("Incident")}: {fmtDate(c.incident_date) || "—"}
                   </span>
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.doctor_reviewed ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
                     {c.doctor_reviewed ? t("Reviewed") : t("Pending review")}
@@ -369,7 +370,7 @@ export default function EmployeeProfile() {
           <StatusLine
             label={t("Baladiya License")}
             ok={!licenseExpired}
-            detail={!licenseExpired ? `${t("Valid until")} ${license.expiry_date}` : `${t("Expired on")} ${license.expiry_date}`}
+            detail={!licenseExpired ? `${t("Valid until")} ${fmtDate(license.expiry_date)}` : `${t("Expired on")} ${fmtDate(license.expiry_date)}`}
           />
         ) : (
           <p className="text-sm text-slate-400">{t("No Baladiya license on record.")}</p>

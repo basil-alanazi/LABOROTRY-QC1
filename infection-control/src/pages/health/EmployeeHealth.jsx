@@ -15,6 +15,7 @@ import NsiFormModal from "../../components/NsiFormModal";
 import PrintPortal from "../../components/PrintPortal";
 import CellDropdown from "../../components/CellDropdown";
 import rabiaLogo from "../../assets/rabia-logo.jpg";
+import { fmtDate } from "../../lib/dates";
 
 const TABS = [
   { key: "compliance", label: "Overdue & Missing" },
@@ -274,13 +275,13 @@ export default function EmployeeHealth() {
     if (!st?.ppd_status) {
       issues.push({ label: "PPD", severity: "red", detail: "Not done" });
     } else if (st.ppd_status === "done" && st.ppd_next_due_date && st.ppd_next_due_date < today) {
-      issues.push({ label: "PPD", severity: "red", detail: `Overdue since ${st.ppd_next_due_date}` });
+      issues.push({ label: "PPD", severity: "red", detail: `Overdue since ${fmtDate(st.ppd_next_due_date)}` });
     }
     if (emp.is_kitchen_staff) {
       if (!st?.stool_urine_status) {
         issues.push({ label: "Stool & Urine Test", severity: "red", detail: "Not done" });
       } else if (st.stool_urine_status !== "not_applicable" && st.stool_urine_next_due_date && st.stool_urine_next_due_date < today) {
-        issues.push({ label: "Stool & Urine Test", severity: "red", detail: `Overdue since ${st.stool_urine_next_due_date}` });
+        issues.push({ label: "Stool & Urine Test", severity: "red", detail: `Overdue since ${fmtDate(st.stool_urine_next_due_date)}` });
       }
     }
     const empRequests = requests.filter((r) => r.employee_id === emp.id);
@@ -1489,7 +1490,7 @@ export default function EmployeeHealth() {
         <p className="text-sm text-slate-500">{t("Employee Clinic — a live grid matching the clinic's tracking sheet: investigations, PPD, and vaccinations by dose.")}</p>
       </div>
 
-      <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+      <div className="tab-bar flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
         {TABS.filter((tabDef) => canEdit || tabDef.key !== "employees").map((tabDef) => (
           <button key={tabDef.key} onClick={() => setTab(tabDef.key)} className={`rounded-md px-3 py-1 font-medium ${tab === tabDef.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
             {t(tabDef.label)}
@@ -1548,7 +1549,7 @@ export default function EmployeeHealth() {
       {tab === "clinic" && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+            <div className="tab-bar flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
               <button
                 onClick={() => {
                   setClinicGroup("regular");
@@ -1840,12 +1841,12 @@ export default function EmployeeHealth() {
                   const emp = employees.find((e) => e.id === r.employee_id);
                   return (
                     <tr key={r.id} className="border-t border-slate-100">
-                      <td className="px-4 py-2">{r.date_given}</td>
+                      <td className="px-4 py-2">{fmtDate(r.date_given)}</td>
                       <td className="px-4 py-2">{emp?.name || "—"}</td>
                       <td className="px-4 py-2">{r.item_name}</td>
                       <td className="px-4 py-2">{r.dose_number}</td>
                       <td className="px-4 py-2">{r.batch_no || "—"}</td>
-                      <td className="px-4 py-2">{r.next_due_date || "—"}</td>
+                      <td className="px-4 py-2">{fmtDate(r.next_due_date) || "—"}</td>
                       <td className="px-4 py-2">{r.recorded_by}</td>
                     </tr>
                   );
@@ -2199,7 +2200,7 @@ export default function EmployeeHealth() {
           const requisitionBody = (
             <>
               <div className="flex flex-col items-center gap-1 border-b border-slate-200 pb-3 text-center">
-                <img src={rabiaLogo} alt="Rabia Hospital" className="h-14 w-14 object-contain" />
+                <img src={rabiaLogo} alt="Rabia Hospital" className="h-14 w-auto object-contain" />
                 <p className="text-sm font-bold text-slate-800">{t("Rabia Hospital — Infection Control Department")}</p>
                 <p className="text-xs text-slate-500">{t("New Employee Health Screening Requisition")}</p>
               </div>

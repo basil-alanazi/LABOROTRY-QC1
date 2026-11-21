@@ -72,118 +72,82 @@ export default function Layout({ children }) {
     };
   }, [session?.username]);
 
-  const navLinks = (
-    <>
-      {canViewEmployeeHealth && (
-        <NavLink to="/employee-health" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <HeartPulse className="h-4 w-4" />
-          {t("Employee Health")}
-        </NavLink>
-      )}
-      {isAdmin && (
-        <NavLink to="/cases" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <ShieldAlert className="h-4 w-4" />
-          {t("Suspected/Confirmed Cases")}
-        </NavLink>
-      )}
-      {canEnterIcRounds && (
-        <NavLink to="/ic-rounds" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <ClipboardCheck className="h-4 w-4" />
-          {t("Daily IC Rounds")}
-        </NavLink>
-      )}
-      {isAdmin && (
-        <NavLink to="/hand-hygiene" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <Droplets className="h-4 w-4" />
-          {t("Hand Hygiene")}
-        </NavLink>
-      )}
-      {canEnterNursingRounds && (
-        <NavLink to="/nursing-rounds" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <ShieldCheck className="h-4 w-4" />
-          {t("Nursing Daily Rounds")}
-        </NavLink>
-      )}
-      {canEnterQualityRounds && (
-        <NavLink to="/quality-rounds" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <Sparkles className="h-4 w-4" />
-          {t("Quality Daily Rounds")}
-        </NavLink>
-      )}
-      {isAdmin && (
-        <NavLink to="/ic-knowledge-test" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <GraduationCap className="h-4 w-4" />
-          {t("IC Knowledge Test")}
-        </NavLink>
-      )}
-      {isAdmin && (
-        <NavLink to="/trackers" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <FolderClock className="h-4 w-4" />
-          {t("Trackers")}
-        </NavLink>
-      )}
-      {canViewHaiSurveillance && (
-        <NavLink to="/hai-surveillance" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <Activity className="h-4 w-4" />
-          {t("HAI Surveillance")}
-        </NavLink>
-      )}
-      {canViewHaiSurveillance && !(session?.haiScope && !isAdmin) && (
-        <NavLink to="/hai-monthly-indicators" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <Dna className="h-4 w-4" />
-          {t("Monthly IPC Indicator")}
-        </NavLink>
-      )}
-      {canViewHaiSurveillance && (
-        <NavLink to="/hai-care-bundles" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <ClipboardList className="h-4 w-4" />
-          {t("IPC Care Bundles")}
-        </NavLink>
-      )}
-      {(isAdmin ||
-        !(
-          session?.canViewEmployeeHealth ||
-          session?.canViewHaiSurveillance ||
-          session?.canEnterNursingRounds ||
-          session?.canEnterQualityRounds ||
-          session?.canEnterIcRounds
-        )) && (
-        <NavLink to="/stock" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <Package className="h-4 w-4" />
-          {t("Stock Requests")}
-        </NavLink>
-      )}
-      {isAdmin && (
-        <NavLink to="/settings" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <SettingsIcon className="h-4 w-4" />
-          {t("Settings")}
-        </NavLink>
-      )}
-      <NavLink to="/ipc-calendar" className={linkClass} onClick={() => setSidebarOpen(false)}>
-        <CalendarDays className="h-4 w-4" />
-        {t("IPC Calendar")}
-      </NavLink>
-      {isAdmin && (
-        <NavLink to="/notes" className={linkClass} onClick={() => setSidebarOpen(false)}>
-          <NotebookPen className="h-4 w-4" />
-          {t("Notes")}
-        </NavLink>
-      )}
-      <NavLink to="/messages" className={linkClass} onClick={() => setSidebarOpen(false)}>
-        <MessageSquare className="h-4 w-4" />
-        {t("Messages")}
-        {unreadCount > 0 && (
-          <span className="ms-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        )}
-      </NavLink>
-      <NavLink to="/profile" className={linkClass} onClick={() => setSidebarOpen(false)}>
-        <UserCircle className="h-4 w-4" />
-        {t("Profile")}
-      </NavLink>
-    </>
-  );
+  // Sidebar, grouped by area so the ~16 pages are quick to scan. A group
+  // only shows when the account can see at least one page in it.
+  const stockVisible =
+    isAdmin ||
+    !(
+      session?.canViewEmployeeHealth ||
+      session?.canViewHaiSurveillance ||
+      session?.canEnterNursingRounds ||
+      session?.canEnterQualityRounds ||
+      session?.canEnterIcRounds
+    );
+  const navGroups = [
+    {
+      title: "Surveillance",
+      items: [
+        canViewHaiSurveillance && { to: "/hai-surveillance", icon: Activity, label: "HAI Surveillance" },
+        canViewHaiSurveillance && !(session?.haiScope && !isAdmin) && { to: "/hai-monthly-indicators", icon: Dna, label: "Monthly IPC Indicator" },
+        canViewHaiSurveillance && { to: "/hai-care-bundles", icon: ClipboardList, label: "IPC Care Bundles" },
+        isAdmin && { to: "/cases", icon: ShieldAlert, label: "Suspected/Confirmed Cases" },
+      ],
+    },
+    {
+      title: "Rounds",
+      items: [
+        canEnterIcRounds && { to: "/ic-rounds", icon: ClipboardCheck, label: "Daily IC Rounds" },
+        isAdmin && { to: "/hand-hygiene", icon: Droplets, label: "Hand Hygiene" },
+        canEnterNursingRounds && { to: "/nursing-rounds", icon: ShieldCheck, label: "Nursing Daily Rounds" },
+        canEnterQualityRounds && { to: "/quality-rounds", icon: Sparkles, label: "Quality Daily Rounds" },
+      ],
+    },
+    {
+      title: "Staff",
+      items: [
+        canViewEmployeeHealth && { to: "/employee-health", icon: HeartPulse, label: "Employee Health" },
+        isAdmin && { to: "/ic-knowledge-test", icon: GraduationCap, label: "IC Knowledge Test" },
+      ],
+    },
+    {
+      title: "Trackers & Supplies",
+      items: [
+        isAdmin && { to: "/trackers", icon: FolderClock, label: "Trackers" },
+        stockVisible && { to: "/stock", icon: Package, label: "Stock Requests" },
+      ],
+    },
+    {
+      title: "General",
+      items: [
+        { to: "/ipc-calendar", icon: CalendarDays, label: "IPC Calendar" },
+        isAdmin && { to: "/notes", icon: NotebookPen, label: "Notes" },
+        { to: "/messages", icon: MessageSquare, label: "Messages", badge: unreadCount },
+        { to: "/profile", icon: UserCircle, label: "Profile" },
+        isAdmin && { to: "/settings", icon: SettingsIcon, label: "Settings" },
+      ],
+    },
+  ]
+    .map((g) => ({ ...g, items: g.items.filter(Boolean) }))
+    .filter((g) => g.items.length > 0);
+
+  const navLinks = navGroups.map((g) => (
+    <div key={g.title} className="mb-2">
+      <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t(g.title)}</p>
+      <div className="flex flex-col gap-0.5">
+        {g.items.map(({ to, icon: Icon, label, badge }) => (
+          <NavLink key={to} to={to} className={linkClass} onClick={() => setSidebarOpen(false)}>
+            <Icon className="h-4 w-4 shrink-0" />
+            {t(label)}
+            {badge > 0 && (
+              <span className="ms-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                {badge > 99 ? "99+" : badge}
+              </span>
+            )}
+          </NavLink>
+        ))}
+      </div>
+    </div>
+  ));
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -197,22 +161,25 @@ export default function Layout({ children }) {
         }`}
       >
         <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-4">
-          <div className="flex items-center gap-2 text-teal-700">
-            <img src={rabiaLogo} alt="Rabia Hospital" className="h-9 w-9 rounded-md object-contain" />
-            <span className="text-lg font-bold">{t("Infection Control")}</span>
+          <div className="flex min-w-0 flex-col gap-1">
+            <img src={rabiaLogo} alt="Rabia Hospital" className="h-12 w-auto max-w-[9.5rem] object-contain object-left rtl:object-right" />
+            <span className="text-sm font-bold text-teal-700">{t("Infection Control")}</span>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="text-slate-400 hover:text-slate-600 md:hidden">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">{navLinks}</nav>
+        <nav className="flex flex-1 flex-col overflow-y-auto px-3 pb-3">{navLinks}</nav>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur print:hidden">
-          <button onClick={() => setSidebarOpen(true)} className="text-slate-500 hover:text-slate-800 md:hidden">
-            <Menu className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-3 md:hidden">
+            <button onClick={() => setSidebarOpen(true)} className="text-slate-500 hover:text-slate-800" aria-label={t("Menu")}>
+              <Menu className="h-5 w-5" />
+            </button>
+            <img src={rabiaLogo} alt="Rabia Hospital" className="h-7 w-auto object-contain" />
+          </div>
           <div className="hidden md:block" />
           <div className="flex items-center gap-3 text-sm text-slate-500">
             <span>{session?.displayName}</span>

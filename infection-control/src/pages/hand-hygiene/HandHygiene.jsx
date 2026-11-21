@@ -6,6 +6,7 @@ import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
+import { fmtDate } from "../../lib/dates";
 
 const HH_ATTACHMENTS_BUCKET = "hh-attachments";
 
@@ -247,7 +248,7 @@ export default function HandHygiene() {
   }
 
   async function removeObservation(o) {
-    if (!confirm(`Delete the ${o.date} observation for "${o.department}" (${o.observer})?`)) return;
+    if (!confirm(`Delete the ${fmtDate(o.date)} observation for "${o.department}" (${o.observer})?`)) return;
     await supabase.from("hh_observations").update({ deleted: true, deleted_by: session?.username, deleted_at: new Date().toISOString() }).eq("id", o.id);
     loadAll();
   }
@@ -472,7 +473,7 @@ export default function HandHygiene() {
           <tbody>
             {visibleObservations.map((o) => (
               <tr key={o.id} className="border-t border-slate-100 hover:bg-slate-50">
-                <td className="whitespace-nowrap px-4 py-2">{o.date}</td>
+                <td className="whitespace-nowrap px-4 py-2">{fmtDate(o.date)}</td>
                 <td className="px-4 py-2">{o.department}</td>
                 <td className="px-4 py-2">{o.observer}</td>
                 <td className="whitespace-nowrap px-4 py-2 text-xs text-slate-500">{o.time_from ? `${o.time_from.slice(0, 5)}–${o.time_to?.slice(0, 5) ?? ""}` : "—"}</td>

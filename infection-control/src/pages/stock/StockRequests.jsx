@@ -6,6 +6,7 @@ import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
+import { fmtDate } from "../../lib/dates";
 
 const REPORT_HEADERS = ["Date", "Department", "Item", "Quantity Used", "Used By", "Notes"];
 
@@ -408,7 +409,7 @@ export default function StockRequests() {
         )}
       </div>
 
-      <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+      <div className="tab-bar flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
         <button onClick={() => setTab("use")} className={`rounded-md px-3 py-1 font-medium ${tab === "use" ? "bg-teal-600 text-white" : "text-slate-500"}`}>
           {t("Use Stock")}
         </button>
@@ -686,7 +687,7 @@ export default function StockRequests() {
           <tbody>
             {requests.map((r) => (
               <tr key={r.id} className="border-t border-slate-100">
-                <td className="px-4 py-2">{r.date}</td>
+                <td className="px-4 py-2">{fmtDate(r.date)}</td>
                 {isStockAdmin && <td className="px-4 py-2">{r.department}</td>}
                 <td className="px-4 py-2">{r.item_name}</td>
                 <td className="px-4 py-2">

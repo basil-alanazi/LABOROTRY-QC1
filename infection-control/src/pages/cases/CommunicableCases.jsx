@@ -5,6 +5,7 @@ import { useAuth } from "../../lib/auth.jsx";
 import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
+import { fmtDate } from "../../lib/dates";
 
 const CASE_ATTACHMENTS_BUCKET = "case-attachments";
 
@@ -323,7 +324,7 @@ function CaseRow({ c, expanded, onToggle, onDelete, onToggleNotRequired, onUploa
   return (
     <>
       <tr className="border-t border-slate-100 hover:bg-slate-50">
-        <td className="px-4 py-2">{c.date}</td>
+        <td className="px-4 py-2">{fmtDate(c.date)}</td>
         <td className="px-4 py-2">{c.patient_name}</td>
         <td className="px-4 py-2">{c.rh_no}</td>
         <td className="px-4 py-2">
@@ -359,7 +360,7 @@ function CaseRow({ c, expanded, onToggle, onDelete, onToggleNotRequired, onUploa
         <tr className="border-t border-slate-100 bg-slate-50/60">
           <td colSpan={7} className="px-4 py-4">
             <div className="mb-3 grid grid-cols-2 gap-2 text-xs text-slate-500 sm:grid-cols-3">
-              <div>{t("Reported to health authority: ")}{c.reported_at || "—"}</div>
+              <div>{t("Reported to health authority: ")}{fmtDate(c.reported_at) || "—"}</div>
               <div>{t("Recorded by: ")}{c.done_by || "—"}</div>
               {c.deleted && <div>{t("Deleted by: ")}{c.deleted_by || "—"}</div>}
             </div>

@@ -23,6 +23,22 @@ body {
 }
 
 @layer components {
+  /* Tab switchers (ICU/VAE/SSI, Trackers, Employee Health …): one row that
+     scrolls sideways on a phone instead of wrapping or cutting tabs off. */
+  .tab-bar {
+    max-width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .tab-bar > * {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
   .input {
     @apply w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500;
   }
@@ -72,5 +88,25 @@ body {
   .hai-grid thead .sticky-name-col-after-pencil {
     z-index: 3;
     background-color: #f8fafc;
+  }
+}
+
+/* Phones: wide tables scroll sideways with readable columns instead of
+   squeezing every column (and its inputs) into the screen width. */
+@media (max-width: 767px) {
+  .overflow-x-auto > table:not(.hai-grid) {
+    min-width: 640px;
+  }
+  .overflow-x-auto > table th {
+    white-space: nowrap;
+  }
+  .overflow-x-auto > table td .input,
+  .overflow-x-auto > table td .input-cell {
+    min-width: 6.5rem;
+  }
+  /* 16px text stops iOS Safari zooming into a field when it's tapped. */
+  .input,
+  select.input {
+    font-size: 16px;
   }
 }
