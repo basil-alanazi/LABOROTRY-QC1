@@ -24,26 +24,42 @@ const byUpdatedInSehaLast = (a, b) => (a.updated_in_seha ? 1 : 0) - (b.updated_i
 // Procedure that doesn't match their actual month (an import artifact), so
 // sorting on that field can put an old case next to a current one. Month
 // is what staff actually trust, so parse it into a sortable year*12+month
-// value instead — a bare "OCT" with no year is assumed to be this year.
+// value instead. A bare "OCT" with no year used to be assumed to be THIS
+// year — fine for a case entered today, but it silently misdated every
+// older bulk-imported case whose Month was typed without one, making
+// them sort as if they were this year's and scattering them in with
+// genuinely current cases ("months and months" all mixed together). Now a
+// missing year falls back to the year of that same case's own stored date
+// field (still reliable even when the exact month drifted from it), and
+// only falls back further to the current year if that date is also blank.
 const MONTH_ABBR = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
-function parseMonthLabel(label) {
+function parseMonthLabel(label, fallbackDateStr) {
   if (!label) return null;
   const m = label.trim().match(/^([A-Za-z]{3})[A-Za-z]*\.?\s*(\d{4})?/);
   if (!m) return null;
   const monthIdx = MONTH_ABBR[m[1].toLowerCase()];
   if (monthIdx === undefined) return null;
-  const year = m[2] ? parseInt(m[2], 10) : new Date().getFullYear();
+  let year;
+  if (m[2]) {
+    year = parseInt(m[2], 10);
+  } else {
+    const fallbackYear = fallbackDateStr ? new Date(fallbackDateStr).getFullYear() : NaN;
+    year = Number.isFinite(fallbackYear) ? fallbackYear : new Date().getFullYear();
+  }
   return year * 12 + monthIdx;
 }
 // Most recent month first; cases with an unparseable/blank month sink to
-// the bottom rather than being scattered in with dated ones.
-function byMonthLabelDesc(a, b) {
-  const ma = parseMonthLabel(a.month);
-  const mb = parseMonthLabel(b.month);
-  if (ma === null && mb === null) return 0;
-  if (ma === null) return 1;
-  if (mb === null) return -1;
-  return mb - ma;
+// the bottom rather than being scattered in with dated ones. `dateField`
+// names the record's own real date column to use as the year fallback.
+function byMonthLabelDesc(dateField) {
+  return (a, b) => {
+    const ma = parseMonthLabel(a.month, a[dateField]);
+    const mb = parseMonthLabel(b.month, b[dateField]);
+    if (ma === null && mb === null) return 0;
+    if (ma === null) return 1;
+    if (mb === null) return -1;
+    return mb - ma;
+  };
 }
 
 // The Status filter only ever offers Admitted/Discharged/All — "Discharged"
@@ -347,7 +363,7 @@ export default function HaiSurveillance() {
       .filter((p) => activeIcuTypes.includes(p.icu_type))
       .filter((p) => !term || (p.mrn || "").toLowerCase().includes(term))
       .slice()
-      .sort(byMonthLabelDesc)
+      .sort(byMonthLabelDesc("unit_admission_date"))
       .sort(byUpdatedInSehaLast);
   }, [visiblePatients, activeIcuTypes, mrnSearch]);
   // VAE Monitoring isn't split by Adult/Pediatric sub-tab, but a scoped
@@ -364,7 +380,7 @@ export default function HaiSurveillance() {
       .filter((c) => matchesStatusFilter(c.current_status, statusFilter))
       .filter((c) => !term || (c.mrn || "").toLowerCase().includes(term))
       .slice()
-      .sort(byMonthLabelDesc)
+      .sort(byMonthLabelDesc("date_of_procedure"))
       .sort(byUpdatedInSehaLast);
   }, [ssiCases, statusFilter, mrnSearch]);
 
