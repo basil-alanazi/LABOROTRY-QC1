@@ -1,0 +1,14 @@
+{
+  "name": "infection-control-cloudflare",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "schema": "node scripts/build-schema.mjs",
+    "build:site": "cd .. && VITE_BACKEND=cloudflare npm run build",
+    "dev": "npm run build:site && wrangler dev",
+    "deploy": "npm run build:site && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.40.0"
+  }
+}
