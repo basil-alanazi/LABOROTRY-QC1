@@ -258,22 +258,41 @@ export default function HaiSurveillance() {
   // stale copy. Tracks, per row id, only the field names this tab has
   // actually edited since its own last load, so a save can re-fetch the
   // row fresh and apply just those — never anything this tab never touched.
+  //
+  // It keeps each edited field's latest VALUE (not just its name), and a
+  // save overlays those values rather than reading them off the row object
+  // handed to it — that object comes from the handler's render-time
+  // closure, which can be one render behind (e.g. a save fired from the
+  // same onChange that made the edit).
   const dirtyFieldsRef = useRef({});
   function markFieldsDirty(id, patch) {
-    const prev = dirtyFieldsRef.current[id] || new Set();
-    Object.keys(patch).forEach((k) => prev.add(k));
-    dirtyFieldsRef.current[id] = prev;
+    dirtyFieldsRef.current[id] = { ...(dirtyFieldsRef.current[id] || {}), ...patch };
   }
   async function fetchFreshMerged(table, id, local) {
     const dirty = dirtyFieldsRef.current[id];
-    if (!dirty || dirty.size === 0) return local;
+    if (!dirty || Object.keys(dirty).length === 0) return local;
     const { data: fresh } = await supabase.from(table).select("*").eq("id", id).single();
-    if (!fresh) return local;
-    const merged = { ...fresh };
-    dirty.forEach((key) => {
-      merged[key] = local[key];
-    });
-    return merged;
+    return { ...(fresh || local), ...dirty };
+  }
+  // After a save, forget only the edits that were saved — an edit made
+  // while the save was in flight stays pending for the next save.
+  function clearSavedDirty(id, saved) {
+    const dirty = dirtyFieldsRef.current[id];
+    if (!dirty) return;
+    for (const k of Object.keys(dirty)) if (dirty[k] === saved[k]) delete dirty[k];
+    if (Object.keys(dirty).length === 0) delete dirtyFieldsRef.current[id];
+  }
+  // Current Status is saved the moment it's picked (see the status <select>
+  // in each row): the list is filtered to Admitted by default, so a row
+  // switched to Transferred/Discharged drops out of view immediately — its
+  // blur never fired, the change was never saved, and the patient came back
+  // as Admitted on the next reload. When that save is refused (no Date of
+  // Discharge yet), put the row back to Admitted on screen too, so it
+  // doesn't vanish looking saved when it wasn't.
+  function revertUnsavedStatus(setRows, id) {
+    const dirty = dirtyFieldsRef.current[id];
+    if (dirty) delete dirty.current_status;
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, current_status: "admitted" } : r)));
   }
   const [patients, setPatients] = useState([]);
   const [vaeRows, setVaeRows] = useState([]);
@@ -472,6 +491,7 @@ export default function HaiSurveillance() {
     // edit in progress AND silently snapping this row's own selection back
     // to Admitted once the date was then typed and saved on its own.
     if (current_status !== "admitted" && !p.date_of_discharge) {
+      revertUnsavedStatus(setPatients, p.id);
       flash({ type: "error", text: t("Set the Date of Discharge before changing Current Status away from Admitted") });
       return;
     }
@@ -513,7 +533,7 @@ export default function HaiSurveillance() {
         updated_in_seha_status: p.updated_in_seha ? p.updated_in_seha_status || null : null,
       })
       .eq("id", p.id);
-    delete dirtyFieldsRef.current[p.id];
+    clearSavedDirty(p.id, p);
   }
 
   async function removePatient(p) {
@@ -646,6 +666,7 @@ export default function HaiSurveillance() {
     // Discharge has to be filled in too (see savePatient's identical guard
     // for ICU/NICU, including why this no longer calls loadAll()).
     if (current_status !== "admitted" && !c.date_of_discharge) {
+      revertUnsavedStatus(setSsiCases, c.id);
       flash({ type: "error", text: t("Set the Date of Discharge before changing Current Status away from Admitted") });
       return;
     }
@@ -684,7 +705,7 @@ export default function HaiSurveillance() {
         updated_in_seha_status: c.updated_in_seha ? c.updated_in_seha_status || null : null,
       })
       .eq("id", c.id);
-    delete dirtyFieldsRef.current[c.id];
+    clearSavedDirty(c.id, c);
   }
 
   async function removeSsiCase(c) {
@@ -844,7 +865,7 @@ export default function HaiSurveillance() {
         updated_in_seha_status: c.updated_in_seha ? c.updated_in_seha_status || null : null,
       })
       .eq("id", c.id);
-    delete dirtyFieldsRef.current[c.id];
+    clearSavedDirty(c.id, c);
     flash({ type: "success", text: "Saved" });
   }
 
@@ -1517,7 +1538,7 @@ function IcuRow({ p, icuTypes, isAdmin, onFieldChange, onFieldBlurSave, onSpecim
 
       <td className={`px-1.5 py-0.5 border-l-2 border-slate-800 ${rowBg}`}><GridDate value={p.date_of_discharge} onChange={(e) => onFieldChange({ date_of_discharge: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing} className={dischargeBg} /></td>
       <td className={`px-1.5 py-0.5 ${rowBg}`}>
-        <select className={`input-cell w-full ${dischargeBg}`} disabled={!editing} value={p.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
+        <select className={`input-cell w-full ${dischargeBg}`} disabled={!editing} value={p.current_status} onChange={(e) => { onFieldChange({ current_status: e.target.value }); onFieldBlurSave(); }}>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>{t(statusLabel(s))}</option>
           ))}
@@ -2060,7 +2081,7 @@ function SsiRow({
       <td className="px-1.5 py-0.5"><GridText value={c.type_of_ssi} onChange={(e) => onFieldChange({ type_of_ssi: e.target.value })} onBlur={onFieldBlurSave} disabled={!editing || !c.ssi_detected} className="min-w-[6.5rem]" /></td>
 
       <td className="px-1.5 py-0.5 border-l-2 border-slate-800">
-        <select className="input-cell w-full" disabled={drFwFieldsDisabled} value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
+        <select className="input-cell w-full" disabled={drFwFieldsDisabled} value={c.current_status} onChange={(e) => { onFieldChange({ current_status: e.target.value }); onFieldBlurSave(); }}>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>{t(statusLabel(s))}</option>
           ))}
@@ -2280,7 +2301,7 @@ function ObRow({ c, session, isAdmin, onFieldChange, onFieldBlurSave, onMarkComp
       </td>
 
       <td className="px-1.5 py-0.5">
-        <select className="input-cell w-full" disabled={!editing} value={c.current_status} onChange={(e) => onFieldChange({ current_status: e.target.value })} onBlur={onFieldBlurSave}>
+        <select className="input-cell w-full" disabled={!editing} value={c.current_status} onChange={(e) => { onFieldChange({ current_status: e.target.value }); onFieldBlurSave(); }}>
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>{t(statusLabel(s))}</option>
           ))}
