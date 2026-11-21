@@ -1,6 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { createMockClient } from "./mockDb";
 import * as seed from "./mockSeed";
+import { createCloudflareClient } from "./cfClient";
+
+// VITE_BACKEND=cloudflare builds the site for the Cloudflare Worker + D1
+// backend (see cloudflare/README.md); anything else keeps Supabase.
+const useCloudflare = import.meta.env.VITE_BACKEND === "cloudflare";
 
 // Defaults to the project's live Supabase instance; override with your own
 // via VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY (see .env.example) if you're
@@ -12,8 +17,9 @@ const key =
 
 // If you intentionally want the offline preview instead, unset both env
 // vars AND remove the defaults above. Nothing in preview mode persists.
-export const supabase =
-  url && key
+export const supabase = useCloudflare
+  ? createCloudflareClient()
+  : url && key
     ? createClient(url, key)
     : createMockClient({
         app_config: [seed.app_config],

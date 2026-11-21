@@ -43,6 +43,8 @@ export const ar = {
   "Delete this note?": "حذف هذه الملاحظة؟",
   "Delete": "حذف",
   "Saved": "تم الحفظ",
+  "Could not save": "ما انحفظ",
+  "You have unsaved changes — press ✓ on the row to save them": "عندك تعديلات ما انحفظت — اضغط ✓ على السطر عشان تنحفظ",
   "Print": "طباعة",
 
   // --- Login ---

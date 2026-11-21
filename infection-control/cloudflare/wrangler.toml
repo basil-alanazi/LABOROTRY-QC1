@@ -1,0 +1,20 @@
+# Cloudflare deployment for the Infection Control site.
+# The Worker serves the /api + /files routes, and the built React app from
+# R2 under "_site/" (uploaded by scripts/upload-site.mjs). R2 instead of
+# Workers static assets because the assets upload uses a one-off upload
+# token that this environment's network proxy can't pass through.
+name = "infection-control"
+main = "worker/index.js"
+compatibility_date = "2025-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "infection-control"
+database_id = "581a5a47-7ef0-4384-88c9-4c1b810e1761"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "infection-control-files"
+
+[observability]
+enabled = true

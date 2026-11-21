@@ -33,6 +33,18 @@ export function AuthProvider({ children }) {
     loadConfig().finally(() => setLoading(false));
   }, []);
 
+  // Cloudflare backend: the server issues a signed session token at login.
+  // A session saved before the move (no token), or one whose token expired,
+  // can't make requests — send that user back to the login screen.
+  useEffect(() => {
+    if (!supabase.isCloudflare) return;
+    if (session && !supabase.cf.hasToken()) logout();
+    const onExpired = () => logout();
+    window.addEventListener("ic-auth-expired", onExpired);
+    return () => window.removeEventListener("ic-auth-expired", onExpired);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function toSession(user) {
     return {
       id: user.id,
@@ -63,6 +75,22 @@ export function AuthProvider({ children }) {
     // don't match the exact case it was created with) — password is not.
     // Offline preview mode has no real security to protect — compare
     // plaintext there so the seeded demo accounts keep working.
+    if (supabase.isCloudflare) {
+      // Checked on the server; the password hash never reaches the browser.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 500 * attempt));
+        const { data, error, status } = await supabase.cf.login(username, password);
+        if (data?.user) {
+          const s = toSession(data.user);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+          setSession(s);
+          return { ok: true };
+        }
+        if (error?.code === "PGRST116" || status === 401) return { ok: false, error: "Incorrect username or password" };
+      }
+      return { ok: false, error: "Server is busy — please try again in a moment" };
+    }
+
     const hashedPassword = supabase.isMock ? null : await sha256Hex(password);
 
     // A busy free-tier database can return a transient 503 under load —
@@ -109,6 +137,7 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
+    supabase.cf?.logout();
     localStorage.removeItem(STORAGE_KEY);
     setSession(null);
   }
