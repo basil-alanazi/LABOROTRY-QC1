@@ -815,3 +815,16 @@ CREATE TABLE IF NOT EXISTS "ipc_tracker" (
   "created_at" TEXT
 );
 
+CREATE TABLE IF NOT EXISTS "ipc_forms" (
+  "id" TEXT PRIMARY KEY,
+  "name" TEXT,
+  "attachments" TEXT DEFAULT '[]',
+  "created_by" TEXT,
+  "updated_by" TEXT,
+  "updated_at" TEXT,
+  "deleted" INTEGER DEFAULT 0,
+  "deleted_by" TEXT,
+  "deleted_at" TEXT,
+  "created_at" TEXT
+);
+

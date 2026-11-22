@@ -8,6 +8,7 @@ import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
 import StandardsTrackerPanel from "./StandardsTrackerPanel.jsx";
 import IpcTrackerPanel from "./IpcTrackerPanel.jsx";
+import FormsPanel from "./FormsPanel.jsx";
 
 const TRACKER_ATTACHMENTS_BUCKET = "tracker-attachments";
 
@@ -57,6 +58,7 @@ const TABS = [
   { key: "ica", label: "ICA Tool" },
   { key: "cbahi", label: "CBAHI Tool" },
   { key: "ipc", label: "IPC Tracker" },
+  { key: "forms", label: "Forms" },
 ];
 
 const emptyLicenseForm = { name: "", employee_no: "", file_no: "", department: "" };
@@ -733,6 +735,7 @@ export default function Trackers() {
       {tab === "ica" && <StandardsTrackerPanel table="ica_standards_tracker" exportName="ica-standards" session={session} />}
       {tab === "cbahi" && <StandardsTrackerPanel table="cbahi_standards_tracker" exportName="cbahi-standards" session={session} />}
       {tab === "ipc" && <IpcTrackerPanel session={session} />}
+      {tab === "forms" && <FormsPanel session={session} />}
     </div>
   );
 }
