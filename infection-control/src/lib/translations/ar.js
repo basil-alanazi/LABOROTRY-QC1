@@ -967,4 +967,13 @@ export const ar = {
   "wrong": "خطأ",
   "Their answer": "إجابته",
   "not recorded": "غير مسجّلة",
+  "IPC Tracker": "متابعة IPC",
+  "Responsible": "المسؤول",
+  "Not Started": "لم يبدأ",
+  "In Progress": "قيد التنفيذ",
+  "No items yet.": "لا توجد بنود بعد.",
+  "Done On": "تاريخ التنفيذ",
+  "Reminder": "التذكير",
+  "SL No": "م",
+  "Expiring soon": "قارب على الانتهاء",
 };

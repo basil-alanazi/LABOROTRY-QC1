@@ -796,3 +796,22 @@ CREATE TABLE IF NOT EXISTS "ward_round_audits" (
   "attachment_name" TEXT
 );
 
+CREATE TABLE IF NOT EXISTS "ipc_tracker" (
+  "id" TEXT PRIMARY KEY,
+  "item" TEXT,
+  "department" TEXT DEFAULT '',
+  "responsible" TEXT DEFAULT '',
+  "done_on" TEXT,
+  "due_date" TEXT,
+  "status" TEXT DEFAULT 'Not Started',
+  "notes" TEXT DEFAULT '',
+  "attachments" TEXT DEFAULT '[]',
+  "created_by" TEXT,
+  "updated_by" TEXT,
+  "updated_at" TEXT,
+  "deleted" INTEGER DEFAULT 0,
+  "deleted_by" TEXT,
+  "deleted_at" TEXT,
+  "created_at" TEXT
+);
+
