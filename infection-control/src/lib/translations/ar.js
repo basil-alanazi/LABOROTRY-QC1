@@ -961,4 +961,6 @@ export const ar = {
   "Department test QR": "باركود اختبار القسم",
   "Staff scan this code, enter their employee number and take the test.": "يمسح الموظف الباركود ويدخل رقمه الوظيفي ثم يبدأ الاختبار.",
   "Download": "تحميل",
+  "Left page": "خرج من الصفحة",
+  "Not signed": "بدون توقيع",
 };

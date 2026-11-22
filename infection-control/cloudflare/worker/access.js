@@ -58,6 +58,11 @@ export function checkAccess(q, session) {
     }
     // The public test page saves the attempt and can redeem a retake code.
     if (op === "insert" && q.table === "ic_test_attempts") return;
+    // ...and attach the employee's signature to the attempt it just saved.
+    if (op === "update" && q.table === "ic_test_attempts" && eqValue(q, "id")) {
+      const keys = Object.keys(q.payload || {});
+      if (keys.length && keys.every((k) => k === "employee_signature_path")) return;
+    }
     if (op === "update" && q.table === "ic_test_access" && eqValue(q, "id")) {
       const keys = Object.keys(q.payload || {});
       if (keys.every((k) => k === "max_attempts" || k === "retake_code")) return;

@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, Clock, Languages, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
-import { useLanguage } from "../../lib/i18n.jsx";
+import { useEnglishOnlyPage } from "./englishOnly";
 import SignaturePad from "../../components/SignaturePad";
 import rabiaLogo from "../../assets/rabia-logo.jpg";
 
 const SIGNATURES_BUCKET = "employee-health-attachments";
 const TEST_SECONDS = 10 * 60;
+const MAX_LEAVES = 2;
 
 function signatureUrl(path) {
   if (!path) return null;
@@ -19,7 +20,10 @@ function signatureUrl(path) {
 // whichever one is configured for the employee's own department.
 export default function TakeIcTest() {
   const { employeeId } = useParams();
-  const { t, lang, toggleLang } = useLanguage();
+  // The test is always shown in English, whatever language the phone or the
+  // staff portal is set to, and the browser is told not to auto-translate it.
+  useEnglishOnlyPage();
+  const t = (s) => s;
   const [loading, setLoading] = useState(true);
   const [employee, setEmployee] = useState(null);
   const [testSet, setTestSet] = useState(null);
@@ -38,6 +42,14 @@ export default function TakeIcTest() {
   const [error, setError] = useState("");
   const [retakeCodeInput, setRetakeCodeInput] = useState("");
   const [retakeError, setRetakeError] = useState("");
+  // Each attempt gets its own question order and option order. `shown` holds,
+  // for each displayed question, the original question index and the
+  // original option index behind each displayed option.
+  const [shown, setShown] = useState([]);
+  const [leftCount, setLeftCount] = useState(0);
+  const leftCountRef = useRef(0);
+  leftCountRef.current = leftCount;
+  const [endedForLeaving, setEndedForLeaving] = useState(false);
   const signatureRef = useRef(null);
   const timerRef = useRef(null);
 
@@ -73,7 +85,27 @@ export default function TakeIcTest() {
   const maxAttempts = access?.max_attempts ?? 1;
   const locked = attemptsUsed >= maxAttempts;
 
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
   function startTest() {
+    setShown(
+      shuffle(questions.map((_, i) => i)).map((qi) => ({
+        qi,
+        opts: shuffle((questions[qi].options ?? []).map((_, oi) => oi)),
+      }))
+    );
+    setLeftCount(0);
+    setEndedForLeaving(false);
+    attemptIdRef.current = null;
+    recordPromiseRef.current = null;
+    setSaved(false);
     setAnswers(new Array(questions.length).fill(null));
     setSecondsLeft(TEST_SECONDS);
     setPhase("running");
@@ -95,22 +127,105 @@ export default function TakeIcTest() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
+  // Leaving the test (switching app/tab, locking the phone, going back) is
+  // not allowed: the first time shows a warning, the second ends the test
+  // with the answers given so far. Each leave is saved with the attempt.
+  useEffect(() => {
+    if (phase !== "running") return;
+    let count = 0;
+    function onHidden() {
+      if (document.visibilityState !== "hidden") return;
+      count += 1;
+      setLeftCount(count);
+      if (count >= MAX_LEAVES) {
+        setEndedForLeaving(true);
+        finishTest();
+      }
+    }
+    function onBeforeUnload(e) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    // Swallow the phone's back button while the test runs.
+    history.pushState({ icTest: true }, "");
+    function onPopState() {
+      history.pushState({ icTest: true }, "");
+      count += 1;
+      setLeftCount(count);
+      if (count >= MAX_LEAVES) {
+        setEndedForLeaving(true);
+        finishTest();
+      }
+    }
+    document.addEventListener("visibilitychange", onHidden);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      document.removeEventListener("visibilitychange", onHidden);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("popstate", onPopState);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
   function selectAnswer(qIndex, optionIndex) {
     setAnswers((prev) => prev.map((a, i) => (i === qIndex ? optionIndex : a)));
   }
 
+  // answers[] is kept in the original question order with original option
+  // indexes, so saved attempts look the same as before shuffling existed.
+  const answersRef = useRef([]);
+  answersRef.current = answers;
+  const shownRef = useRef([]);
+  shownRef.current = shown;
+
   function finishTest() {
     clearInterval(timerRef.current);
+    const given = answersRef.current;
+    const order = shownRef.current.length ? shownRef.current.map((s) => s.qi) : questions.map((_, i) => i);
     let score = 0;
-    const perQuestion = questions.map((q, i) => {
-      const correct = answers[i] === q.correct_index;
+    const perQuestion = order.map((qi) => {
+      const q = questions[qi];
+      const correct = given[qi] === q.correct_index;
       if (correct) score += 1;
-      return { question: q, chosen: answers[i], correct };
+      return { question: q, chosen: given[qi], correct };
     });
     const total = questions.length;
     const passed = score >= (testSet?.pass_score ?? 8);
-    setResult({ score, total, passed, perQuestion });
+    const res = { score, total, passed, perQuestion };
+    setResult(res);
+    if (!attemptIdRef.current && !recordPromiseRef.current) recordAttempt(res, given, leftCountRef.current);
     setPhase("result");
+  }
+
+  // The result is saved as soon as the test ends (finishTest), so it reaches
+  // Infection Control even if the employee closes the page before signing.
+  // The signature is then attached to that saved attempt.
+  const attemptIdRef = useRef(null);
+  const recordPromiseRef = useRef(null);
+
+  function recordAttempt(res, given, leaves) {
+    recordPromiseRef.current = (async () => {
+      const { data, error: insErr } = await supabase
+        .from("ic_test_attempts")
+        .insert({
+          employee_id: employee.id,
+          department: employee.department,
+          answers: given,
+          left_page_count: leaves,
+          score: res.score,
+          total: res.total,
+          passed: res.passed,
+        })
+        .select()
+        .single();
+      if (insErr) throw insErr;
+      attemptIdRef.current = data?.id ?? null;
+      setAttemptsUsed((n) => n + 1);
+      return data;
+    })();
+    recordPromiseRef.current.catch(() => {});
+    return recordPromiseRef.current;
   }
 
   async function handleSaveAttempt() {
@@ -121,20 +236,19 @@ export default function TakeIcTest() {
     setSaving(true);
     setError("");
     try {
+      // Wait for the automatic save; retry it if it failed (e.g. no signal).
+      try {
+        await recordPromiseRef.current;
+      } catch {
+        await recordAttempt(result, answersRef.current, leftCountRef.current);
+      }
+      if (!attemptIdRef.current) throw new Error("result was not saved");
       const blob = await signatureRef.current.toBlob();
       const path = `ic-test-signatures/${employee.id}/${Date.now()}.png`;
       const { error: upErr } = await supabase.storage.from(SIGNATURES_BUCKET).upload(path, blob);
       if (upErr) throw upErr;
-      const { error: insErr } = await supabase.from("ic_test_attempts").insert({
-        employee_id: employee.id,
-        department: employee.department,
-        answers,
-        score: result.score,
-        total: result.total,
-        passed: result.passed,
-        employee_signature_path: path,
-      });
-      if (insErr) throw insErr;
+      const { error: updErr } = await supabase.from("ic_test_attempts").update({ employee_signature_path: path }).eq("id", attemptIdRef.current);
+      if (updErr) throw updErr;
       setSaved(true);
     } catch (err) {
       setError("Could not save: " + err.message);
@@ -142,6 +256,7 @@ export default function TakeIcTest() {
       setSaving(false);
     }
   }
+
 
   async function handleUnlockWithCode(e) {
     e.preventDefault();
@@ -167,13 +282,6 @@ export default function TakeIcTest() {
 
   const header = (
     <div className="relative flex flex-col items-center gap-1 border-b border-slate-200 pb-4 text-center">
-      <button
-        onClick={toggleLang}
-        className="absolute end-0 top-0 flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-      >
-        <Languages className="h-3.5 w-3.5" />
-        {lang === "ar" ? "EN" : "AR"}
-      </button>
       <img src={rabiaLogo} alt="Rabia Hospital" className="h-16 w-auto object-contain" />
       {testSet && <p className="mt-1 text-sm font-bold text-slate-800">{testSet.title}</p>}
       {testSet?.policy_no && <p className="text-xs text-slate-400">{testSet.policy_no}</p>}
@@ -239,6 +347,7 @@ export default function TakeIcTest() {
             <p className="text-center text-sm text-slate-600">
               {t("This test has")} {questions.length} {t("questions")}. {t("You will have 10 minutes to finish.")}
             </p>
+            <p className="text-center text-xs text-red-600">Stay on this page until you submit. Leaving the page twice ends the test.</p>
             <button onClick={startTest} className="rounded-lg bg-teal-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-teal-700">
               {t("Start Test")}
             </button>
@@ -251,26 +360,35 @@ export default function TakeIcTest() {
               <Clock className="h-4 w-4" />
               {mm}:{ss}
             </div>
-            {questions.map((q, qi) => (
-              <div key={q.id} className="rounded-xl border border-slate-200 p-3">
-                <p className="mb-2 text-sm font-medium text-slate-800">
-                  {qi + 1}. {q.question_text}
-                </p>
-                <div className="flex flex-col gap-1.5">
-                  {(q.options ?? []).map((opt, oi) => (
-                    <label
-                      key={oi}
-                      className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-sm ${
-                        answers[qi] === oi ? "border-teal-500 bg-teal-50 text-teal-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      <input type="radio" className="mt-0.5" name={`q-${qi}`} checked={answers[qi] === oi} onChange={() => selectAnswer(qi, oi)} />
-                      {opt}
-                    </label>
-                  ))}
-                </div>
+            {leftCount > 0 && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>You left the test page. Do not leave again — next time the test will end and be submitted automatically.</span>
               </div>
-            ))}
+            )}
+            {shown.map(({ qi, opts }, di) => {
+              const q = questions[qi];
+              return (
+                <div key={q.id} className="rounded-xl border border-slate-200 p-3">
+                  <p className="mb-2 text-sm font-medium text-slate-800">
+                    {di + 1}. {q.question_text}
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {opts.map((oi) => (
+                      <label
+                        key={oi}
+                        className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 text-sm ${
+                          answers[qi] === oi ? "border-teal-500 bg-teal-50 text-teal-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        <input type="radio" className="mt-0.5" name={`q-${qi}`} checked={answers[qi] === oi} onChange={() => selectAnswer(qi, oi)} />
+                        {q.options[oi]}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
             <button onClick={finishTest} className="self-center rounded-lg bg-teal-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-teal-700">
               {t("Submit")}
             </button>
@@ -279,6 +397,12 @@ export default function TakeIcTest() {
 
         {phase === "result" && result && (
           <div className="mt-5 flex flex-col gap-4">
+            {endedForLeaving && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>The test ended because you left the test page.</span>
+              </div>
+            )}
             <div className={`rounded-xl p-4 text-center ${result.passed ? "bg-emerald-50" : "bg-red-50"}`}>
               <p className={`text-2xl font-bold ${result.passed ? "text-emerald-700" : "text-red-700"}`}>
                 {result.score}/{result.total}
