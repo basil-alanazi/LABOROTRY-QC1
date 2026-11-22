@@ -976,4 +976,6 @@ export const ar = {
   "Reminder": "التذكير",
   "SL No": "م",
   "Expiring soon": "قارب على الانتهاء",
+  "Forms": "النماذج",
+  "Name of form": "اسم النموذج",
 };
