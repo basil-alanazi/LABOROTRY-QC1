@@ -963,4 +963,8 @@ export const ar = {
   "Download": "تحميل",
   "Left page": "خرج من الصفحة",
   "Not signed": "بدون توقيع",
+  "Answers": "الإجابات",
+  "wrong": "خطأ",
+  "Their answer": "إجابته",
+  "not recorded": "غير مسجّلة",
 };
