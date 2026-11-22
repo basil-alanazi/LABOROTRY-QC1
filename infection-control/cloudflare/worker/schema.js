@@ -680,6 +680,7 @@ export const TABLES = {"agreement_tracker":{"cols":{"id":{"t":"u","nn":1,"def":"
 "unique":[]},
 "ipc_tracker":{"cols":{"id":{"t":"u","nn":1,"def":"@uuid"},
 "item":{"t":"s","nn":1},
+"link":{"t":"s","nn":1,"def":""},
 "department":{"t":"s","nn":1,"def":""},
 "responsible":{"t":"s","nn":1,"def":""},
 "done_on":{"t":"d"},

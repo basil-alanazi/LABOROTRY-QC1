@@ -799,6 +799,7 @@ CREATE TABLE IF NOT EXISTS "ward_round_audits" (
 CREATE TABLE IF NOT EXISTS "ipc_tracker" (
   "id" TEXT PRIMARY KEY,
   "item" TEXT,
+  "link" TEXT DEFAULT '',
   "department" TEXT DEFAULT '',
   "responsible" TEXT DEFAULT '',
   "done_on" TEXT,

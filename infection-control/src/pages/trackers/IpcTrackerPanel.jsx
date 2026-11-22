@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileSpreadsheet, Paperclip, Plus, Trash2, Upload } from "lucide-react";
+import { Check, Copy, ExternalLink, FileSpreadsheet, Paperclip, Plus, Trash2, Upload } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useLanguage } from "../../lib/i18n.jsx";
 import { fetchAllRows } from "../../lib/fetchAll";
@@ -9,7 +9,7 @@ const BUCKET = "tracker-attachments";
 // The reminder appears this many days before the next due date.
 const REMIND_DAYS = 15;
 const todayStr = () => new Date().toISOString().slice(0, 10);
-const emptyForm = { item: "", done_on: "", next_due: "" };
+const emptyForm = { item: "", done_on: "", next_due: "", link: "" };
 
 function attachmentUrl(path) {
   return path ? supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl : null;
@@ -73,7 +73,7 @@ export default function IpcTrackerPanel({ session }) {
     setError("");
     const { data, error: err } = await supabase
       .from("ipc_tracker")
-      .insert({ item: form.item.trim(), done_on: form.done_on || null, due_date: form.next_due || null, created_by: session?.username })
+      .insert({ item: form.item.trim(), done_on: form.done_on || null, due_date: form.next_due || null, link: form.link.trim(), created_by: session?.username })
       .select()
       .single();
     if (err) {
@@ -125,8 +125,8 @@ export default function IpcTrackerPanel({ session }) {
     downloadExcel(`infection-control-ipc-tracker-${todayStr()}`, [
       {
         name: "IPC Tracker",
-        headers: ["SL No", "Item", "Done On", "Next Due", "Reminder"],
-        rows: rows.map((r, i) => [i + 1, r.item, r.done_on || "", r.due_date || "", reminder(r)?.label || ""]),
+        headers: ["SL No", "Item", "Done On", "Next Due", "Reminder", "Link"],
+        rows: rows.map((r, i) => [i + 1, r.item, r.done_on || "", r.due_date || "", reminder(r)?.label || "", r.link || ""]),
       },
     ]);
   }
@@ -139,7 +139,7 @@ export default function IpcTrackerPanel({ session }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <form onSubmit={addItem} className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-5 sm:items-end">
+      <form onSubmit={addItem} className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-6 sm:items-end">
         <label className="flex flex-col gap-1 text-xs sm:col-span-2">
           <span className="font-medium text-slate-600">{t("Item")} *</span>
           <input className="input" value={form.item} onChange={(e) => setForm({ ...form, item: e.target.value })} />
@@ -151,6 +151,10 @@ export default function IpcTrackerPanel({ session }) {
         <label className="flex flex-col gap-1 text-xs">
           <span className="font-medium text-slate-600">{t("Next Due")}</span>
           <input type="date" className="input" value={form.next_due} onChange={(e) => setForm({ ...form, next_due: e.target.value })} />
+        </label>
+        <label className="flex flex-col gap-1 text-xs">
+          <span className="font-medium text-slate-600">{t("Link")}</span>
+          <input className="input" placeholder="https://..." value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} />
         </label>
         <button type="submit" className="flex items-center justify-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
           <Plus className="h-4 w-4" />
@@ -181,7 +185,7 @@ export default function IpcTrackerPanel({ session }) {
       {loading && <p className="p-6 text-center text-sm text-slate-400">{t("Loading...")}</p>}
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full min-w-[760px] text-left text-sm">
+        <table className="w-full min-w-[980px] text-left text-sm">
           <thead className="bg-slate-50 text-xs text-slate-500">
             <tr>
               <th className="w-14 px-3 py-2 font-medium">{t("SL No")}</th>
@@ -189,6 +193,7 @@ export default function IpcTrackerPanel({ session }) {
               <th className="px-3 py-2 font-medium">{t("Done On")}</th>
               <th className="px-3 py-2 font-medium">{t("Next Due")}</th>
               <th className="px-3 py-2 font-medium">{t("Reminder")}</th>
+              <th className="px-3 py-2 font-medium">{t("Link")}</th>
               <th className="px-3 py-2 font-medium">{t("Attachments")}</th>
               <th className="px-3 py-2" />
             </tr>
@@ -215,6 +220,9 @@ export default function IpcTrackerPanel({ session }) {
                   </td>
                   <td className="px-3 py-2">
                     {rem ? <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${rem.cls}`}>{rem.label}</span> : <span className="text-xs text-slate-300">—</span>}
+                  </td>
+                  <td className="px-3 py-2">
+                    <LinkCell value={r.link || ""} onChange={(v) => patchLocal(r.id, { link: v })} onSave={(v) => save(r, { link: v.trim() })} />
                   </td>
                   <td className="px-3 py-2 text-xs">
                     <div className="flex flex-col gap-1">
@@ -248,6 +256,44 @@ export default function IpcTrackerPanel({ session }) {
         </table>
         {!loading && visible.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No items yet.")}</p>}
       </div>
+    </div>
+  );
+}
+
+// A pasted link, with buttons to open it and to copy it to the clipboard.
+function LinkCell({ value, onChange, onSave }) {
+  const { t } = useLanguage();
+  const [copied, setCopied] = useState(false);
+  const href = /^https?:\/\//i.test(value) ? value : value ? `https://${value}` : "";
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = value;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <input className="input-cell w-44 text-xs" placeholder="https://..." value={value} onChange={(e) => onChange(e.target.value)} onBlur={(e) => onSave(e.target.value)} />
+      {value && (
+        <>
+          <a href={href} target="_blank" rel="noreferrer" title={t("Open link")} className="rounded p-1 text-teal-700 hover:bg-teal-50">
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+          <button type="button" onClick={copy} title={t("Copy link")} className="rounded p-1 text-teal-700 hover:bg-teal-50">
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+          </button>
+        </>
+      )}
     </div>
   );
 }

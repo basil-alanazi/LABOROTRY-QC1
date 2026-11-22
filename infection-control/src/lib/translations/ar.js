@@ -978,4 +978,7 @@ export const ar = {
   "Expiring soon": "قارب على الانتهاء",
   "Forms": "النماذج",
   "Name of form": "اسم النموذج",
+  "Link": "الرابط",
+  "Open link": "فتح الرابط",
+  "Copy link": "نسخ الرابط",
 };
