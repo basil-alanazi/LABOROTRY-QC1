@@ -272,6 +272,12 @@ export default function IcKnowledgeTest() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {a.left_page_count > 0 && (
+                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                          {t("Left page")} ×{a.left_page_count}
+                        </span>
+                      )}
+                      {!a.employee_signature_path && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">{t("Not signed")}</span>}
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${a.passed ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
                         {a.passed ? t("Pass") : t("Fail")}
                       </span>

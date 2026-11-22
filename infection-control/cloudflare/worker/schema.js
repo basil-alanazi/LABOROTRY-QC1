@@ -447,6 +447,7 @@ export const TABLES = {"agreement_tracker":{"cols":{"id":{"t":"u","nn":1,"def":"
 "employee_id":{"t":"u","nn":1},
 "department":{"t":"s","nn":1},
 "answers":{"t":"j","nn":1,"def":"[]"},
+"left_page_count":{"t":"i","nn":1,"def":"0"},
 "score":{"t":"i","nn":1},
 "total":{"t":"i","nn":1},
 "passed":{"t":"b","nn":1},

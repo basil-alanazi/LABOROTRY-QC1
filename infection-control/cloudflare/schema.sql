@@ -517,6 +517,7 @@ CREATE TABLE IF NOT EXISTS "ic_test_attempts" (
   "employee_id" TEXT,
   "department" TEXT,
   "answers" TEXT DEFAULT '[]',
+  "left_page_count" INTEGER DEFAULT 0,
   "score" INTEGER,
   "total" INTEGER,
   "passed" INTEGER,

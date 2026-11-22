@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Languages } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
-import { useLanguage } from "../../lib/i18n.jsx";
+import { useEnglishOnlyPage } from "./englishOnly";
 import rabiaLogo from "../../assets/rabia-logo.jpg";
 
 // Public — reached by scanning a department's test QR (printed from the IC
@@ -11,7 +10,8 @@ import rabiaLogo from "../../assets/rabia-logo.jpg";
 export default function StartIcTest() {
   const { department } = useParams();
   const navigate = useNavigate();
-  const { t, toggleLang, lang } = useLanguage();
+  useEnglishOnlyPage();
+  const t = (s) => s;
   const [employeeNo, setEmployeeNo] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -39,12 +39,6 @@ export default function StartIcTest() {
   return (
     <div className="flex min-h-screen items-start justify-center bg-slate-50 px-4 py-10">
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex justify-end">
-          <button onClick={toggleLang} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800">
-            <Languages className="h-4 w-4" />
-            {lang === "en" ? "العربية" : "English"}
-          </button>
-        </div>
         <div className="mb-5 flex flex-col items-center gap-2 text-center">
           <img src={rabiaLogo} alt="Rabia Hospital" className="h-16 w-auto object-contain" />
           <h1 className="text-lg font-bold text-slate-800">{t("IC Knowledge Test")}</h1>
