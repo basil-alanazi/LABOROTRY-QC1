@@ -954,4 +954,11 @@ export const ar = {
   "Hand Hygiene Departments": "أقسام نظافة الأيدي",
   "Department list used only by the Hand Hygiene module.": "قائمة الأقسام الخاصة بقسم نظافة الأيدي فقط.",
   "Hand hygiene departments saved": "تم حفظ أقسام نظافة الأيدي",
+  "Employee No.": "الرقم الوظيفي",
+  "Employee number not found in this department. Check the number or contact Infection Control.": "الرقم الوظيفي غير موجود في هذا القسم. تأكد من الرقم أو تواصل مع مكافحة العدوى.",
+  "Checking...": "جارٍ التحقق...",
+  "Start": "ابدأ",
+  "Department test QR": "باركود اختبار القسم",
+  "Staff scan this code, enter their employee number and take the test.": "يمسح الموظف الباركود ويدخل رقمه الوظيفي ثم يبدأ الاختبار.",
+  "Download": "تحميل",
 };

@@ -18,6 +18,7 @@ const StockRequests = lazy(() => import("./pages/stock/StockRequests.jsx"));
 const EmployeeHealth = lazy(() => import("./pages/health/EmployeeHealth.jsx"));
 const EmployeeProfile = lazy(() => import("./pages/health/EmployeeProfile.jsx"));
 const TakeIcTest = lazy(() => import("./pages/ic-test/TakeIcTest.jsx"));
+const StartIcTest = lazy(() => import("./pages/ic-test/StartIcTest.jsx"));
 const IcKnowledgeTest = lazy(() => import("./pages/ic-test/IcKnowledgeTest.jsx"));
 const CommunicableCases = lazy(() => import("./pages/cases/CommunicableCases.jsx"));
 const ICRounds = lazy(() => import("./pages/ic-rounds/ICRounds.jsx"));
@@ -84,6 +85,7 @@ export default function App() {
         />
         <Route path="/employee-profile/:employeeId" element={<EmployeeProfile />} />
         <Route path="/employee-test/:employeeId" element={<TakeIcTest />} />
+        <Route path="/ic-test-start/:department" element={<StartIcTest />} />
         <Route
           path="/ic-knowledge-test"
           element={

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, ChevronDown, ChevronUp, KeyRound, Paperclip, Plus, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Download, KeyRound, Paperclip, Plus, Printer, QrCode, Trash2, XCircle } from "lucide-react";
+import QRCode from "qrcode";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { useLanguage } from "../../lib/i18n.jsx";
@@ -43,6 +44,7 @@ export default function IcKnowledgeTest() {
   const [testSets, setTestSets] = useState([]);
   const [questions, setQuestions] = useState([]);
   const [selectedDept, setSelectedDept] = useState("");
+  const [deptQr, setDeptQr] = useState("");
   const [setForm, setSetForm] = useState(emptySetForm);
   const [showQuestionForm, setShowQuestionForm] = useState(false);
   const [questionForm, setQuestionForm] = useState(emptyQuestionForm);
@@ -89,6 +91,33 @@ export default function IcKnowledgeTest() {
       .then(({ data }) => setQuestions(data ?? []));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDept, testSets]);
+
+  // One QR per department: staff scan it, type their employee number, and
+  // land on their own test page (see StartIcTest).
+  const deptTestUrl = selectedDept ? `${window.location.origin}/ic-test-start/${encodeURIComponent(selectedDept)}` : "";
+  useEffect(() => {
+    if (!deptTestUrl) {
+      setDeptQr("");
+      return;
+    }
+    QRCode.toDataURL(deptTestUrl, { width: 480, margin: 1 })
+      .then(setDeptQr)
+      .catch(() => setDeptQr(""));
+  }, [deptTestUrl]);
+
+  function printDeptQr() {
+    const w = window.open("", "_blank");
+    if (!w) return;
+    const title = (setForm.title || `${selectedDept} Infection Control Test`).replace(/</g, "&lt;");
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title></head>
+<body style="font-family:Arial,sans-serif;text-align:center;padding:40px">
+<h1 style="font-size:28px;margin:0 0 8px">${title}</h1>
+<p style="font-size:18px;margin:0 0 24px">Scan the code, enter your employee number and take the test.</p>
+<img src="${deptQr}" style="width:360px;height:360px" onload="window.print()" />
+<p style="font-size:13px;color:#555;margin-top:16px">${deptTestUrl}</p>
+</body></html>`);
+    w.document.close();
+  }
 
   function employeeFor(id) {
     return employees.find((e) => e.id === id);
@@ -333,6 +362,30 @@ export default function IcKnowledgeTest() {
                   {t("Save Test Settings")}
                 </button>
               </form>
+
+              {deptQr && (
+                <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center">
+                  <img src={deptQr} alt="" className="h-40 w-40 rounded-lg border border-slate-100" />
+                  <div className="flex flex-col gap-2 text-sm">
+                    <p className="flex items-center gap-1.5 font-semibold text-slate-700">
+                      <QrCode className="h-4 w-4" />
+                      {t("Department test QR")}
+                    </p>
+                    <p className="text-slate-500">{t("Staff scan this code, enter their employee number and take the test.")}</p>
+                    <p className="break-all text-xs text-slate-400">{deptTestUrl}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={printDeptQr} className="flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700">
+                        <Printer className="h-3.5 w-3.5" />
+                        {t("Print")}
+                      </button>
+                      <a href={deptQr} download={`IC-Test-QR-${selectedDept}.png`} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                        <Download className="h-3.5 w-3.5" />
+                        {t("Download")}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <button
