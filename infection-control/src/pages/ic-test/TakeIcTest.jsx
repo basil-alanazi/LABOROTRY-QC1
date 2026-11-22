@@ -7,7 +7,7 @@ import SignaturePad from "../../components/SignaturePad";
 import rabiaLogo from "../../assets/rabia-logo.jpg";
 
 const SIGNATURES_BUCKET = "employee-health-attachments";
-const TEST_SECONDS = 5 * 60;
+const TEST_SECONDS = 10 * 60;
 
 function signatureUrl(path) {
   if (!path) return null;
