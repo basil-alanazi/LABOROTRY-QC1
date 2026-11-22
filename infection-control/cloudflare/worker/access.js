@@ -12,12 +12,13 @@ import { ApiError } from "./query.js";
 const ADMIN_ROLES = new Set(["owner", "ic"]);
 const SELF_EDITABLE_USER_COLS = new Set(["password_hash", "must_change_password"]);
 
-// table -> filter column that must be pinned with eq (null = any read allowed)
+// table -> filter column(s) that must be pinned with eq (null = any read
+// allowed; an array means any one of them)
 const ANON_READ = {
   app_config: null,
   health_item_types: null,
   baladiya_licenses: null,
-  employees: "id",
+  employees: ["id", "employee_no"],
   employee_health_records: "employee_id",
   employee_vaccine_requests: "employee_id",
   employee_clinic_status: "employee_id",
@@ -47,8 +48,12 @@ export function checkAccess(q, session) {
   if (!session) {
     if (op === "select") {
       if (!(q.table in ANON_READ)) throw new ApiError("Not signed in", "AUTH");
-      const pin = ANON_READ[q.table];
-      if (pin && (eqValue(q, pin) === undefined || eqValue(q, pin) === null)) throw new ApiError("Not signed in", "AUTH");
+      const pins = ANON_READ[q.table] === null ? null : [].concat(ANON_READ[q.table]);
+      const pinned = (c) => {
+        const v = eqValue(q, c);
+        return v !== undefined && v !== null && v !== "";
+      };
+      if (pins && !pins.some(pinned)) throw new ApiError("Not signed in", "AUTH");
       return;
     }
     // The public test page saves the attempt and can redeem a retake code.
