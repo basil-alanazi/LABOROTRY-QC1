@@ -6,6 +6,7 @@ import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
+import { fmtDate } from "../../lib/dates";
 
 const NURSING_ROUND_ATTACHMENTS_BUCKET = "nursing-round-attachments";
 
@@ -167,7 +168,7 @@ export default function NursingRounds() {
   }
 
   async function removeRound(r) {
-    if (!confirm(`Delete the ${r.date} round for "${r.department}"?`)) return;
+    if (!confirm(`Delete the ${fmtDate(r.date)} round for "${r.department}"?`)) return;
     await supabase.from("nursing_rounds").update({ deleted: true, deleted_by: session?.username, deleted_at: new Date().toISOString() }).eq("id", r.id);
     loadAll();
   }
@@ -322,7 +323,7 @@ export default function NursingRounds() {
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+        <div className="tab-bar flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
           {[
             { key: "", label: "All" },
             { key: "not_met", label: "NOT MET" },
@@ -390,7 +391,7 @@ function RoundRow({ r, canEdit, canToggleStatus, onDelete, onToggleStatus, onAdd
   return (
     <>
       <tr className="border-t border-slate-100 hover:bg-slate-50">
-        <td className="px-4 py-2">{r.date}</td>
+        <td className="px-4 py-2">{fmtDate(r.date)}</td>
         <td className="px-4 py-2">{r.department}</td>
         <td className="px-4 py-2">
           <span className={`flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${notMet ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>

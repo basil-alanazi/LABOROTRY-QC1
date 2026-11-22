@@ -44,7 +44,7 @@ export default function Login() {
           </button>
         </div>
         <div className="mb-6 flex flex-col items-center gap-2 text-teal-700">
-          <img src={rabiaLogo} alt="Rabia Hospital" className="h-16 w-16 rounded-lg object-contain" />
+          <img src={rabiaLogo} alt="Rabia Hospital" className="h-20 w-auto object-contain" />
           <h1 className="text-xl font-bold text-slate-800">{t("Infection Control")}</h1>
           <p className="text-sm text-slate-500">{t("Infection Control System")}</p>
         </div>

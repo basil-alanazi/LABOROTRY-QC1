@@ -251,6 +251,7 @@ CREATE TABLE IF NOT EXISTS "employees" (
   "is_kitchen_staff" INTEGER DEFAULT 0,
   "employee_documents" TEXT DEFAULT '[]'
 );
+CREATE INDEX IF NOT EXISTS "employees_name_idx" ON "employees" ("name");
 
 CREATE TABLE IF NOT EXISTS "hai_care_bundle_forms" (
   "id" TEXT PRIMARY KEY,
@@ -311,6 +312,7 @@ CREATE TABLE IF NOT EXISTS "hai_icu_surveillance" (
   "updated_in_seha_status" TEXT,
   "status_after_discharge" INTEGER DEFAULT 0
 );
+CREATE INDEX IF NOT EXISTS "hai_icu_surveillance_unit_admission_date_idx" ON "hai_icu_surveillance" ("unit_admission_date");
 
 CREATE TABLE IF NOT EXISTS "hai_monthly_indicators" (
   "id" TEXT PRIMARY KEY,
@@ -409,6 +411,7 @@ CREATE TABLE IF NOT EXISTS "hai_ssi_surveillance" (
   "nationality" TEXT DEFAULT '',
   "updated_in_seha_status" TEXT
 );
+CREATE INDEX IF NOT EXISTS "hai_ssi_surveillance_date_of_procedure_idx" ON "hai_ssi_surveillance" ("date_of_procedure");
 
 CREATE TABLE IF NOT EXISTS "hai_vae_monitoring" (
   "id" TEXT PRIMARY KEY,
@@ -496,6 +499,7 @@ CREATE TABLE IF NOT EXISTS "ic_rounds" (
   "created_at" TEXT,
   "attachments" TEXT DEFAULT '[]'
 );
+CREATE INDEX IF NOT EXISTS "ic_rounds_date_idx" ON "ic_rounds" ("date");
 
 CREATE TABLE IF NOT EXISTS "ic_test_access" (
   "id" TEXT PRIMARY KEY,
@@ -622,6 +626,7 @@ CREATE TABLE IF NOT EXISTS "nursing_rounds" (
   "deleted_at" TEXT,
   "created_at" TEXT
 );
+CREATE INDEX IF NOT EXISTS "nursing_rounds_date_idx" ON "nursing_rounds" ("date");
 
 CREATE TABLE IF NOT EXISTS "policy_tracker" (
   "id" TEXT PRIMARY KEY,
@@ -728,6 +733,8 @@ CREATE TABLE IF NOT EXISTS "stock_requests" (
 );
 CREATE INDEX IF NOT EXISTS "stock_requests_department_date_idx" ON "stock_requests" ("department", "date");
 CREATE INDEX IF NOT EXISTS "stock_requests_item_id_idx" ON "stock_requests" ("item_id");
+CREATE INDEX IF NOT EXISTS "stock_requests_created_at_idx" ON "stock_requests" ("created_at");
+CREATE INDEX IF NOT EXISTS "stock_requests_date_idx" ON "stock_requests" ("date");
 
 CREATE TABLE IF NOT EXISTS "users" (
   "id" TEXT PRIMARY KEY,

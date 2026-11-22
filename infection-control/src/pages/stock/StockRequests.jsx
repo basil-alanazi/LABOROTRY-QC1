@@ -6,6 +6,7 @@ import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
+import { fmtDate } from "../../lib/dates";
 
 const REPORT_HEADERS = ["Date", "Department", "Item", "Quantity Used", "Used By", "Notes"];
 
@@ -90,7 +91,13 @@ export default function StockRequests() {
 
   async function loadItems() {
     const { data } = await fetchAllRows((from, to) =>
-      supabase.from("stock_items").select("*").eq("active", true).order("sort_order").range(from, to)
+      {
+        // Department staff only ever see their own department's catalog —
+        // don't download every department's items (~1,800 rows) for them.
+        let q = supabase.from("stock_items").select("*").eq("active", true);
+        if (!isStockAdmin && myDepartment) q = q.eq("department", myDepartment);
+        return q.order("sort_order").range(from, to);
+      }
     );
     setItems(data ?? []);
   }
@@ -104,7 +111,10 @@ export default function StockRequests() {
     const { data } = await fetchAllRows((from, to) => {
       let query = supabase.from("stock_requests").select("*").order("created_at", { ascending: false }).range(from, to);
       if (!isStockAdmin) {
-        query = query.eq("department", myDepartment);
+        // Recent usage only — the full history grows every day and was being
+        // downloaded on every visit. Admins pick a month (or All time) instead.
+        const since = new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10);
+        query = query.eq("department", myDepartment).gte("date", since);
       } else if (filterDepts.length > 0) {
         query = query.in("department", filterDepts);
       }
@@ -157,10 +167,9 @@ export default function StockRequests() {
       .from("stock_daily_checks")
       .select("*")
       .eq("date", checkDate)
-      .in(
-        "item_id",
-        dailyCheckItems.map((i) => i.id)
-      );
+      // By department, not .in(item_id, [...]) — a department with a few
+      // hundred items made that request too long for the server to accept.
+      .eq("department", activeDepartment);
     const map = {};
     for (const item of dailyCheckItems) {
       map[item.id] = (data ?? []).find((r) => r.item_id === item.id) || emptyDailyCheck(item.id);
@@ -400,7 +409,7 @@ export default function StockRequests() {
         )}
       </div>
 
-      <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+      <div className="tab-bar flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
         <button onClick={() => setTab("use")} className={`rounded-md px-3 py-1 font-medium ${tab === "use" ? "bg-teal-600 text-white" : "text-slate-500"}`}>
           {t("Use Stock")}
         </button>
@@ -678,7 +687,7 @@ export default function StockRequests() {
           <tbody>
             {requests.map((r) => (
               <tr key={r.id} className="border-t border-slate-100">
-                <td className="px-4 py-2">{r.date}</td>
+                <td className="px-4 py-2">{fmtDate(r.date)}</td>
                 {isStockAdmin && <td className="px-4 py-2">{r.department}</td>}
                 <td className="px-4 py-2">{r.item_name}</td>
                 <td className="px-4 py-2">

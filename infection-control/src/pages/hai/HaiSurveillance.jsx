@@ -6,6 +6,7 @@ import { useLanguage } from "../../lib/i18n.jsx";
 import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
+import { fmtDate } from "../../lib/dates";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const addDaysToDateStr = (dateStr, days) => {
@@ -630,7 +631,7 @@ export default function HaiSurveillance() {
       .eq("id", r.id);
   }
   async function removeVaeDay(r) {
-    if (!confirm(`Remove the ${r.date} entry?`)) return;
+    if (!confirm(`Remove the ${fmtDate(r.date)} entry?`)) return;
     await supabase.from("hai_vae_monitoring").delete().eq("id", r.id);
     loadAll();
   }
@@ -1062,7 +1063,7 @@ export default function HaiSurveillance() {
       {message && <p className={`rounded-lg px-3 py-2 text-sm ${message.type === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{message.text}</p>}
 
       {(!scopeTokens || allowedTabs.length > 1) && (
-        <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+        <div className="tab-bar flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
           {TABS.filter((tabDef) => !scopeTokens || allowedTabs.includes(tabDef.key)).map((tabDef) => (
             <button key={tabDef.key} onClick={() => setTab(tabDef.key)} className={`rounded-md px-3 py-1 font-medium ${tab === tabDef.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
               {t(tabDef.label)}
@@ -1072,7 +1073,7 @@ export default function HaiSurveillance() {
       )}
 
       {tab === "icu" && (!scopeTokens || !icuUnitsAllowed || icuUnitsAllowed.length > 1) && (
-        <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+        <div className="tab-bar flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
           {[
             { key: "adult", label: "ICU" },
             { key: "pediatric", label: "NICU" },
@@ -1147,7 +1148,7 @@ export default function HaiSurveillance() {
       {tab === "ssi" && (
         <div className="flex flex-wrap items-center gap-2">
           {(isAdmin || lockedDoctor) && (
-            <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+            <div className="tab-bar flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
               {[
                 { key: "all", label: "All Patients" },
                 { key: "doctor", label: "By Doctor" },
@@ -1256,7 +1257,7 @@ function DoctorTrackerTable({ doctor, rows, onFollowUpFieldChange, onFieldBlurSa
               <td className="whitespace-nowrap px-2 py-1.5">{formatMonthLabel(c.date_of_procedure) || "—"}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.patient_name}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.mrn}</td>
-              <td className="whitespace-nowrap px-2 py-1.5">{c.date_of_procedure || "—"}</td>
+              <td className="whitespace-nowrap px-2 py-1.5">{fmtDate(c.date_of_procedure) || "—"}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.treating_doctor}</td>
               <td className="px-1.5 py-0.5">
                 <GridDate value={f.date} onChange={(e) => onFollowUpFieldChange(c, i, { date: e.target.value })} onBlur={() => onFieldBlurSave(c)} />

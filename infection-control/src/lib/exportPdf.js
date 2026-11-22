@@ -20,7 +20,7 @@ export function downloadPdf(filename, docTitle, tables) {
       head: [headers],
       body: rows,
       styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [13, 148, 136] },
+      headStyles: { fillColor: [173, 99, 64] },
       margin: { left: 14, right: 14 },
     });
   });

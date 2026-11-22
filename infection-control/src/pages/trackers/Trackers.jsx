@@ -376,7 +376,7 @@ export default function Trackers() {
 
       {message && <p className={`rounded-lg px-3 py-2 text-sm ${message.type === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{message.text}</p>}
 
-      <div className="flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+      <div className="tab-bar flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
         {TABS.map((tabDef) => (
           <button key={tabDef.key} onClick={() => setTab(tabDef.key)} className={`rounded-md px-3 py-1 font-medium ${tab === tabDef.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
             {t(tabDef.label)}
