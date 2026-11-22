@@ -93,7 +93,9 @@ export default function HandHygiene() {
   const [filterDept, setFilterDept] = useState("");
   const [reportMonth, setReportMonth] = useState(() => todayStr().slice(0, 7));
 
-  const departments = config?.ic_round_departments ?? [];
+  // Hand hygiene has its own department list (Settings → Hand Hygiene
+  // Departments); fall back to the IC Rounds list if it hasn't been set.
+  const departments = config?.hh_departments?.length ? config.hh_departments : config?.ic_round_departments ?? [];
 
   async function loadAll() {
     setLoading(true);

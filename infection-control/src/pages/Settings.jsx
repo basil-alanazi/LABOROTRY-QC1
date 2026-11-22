@@ -63,6 +63,8 @@ export default function Settings() {
   const [newEmployeeDept, setNewEmployeeDept] = useState("");
   const [icRoundDepartments, setIcRoundDepartments] = useState([]);
   const [newIcRoundDept, setNewIcRoundDept] = useState("");
+  const [hhDepartments, setHhDepartments] = useState([]);
+  const [newHhDept, setNewHhDept] = useState("");
   const [nursingRoundDepartments, setNursingRoundDepartments] = useState([]);
   const [newNursingRoundDept, setNewNursingRoundDept] = useState("");
   const [qualityRoundDepartments, setQualityRoundDepartments] = useState([]);
@@ -88,6 +90,7 @@ export default function Settings() {
       setStockDepartments(config.stock_departments ?? []);
       setEmployeeDepartments(config.employee_departments ?? []);
       setIcRoundDepartments(config.ic_round_departments ?? []);
+      setHhDepartments(config.hh_departments ?? []);
       setNursingRoundDepartments(config.nursing_round_departments ?? []);
       setQualityRoundDepartments(config.quality_round_departments ?? []);
       setCultureTrackerItems(config.culture_tracker_items ?? []);
@@ -262,6 +265,24 @@ export default function Settings() {
 
   function removeIcRoundDept(name) {
     saveIcRoundDepartments(icRoundDepartments.filter((d) => d !== name));
+  }
+
+  async function saveHhDepartments(next) {
+    setHhDepartments(next);
+    await supabase.from("app_config").update({ hh_departments: next }).eq("id", 1);
+    reloadConfig();
+    flash("Hand hygiene departments saved");
+  }
+
+  function addHhDept() {
+    const name = newHhDept.trim();
+    if (!name || hhDepartments.includes(name)) return;
+    saveHhDepartments([...hhDepartments, name]);
+    setNewHhDept("");
+  }
+
+  function removeHhDept(name) {
+    saveHhDepartments(hhDepartments.filter((d) => d !== name));
   }
 
   async function saveHaiIcuTypesAdult(next) {
@@ -548,6 +569,28 @@ export default function Settings() {
         <div className="flex gap-2">
           <input className="input" value={newIcRoundDept} onChange={(e) => setNewIcRoundDept(e.target.value)} placeholder={t("New department name")} />
           <button onClick={addIcRoundDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+            <Plus className="h-4 w-4" />
+            {t("Add")}
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-slate-700">{t("Hand Hygiene Departments")}</h2>
+        <p className="mb-4 text-xs text-slate-500">{t("Department list used only by the Hand Hygiene module.")}</p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {hhDepartments.map((d) => (
+            <span key={d} className="flex items-center gap-1 rounded-full bg-teal-50 px-3 py-1 text-sm text-teal-700">
+              {d}
+              <button onClick={() => removeHhDept(d)} className="text-teal-400 hover:text-red-500">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input className="input" value={newHhDept} onChange={(e) => setNewHhDept(e.target.value)} placeholder={t("New department name")} />
+          <button onClick={addHhDept} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" />
             {t("Add")}
           </button>

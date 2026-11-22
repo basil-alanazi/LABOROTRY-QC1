@@ -951,4 +951,7 @@ export const ar = {
   "No refusal forms on record.": "لا توجد نماذج رفض مسجلة.",
   "Signed Acceptance Forms": "نماذج الموافقة الموقّعة",
   "Signed Refusal Forms": "نماذج الرفض الموقّعة",
+  "Hand Hygiene Departments": "أقسام نظافة الأيدي",
+  "Department list used only by the Hand Hygiene module.": "قائمة الأقسام الخاصة بقسم نظافة الأيدي فقط.",
+  "Hand hygiene departments saved": "تم حفظ أقسام نظافة الأيدي",
 };
