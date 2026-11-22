@@ -237,7 +237,7 @@ export default function TakeIcTest() {
         {!locked && phase === "intro" && (
           <div className="mt-5 flex flex-col items-center gap-3">
             <p className="text-center text-sm text-slate-600">
-              {t("This test has")} {questions.length} {t("questions")}. {t("You will have 5 minutes to finish.")}
+              {t("This test has")} {questions.length} {t("questions")}. {t("You will have 10 minutes to finish.")}
             </p>
             <button onClick={startTest} className="rounded-lg bg-teal-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-teal-700">
               {t("Start Test")}

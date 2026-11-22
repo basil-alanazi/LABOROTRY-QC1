@@ -863,7 +863,7 @@ export const ar = {
   "Unlock retake": "فتح الإعادة",
   "This test has": "هذا الاختبار فيه",
   "questions": "أسئلة",
-  "You will have 5 minutes to finish.": "عندك 5 دقايق لإنهائه.",
+  "You will have 10 minutes to finish.": "عندك 10 دقايق لإنهائه.",
   "Start Test": "ابدأ الاختبار",
   "Submit": "تسليم",
   "Correct answer": "الإجابة الصحيحة",
