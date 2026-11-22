@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { AlertTriangle, Clock } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useEnglishOnlyPage } from "./englishOnly";
 import SignaturePad from "../../components/SignaturePad";
@@ -410,29 +410,7 @@ export default function TakeIcTest() {
               <p className={`text-sm font-semibold ${result.passed ? "text-emerald-700" : "text-red-700"}`}>{result.passed ? t("Pass") : t("Fail")}</p>
             </div>
 
-            <div className="flex flex-col gap-2">
-              {result.perQuestion.map((pq, i) => (
-                <div key={i} className={`rounded-lg border px-3 py-2 text-sm ${pq.correct ? "border-emerald-100 bg-emerald-50/40" : "border-red-100 bg-red-50/40"}`}>
-                  <div className="flex items-start gap-2">
-                    {pq.correct ? (
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                    ) : (
-                      <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-                    )}
-                    <div>
-                      <p className="font-medium text-slate-700">
-                        {i + 1}. {pq.question.question_text}
-                      </p>
-                      {!pq.correct && (
-                        <p className="mt-1 text-xs text-slate-500">
-                          {t("Correct answer")}: <span className="font-medium text-emerald-700">{pq.question.options[pq.question.correct_index]}</span>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <p className="text-center text-xs text-slate-500">Infection Control will review your answers with you.</p>
 
             {!saved ? (
               <div className="mt-2 flex flex-col gap-2 border-t border-slate-200 pt-3">

@@ -45,6 +45,9 @@ export default function IcKnowledgeTest() {
   const [questions, setQuestions] = useState([]);
   const [selectedDept, setSelectedDept] = useState("");
   const [deptQr, setDeptQr] = useState("");
+  // Every department's questions, to show each attempt's answers here — the
+  // employee only sees their score, never the correct answers.
+  const [allQuestions, setAllQuestions] = useState([]);
   const [setForm, setSetForm] = useState(emptySetForm);
   const [showQuestionForm, setShowQuestionForm] = useState(false);
   const [questionForm, setQuestionForm] = useState(emptyQuestionForm);
@@ -58,16 +61,18 @@ export default function IcKnowledgeTest() {
 
   async function loadAll() {
     setLoading(true);
-    const [{ data: att }, { data: emps }, { data: acc }, { data: sets }] = await Promise.all([
+    const [{ data: att }, { data: emps }, { data: acc }, { data: sets }, { data: allQs }] = await Promise.all([
       fetchAllRows((from, to) => supabase.from("ic_test_attempts").select("*").order("created_at", { ascending: false }).range(from, to)),
       fetchAllRows((from, to) => supabase.from("employees").select("*").range(from, to)),
       fetchAllRows((from, to) => supabase.from("ic_test_access").select("*").range(from, to)),
       supabase.from("ic_test_sets").select("*").order("department"),
+      fetchAllRows((from, to) => supabase.from("ic_test_questions").select("*").order("sort_order").range(from, to)),
     ]);
     setAttempts(att ?? []);
     setEmployees(emps ?? []);
     setAccess(acc ?? []);
     setTestSets(sets ?? []);
+    setAllQuestions(allQs ?? []);
     setLoading(false);
   }
 
@@ -310,6 +315,7 @@ export default function IcKnowledgeTest() {
                           <span className="rounded-full bg-amber-50 px-2 py-0.5 font-mono font-bold tracking-widest text-amber-700">{issuedCode.code}</span>
                         )}
                       </div>
+                      <AttemptAnswers attempt={a} questions={allQuestions.filter((q) => q.department === a.department && q.active !== false)} t={t} />
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <SignOffBlock
                           label={t("Supervisor")}
@@ -508,6 +514,44 @@ function SignOffBlock({ label, existingName, signedAt, signaturePath, onSave }) 
       >
         {saving ? t("Saving...") : t("Sign")}
       </button>
+    </div>
+  );
+}
+
+// The employee's answer to each question, in the test's own order, with the
+// correct answer next to any wrong one. Only shown to IC staff.
+function AttemptAnswers({ attempt, questions, t }) {
+  const given = Array.isArray(attempt.answers) ? attempt.answers : [];
+  if (!questions.length) return null;
+  const wrong = questions.filter((q, i) => given[i] !== q.correct_index).length;
+  return (
+    <div className="mb-4 flex flex-col gap-1.5">
+      <p className="text-xs font-semibold text-slate-600">
+        {t("Answers")} · <span className="text-red-600">{wrong} {t("wrong")}</span>
+      </p>
+      {questions.map((q, i) => {
+        const chosen = given[i];
+        const ok = chosen === q.correct_index;
+        return (
+          <div key={q.id} className={`rounded-lg border px-3 py-2 text-xs ${ok ? "border-emerald-100 bg-emerald-50/40" : "border-red-100 bg-red-50/40"}`}>
+            <div className="flex items-start gap-2">
+              {ok ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" /> : <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-600" />}
+              <div>
+                <p className="font-medium text-slate-700">
+                  {i + 1}. {q.question_text}
+                </p>
+                {!ok && (
+                  <p className="mt-1 text-slate-500">
+                    {t("Their answer")}: <span className="font-medium text-red-700">{chosen == null ? t("not recorded") : q.options?.[chosen]}</span>
+                    {" · "}
+                    {t("Correct answer")}: <span className="font-medium text-emerald-700">{q.options?.[q.correct_index]}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
