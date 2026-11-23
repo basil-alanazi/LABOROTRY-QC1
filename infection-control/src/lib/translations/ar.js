@@ -987,4 +987,6 @@ export const ar = {
   "Infection Control memos — number, subject, date and file.": "مذكرات مكافحة العدوى — الرقم والموضوع والتاريخ والملف.",
   "Search memo no or subject...": "ابحث برقم المذكرة أو الموضوع...",
   "No memos yet.": "لا توجد مذكرات بعد.",
+  "Employee Vaccination Stock": "مخزون تطعيمات الموظفين",
+  "Vaccine stock of the Employee Health Clinic.": "مخزون التطعيمات في عيادة صحة الموظفين.",
 };

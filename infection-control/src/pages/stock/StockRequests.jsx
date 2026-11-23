@@ -56,7 +56,9 @@ function stockColorClass(item) {
   return "text-emerald-600";
 }
 
-export default function StockRequests() {
+// With `fixedDepartment` (the Employee Vaccination Stock page) the page is
+// locked to that one department's catalog instead of the department picker.
+export default function StockRequests({ fixedDepartment = "" }) {
   const { session, config, isAdmin, canAdminStock } = useAuth();
   const { t } = useLanguage();
   // Owner/IC always see the full admin view; a Ward Staff account can be
@@ -67,13 +69,13 @@ export default function StockRequests() {
   const [items, setItems] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDept, setSelectedDept] = useState("");
+  const [selectedDept, setSelectedDept] = useState(fixedDepartment);
   const [itemSearch, setItemSearch] = useState("");
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [qtyInputs, setQtyInputs] = useState({});
   const [addQtyInputs, setAddQtyInputs] = useState({});
   const [message, setMessage] = useState(null);
-  const [filterDepts, setFilterDepts] = useState([]);
+  const [filterDepts, setFilterDepts] = useState(fixedDepartment ? [fixedDepartment] : []);
   const [newItem, setNewItem] = useState({ name: "", min_qty: "", max_qty: "", current_qty: "" });
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
 
@@ -88,6 +90,7 @@ export default function StockRequests() {
   // Everyone gets the Daily Check tab, but non-admins only ever see (and can
   // only ever mark) their own assigned department, same scoping as "Use Stock".
   const activeDepartment = isStockAdmin ? selectedDept : myDepartment;
+  const pickDept = isStockAdmin && !fixedDepartment;
 
   async function loadItems() {
     const { data } = await fetchAllRows((from, to) =>
@@ -364,9 +367,11 @@ export default function StockRequests() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">{t("Stock Requests")}</h1>
+          <h1 className="text-xl font-bold text-slate-800">{t(fixedDepartment ? "Employee Vaccination Stock" : "Stock Requests")}</h1>
           <p className="text-sm text-slate-500">
-            {isStockAdmin
+            {fixedDepartment
+              ? t("Vaccine stock of the Employee Health Clinic.")
+              : isStockAdmin
               ? t("Supply usage across every department's own stock catalog, tracked in real time.")
               : `${t("Log supplies used from")} ${myDepartment || t("your department")}${t("'s own stock.")}`}
           </p>
@@ -426,7 +431,7 @@ export default function StockRequests() {
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">{t("Use Stock")}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {isStockAdmin ? (
+          {pickDept ? (
             <Field label={t("Department")}>
               <select
                 value={selectedDept}
@@ -446,7 +451,7 @@ export default function StockRequests() {
             </Field>
           ) : (
             <Field label={t("Department")}>
-              <input className="input bg-slate-50" value={myDepartment} disabled readOnly />
+              <input className="input bg-slate-50" value={fixedDepartment || myDepartment} disabled readOnly />
             </Field>
           )}
           <Field label={t("Search items")}>
@@ -645,7 +650,7 @@ export default function StockRequests() {
         )}
       </div>
 
-      {isStockAdmin && (
+      {pickDept && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4">
           <span className="text-xs font-medium text-slate-500">{t("Departments in report:")}</span>
           <button
@@ -718,7 +723,7 @@ export default function StockRequests() {
             <input type="date" className="input w-auto" value={checkDate} onChange={(e) => setCheckDate(e.target.value)} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {isStockAdmin ? (
+            {pickDept ? (
               <Field label={t("Department")}>
                 <select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)} className="input">
                   <option value="">{t("Select department")}</option>
@@ -731,7 +736,7 @@ export default function StockRequests() {
               </Field>
             ) : (
               <Field label={t("Department")}>
-                <input className="input bg-slate-50" value={myDepartment} disabled readOnly />
+                <input className="input bg-slate-50" value={fixedDepartment || myDepartment} disabled readOnly />
               </Field>
             )}
           </div>
