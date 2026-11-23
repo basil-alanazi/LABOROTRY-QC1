@@ -601,6 +601,7 @@ export const TABLES = {"agreement_tracker":{"cols":{"id":{"t":"u","nn":1,"def":"
 "stock_items":{"cols":{"id":{"t":"u","nn":1,"def":"@uuid"},
 "name":{"t":"s","nn":1},
 "unit":{"t":"s","nn":1,"def":"unit"},
+"batch_no":{"t":"s","nn":1,"def":""},
 "min_qty":{"t":"n","nn":1,"def":"0"},
 "max_qty":{"t":"n","nn":1,"def":"0"},
 "current_qty":{"t":"n","nn":1,"def":"0"},

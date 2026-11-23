@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, Fragment } from "react";
-import { FileSpreadsheet, FileText, Check, CheckCheck, AlertTriangle, Plus, Trash2 } from "lucide-react";
+import { FileSpreadsheet, FileText, Check, CheckCheck, AlertTriangle, Plus, Printer, Trash2 } from "lucide-react";
+import JsBarcode from "jsbarcode";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { useLanguage } from "../../lib/i18n.jsx";
@@ -236,6 +237,40 @@ export default function StockRequests({ fixedDepartment = "" }) {
 
   function updateItemField(itemId, patch) {
     setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, ...patch } : i)));
+  }
+
+  // Vaccination stock: each vaccine carries its current batch number, and a
+  // Code 128 barcode label (vaccine name + batch) can be printed for it.
+  async function saveBatch(item) {
+    const batch_no = (item.batch_no || "").trim();
+    const { error } = await supabase.from("stock_items").update({ batch_no }).eq("id", item.id);
+    if (error) flash({ type: "error", text: "Could not save batch no: " + error.message });
+  }
+
+  function printBarcode(item) {
+    const batch = (item.batch_no || "").trim();
+    if (!batch) {
+      flash({ type: "error", text: "Enter the batch no first" });
+      return;
+    }
+    const copies = Math.max(1, Math.min(200, parseInt(prompt(t("How many labels?"), "1") || "0", 10) || 0));
+    if (!copies) return;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    try {
+      JsBarcode(svg, batch, { format: "CODE128", width: 2, height: 50, fontSize: 14, margin: 4 });
+    } catch {
+      flash({ type: "error", text: "This batch no can't be turned into a barcode" });
+      return;
+    }
+    const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    const label = `<div class="label"><div class="name">${esc(item.name)}</div>${svg.outerHTML}<div class="meta">Batch: ${esc(batch)} · Printed ${esc(fmtDate(todayStr()))}</div></div>`;
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(item.name)} — ${esc(batch)}</title>
+<style>body{font-family:Arial,sans-serif;margin:8mm}.label{display:inline-block;width:62mm;padding:3mm;margin:0 3mm 4mm 0;border:1px dashed #999;text-align:center;page-break-inside:avoid}
+.name{font-weight:bold;font-size:13px;margin-bottom:2px}.meta{font-size:10px;color:#333}svg{max-width:100%;height:auto}@media print{.label{border:none}}</style></head>
+<body>${label.repeat(copies)}<script>window.onload=()=>window.print()<\/script></body></html>`);
+    w.document.close();
   }
 
   async function saveMinMax(item) {
@@ -491,15 +526,21 @@ export default function StockRequests({ fixedDepartment = "" }) {
         )}
 
         {activeDepartment && departmentItems.length > 0 && (
-          <div className="overflow-hidden rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs text-slate-500">
                 <tr>
-                  <th className="px-4 py-2 font-medium">{t("Item")}</th>
+                  <th className="px-4 py-2 font-medium">{t(fixedDepartment ? "Name of vaccine" : "Item")}</th>
                   {canManage && (
                     <>
                       <th className="px-4 py-2 font-medium">{t("Quantity to be Added")}</th>
                       <th className="px-4 py-2"></th>
+                    </>
+                  )}
+                  {fixedDepartment && (
+                    <>
+                      <th className="px-4 py-2 font-medium">{t("Batch No")}</th>
+                      <th className="px-4 py-2 font-medium">{t("Barcode")}</th>
                     </>
                   )}
                   <th className="px-4 py-2 font-medium">{t("Current Stock")}</th>
@@ -538,6 +579,30 @@ export default function StockRequests({ fixedDepartment = "" }) {
                           >
                             <Plus className="h-3.5 w-3.5" />
                             {t("Add")}
+                          </button>
+                        </td>
+                      </>
+                    )}
+                    {fixedDepartment && (
+                      <>
+                        <td className="px-4 py-2">
+                          <input
+                            className="input w-32"
+                            value={i.batch_no || ""}
+                            onChange={(e) => updateItemField(i.id, { batch_no: e.target.value })}
+                            onBlur={() => saveBatch(i)}
+                            disabled={!canManage}
+                            placeholder={t("Batch No")}
+                          />
+                        </td>
+                        <td className="px-4 py-2">
+                          <button
+                            onClick={() => printBarcode(i)}
+                            disabled={!(i.batch_no || "").trim()}
+                            className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                            {t("Generate & Print")}
                           </button>
                         </td>
                       </>
