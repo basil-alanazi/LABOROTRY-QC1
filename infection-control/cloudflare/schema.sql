@@ -706,6 +706,7 @@ CREATE TABLE IF NOT EXISTS "stock_items" (
   "id" TEXT PRIMARY KEY,
   "name" TEXT,
   "unit" TEXT DEFAULT 'unit',
+  "batch_no" TEXT DEFAULT '',
   "min_qty" REAL DEFAULT 0,
   "max_qty" REAL DEFAULT 0,
   "current_qty" REAL DEFAULT 0,

@@ -989,4 +989,8 @@ export const ar = {
   "No memos yet.": "لا توجد مذكرات بعد.",
   "Employee Vaccination Stock": "مخزون تطعيمات الموظفين",
   "Vaccine stock of the Employee Health Clinic.": "مخزون التطعيمات في عيادة صحة الموظفين.",
+  "Name of vaccine": "اسم التطعيم",
+  "Barcode": "الباركود",
+  "Generate & Print": "إنشاء وطباعة",
+  "How many labels?": "كم ملصق تبي تطبع؟",
 };
