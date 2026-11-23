@@ -20,6 +20,7 @@ const EmployeeProfile = lazy(() => import("./pages/health/EmployeeProfile.jsx"))
 const TakeIcTest = lazy(() => import("./pages/ic-test/TakeIcTest.jsx"));
 const StartIcTest = lazy(() => import("./pages/ic-test/StartIcTest.jsx"));
 const IcKnowledgeTest = lazy(() => import("./pages/ic-test/IcKnowledgeTest.jsx"));
+const Memos = lazy(() => import("./pages/Memos.jsx"));
 const CommunicableCases = lazy(() => import("./pages/cases/CommunicableCases.jsx"));
 const ICRounds = lazy(() => import("./pages/ic-rounds/ICRounds.jsx"));
 const HandHygiene = lazy(() => import("./pages/hand-hygiene/HandHygiene.jsx"));
@@ -92,6 +93,16 @@ export default function App() {
             <ProtectedRoute adminOnly>
               <Layout>
                 <IcKnowledgeTest />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/memos"
+          element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <Memos />
               </Layout>
             </ProtectedRoute>
           }

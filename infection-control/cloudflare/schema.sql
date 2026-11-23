@@ -829,3 +829,18 @@ CREATE TABLE IF NOT EXISTS "ipc_forms" (
   "created_at" TEXT
 );
 
+CREATE TABLE IF NOT EXISTS "memos" (
+  "id" TEXT PRIMARY KEY,
+  "memo_no" TEXT DEFAULT '',
+  "subject" TEXT,
+  "memo_date" TEXT,
+  "attachments" TEXT DEFAULT '[]',
+  "created_by" TEXT,
+  "updated_by" TEXT,
+  "updated_at" TEXT,
+  "deleted" INTEGER DEFAULT 0,
+  "deleted_by" TEXT,
+  "deleted_at" TEXT,
+  "created_at" TEXT
+);
+

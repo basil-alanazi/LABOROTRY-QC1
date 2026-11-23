@@ -981,4 +981,10 @@ export const ar = {
   "Link": "الرابط",
   "Open link": "فتح الرابط",
   "Copy link": "نسخ الرابط",
+  "Memo": "المذكرات",
+  "Memo No": "رقم المذكرة",
+  "Subject": "الموضوع",
+  "Infection Control memos — number, subject, date and file.": "مذكرات مكافحة العدوى — الرقم والموضوع والتاريخ والملف.",
+  "Search memo no or subject...": "ابحث برقم المذكرة أو الموضوع...",
+  "No memos yet.": "لا توجد مذكرات بعد.",
 };
