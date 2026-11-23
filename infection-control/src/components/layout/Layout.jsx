@@ -22,6 +22,7 @@ import {
   LogOut,
   UserCircle,
   X,
+  ScrollText,
 } from "lucide-react";
 import { useAuth } from "../../lib/auth.jsx";
 import { useLanguage } from "../../lib/i18n.jsx";
@@ -107,6 +108,7 @@ export default function Layout({ children }) {
       items: [
         canViewEmployeeHealth && { to: "/employee-health", icon: HeartPulse, label: "Employee Health" },
         isAdmin && { to: "/ic-knowledge-test", icon: GraduationCap, label: "IC Knowledge Test" },
+        isAdmin && { to: "/memos", icon: ScrollText, label: "Memo" },
       ],
     },
     {
