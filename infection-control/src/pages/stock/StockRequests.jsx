@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, Fragment } from "react";
-import { FileSpreadsheet, FileText, Check, CheckCheck, AlertTriangle, Plus, Printer, Trash2 } from "lucide-react";
-import JsBarcode from "jsbarcode";
+import { FileSpreadsheet, FileText, Check, CheckCheck, AlertTriangle, Plus, Trash2 } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { useLanguage } from "../../lib/i18n.jsx";
@@ -57,9 +56,7 @@ function stockColorClass(item) {
   return "text-emerald-600";
 }
 
-// With `fixedDepartment` (the Employee Vaccination Stock page) the page is
-// locked to that one department's catalog instead of the department picker.
-export default function StockRequests({ fixedDepartment = "" }) {
+export default function StockRequests() {
   const { session, config, isAdmin, canAdminStock } = useAuth();
   const { t } = useLanguage();
   // Owner/IC always see the full admin view; a Ward Staff account can be
@@ -70,13 +67,13 @@ export default function StockRequests({ fixedDepartment = "" }) {
   const [items, setItems] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDept, setSelectedDept] = useState(fixedDepartment);
+  const [selectedDept, setSelectedDept] = useState("");
   const [itemSearch, setItemSearch] = useState("");
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [qtyInputs, setQtyInputs] = useState({});
   const [addQtyInputs, setAddQtyInputs] = useState({});
   const [message, setMessage] = useState(null);
-  const [filterDepts, setFilterDepts] = useState(fixedDepartment ? [fixedDepartment] : []);
+  const [filterDepts, setFilterDepts] = useState([]);
   const [newItem, setNewItem] = useState({ name: "", min_qty: "", max_qty: "", current_qty: "" });
   const [reportMonth, setReportMonth] = useState(new Date().toISOString().slice(0, 7));
 
@@ -91,7 +88,6 @@ export default function StockRequests({ fixedDepartment = "" }) {
   // Everyone gets the Daily Check tab, but non-admins only ever see (and can
   // only ever mark) their own assigned department, same scoping as "Use Stock".
   const activeDepartment = isStockAdmin ? selectedDept : myDepartment;
-  const pickDept = isStockAdmin && !fixedDepartment;
 
   async function loadItems() {
     const { data } = await fetchAllRows((from, to) =>
@@ -239,40 +235,6 @@ export default function StockRequests({ fixedDepartment = "" }) {
     setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, ...patch } : i)));
   }
 
-  // Vaccination stock: each vaccine carries its current batch number, and a
-  // Code 128 barcode label (vaccine name + batch) can be printed for it.
-  async function saveBatch(item) {
-    const batch_no = (item.batch_no || "").trim();
-    const { error } = await supabase.from("stock_items").update({ batch_no }).eq("id", item.id);
-    if (error) flash({ type: "error", text: "Could not save batch no: " + error.message });
-  }
-
-  function printBarcode(item) {
-    const batch = (item.batch_no || "").trim();
-    if (!batch) {
-      flash({ type: "error", text: "Enter the batch no first" });
-      return;
-    }
-    const copies = Math.max(1, Math.min(200, parseInt(prompt(t("How many labels?"), "1") || "0", 10) || 0));
-    if (!copies) return;
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    try {
-      JsBarcode(svg, batch, { format: "CODE128", width: 2, height: 50, fontSize: 14, margin: 4 });
-    } catch {
-      flash({ type: "error", text: "This batch no can't be turned into a barcode" });
-      return;
-    }
-    const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-    const label = `<div class="label"><div class="name">${esc(item.name)}</div>${svg.outerHTML}<div class="meta">Batch: ${esc(batch)} · Printed ${esc(fmtDate(todayStr()))}</div></div>`;
-    const w = window.open("", "_blank");
-    if (!w) return;
-    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(item.name)} — ${esc(batch)}</title>
-<style>body{font-family:Arial,sans-serif;margin:8mm}.label{display:inline-block;width:62mm;padding:3mm;margin:0 3mm 4mm 0;border:1px dashed #999;text-align:center;page-break-inside:avoid}
-.name{font-weight:bold;font-size:13px;margin-bottom:2px}.meta{font-size:10px;color:#333}svg{max-width:100%;height:auto}@media print{.label{border:none}}</style></head>
-<body>${label.repeat(copies)}<script>window.onload=()=>window.print()<\/script></body></html>`);
-    w.document.close();
-  }
-
   async function saveMinMax(item) {
     await supabase
       .from("stock_items")
@@ -402,11 +364,9 @@ export default function StockRequests({ fixedDepartment = "" }) {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">{t(fixedDepartment ? "Employee Vaccination Stock" : "Stock Requests")}</h1>
+          <h1 className="text-xl font-bold text-slate-800">{t("Stock Requests")}</h1>
           <p className="text-sm text-slate-500">
-            {fixedDepartment
-              ? t("Vaccine stock of the Employee Health Clinic.")
-              : isStockAdmin
+            {isStockAdmin
               ? t("Supply usage across every department's own stock catalog, tracked in real time.")
               : `${t("Log supplies used from")} ${myDepartment || t("your department")}${t("'s own stock.")}`}
           </p>
@@ -466,7 +426,7 @@ export default function StockRequests({ fixedDepartment = "" }) {
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-700">{t("Use Stock")}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {pickDept ? (
+          {isStockAdmin ? (
             <Field label={t("Department")}>
               <select
                 value={selectedDept}
@@ -486,7 +446,7 @@ export default function StockRequests({ fixedDepartment = "" }) {
             </Field>
           ) : (
             <Field label={t("Department")}>
-              <input className="input bg-slate-50" value={fixedDepartment || myDepartment} disabled readOnly />
+              <input className="input bg-slate-50" value={myDepartment} disabled readOnly />
             </Field>
           )}
           <Field label={t("Search items")}>
@@ -526,21 +486,15 @@ export default function StockRequests({ fixedDepartment = "" }) {
         )}
 
         {activeDepartment && departmentItems.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-hidden rounded-xl border border-slate-200">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs text-slate-500">
                 <tr>
-                  <th className="px-4 py-2 font-medium">{t(fixedDepartment ? "Name of vaccine" : "Item")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Item")}</th>
                   {canManage && (
                     <>
                       <th className="px-4 py-2 font-medium">{t("Quantity to be Added")}</th>
                       <th className="px-4 py-2"></th>
-                    </>
-                  )}
-                  {fixedDepartment && (
-                    <>
-                      <th className="px-4 py-2 font-medium">{t("Batch No")}</th>
-                      <th className="px-4 py-2 font-medium">{t("Barcode")}</th>
                     </>
                   )}
                   <th className="px-4 py-2 font-medium">{t("Current Stock")}</th>
@@ -579,30 +533,6 @@ export default function StockRequests({ fixedDepartment = "" }) {
                           >
                             <Plus className="h-3.5 w-3.5" />
                             {t("Add")}
-                          </button>
-                        </td>
-                      </>
-                    )}
-                    {fixedDepartment && (
-                      <>
-                        <td className="px-4 py-2">
-                          <input
-                            className="input w-32"
-                            value={i.batch_no || ""}
-                            onChange={(e) => updateItemField(i.id, { batch_no: e.target.value })}
-                            onBlur={() => saveBatch(i)}
-                            disabled={!canManage}
-                            placeholder={t("Batch No")}
-                          />
-                        </td>
-                        <td className="px-4 py-2">
-                          <button
-                            onClick={() => printBarcode(i)}
-                            disabled={!(i.batch_no || "").trim()}
-                            className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                          >
-                            <Printer className="h-3.5 w-3.5" />
-                            {t("Generate & Print")}
                           </button>
                         </td>
                       </>
@@ -715,7 +645,7 @@ export default function StockRequests({ fixedDepartment = "" }) {
         )}
       </div>
 
-      {pickDept && (
+      {isStockAdmin && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4">
           <span className="text-xs font-medium text-slate-500">{t("Departments in report:")}</span>
           <button
@@ -788,7 +718,7 @@ export default function StockRequests({ fixedDepartment = "" }) {
             <input type="date" className="input w-auto" value={checkDate} onChange={(e) => setCheckDate(e.target.value)} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {pickDept ? (
+            {isStockAdmin ? (
               <Field label={t("Department")}>
                 <select value={selectedDept} onChange={(e) => setSelectedDept(e.target.value)} className="input">
                   <option value="">{t("Select department")}</option>
@@ -801,7 +731,7 @@ export default function StockRequests({ fixedDepartment = "" }) {
               </Field>
             ) : (
               <Field label={t("Department")}>
-                <input className="input bg-slate-50" value={fixedDepartment || myDepartment} disabled readOnly />
+                <input className="input bg-slate-50" value={myDepartment} disabled readOnly />
               </Field>
             )}
           </div>

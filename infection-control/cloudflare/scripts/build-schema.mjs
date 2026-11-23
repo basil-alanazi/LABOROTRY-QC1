@@ -24,6 +24,7 @@ const UNIQUE = {
   ic_test_sets: [["department"]],
   stock_daily_checks: [["date", "item_id"]],
   users: [["username"]],
+  vaccine_lots: [["code"]],
 };
 // Plain indexes for the columns pages filter on most.
 const INDEX = {
@@ -43,6 +44,7 @@ const INDEX = {
   ic_rounds: [["date"]],
   nursing_rounds: [["date"]],
   employees: [["name"]],
+  vaccine_lots: [["item_id"], ["department"]],
 };
 
 const SQL_TYPE = { u: "TEXT", s: "TEXT", d: "TEXT", z: "TEXT", h: "TEXT", j: "TEXT", b: "INTEGER", i: "INTEGER", n: "REAL" };
