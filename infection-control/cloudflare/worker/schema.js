@@ -720,4 +720,16 @@ export const TABLES = {"agreement_tracker":{"cols":{"id":{"t":"u","nn":1,"def":"
 "deleted_by":{"t":"s"},
 "deleted_at":{"t":"z"},
 "created_at":{"t":"z","nn":1,"def":"@now"}},
-"unique":[]}};
+"unique":[]},
+"vaccine_lots":{"cols":{"id":{"t":"u","nn":1,"def":"@uuid"},
+"code":{"t":"s","nn":1},
+"item_id":{"t":"u","nn":1},
+"item_name":{"t":"s","nn":1,"def":""},
+"batch_no":{"t":"s","nn":1},
+"expiry_date":{"t":"d"},
+"qty_received":{"t":"n","nn":1,"def":"0"},
+"qty_remaining":{"t":"n","nn":1,"def":"0"},
+"department":{"t":"s","nn":1,"def":""},
+"created_by":{"t":"s"},
+"created_at":{"t":"z","nn":1,"def":"@now"}},
+"unique":[["code"]]}};

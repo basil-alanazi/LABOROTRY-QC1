@@ -845,3 +845,20 @@ CREATE TABLE IF NOT EXISTS "memos" (
   "created_at" TEXT
 );
 
+CREATE TABLE IF NOT EXISTS "vaccine_lots" (
+  "id" TEXT PRIMARY KEY,
+  "code" TEXT,
+  "item_id" TEXT,
+  "item_name" TEXT DEFAULT '',
+  "batch_no" TEXT,
+  "expiry_date" TEXT,
+  "qty_received" REAL DEFAULT 0,
+  "qty_remaining" REAL DEFAULT 0,
+  "department" TEXT DEFAULT '',
+  "created_by" TEXT,
+  "created_at" TEXT,
+  UNIQUE ("code")
+);
+CREATE INDEX IF NOT EXISTS "vaccine_lots_item_id_idx" ON "vaccine_lots" ("item_id");
+CREATE INDEX IF NOT EXISTS "vaccine_lots_department_idx" ON "vaccine_lots" ("department");
+
