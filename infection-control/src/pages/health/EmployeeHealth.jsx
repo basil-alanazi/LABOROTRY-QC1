@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { AlertTriangle, Check, CheckCircle2, FileSignature, FileSpreadsheet, FileText, Paperclip, Pencil, Plus, Printer, QrCode, Save, Trash2, Upload, UserPlus } from "lucide-react";
+import { AlertTriangle, Camera, Check, CheckCircle2, FileSignature, FileSpreadsheet, FileText, Paperclip, Pencil, Plus, Printer, QrCode, Save, Trash2, Upload, UserPlus } from "lucide-react";
 import QRCode from "qrcode";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
@@ -16,6 +16,8 @@ import PrintPortal from "../../components/PrintPortal";
 import CellDropdown from "../../components/CellDropdown";
 import rabiaLogo from "../../assets/rabia-logo.jpg";
 import { fmtDate } from "../../lib/dates";
+import BarcodeScannerModal from "../../components/BarcodeScannerModal";
+import { findLot, looksLikeLotCode, takeOneDose } from "../../lib/vaccineLots";
 
 const TABS = [
   { key: "compliance", label: "Overdue & Missing" },
@@ -130,6 +132,8 @@ export default function EmployeeHealth() {
   const [refusalEmployee, setRefusalEmployee] = useState(null);
   const [refusalPreselect, setRefusalPreselect] = useState(null);
   const [acceptanceModal, setAcceptanceModal] = useState(null); // { emp, item, batchNo, dateGiven }
+  const [scanTarget, setScanTarget] = useState(null); // { emp, item, doseNum } while the camera is open
+  const [scanBusy, setScanBusy] = useState(false);
   const [nsiFormTarget, setNsiFormTarget] = useState(null); // { nsiCase, emp } whose Form 293 is open
   const [ppdPopupEmployee, setPpdPopupEmployee] = useState(null); // employee id whose PPD dropdown is open
   const [vaccinePopup, setVaccinePopup] = useState(null); // { empId, itemId } of the open vaccine dropdown
@@ -511,9 +515,9 @@ export default function EmployeeHealth() {
     const key = doseKey(empId, itemId, doseNum);
     setDoseDrafts((prev) => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
   }
-  async function saveDoseCell(emp, item, doseNum) {
-    const dateVal = getDoseField(emp.id, item.id, doseNum, "date");
-    const batchVal = getDoseField(emp.id, item.id, doseNum, "batch");
+  async function saveDoseCell(emp, item, doseNum, override = {}) {
+    const dateVal = override.date ?? getDoseField(emp.id, item.id, doseNum, "date");
+    const batchVal = override.batch ?? getDoseField(emp.id, item.id, doseNum, "batch");
     const existing = records.find((r) => r.employee_id === emp.id && r.item_type_id === item.id && r.dose_number === doseNum);
     if (!dateVal) {
       if (existing) await supabase.from("employee_health_records").delete().eq("id", existing.id);
@@ -547,6 +551,53 @@ export default function EmployeeHealth() {
       setAcceptanceModal({ emp, item: `${item.name} — Dose ${doseNum}`, batchNo: batchVal.trim(), dateGiven: dateVal });
     }
     loadAll();
+  }
+
+  // A vaccine label from the Vaccination Stock page was scanned (phone
+  // camera, or a USB scanner typing into the batch field): fill in the
+  // batch no and take one dose off that batch and the vaccine's stock.
+  async function handleLotScan(emp, item, doseNum, code) {
+    if (scanBusy) return;
+    setScanBusy(true);
+    try {
+      const found = await findLot(code);
+      if (found.error) {
+        setDoseField(emp.id, item.id, doseNum, "batch", "");
+        flash({ type: "error", text: found.error });
+        return;
+      }
+      const { lot } = found;
+      const norm = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const a = norm(lot.item_name);
+      const b = norm(item.name);
+      if (a && b && !a.includes(b) && !b.includes(a)) {
+        if (!confirm(`This label is for "${lot.item_name}", not "${item.name}". Use it anyway?`)) {
+          setDoseField(emp.id, item.id, doseNum, "batch", "");
+          return;
+        }
+      }
+      const existing = records.find((r) => r.employee_id === emp.id && r.item_type_id === item.id && r.dose_number === doseNum);
+      if (existing?.batch_no && existing.batch_no.trim() === lot.batch_no.trim()) {
+        if (!confirm(`Dose ${doseNum} is already recorded with batch ${lot.batch_no}. Take another dose from stock?`)) {
+          setDoseField(emp.id, item.id, doseNum, "batch", lot.batch_no);
+          return;
+        }
+      }
+      const used = await takeOneDose(found, {
+        by: session?.username,
+        note: `${emp.name}${emp.employee_no ? ` (${emp.employee_no})` : ""} — ${item.name} D${doseNum}`,
+      });
+      if (used.error) {
+        setDoseField(emp.id, item.id, doseNum, "batch", "");
+        flash({ type: "error", text: used.error });
+        return;
+      }
+      setDoseField(emp.id, item.id, doseNum, "batch", lot.batch_no);
+      flash({ type: "success", text: `${lot.item_name} · batch ${lot.batch_no}: 1 dose taken from stock (${used.lotLeft} left in batch)` });
+      if (getDoseField(emp.id, item.id, doseNum, "date")) await saveDoseCell(emp, item, doseNum, { batch: lot.batch_no });
+    } finally {
+      setScanBusy(false);
+    }
   }
 
   // --- Doctor Review: investigation blood-test attachments ---
@@ -1447,13 +1498,31 @@ export default function EmployeeHealth() {
                                       </label>
                                       <label className="flex flex-col gap-1 text-xs text-slate-500">
                                         D{d} Batch
-                                        <input
-                                          className="input"
-                                          value={getDoseField(emp.id, item.id, d, "batch")}
-                                          disabled={!rowEditing || !canEdit}
-                                          onChange={(e) => setDoseField(emp.id, item.id, d, "batch", e.target.value)}
-                                          onBlur={() => saveDoseCell(emp, item, d)}
-                                        />
+                                        <span className="flex gap-1">
+                                          <input
+                                            className="input min-w-0 flex-1"
+                                            value={getDoseField(emp.id, item.id, d, "batch")}
+                                            disabled={!rowEditing || !canEdit}
+                                            onChange={(e) => setDoseField(emp.id, item.id, d, "batch", e.target.value)}
+                                            onBlur={(e) =>
+                                              looksLikeLotCode(e.target.value) ? handleLotScan(emp, item, d, e.target.value) : saveDoseCell(emp, item, d)
+                                            }
+                                          />
+                                          {rowEditing && canEdit && (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.preventDefault();
+                                                setScanTarget({ emp, item, doseNum: d });
+                                              }}
+                                              disabled={scanBusy}
+                                              title={t("Scan vaccine label")}
+                                              className="shrink-0 rounded-lg border border-teal-200 px-2 text-teal-700 hover:bg-teal-50 disabled:opacity-40"
+                                            >
+                                              <Camera className="h-4 w-4" />
+                                            </button>
+                                          )}
+                                        </span>
                                       </label>
                                     </div>
                                   ))}
@@ -2290,6 +2359,17 @@ export default function EmployeeHealth() {
         />
       )}
 
+      {scanTarget && (
+        <BarcodeScannerModal
+          title={`${scanTarget.item.name} — D${scanTarget.doseNum} · ${scanTarget.emp.name}`}
+          onClose={() => setScanTarget(null)}
+          onResult={(code) => {
+            const target = scanTarget;
+            setScanTarget(null);
+            handleLotScan(target.emp, target.item, target.doseNum, code);
+          }}
+        />
+      )}
       {acceptanceModal && (
         <AcceptanceFormModal
           emp={acceptanceModal.emp}

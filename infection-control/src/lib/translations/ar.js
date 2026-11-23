@@ -1020,4 +1020,9 @@ export const ar = {
   "Left in batch": "المتبقي في التشغيلة",
   "total stock": "المخزون الكلي",
   "Choose the vaccine and enter the batch no and quantity": "اختر التطعيم واكتب رقم التشغيلة والكمية",
+  "Scan vaccine label": "امسح ملصق التطعيم",
+  "Scan barcode": "امسح الباركود",
+  "Hold the label inside the box.": "خلّ الملصق داخل المربع.",
+  "Camera permission was refused. Allow the camera for this site and try again.": "تم رفض إذن الكاميرا. اسمح للكاميرا لهذا الموقع وحاول مرة ثانية.",
+  "Could not open the camera.": "تعذّر فتح الكاميرا.",
 };
