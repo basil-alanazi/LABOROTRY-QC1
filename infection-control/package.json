@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
+    "@zxing/browser": "0.1.5",
+    "@zxing/library": "0.21.3",
     "jsbarcode": "3.11.6",
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
