@@ -1,5 +1,9 @@
 {
-  "rewrites": [
-    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+  "redirects": [
+    {
+      "source": "/:path*",
+      "destination": "https://infection-control.ambrambr236.workers.dev/:path*",
+      "permanent": false
+    }
   ]
 }

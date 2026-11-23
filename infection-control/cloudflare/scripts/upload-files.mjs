@@ -19,11 +19,20 @@ const failed = [];
 for (const f of manifest) {
   const key = `${f.bucket}/${f.path}`;
   try {
-    execFileSync(
-      "npx",
-      ["wrangler", "r2", "object", "put", `${R2_BUCKET}/${key}`, "--file", join(mig, "files", f.bucket, f.path), "--content-type", f.type, target],
-      { cwd: root, stdio: "pipe" }
-    );
+    // Cloudflare answers 429 when objects are put too fast — back off and retry.
+    for (let attempt = 1; ; attempt++) {
+      try {
+        execFileSync(
+          "npx",
+          ["wrangler", "r2", "object", "put", `${R2_BUCKET}/${key}`, "--file", join(mig, "files", f.bucket, f.path), "--content-type", f.type, target],
+          { cwd: root, stdio: "pipe" }
+        );
+        break;
+      } catch (err) {
+        if (attempt >= 5 || !/429|Too Many/i.test(String(err.stderr || err))) throw err;
+        execFileSync("node", ["-e", `setTimeout(()=>{}, ${15000 * attempt})`]);
+      }
+    }
     done++;
     if (done % 25 === 0) console.log(`${done}/${manifest.length}`);
   } catch (err) {
