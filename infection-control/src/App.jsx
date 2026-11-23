@@ -20,6 +20,7 @@ const EmployeeProfile = lazy(() => import("./pages/health/EmployeeProfile.jsx"))
 const TakeIcTest = lazy(() => import("./pages/ic-test/TakeIcTest.jsx"));
 const StartIcTest = lazy(() => import("./pages/ic-test/StartIcTest.jsx"));
 const IcKnowledgeTest = lazy(() => import("./pages/ic-test/IcKnowledgeTest.jsx"));
+const VACCINATION_STOCK_DEPARTMENT = "EMPLOYEE HEALTH CLINIC VACCINATION STOCK";
 const Memos = lazy(() => import("./pages/Memos.jsx"));
 const CommunicableCases = lazy(() => import("./pages/cases/CommunicableCases.jsx"));
 const ICRounds = lazy(() => import("./pages/ic-rounds/ICRounds.jsx"));
@@ -70,6 +71,16 @@ export default function App() {
             <ProtectedRoute hideForRestrictedAccounts>
               <Layout>
                 <StockRequests />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vaccination-stock"
+          element={
+            <ProtectedRoute hideForRestrictedAccounts>
+              <Layout>
+                <StockRequests key="vaccination" fixedDepartment={VACCINATION_STOCK_DEPARTMENT} />
               </Layout>
             </ProtectedRoute>
           }

@@ -23,6 +23,7 @@ import {
   UserCircle,
   X,
   ScrollText,
+  Syringe,
 } from "lucide-react";
 import { useAuth } from "../../lib/auth.jsx";
 import { useLanguage } from "../../lib/i18n.jsx";
@@ -107,6 +108,11 @@ export default function Layout({ children }) {
       title: "Staff",
       items: [
         canViewEmployeeHealth && { to: "/employee-health", icon: HeartPulse, label: "Employee Health" },
+        (isAdmin || session?.canAdminStock || session?.department === "EMPLOYEE HEALTH CLINIC VACCINATION STOCK") && {
+          to: "/vaccination-stock",
+          icon: Syringe,
+          label: "Employee Vaccination Stock",
+        },
         isAdmin && { to: "/ic-knowledge-test", icon: GraduationCap, label: "IC Knowledge Test" },
         isAdmin && { to: "/memos", icon: ScrollText, label: "Memo" },
       ],
