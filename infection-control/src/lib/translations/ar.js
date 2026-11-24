@@ -1025,4 +1025,7 @@ export const ar = {
   "Hold the label inside the box.": "خلّ الملصق داخل المربع.",
   "Camera permission was refused. Allow the camera for this site and try again.": "تم رفض إذن الكاميرا. اسمح للكاميرا لهذا الموقع وحاول مرة ثانية.",
   "Could not open the camera.": "تعذّر فتح الكاميرا.",
+  "Deleted": "تم الحذف",
+  "returned to stock": "رجعت للمخزون",
+  "Delete batch": "حذف التشغيلة",
 };

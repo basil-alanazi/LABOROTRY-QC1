@@ -197,6 +197,44 @@ export default function VaccinationStock() {
     }
   }
 
+  // Deleting a use (e.g. a wrong scan) puts the dose back in its batch and stock.
+  async function deleteUse(u) {
+    const qty = Number(u.quantity_issued ?? u.quantity_requested) || 0;
+    if (!confirm(`Delete this use of ${u.item_name}? ${qty} dose(s) will be returned to stock.`)) return;
+    try {
+      const code = (u.notes || "").match(/\((V[A-Z0-9]{7})\)/)?.[1];
+      if (code) {
+        const { data: found } = await supabase.from("vaccine_lots").select("*").eq("code", code).eq("department", DEPT);
+        const lot = (found ?? [])[0];
+        if (lot) await supabase.from("vaccine_lots").update({ qty_remaining: (lot.qty_remaining ?? 0) + qty }).eq("id", lot.id);
+      }
+      const item = items.find((i) => i.id === u.item_id);
+      if (item) await supabase.from("stock_items").update({ current_qty: (item.current_qty ?? 0) + qty }).eq("id", item.id);
+      const { error } = await supabase.from("stock_requests").delete().eq("id", u.id);
+      if (error) throw error;
+      flash({ type: "success", text: `${t("Deleted")} — ${qty} × ${u.item_name} ${t("returned to stock")}` });
+      loadAll();
+    } catch (err) {
+      flash({ type: "error", text: "Could not delete: " + err.message });
+    }
+  }
+
+  // Deleting a batch removes its remaining doses from stock; its labels stop working.
+  async function deleteLot(lot) {
+    const left = Number(lot.qty_remaining) || 0;
+    if (!confirm(`Delete batch ${lot.batch_no} of ${lot.item_name}? Its ${left} remaining dose(s) will be removed from stock and its labels will stop working.`)) return;
+    try {
+      const item = items.find((i) => i.id === lot.item_id);
+      if (item && left) await supabase.from("stock_items").update({ current_qty: Math.max(0, (item.current_qty ?? 0) - left) }).eq("id", item.id);
+      const { error } = await supabase.from("vaccine_lots").delete().eq("id", lot.id);
+      if (error) throw error;
+      flash({ type: "success", text: `${t("Deleted")} — ${t("Batch")} ${lot.batch_no}` });
+      loadAll();
+    } catch (err) {
+      flash({ type: "error", text: "Could not delete: " + err.message });
+    }
+  }
+
   function reprint(lot) {
     const n = parseInt(prompt(t("How many labels?"), String(Math.max(1, lot.qty_remaining ?? 1))) || "0", 10);
     if (n > 0) printLabels(lot, Math.min(n, MAX_LABELS));
@@ -353,6 +391,11 @@ export default function VaccinationStock() {
                             <Printer className="h-3.5 w-3.5" />
                             {t("Print")}
                           </button>
+                          {canManage && (
+                            <button type="button" onClick={() => deleteLot(l)} className="text-slate-400 hover:text-red-600" title={t("Delete batch")}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                         </span>
                       ))}
                       {untracked > 0 && <span className="text-amber-700">{untracked} {t("without barcode (old stock)")}</span>}
@@ -394,6 +437,7 @@ export default function VaccinationStock() {
                 <th className="px-4 py-2 font-medium">{t("Qty")}</th>
                 <th className="px-4 py-2 font-medium">{t("Details")}</th>
                 <th className="px-4 py-2 font-medium">{t("By")}</th>
+                {canManage && <th className="px-4 py-2" />}
               </tr>
             </thead>
             <tbody>
@@ -406,6 +450,13 @@ export default function VaccinationStock() {
                   <td className="px-4 py-1.5">{u.quantity_issued ?? u.quantity_requested}</td>
                   <td className="px-4 py-1.5 text-xs text-slate-500">{u.notes}</td>
                   <td className="px-4 py-1.5 text-xs text-slate-500">{u.issued_by || u.requested_by}</td>
+                  {canManage && (
+                    <td className="px-4 py-1.5">
+                      <button onClick={() => deleteUse(u)} className="text-slate-400 hover:text-red-600" title={t("Delete")}>
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
