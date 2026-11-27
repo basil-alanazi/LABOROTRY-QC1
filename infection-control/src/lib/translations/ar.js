@@ -1028,4 +1028,6 @@ export const ar = {
   "Deleted": "تم الحذف",
   "returned to stock": "رجعت للمخزون",
   "Delete batch": "حذف التشغيلة",
+  "Antibiogram": "الأنتي بايوغرام",
+  "Cumulative antibiogram (CLSI M39) from the hospital's culture isolates.": "الأنتي بايوغرام التراكمي (CLSI M39) من عزلات مزارع المستشفى.",
 };

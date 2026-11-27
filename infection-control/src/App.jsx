@@ -21,6 +21,7 @@ const TakeIcTest = lazy(() => import("./pages/ic-test/TakeIcTest.jsx"));
 const StartIcTest = lazy(() => import("./pages/ic-test/StartIcTest.jsx"));
 const IcKnowledgeTest = lazy(() => import("./pages/ic-test/IcKnowledgeTest.jsx"));
 const VaccinationStock = lazy(() => import("./pages/stock/VaccinationStock.jsx"));
+const Antibiogram = lazy(() => import("./pages/Antibiogram.jsx"));
 const Memos = lazy(() => import("./pages/Memos.jsx"));
 const CommunicableCases = lazy(() => import("./pages/cases/CommunicableCases.jsx"));
 const ICRounds = lazy(() => import("./pages/ic-rounds/ICRounds.jsx"));
@@ -114,6 +115,16 @@ export default function App() {
             <ProtectedRoute adminOnly>
               <Layout>
                 <Memos />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/antibiogram"
+          element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <Antibiogram />
               </Layout>
             </ProtectedRoute>
           }

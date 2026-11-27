@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الأنتي بايوغرام</title>
+<style>
+:root{
+  --bg:#FAF6F0; --card:#FFFDF9; --ink:#352C25; --muted:#867969; --line:#E9E0D4; --accent:#AD6340; --accent-ink:#fff;
+  --hi-bg:#d7f0dd; --hi-ink:#14532d; --mid-bg:#fdefc3; --mid-ink:#7a4b00; --lo-bg:#fbd5d5; --lo-ink:#8a1c1c;
+  --warn:#b45309; --chip:#eef2f7; --shadow:0 1px 2px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11151a; --card:#1a2028; --ink:#e7ebf0; --muted:#9aa6b4; --line:#2b333d; --accent:#6aa7e0; --accent-ink:#0b1622;
+    --hi-bg:#163d25; --hi-ink:#a7e8bb; --mid-bg:#45370f; --mid-ink:#f6d98a; --lo-bg:#4a1d1d; --lo-ink:#f5b4b4;
+    --warn:#f0a35a; --chip:#232b35; --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11151a; --card:#1a2028; --ink:#e7ebf0; --muted:#9aa6b4; --line:#2b333d; --accent:#6aa7e0; --accent-ink:#0b1622;
+  --hi-bg:#163d25; --hi-ink:#a7e8bb; --mid-bg:#45370f; --mid-ink:#f6d98a; --lo-bg:#4a1d1d; --lo-ink:#f5b4b4;
+  --warn:#f0a35a; --chip:#232b35; --shadow:none;
+}
+#btnReset{display:none!important}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Segoe UI",Tahoma,"Noto Sans Arabic",Arial,sans-serif}
+.wrap{max-width:1280px;margin:0 auto;padding:16px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+h1{font-size:20px;margin:0}
+.sub{color:var(--muted);font-size:12.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;box-shadow:var(--shadow);margin-bottom:14px}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer;font:inherit}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end}
+label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
+input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:6px 8px;min-width:0}
+.chk{flex-direction:row;align-items:center;gap:6px;color:var(--ink)}
+.btn{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:7px 12px;cursor:pointer}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.danger{color:var(--lo-ink);border-color:var(--lo-bg)}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.stat{background:var(--chip);border-radius:8px;padding:6px 10px;font-size:12.5px}
+.stat b{font-size:15px;margin-inline-start:4px}
+h2{font-size:16px;margin:0 0 8px}
+.tscroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table.ab{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%}
+table.ab th,table.ab td{border-bottom:1px solid var(--line);border-inline-start:1px solid var(--line);padding:4px 6px;text-align:center;white-space:nowrap}
+table.ab thead th{background:var(--chip);font-weight:600;font-size:11.5px;vertical-align:bottom}
+table.ab thead th.code{height:78px}
+table.ab thead th.code span{writing-mode:vertical-rl;transform:rotate(180deg);display:inline-block}
+table.ab .org{position:sticky;right:0;background:var(--card);text-align:start;font-style:italic;min-width:200px;z-index:1}
+table.ab thead .org{background:var(--chip);font-style:normal;z-index:2}
+td.pct{font-weight:700;min-width:44px}
+td.pct small{display:block;font-weight:400;font-size:10px;opacity:.75}
+.high{background:var(--hi-bg);color:var(--hi-ink)} .mid{background:var(--mid-bg);color:var(--mid-ink)} .low{background:var(--lo-bg);color:var(--lo-ink)}
+.lown{color:var(--warn);font-style:normal;font-size:11px;display:block}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+.sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-3px;margin-inline-end:4px}
+.note{font-size:12px;color:var(--muted);margin:8px 0 0;padding-inline-start:18px}
+table.list{width:100%;border-collapse:collapse;font-size:13px}
+table.list th,table.list td{border-bottom:1px solid var(--line);padding:6px;text-align:start;vertical-align:top}
+table.list th{color:var(--muted);font-weight:600;font-size:12px}
+.tag{display:inline-block;background:var(--chip);border-radius:5px;padding:0 6px;font-size:11.5px;margin:1px}
+.tag.r{background:var(--lo-bg);color:var(--lo-ink)}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(760px,calc(100vw - 32px));padding:0}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg-h{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.dlg-b{padding:14px 16px;max-height:70vh;overflow:auto}
+.dlg-f{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-start}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.abxgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;margin-top:10px}
+.abxrow{display:flex;justify-content:space-between;align-items:center;gap:6px;border:1px solid var(--line);border-radius:7px;padding:4px 6px;font-size:12.5px}
+.abxrow>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seg{display:flex;flex-shrink:0}
+.seg button{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:28px;padding:2px 0;cursor:pointer}
+.seg button:first-child{border-start-start-radius:5px;border-end-start-radius:5px}
+.seg button:last-child{border-start-end-radius:5px;border-end-end-radius:5px}
+.seg button.on[data-v="S"]{background:var(--hi-bg);color:var(--hi-ink);font-weight:700}
+.seg button.on[data-v="I"]{background:var(--mid-bg);color:var(--mid-ink);font-weight:700}
+.seg button.on[data-v="R"]{background:var(--lo-bg);color:var(--lo-ink);font-weight:700}
+.hidden{display:none!important}
+.empty{color:var(--muted);text-align:center;padding:20px}
+@media print{
+  .no-print,.tabs{display:none!important}
+  body{background:#fff;color:#000} .card{border:none;box-shadow:none;padding:0}
+  .tscroll{overflow:visible;border:none} table.ab .org{position:static}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>الأنتي بايوغرام التراكمي</h1>
+      <div class="sub" id="subtitle">نسبة العزلات الحساسة (%S) حسب CLSI M39</div>
+    </div>
+    <div class="btns no-print">
+      <button class="btn primary" id="btnAdd">+ إضافة عزلة</button>
+      <button class="btn" id="btnPrint">طباعة</button>
+      <button class="btn" id="btnCSV">تصدير CSV</button>
+      <button class="btn" id="btnExport">تصدير البيانات</button>
+      <label class="btn" style="flex-direction:row;color:var(--ink)">استيراد<input type="file" id="fileImport" accept=".json" hidden></label>
+    </div>
+  </header>
+
+  <div class="tabs no-print" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="ab">الأنتي بايوغرام</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="iso">العزلات</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="exc">المستبعدة</button>
+  </div>
+
+  <section class="card no-print">
+    <div class="filters">
+      <label>من تاريخ<input type="date" id="fFrom"></label>
+      <label>إلى تاريخ<input type="date" id="fTo"></label>
+      <label>الموقع
+        <select id="fLoc">
+          <option value="all">الكل</option><option value="inpatient">منوّم</option><option value="icu">العناية المركزة</option>
+          <option value="outpatient">عيادات</option><option value="er">طوارئ</option><option value="unknown">غير محدد</option>
+        </select>
+      </label>
+      <label>العينة
+        <select id="fSpec"><option value="all">كل العينات</option><option value="urine">بول فقط</option><option value="nonurine">غير البول</option></select>
+      </label>
+      <label class="chk"><input type="checkbox" id="fFirst" checked> أول عزلة لكل مريض</label>
+      <label class="chk"><input type="checkbox" id="fCont" checked> استبعاد الملوِّثات</label>
+    </div>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <main id="tab-ab"></main>
+
+  <section id="tab-iso" class="card hidden">
+    <h2>العزلات المسجلة</h2>
+    <div class="tscroll" style="border:none"><table class="list" id="isoTable"></table></div>
+    <div class="btns" style="margin-top:10px"><button class="btn danger" id="btnReset">إعادة البيانات الأصلية</button></div>
+  </section>
+
+  <section id="tab-exc" class="card hidden">
+    <h2>العزلات المستبعدة من الحساب</h2>
+    <table class="list" id="excTable"></table>
+  </section>
+</div>
+
+<dialog id="dlg">
+  <form method="dialog" id="isoForm">
+    <div class="dlg-h"><b id="dlgTitle">إضافة عزلة</b><button class="btn" value="cancel" formnovalidate>✕</button></div>
+    <div class="dlg-b">
+      <div class="grid2">
+        <label>رقم الملف MRN *<input name="mrn" required></label>
+        <label>رقم الطلب<input name="orderId"></label>
+        <label>تاريخ الجمع *<input type="date" name="collectedAt" required></label>
+        <label>نوع العينة
+          <select name="specimen">
+            <option value="urine">بول</option><option value="blood">دم</option><option value="pus">صديد/مسحة جرح</option>
+            <option value="urethral">إفرازات الإحليل</option><option value="sputum">قشع/تنفسي</option><option value="csf">سائل نخاعي</option>
+            <option value="stool">براز</option><option value="other">أخرى</option>
+          </select>
+        </label>
+        <label>الموقع
+          <select name="location">
+            <option value="unknown">غير محدد</option><option value="inpatient">منوّم</option><option value="icu">العناية المركزة</option>
+            <option value="outpatient">عيادات</option><option value="er">طوارئ</option>
+          </select>
+        </label>
+        <label>الكائن المعزول *<input name="organism" list="orgList" required></label>
+        <label>نمط المقاومة<input name="mdro" list="mdroList" placeholder="MRSA / ESBL / CRE / VRE"></label>
+      </div>
+      <div class="btns" style="margin-top:10px">
+        <label class="chk"><input type="checkbox" name="screening"> عينة مسح (Screening)</label>
+        <label class="chk"><input type="checkbox" name="contaminant"> ملوِّث محتمل</label>
+      </div>
+      <div class="sub" style="margin-top:10px">نتائج الحساسية: اضغط S أو I أو R، واضغط مرة ثانية للإلغاء. <a href="#" id="toggleAll">عرض كل المضادات</a></div>
+      <div class="abxgrid" id="abxGrid"></div>
+    </div>
+    <div class="dlg-f">
+      <button class="btn primary" value="save" id="btnSave">حفظ</button>
+      <button class="btn danger hidden" value="delete" id="btnDelete" formnovalidate>حذف</button>
+      <button class="btn" value="cancel" formnovalidate>إلغاء</button>
+    </div>
+  </form>
+</dialog>
+<datalist id="orgList"></datalist>
+<datalist id="mdroList"><option value="MRSA"><option value="ESBL"><option value="CRE"><option value="VRE"><option value="MDR"></datalist>
+
+<script src="antibiogram-engine.js"></script>
+<script src="seed-data.js"></script>
+<script>
+(function(){
+  "use strict";
+  var E = window.AntibiogramEngine;
+  var STORE = "antibiogram.isolates.v1";
+  var SPEC = {urine:"بول",blood:"دم",pus:"صديد",urethral:"إحليل",sputum:"تنفسي",csf:"نخاعي",stool:"براز",other:"أخرى"};
+  var LOC = {unknown:"غير محدد",inpatient:"منوّم",icu:"العناية المركزة",outpatient:"عيادات",er:"طوارئ"};
+  var listeners = [];
+  var $ = function(id){ return document.getElementById(id); };
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+  function clone(o){ return JSON.parse(JSON.stringify(o)); }
+
+  function load(){
+    try { var s = localStorage.getItem(STORE); if (s) return JSON.parse(s); } catch(e){}
+    return clone(window.ANTIBIOGRAM_SEED || []);
+  }
+  var isolates = load();
+  function save(){
+    try { localStorage.setItem(STORE, JSON.stringify(isolates)); } catch(e){}
+    listeners.forEach(function(fn){ try{ fn(clone(isolates)); }catch(e){} });
+    if (window.parent !== window) { try { window.parent.postMessage({type:"antibiogram:changed", isolates: clone(isolates)}, "*"); } catch(e){} }
+    render();
+  }
+
+  // ---------- filters ----------
+  function opts(){
+    return { from:$("fFrom").value||null, to:$("fTo").value||null, location:$("fLoc").value, specimen:$("fSpec").value,
+             firstIsolateOnly:$("fFirst").checked, excludeContaminants:$("fCont").checked };
+  }
+  ["fFrom","fTo","fLoc","fSpec","fFirst","fCont"].forEach(function(id){ $(id).addEventListener("change", render); });
+  // التواريخ فارغة افتراضياً (كل الفترة) حتى لا تُستبعد العزلات الجديدة بصمت
+  function initDates(){}
+
+  // ---------- render antibiogram ----------
+  function render(){
+    var o = opts(), res = E.compute(isolates, o);
+    $("subtitle").textContent = "نسبة العزلات الحساسة (%S) حسب CLSI M39 · الفترة: " + (o.from||"البداية") + " إلى " + (o.to||"الآن") +
+      " · " + ($("fLoc").selectedOptions[0].text) + " · " + ($("fSpec").selectedOptions[0].text);
+    var lowCount = 0; res.groups.forEach(function(g){ g.rows.forEach(function(r){ if(r.lowN) lowCount++; }); });
+    $("stats").innerHTML =
+      '<span class="stat">العزلات المسجلة<b>'+isolates.length+'</b></span>'+
+      '<span class="stat">المحتسبة<b>'+res.included.length+'</b></span>'+
+      '<span class="stat">المستبعدة<b>'+res.excluded.length+'</b></span>'+
+      '<span class="stat" style="color:var(--warn)">كائنات أقل من '+res.minIsolates+' عزلة<b>'+lowCount+'</b></span>';
+
+    var html = "";
+    if (!res.groups.length) html = '<div class="card empty">لا توجد عزلات مطابقة للفلاتر.</div>';
+    res.groups.forEach(function(g){
+      html += '<section class="card"><h2>'+esc(g.title)+'</h2><div class="tscroll"><table class="ab"><thead><tr>'+
+        '<th class="org">الكائن</th><th>N</th>' +
+        g.antibiotics.map(function(a){ return '<th class="code" title="'+esc(a.name+" · "+a.cls)+'"><span>'+esc(a.code)+'</span></th>'; }).join("") +
+        '</tr></thead><tbody>';
+      g.rows.forEach(function(r){
+        var mem = r.members.length>1 || r.members[0]!==r.organism ? '<span class="sub" style="display:block;font-style:normal;font-size:11px">'+esc(r.members.join("، "))+'</span>' : "";
+        html += '<tr><td class="org">'+esc(r.organism)+mem+(r.lowN?'<span class="lown">⚠ N&lt;'+res.minIsolates+': يُفسَّر بحذر</span>':'')+'</td><td><b>'+r.n+'</b></td>';
+        g.antibiotics.forEach(function(a){
+          var c = r.cells[a.name];
+          if (!c) { html += '<td class="pct" style="color:var(--muted)">—</td>'; return; }
+          html += '<td class="pct '+E.band(c.pctS)+'" title="'+esc(a.name)+": S="+c.S+" I="+c.I+" R="+c.R+'">'+c.pctS+'<small>('+c.tested+')</small></td>';
+        });
+        html += '</tr>';
+      });
+      html += '</tbody></table></div></section>';
+    });
+    html += '<section class="card"><div class="legend">'+
+      '<span><i class="sw high"></i>≥90% حساس</span><span><i class="sw mid"></i>70–89%</span><span><i class="sw low"></i>&lt;70%</span>'+
+      '<span>الرقم الكبير = %S، وبين القوسين عدد العزلات المختبرة · — = لم يُختبر أو غير مناسب للكائن</span></div>'+
+      '<ul class="note">'+
+      '<li>محسوبة على أول عزلة لكل مريض لكل كائن، مع استبعاد عينات المسح والملوِّثات المحتملة (CLSI M39).</li>'+
+      '<li>النتيجة المتوسطة (I) تُحسب كغير حساسة.</li>'+
+      '<li>المضادات ذات المقاومة الطبيعية لا تُعرض (CLSI M100 Appendix B). Nitrofurantoin يُحسب من عينات البول فقط.</li>'+
+      '<li>MRSA وMSSA في صفين منفصلين، وأنواع العنقوديات سالبة التخثر مدمجة في صف CoNS.</li>'+
+      '<li>الكائن الذي عدد عزلاته أقل من '+res.minIsolates+' لا يُعتمد عليه إحصائياً.</li>'+
+      '<li>الأنتي بايوغرام دليل للعلاج التجريبي فقط، ولا يغني عن نتيجة مزرعة المريض.</li></ul></section>';
+    $("tab-ab").innerHTML = html;
+    renderIsolates(); renderExcluded(res);
+  }
+
+  function renderIsolates(){
+    var rows = isolates.slice().sort(function(a,b){ return String(b.collectedAt).localeCompare(String(a.collectedAt)); });
+    var h = '<thead><tr><th>التاريخ</th><th>MRN</th><th>العينة</th><th>الموقع</th><th>الكائن</th><th>المقاومة</th><th>مقاوم لـ</th><th></th></tr></thead><tbody>';
+    rows.forEach(function(x){
+      var R = Object.keys(x.results||{}).filter(function(k){return x.results[k]==="R";});
+      h += '<tr><td>'+esc(x.collectedAt)+'</td><td>'+esc(x.mrn)+'</td><td>'+esc(SPEC[x.specimen]||x.specimen)+'</td><td>'+esc(LOC[x.location]||x.location)+'</td>'+
+        '<td><i>'+esc(x.organism)+'</i>'+(x.contaminant?' <span class="tag">ملوِّث محتمل</span>':'')+(x.screening?' <span class="tag">مسح</span>':'')+'</td>'+
+        '<td>'+(x.mdro?'<span class="tag r">'+esc(x.mdro)+'</span>':'')+'</td>'+
+        '<td>'+R.map(function(k){ var a=E.ANTIBIOTICS.filter(function(z){return z.name===k;})[0]; return '<span class="tag r" title="'+esc(k)+'">'+esc(a?a.code:k)+'</span>'; }).join("")+'</td>'+
+        '<td><button class="btn" data-edit="'+esc(x.id)+'">تعديل</button></td></tr>';
+    });
+    if (!rows.length) h += '<tr><td colspan="8" class="empty">لا توجد عزلات.</td></tr>';
+    $("isoTable").innerHTML = h + '</tbody>';
+  }
+  function renderExcluded(res){
+    var h = '<thead><tr><th>التاريخ</th><th>MRN</th><th>الكائن</th><th>العينة</th><th>سبب الاستبعاد</th></tr></thead><tbody>';
+    res.excluded.forEach(function(e){ var x=e.isolate;
+      h += '<tr><td>'+esc(x.collectedAt)+'</td><td>'+esc(x.mrn)+'</td><td><i>'+esc(x.organism)+'</i></td><td>'+esc(SPEC[x.specimen]||x.specimen)+'</td><td>'+esc(e.reason)+'</td></tr>'; });
+    if (!res.excluded.length) h += '<tr><td colspan="5" class="empty">لا توجد عزلات مستبعدة.</td></tr>';
+    $("excTable").innerHTML = h + '</tbody>';
+  }
+
+  // ---------- tabs ----------
+  document.querySelectorAll(".tab").forEach(function(t){
+    t.addEventListener("click", function(){
+      document.querySelectorAll(".tab").forEach(function(x){ x.setAttribute("aria-selected", x===t ? "true":"false"); });
+      ["ab","iso","exc"].forEach(function(k){ $("tab-"+k).classList.toggle("hidden", k!==t.dataset.tab); });
+    });
+  });
+
+  // ---------- form ----------
+  $("orgList").innerHTML = Object.keys(E.ORGANISMS).map(function(o){ return '<option value="'+esc(o)+'">'; }).join("");
+  var editing = null, results = {}, showAll = false, drawnKey = "";
+  function panelFor(org){
+    var info = E.ORGANISMS[org];
+    if (showAll || !info) return E.ANTIBIOTICS.map(function(a){return a.name;});
+    var p = info.panel.slice();
+    Object.keys(results).forEach(function(k){ if (p.indexOf(k)<0) p.push(k); });
+    return p;
+  }
+  function drawAbx(){
+    var f = $("isoForm"), org = f.organism.value.trim(), panel = panelFor(org);
+    drawnKey = panel.join("|");
+    $("abxGrid").innerHTML = panel.map(function(name){
+      var v = results[name]||"";
+      return '<div class="abxrow"><span title="'+esc(name)+'">'+esc(name)+'</span><span class="seg" data-abx="'+esc(name)+'">'+
+        ["S","I","R"].map(function(k){ return '<button type="button" data-v="'+k+'" class="'+(v===k?"on":"")+'">'+k+'</button>'; }).join("")+'</span></div>';
+    }).join("");
+  }
+  $("abxGrid").addEventListener("click", function(e){
+    var b = e.target.closest("button[data-v]"); if(!b) return;
+    var abx = b.parentNode.dataset.abx, v = b.dataset.v;
+    if (results[abx]===v) delete results[abx]; else results[abx]=v;
+    drawAbx();
+  });
+  $("toggleAll").addEventListener("click", function(e){ e.preventDefault(); showAll=!showAll; this.textContent = showAll?"عرض مضادات الكائن فقط":"عرض كل المضادات"; drawAbx(); });
+  // يُعاد رسم قائمة المضادات فقط إذا تغيّرت فعلاً، حتى لا تضيع ضغطة المستخدم عند خروج المؤشر من الحقل
+  function onOrgInput(){
+    var f=$("isoForm"), org=f.organism.value;
+    if (/MRSA/.test(org) && !f.mdro.value) f.mdro.value="MRSA";
+    if (/epidermidis|hominis|haemolyticus/.test(org) && f.specimen.value==="blood") f.contaminant.checked=true;
+    if (panelFor(org.trim()).join("|") !== drawnKey) drawAbx();
+  }
+  $("isoForm").organism.addEventListener("input", onOrgInput);
+  $("isoForm").organism.addEventListener("change", onOrgInput);
+  function openForm(x){
+    var f = $("isoForm"); f.reset(); editing = x ? x.id : null; showAll=false; $("toggleAll").textContent="عرض كل المضادات";
+    results = x ? clone(x.results||{}) : {};
+    $("dlgTitle").textContent = x ? "تعديل عزلة" : "إضافة عزلة";
+    $("btnDelete").classList.toggle("hidden", !x);
+    if (x) ["mrn","orderId","collectedAt","specimen","location","organism","mdro"].forEach(function(k){ f[k].value = x[k]||""; });
+    else f.collectedAt.value = new Date().toISOString().slice(0,10);
+    f.screening.checked = !!(x&&x.screening); f.contaminant.checked = !!(x&&x.contaminant);
+    drawAbx(); $("dlg").showModal();
+  }
+  $("dlg").addEventListener("close", function(){
+    var act = $("dlg").returnValue, f = $("isoForm");
+    if (act==="delete" && editing) {
+      if (confirm("حذف هذه العزلة نهائياً؟")) { isolates = isolates.filter(function(x){return x.id!==editing;}); save(); }
+      return;
+    }
+    if (act!=="save") return;
+    var rec = { id: editing || ("I"+Date.now().toString(36)), mrn:f.mrn.value.trim(), orderId:f.orderId.value.trim(),
+      collectedAt:f.collectedAt.value, specimen:f.specimen.value, location:f.location.value, organism:f.organism.value.trim(),
+      mdro:f.mdro.value.trim(), screening:f.screening.checked, contaminant:f.contaminant.checked, results:clone(results) };
+    var i = isolates.findIndex(function(x){return x.id===rec.id;});
+    if (i>=0) isolates[i] = Object.assign({}, isolates[i], rec); else isolates.push(rec);
+    save();
+  });
+  $("btnAdd").addEventListener("click", function(){ openForm(null); });
+  $("isoTable").addEventListener("click", function(e){
+    var b = e.target.closest("[data-edit]"); if(!b) return;
+    openForm(isolates.filter(function(x){return x.id===b.dataset.edit;})[0]);
+  });
+
+  // ---------- import / export ----------
+  function download(name, text, type){
+    var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text],{type:type}));
+    a.download = name; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  $("btnExport").addEventListener("click", function(){ download("antibiogram-isolates.json", JSON.stringify(isolates,null,1), "application/json"); });
+  $("btnCSV").addEventListener("click", function(){ download("antibiogram.csv", E.toCSV(E.compute(isolates, opts())), "text/csv;charset=utf-8"); });
+  $("btnPrint").addEventListener("click", function(){ window.print(); });
+  $("fileImport").addEventListener("change", function(){
+    var file = this.files[0]; if(!file) return; var r = new FileReader();
+    r.onload = function(){ try { var data = JSON.parse(r.result); if(!Array.isArray(data)) throw 0;
+      var mode = confirm("موافق = دمج مع البيانات الحالية\nإلغاء = استبدال البيانات الحالية");
+      if (mode) { var ids={}; isolates.forEach(function(x){ids[x.id]=1;}); data.forEach(function(x){ if(!ids[x.id]) isolates.push(x); }); }
+      else isolates = data;
+      save(); } catch(e){ alert("الملف غير صالح: يجب أن يكون مصفوفة JSON من العزلات."); } };
+    r.readAsText(file); this.value="";
+  });
+  $("btnReset").addEventListener("click", function(){
+    if (confirm("استبدال كل البيانات الحالية بالبيانات الأصلية؟")) { isolates = clone(window.ANTIBIOGRAM_SEED||[]); save(); }
+  });
+
+  // ---------- integration API ----------
+  window.AntibiogramApp = {
+    getIsolates: function(){ return clone(isolates); },
+    setIsolates: function(arr){ isolates = clone(arr||[]); save(); },
+    addIsolate: function(x){ x = clone(x); x.id = x.id || ("I"+Date.now().toString(36)); isolates.push(x); save(); return x.id; },
+    compute: function(o){ return E.compute(isolates, Object.assign(opts(), o||{})); },
+    onChange: function(fn){ listeners.push(fn); }
+  };
+  window.addEventListener("message", function(e){
+    var m = e.data||{};
+    if (m.type==="antibiogram:set" && Array.isArray(m.isolates)) window.AntibiogramApp.setIsolates(m.isolates);
+    if (m.type==="antibiogram:add" && m.isolate) window.AntibiogramApp.addIsolate(m.isolate);
+  });
+
+  initDates(); render();
+})();
+</script>
+</body>
+</html>

@@ -732,4 +732,12 @@ export const TABLES = {"agreement_tracker":{"cols":{"id":{"t":"u","nn":1,"def":"
 "department":{"t":"s","nn":1,"def":""},
 "created_by":{"t":"s"},
 "created_at":{"t":"z","nn":1,"def":"@now"}},
-"unique":[["code"]]}};
+"unique":[["code"]]},
+"antibiogram_isolates":{"cols":{"id":{"t":"s","nn":1},
+"data":{"t":"j","nn":1,"def":"{}"},
+"collected_at":{"t":"d"},
+"organism":{"t":"s","nn":1,"def":""},
+"updated_by":{"t":"s"},
+"updated_at":{"t":"z"},
+"created_at":{"t":"z","nn":1,"def":"@now"}},
+"unique":[]}};

@@ -45,6 +45,7 @@ const INDEX = {
   nursing_rounds: [["date"]],
   employees: [["name"]],
   vaccine_lots: [["item_id"], ["department"]],
+  antibiogram_isolates: [["collected_at"]],
 };
 
 const SQL_TYPE = { u: "TEXT", s: "TEXT", d: "TEXT", z: "TEXT", h: "TEXT", j: "TEXT", b: "INTEGER", i: "INTEGER", n: "REAL" };

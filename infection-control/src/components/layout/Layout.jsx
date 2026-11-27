@@ -23,6 +23,7 @@ import {
   UserCircle,
   X,
   ScrollText,
+  FlaskConical,
   Syringe,
 } from "lucide-react";
 import { useAuth } from "../../lib/auth.jsx";
@@ -93,6 +94,7 @@ export default function Layout({ children }) {
         canViewHaiSurveillance && !(session?.haiScope && !isAdmin) && { to: "/hai-monthly-indicators", icon: Dna, label: "Monthly IPC Indicator" },
         canViewHaiSurveillance && { to: "/hai-care-bundles", icon: ClipboardList, label: "IPC Care Bundles" },
         isAdmin && { to: "/cases", icon: ShieldAlert, label: "Suspected/Confirmed Cases" },
+        isAdmin && { to: "/antibiogram", icon: FlaskConical, label: "Antibiogram" },
       ],
     },
     {
