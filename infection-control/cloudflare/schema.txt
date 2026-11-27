@@ -50,3 +50,4 @@ ipc_tracker|id:u!=@uuid;item:s!;link:s!=;department:s!=;responsible:s!=;done_on:
 ipc_forms|id:u!=@uuid;name:s!;attachments:j!=[];created_by:s;updated_by:s;updated_at:z;deleted:b!=false;deleted_by:s;deleted_at:z;created_at:z!=@now
 memos|id:u!=@uuid;memo_no:s!=;subject:s!;memo_date:d;attachments:j!=[];created_by:s;updated_by:s;updated_at:z;deleted:b!=false;deleted_by:s;deleted_at:z;created_at:z!=@now
 vaccine_lots|id:u!=@uuid;code:s!;item_id:u!;item_name:s!=;batch_no:s!;expiry_date:d;qty_received:n!=0;qty_remaining:n!=0;department:s!=;created_by:s;created_at:z!=@now
+antibiogram_isolates|id:s!;data:j!={};collected_at:d;organism:s!=;updated_by:s;updated_at:z;created_at:z!=@now

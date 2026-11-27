@@ -862,3 +862,14 @@ CREATE TABLE IF NOT EXISTS "vaccine_lots" (
 CREATE INDEX IF NOT EXISTS "vaccine_lots_item_id_idx" ON "vaccine_lots" ("item_id");
 CREATE INDEX IF NOT EXISTS "vaccine_lots_department_idx" ON "vaccine_lots" ("department");
 
+CREATE TABLE IF NOT EXISTS "antibiogram_isolates" (
+  "id" TEXT PRIMARY KEY,
+  "data" TEXT DEFAULT '{}',
+  "collected_at" TEXT,
+  "organism" TEXT DEFAULT '',
+  "updated_by" TEXT,
+  "updated_at" TEXT,
+  "created_at" TEXT
+);
+CREATE INDEX IF NOT EXISTS "antibiogram_isolates_collected_at_idx" ON "antibiogram_isolates" ("collected_at");
+
