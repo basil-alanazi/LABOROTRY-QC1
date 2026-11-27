@@ -10,7 +10,7 @@ import { fetchAllRows } from "../lib/fetchAll";
 // the page sends them in on load and saves whatever the module changes.
 export default function Antibiogram() {
   const { session } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const frameRef = useRef(null);
   const savedRef = useRef(new Map()); // id -> JSON string as last saved
   const readyRef = useRef(false);
@@ -96,8 +96,9 @@ export default function Antibiogram() {
         )}
       </div>
       <iframe
+        key={lang}
         ref={frameRef}
-        src="/antibiogram/index.html"
+        src={`/antibiogram/index.html?lang=${lang}`}
         title="Antibiogram"
         onLoad={sendToFrame}
         className="h-[calc(100vh-11rem)] min-h-[600px] w-full rounded-2xl border border-slate-200 bg-white"

@@ -186,12 +186,15 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <datalist id="orgList"></datalist>
 <datalist id="mdroList"><option value="MRSA"><option value="ESBL"><option value="CRE"><option value="VRE"><option value="MDR"></datalist>
 
+<script src="i18n.js"></script>
 <script src="antibiogram-engine.js"></script>
 <script src="seed-data.js"></script>
 <script>
 (function(){
   "use strict";
   var E = window.AntibiogramEngine;
+  var I18N = window.ABG_I18N, tr = I18N.tr;
+  if (I18N.lang === "en") document.title = "Antibiogram";
   var STORE = "antibiogram.isolates.v1";
   var SPEC = {urine:"بول",blood:"دم",pus:"صديد",urethral:"إحليل",sputum:"تنفسي",csf:"نخاعي",stool:"براز",other:"أخرى"};
   var LOC = {unknown:"غير محدد",inpatient:"منوّم",icu:"العناية المركزة",outpatient:"عيادات",er:"طوارئ"};
@@ -224,7 +227,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   // ---------- render antibiogram ----------
   function render(){
     var o = opts(), res = E.compute(isolates, o);
-    $("subtitle").textContent = "نسبة العزلات الحساسة (%S) حسب CLSI M39 · الفترة: " + (o.from||"البداية") + " إلى " + (o.to||"الآن") +
+    $("subtitle").textContent = tr("نسبة العزلات الحساسة (%S) حسب CLSI M39") + " · " + tr("الفترة:") + " " + (o.from||tr("البداية")) + " " + tr("إلى") + " " + (o.to||tr("الآن")) +
       " · " + ($("fLoc").selectedOptions[0].text) + " · " + ($("fSpec").selectedOptions[0].text);
     var lowCount = 0; res.groups.forEach(function(g){ g.rows.forEach(function(r){ if(r.lowN) lowCount++; }); });
     $("stats").innerHTML =
@@ -238,10 +241,10 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     res.groups.forEach(function(g){
       html += '<section class="card"><h2>'+esc(g.title)+'</h2><div class="tscroll"><table class="ab"><thead><tr>'+
         '<th class="org">الكائن</th><th>N</th>' +
-        g.antibiotics.map(function(a){ return '<th class="code" title="'+esc(a.name+" · "+a.cls)+'"><span>'+esc(a.code)+'</span></th>'; }).join("") +
+        g.antibiotics.map(function(a){ return '<th class="code" title="'+esc(a.name+" · "+tr(a.cls))+'"><span>'+esc(a.code)+'</span></th>'; }).join("") +
         '</tr></thead><tbody>';
       g.rows.forEach(function(r){
-        var mem = r.members.length>1 || r.members[0]!==r.organism ? '<span class="sub" style="display:block;font-style:normal;font-size:11px">'+esc(r.members.join("، "))+'</span>' : "";
+        var mem = r.members.length>1 || r.members[0]!==r.organism ? '<span class="sub" style="display:block;font-style:normal;font-size:11px">'+esc(r.members.join(tr("، ")))+'</span>' : "";
         html += '<tr><td class="org">'+esc(r.organism)+mem+(r.lowN?'<span class="lown">⚠ N&lt;'+res.minIsolates+': يُفسَّر بحذر</span>':'')+'</td><td><b>'+r.n+'</b></td>';
         g.antibiotics.forEach(function(a){
           var c = r.cells[a.name];
@@ -264,6 +267,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
       '<li>الأنتي بايوغرام دليل للعلاج التجريبي فقط، ولا يغني عن نتيجة مزرعة المريض.</li></ul></section>';
     $("tab-ab").innerHTML = html;
     renderIsolates(); renderExcluded(res);
+    I18N.trDOM(document.body);
   }
 
   function renderIsolates(){
@@ -321,7 +325,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     if (results[abx]===v) delete results[abx]; else results[abx]=v;
     drawAbx();
   });
-  $("toggleAll").addEventListener("click", function(e){ e.preventDefault(); showAll=!showAll; this.textContent = showAll?"عرض مضادات الكائن فقط":"عرض كل المضادات"; drawAbx(); });
+  $("toggleAll").addEventListener("click", function(e){ e.preventDefault(); showAll=!showAll; this.textContent = tr(showAll?"عرض مضادات الكائن فقط":"عرض كل المضادات"); drawAbx(); });
   // يُعاد رسم قائمة المضادات فقط إذا تغيّرت فعلاً، حتى لا تضيع ضغطة المستخدم عند خروج المؤشر من الحقل
   function onOrgInput(){
     var f=$("isoForm"), org=f.organism.value;
@@ -332,9 +336,9 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   $("isoForm").organism.addEventListener("input", onOrgInput);
   $("isoForm").organism.addEventListener("change", onOrgInput);
   function openForm(x){
-    var f = $("isoForm"); f.reset(); editing = x ? x.id : null; showAll=false; $("toggleAll").textContent="عرض كل المضادات";
+    var f = $("isoForm"); f.reset(); editing = x ? x.id : null; showAll=false; $("toggleAll").textContent=tr("عرض كل المضادات");
     results = x ? clone(x.results||{}) : {};
-    $("dlgTitle").textContent = x ? "تعديل عزلة" : "إضافة عزلة";
+    $("dlgTitle").textContent = tr(x ? "تعديل عزلة" : "إضافة عزلة");
     $("btnDelete").classList.toggle("hidden", !x);
     if (x) ["mrn","orderId","collectedAt","specimen","location","organism","mdro"].forEach(function(k){ f[k].value = x[k]||""; });
     else f.collectedAt.value = new Date().toISOString().slice(0,10);
@@ -344,7 +348,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   $("dlg").addEventListener("close", function(){
     var act = $("dlg").returnValue, f = $("isoForm");
     if (act==="delete" && editing) {
-      if (confirm("حذف هذه العزلة نهائياً؟")) { isolates = isolates.filter(function(x){return x.id!==editing;}); save(); }
+      if (confirm(tr("حذف هذه العزلة نهائياً؟"))) { isolates = isolates.filter(function(x){return x.id!==editing;}); save(); }
       return;
     }
     if (act!=="save") return;
@@ -372,14 +376,14 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   $("fileImport").addEventListener("change", function(){
     var file = this.files[0]; if(!file) return; var r = new FileReader();
     r.onload = function(){ try { var data = JSON.parse(r.result); if(!Array.isArray(data)) throw 0;
-      var mode = confirm("موافق = دمج مع البيانات الحالية\nإلغاء = استبدال البيانات الحالية");
+      var mode = confirm(tr("موافق = دمج مع البيانات الحالية\nإلغاء = استبدال البيانات الحالية"));
       if (mode) { var ids={}; isolates.forEach(function(x){ids[x.id]=1;}); data.forEach(function(x){ if(!ids[x.id]) isolates.push(x); }); }
       else isolates = data;
-      save(); } catch(e){ alert("الملف غير صالح: يجب أن يكون مصفوفة JSON من العزلات."); } };
+      save(); } catch(e){ alert(tr("الملف غير صالح: يجب أن يكون مصفوفة JSON من العزلات.")); } };
     r.readAsText(file); this.value="";
   });
   $("btnReset").addEventListener("click", function(){
-    if (confirm("استبدال كل البيانات الحالية بالبيانات الأصلية؟")) { isolates = clone(window.ANTIBIOGRAM_SEED||[]); save(); }
+    if (confirm(tr("استبدال كل البيانات الحالية بالبيانات الأصلية؟"))) { isolates = clone(window.ANTIBIOGRAM_SEED||[]); save(); }
   });
 
   // ---------- integration API ----------
