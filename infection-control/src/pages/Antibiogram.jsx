@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/auth.jsx";
 import { useLanguage } from "../lib/i18n.jsx";
 import { fetchAllRows } from "../lib/fetchAll";
+import LabReportImport from "./antibiogram/LabReportImport";
 
 // The antibiogram module (public/antibiogram/: table, filters, isolate
 // entry, CLSI M39 rules, print/export) runs in an iframe. Its isolates live
@@ -91,9 +92,12 @@ export default function Antibiogram() {
           <h1 className="text-xl font-bold text-slate-800">{t("Antibiogram")}</h1>
           <p className="text-sm text-slate-500">{t("Cumulative antibiogram (CLSI M39) from the hospital's culture isolates.")}</p>
         </div>
-        {status.text && (
-          <span className={`text-xs ${status.type === "error" ? "text-red-600" : status.type === "ok" ? "text-emerald-700" : "text-slate-400"}`}>{status.text}</span>
-        )}
+        <div className="flex items-center gap-3">
+          {status.text && (
+            <span className={`text-xs ${status.type === "error" ? "text-red-600" : status.type === "ok" ? "text-emerald-700" : "text-slate-400"}`}>{status.text}</span>
+          )}
+          <LabReportImport frameRef={frameRef} />
+        </div>
       </div>
       <iframe
         key={lang}
