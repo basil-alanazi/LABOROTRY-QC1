@@ -23,6 +23,9 @@ const IcKnowledgeTest = lazy(() => import("./pages/ic-test/IcKnowledgeTest.jsx")
 const VaccinationStock = lazy(() => import("./pages/stock/VaccinationStock.jsx"));
 const Antibiogram = lazy(() => import("./pages/Antibiogram.jsx"));
 const Memos = lazy(() => import("./pages/Memos.jsx"));
+const Lectures = lazy(() => import("./pages/lectures/Lectures.jsx"));
+const LectureAttend = lazy(() => import("./pages/lectures/LectureAttend.jsx"));
+const IcTeamRecords = lazy(() => import("./pages/ic-team/IcTeamRecords.jsx"));
 const CommunicableCases = lazy(() => import("./pages/cases/CommunicableCases.jsx"));
 const ICRounds = lazy(() => import("./pages/ic-rounds/ICRounds.jsx"));
 const HandHygiene = lazy(() => import("./pages/hand-hygiene/HandHygiene.jsx"));
@@ -99,6 +102,7 @@ export default function App() {
         <Route path="/employee-profile/:employeeId" element={<EmployeeProfile />} />
         <Route path="/employee-test/:employeeId" element={<TakeIcTest />} />
         <Route path="/ic-test-start/:department" element={<StartIcTest />} />
+        <Route path="/lecture/:lectureId" element={<LectureAttend />} />
         <Route
           path="/ic-knowledge-test"
           element={
@@ -115,6 +119,36 @@ export default function App() {
             <ProtectedRoute adminOnly>
               <Layout>
                 <Memos />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/lectures"
+          element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <Lectures />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/awards"
+          element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <IcTeamRecords key="award" kind="award" />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-schedule"
+          element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <IcTeamRecords key="schedule" kind="schedule" />
               </Layout>
             </ProtectedRoute>
           }

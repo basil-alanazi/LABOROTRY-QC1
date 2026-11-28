@@ -51,3 +51,6 @@ ipc_forms|id:u!=@uuid;name:s!;attachments:j!=[];created_by:s;updated_by:s;update
 memos|id:u!=@uuid;memo_no:s!=;subject:s!;memo_date:d;attachments:j!=[];created_by:s;updated_by:s;updated_at:z;deleted:b!=false;deleted_by:s;deleted_at:z;created_at:z!=@now
 vaccine_lots|id:u!=@uuid;code:s!;item_id:u!;item_name:s!=;batch_no:s!;expiry_date:d;qty_received:n!=0;qty_remaining:n!=0;department:s!=;created_by:s;created_at:z!=@now
 antibiogram_isolates|id:s!;data:j!={};collected_at:d;organism:s!=;updated_by:s;updated_at:z;created_at:z!=@now
+lectures|id:u!=@uuid;title:s!;presenter:s!=;lecture_date:d;location:s!=;audience:s!=;notes:s!=;attachments:j!=[];created_by:s;updated_by:s;updated_at:z;deleted:b!=false;deleted_by:s;deleted_at:z;created_at:z!=@now
+lecture_attendance|id:u!=@uuid;lecture_id:u!;employee_no:s!;employee_name:s!=;department:s!=;signature_path:s;created_at:z!=@now
+ic_team_records|id:u!=@uuid;kind:s!;category:s!=;title:s!=;person:s!=;department:s!=;period:s!=;record_date:d;notes:s!=;attachments:j!=[];created_by:s;updated_by:s;updated_at:z;deleted:b!=false;deleted_by:s;deleted_at:z;created_at:z!=@now

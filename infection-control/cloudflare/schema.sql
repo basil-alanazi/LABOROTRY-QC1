@@ -873,3 +873,54 @@ CREATE TABLE IF NOT EXISTS "antibiogram_isolates" (
 );
 CREATE INDEX IF NOT EXISTS "antibiogram_isolates_collected_at_idx" ON "antibiogram_isolates" ("collected_at");
 
+CREATE TABLE IF NOT EXISTS "lectures" (
+  "id" TEXT PRIMARY KEY,
+  "title" TEXT,
+  "presenter" TEXT DEFAULT '',
+  "lecture_date" TEXT,
+  "location" TEXT DEFAULT '',
+  "audience" TEXT DEFAULT '',
+  "notes" TEXT DEFAULT '',
+  "attachments" TEXT DEFAULT '[]',
+  "created_by" TEXT,
+  "updated_by" TEXT,
+  "updated_at" TEXT,
+  "deleted" INTEGER DEFAULT 0,
+  "deleted_by" TEXT,
+  "deleted_at" TEXT,
+  "created_at" TEXT
+);
+CREATE INDEX IF NOT EXISTS "lectures_lecture_date_idx" ON "lectures" ("lecture_date");
+
+CREATE TABLE IF NOT EXISTS "lecture_attendance" (
+  "id" TEXT PRIMARY KEY,
+  "lecture_id" TEXT,
+  "employee_no" TEXT,
+  "employee_name" TEXT DEFAULT '',
+  "department" TEXT DEFAULT '',
+  "signature_path" TEXT,
+  "created_at" TEXT,
+  UNIQUE ("lecture_id", "employee_no")
+);
+
+CREATE TABLE IF NOT EXISTS "ic_team_records" (
+  "id" TEXT PRIMARY KEY,
+  "kind" TEXT,
+  "category" TEXT DEFAULT '',
+  "title" TEXT DEFAULT '',
+  "person" TEXT DEFAULT '',
+  "department" TEXT DEFAULT '',
+  "period" TEXT DEFAULT '',
+  "record_date" TEXT,
+  "notes" TEXT DEFAULT '',
+  "attachments" TEXT DEFAULT '[]',
+  "created_by" TEXT,
+  "updated_by" TEXT,
+  "updated_at" TEXT,
+  "deleted" INTEGER DEFAULT 0,
+  "deleted_by" TEXT,
+  "deleted_at" TEXT,
+  "created_at" TEXT
+);
+CREATE INDEX IF NOT EXISTS "ic_team_records_kind_idx" ON "ic_team_records" ("kind");
+
