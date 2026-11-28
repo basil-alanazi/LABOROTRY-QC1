@@ -4,6 +4,7 @@ import { useAuth } from "../lib/auth.jsx";
 import { useLanguage } from "../lib/i18n.jsx";
 import { fetchAllRows } from "../lib/fetchAll";
 import LabReportImport from "./antibiogram/LabReportImport";
+import AntibiogramReport from "./antibiogram/AntibiogramReport";
 
 // The antibiogram module (public/antibiogram/: table, filters, isolate
 // entry, CLSI M39 rules, print/export) runs in an iframe. Its isolates live
@@ -17,6 +18,7 @@ export default function Antibiogram() {
   const readyRef = useRef(false);
   const queueRef = useRef(Promise.resolve());
   const [status, setStatus] = useState({ type: "", text: "" });
+  const [view, setView] = useState("module"); // "module" | "report"
 
   async function loadIsolates() {
     const { data, error } = await fetchAllRows((from, to) => supabase.from("antibiogram_isolates").select("*").order("collected_at").range(from, to));
@@ -99,13 +101,24 @@ export default function Antibiogram() {
           <LabReportImport frameRef={frameRef} />
         </div>
       </div>
+      <div className="tab-bar flex w-fit rounded-lg border border-slate-200 p-0.5 text-sm">
+        {[
+          { key: "module", label: "Antibiogram" },
+          { key: "report", label: "Report" },
+        ].map((v) => (
+          <button key={v.key} onClick={() => setView(v.key)} className={`rounded-md px-4 py-1.5 font-medium ${view === v.key ? "bg-teal-600 text-white" : "text-slate-500"}`}>
+            {t(v.label)}
+          </button>
+        ))}
+      </div>
+      {view === "report" && <AntibiogramReport frameRef={frameRef} />}
       <iframe
         key={lang}
         ref={frameRef}
         src={`/antibiogram/index.html?lang=${lang}`}
         title="Antibiogram"
         onLoad={sendToFrame}
-        className="h-[calc(100vh-11rem)] min-h-[600px] w-full rounded-2xl border border-slate-200 bg-white"
+        className={`h-[calc(100vh-11rem)] min-h-[600px] w-full rounded-2xl border border-slate-200 bg-white ${view === "report" ? "hidden" : ""}`}
       />
     </div>
   );
