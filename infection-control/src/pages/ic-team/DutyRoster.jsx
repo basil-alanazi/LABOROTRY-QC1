@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../lib/auth.jsx";
 import { useLanguage } from "../../lib/i18n.jsx";
 import rabiaLogo from "../../assets/rabia-logo.jpg";
+import { rosterHtml } from "./rosterPrint";
 
 // Monthly duty schedules for the departments the IC team runs: one grid per
 // department and month (staff × days, a shift code per cell), its shift-code
@@ -62,7 +63,6 @@ export const ROSTER_DEPTS = {
   },
 };
 
-const MONTHS = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
 const CODE_CLS = ["bg-sky-100 text-sky-800", "bg-amber-100 text-amber-800", "bg-violet-100 text-violet-800", "bg-emerald-100 text-emerald-800", "bg-rose-100 text-rose-800", "bg-orange-100 text-orange-800", "bg-lime-100 text-lime-800"];
 const OFF_CODES = /^(O|OFF|-|V)$/i;
 const thisMonth = () => new Date().toISOString().slice(0, 7);
@@ -85,7 +85,6 @@ function blankRoster(dept, from) {
     staff: (from?.staff || []).map((s) => ({ name: s.name, emp_no: s.emp_no, days: {} })),
   };
 }
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 export default function DutyRoster() {
   const { session } = useAuth();
@@ -144,6 +143,7 @@ export default function DutyRoster() {
   const codeCls = useMemo(() => {
     const m = {};
     (data?.shifts || []).forEach((s, i) => (m[s.code] = OFF_CODES.test(s.code) ? "bg-slate-200 text-slate-600" : CODE_CLS[i % CODE_CLS.length]));
+
     return m;
   }, [data]);
 
@@ -170,36 +170,13 @@ export default function DutyRoster() {
     update({ ...data, staff });
   }
 
+  const logoUrl = useMemo(() => new URL(rabiaLogo, window.location.origin).href, []);
+  const previewHtml = useMemo(() => (data ? rosterHtml({ dept, month, data, logoUrl, autoPrint: false }) : ""), [dept, month, data, logoUrl]);
+
   function printRoster() {
-    const [y, m] = month.split("-").map(Number);
-    const logo = new URL(rabiaLogo, window.location.origin).href;
-    const head = days.map((d) => `<th class="${isFriday(month, d) ? "fri" : ""}">${d}</th>`).join("");
-    const body = data.staff
-      .map(
-        (s) =>
-          `<tr><td class="name">${esc(s.name)}${s.emp_no ? `<br><small>${esc(s.emp_no)}</small>` : ""}</td>${days
-            .map((d) => `<td class="${isFriday(month, d) ? "fri" : ""}">${esc(s.days[d] || "")}</td>`)
-            .join("")}</tr>`
-      )
-      .join("");
-    const legend = data.shifts.map((s) => `<span><b>${esc(s.code)}</b> = ${esc(s.label)}</span>`).join(" &nbsp;/&nbsp; ");
-    const ids = data.staff.filter((s) => s.emp_no).map((s) => `${esc(s.name)}: ${esc(s.emp_no)}`).join(" &nbsp;/&nbsp; ");
-    const sig = data.footer
-      .map((f) => `<div class="sig"><div class="lbl">${f.label ? esc(f.label) + ":" : "&nbsp;"}</div><div class="line"></div><div class="nm">${esc(f.name)}</div><div class="role">${esc(f.role)}</div></div>`)
-      .join("");
     const w = window.open("", "_blank");
     if (!w) return;
-    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(data.title)} ${MONTHS[m - 1]} ${y}</title>
-<style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:0}
-.top{text-align:center}.top img{height:56px}.top h1{font-size:18px;margin:6px 0 2px}.top h2{font-size:16px;margin:0 0 10px;font-weight:bold}
-table{border-collapse:collapse;width:100%;table-layout:fixed}th,td{border:1px solid #333;text-align:center;font-size:11px;padding:3px 0;height:26px}
-td.name{text-align:left;padding-left:5px;font-weight:bold;width:120px;font-size:11px}th.corner{width:120px;text-align:left;padding-left:5px}
-.fri{background:#d9d9d9}small{font-weight:normal}.legend{margin-top:10px;font-size:12px}.ids{margin-top:6px;font-size:12px}
-.sigs{display:flex;justify-content:space-between;gap:20px;margin-top:34px}.sig{flex:1;font-size:12px}.sig .lbl{font-weight:bold;margin-bottom:22px}.sig .line{border-top:1px solid #333;margin-bottom:4px;width:85%}.sig .nm{font-weight:bold}.sig .role{color:#333}</style></head>
-<body><div class="top"><img src="${logo}" alt=""><h1>${esc(data.title)}</h1><h2>${MONTHS[m - 1]} ${y} ${esc(data.suffix || "SCHEDULE")}</h2></div>
-<table><thead><tr><th class="corner">Staff \\ Date</th>${head}</tr></thead><tbody>${body}</tbody></table>
-<div class="legend">${legend}</div>${ids ? `<div class="ids">${ids}</div>` : ""}<div class="sigs">${sig}</div>
-<script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body></html>`);
+    w.document.write(rosterHtml({ dept, month, data, logoUrl, autoPrint: true }));
     w.document.close();
   }
 
@@ -277,12 +254,12 @@ td.name{text-align:left;padding-left:5px;font-weight:bold;width:120px;font-size:
           </div>
 
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full border-collapse text-center text-xs">
+            <table className="w-full border-collapse border border-slate-800 text-center text-xs">
               <thead className="bg-slate-50 text-slate-500">
                 <tr>
-                  <th className="sticky left-0 z-10 min-w-[11rem] border-b border-slate-200 bg-slate-50 px-2 py-1.5 text-start font-medium">{t("Staff")}</th>
+                  <th className="sticky left-0 z-10 min-w-[11rem] border border-slate-800 bg-slate-300 px-2 py-1.5 text-start font-bold text-slate-900">{t("Staff")} \ {t("Date")}</th>
                   {days.map((d) => (
-                    <th key={d} className={`min-w-[2.1rem] border-b border-s border-slate-200 py-1.5 font-medium ${isFriday(month, d) ? "bg-slate-200 text-slate-700" : ""}`}>{d}</th>
+                    <th key={d} className={`min-w-[2.1rem] border border-slate-800 py-1.5 font-medium text-slate-900 underline ${isFriday(month, d) ? "bg-slate-300" : "bg-white"}`}>{d}</th>
                   ))}
                   <th className="border-b border-s border-slate-200 px-2 font-medium">{t("Days")}</th>
                   <th className="border-b border-slate-200" />
@@ -291,15 +268,15 @@ td.name{text-align:left;padding-left:5px;font-weight:bold;width:120px;font-size:
               <tbody>
                 {data.staff.map((s, si) => (
                   <tr key={si} className="border-t border-slate-100">
-                    <td className="sticky left-0 z-10 bg-white px-2 py-1 text-start">
+                    <td className="sticky left-0 z-10 border border-slate-800 bg-slate-300 px-2 py-1 text-start">
                       <input className="input-cell w-full font-semibold" value={s.name} onChange={(e) => update({ ...data, staff: data.staff.map((x, i) => (i === si ? { ...x, name: e.target.value } : x)) })} />
                       <input className="input-cell mt-0.5 w-24 text-[11px]" placeholder={t("Emp. No.")} value={s.emp_no || ""} onChange={(e) => update({ ...data, staff: data.staff.map((x, i) => (i === si ? { ...x, emp_no: e.target.value } : x)) })} />
                     </td>
                     {days.map((d) => {
                       const v = s.days[d] || "";
                       return (
-                        <td key={d} className={`border-s border-slate-100 p-0.5 ${isFriday(month, d) ? "bg-slate-100" : ""}`}>
-                          <button onClick={() => setCell(si, d)} className={`h-8 w-full rounded text-[11px] font-bold ${v ? codeCls[v] || "bg-slate-100" : "hover:bg-slate-50"}`}>
+                        <td key={d} className={`border border-slate-800 p-0 ${isFriday(month, d) ? "bg-slate-300" : "bg-white"}`}>
+                          <button onClick={() => setCell(si, d)} className={`h-8 w-full text-[11px] font-bold text-slate-900 hover:bg-teal-50 ${v && paint === v ? "underline decoration-teal-600 decoration-2" : ""}`}>
                             {v}
                           </button>
                         </td>
@@ -336,6 +313,11 @@ td.name{text-align:left;padding-left:5px;font-weight:bold;width:120px;font-size:
                 {t("Add staff")}
               </button>
             </form>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+            <p className="mb-2 text-sm font-semibold text-slate-700">{t("Print preview")}</p>
+            <iframe title="preview" srcDoc={previewHtml} className="h-[560px] w-full rounded-lg border border-slate-200 bg-white" />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">

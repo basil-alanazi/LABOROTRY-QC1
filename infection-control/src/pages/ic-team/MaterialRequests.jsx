@@ -100,7 +100,7 @@ export default function MaterialRequests() {
       dept,
       request_no: nextNo(dept, todayStr()),
       request_date: todayStr(),
-      items: Array.from({ length: 5 }, emptyItem),
+      items: Array.from({ length: FORM_ROWS }, emptyItem),
       applicant_name: "",
       emp_id: "",
       notes: "",
@@ -176,108 +176,123 @@ export default function MaterialRequests() {
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       {editing && (
-        <div className="rounded-2xl border-2 border-slate-300 bg-white shadow-sm">
-          <div className="flex flex-col items-center gap-1 border-b border-slate-200 p-3">
-            <img src={rabiaLogo} alt="Rabia Hospital" className="h-12 w-auto" />
-            <p className="text-lg font-bold text-slate-800">
-              <span dir="rtl">طلب مواد</span> {editing.dept} Material Request
-            </p>
-          </div>
-          <div className="grid gap-2 border-b border-slate-200 p-3 sm:grid-cols-4">
-            <label className="flex flex-col gap-1 text-xs">
-              <span className="font-medium text-slate-600">{t("Department")}</span>
-              <select className="input" value={editing.dept} onChange={(e) => setEditing({ ...editing, dept: e.target.value, request_no: editing.id ? editing.request_no : nextNo(e.target.value, editing.request_date) })}>
+        <div className="mx-auto w-full max-w-[900px]">
+          {/* The form on screen is the paper form: same box, rows and signature block. */}
+          <div className="border-2 border-slate-900 bg-white text-slate-900" style={{ fontFamily: "Arial, Helvetica, sans-serif" }}>
+            <div className="flex justify-center border-b-2 border-slate-900 py-2">
+              <img src={rabiaLogo} alt="Rabia Hospital" className="h-12 w-auto" />
+            </div>
+            <div className="border-b-2 border-slate-900 py-1.5 text-center text-lg font-bold">
+              <span dir="rtl">طلب مواد</span>{" "}
+              <select className="mx-1 border-none bg-transparent p-0 text-lg font-bold" value={editing.dept} onChange={(e) => setEditing({ ...editing, dept: e.target.value, request_no: editing.id ? editing.request_no : nextNo(e.target.value, editing.request_date) })}>
                 {DEPTS.map((d) => (
                   <option key={d}>{d}</option>
                 ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-xs">
-              <span className="font-medium text-slate-600">{t("Date")}</span>
-              <input type="date" className="input" value={editing.request_date} onChange={(e) => setEditing({ ...editing, request_date: e.target.value })} />
-            </label>
-            <label className="flex flex-col gap-1 text-xs">
-              <span className="font-medium text-slate-600">{t("Request No.")}</span>
-              <input className="input" value={editing.request_no} onChange={(e) => setEditing({ ...editing, request_no: e.target.value })} />
-            </label>
-          </div>
-          <div className="overflow-x-auto p-3">
+              </select>{" "}
+              Material Request
+            </div>
+            <table className="w-full border-collapse text-[12px]">
+              <tbody>
+                <tr>
+                  <td className="w-[12%] border border-slate-900 bg-slate-200 px-2 py-1.5 text-center font-bold">Date :</td>
+                  <td className="w-[18%] border border-slate-900 px-1 text-center">
+                    <input type="date" className="w-full border-none bg-transparent text-center text-[12px]" value={editing.request_date} onChange={(e) => setEditing({ ...editing, request_date: e.target.value })} />
+                  </td>
+                  <td className="w-[36%] border border-slate-900 px-2 text-center">
+                    Request No.:{" "}
+                    <input className="w-32 border-b border-dashed border-slate-400 bg-transparent text-center text-[12px]" value={editing.request_no} onChange={(e) => setEditing({ ...editing, request_no: e.target.value })} />{" "}
+                    : <span dir="rtl">رقم الطلب</span>
+                  </td>
+                  <td className="border border-slate-900 px-2 text-center">
+                    Dept.: {editing.dept} : <span dir="rtl">القسم</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
             <datalist id="mr-items">
               {suggestions.map((s) => (
                 <option key={s} value={s} />
               ))}
             </datalist>
-            <table className="w-full min-w-[760px] text-sm">
-              <thead className="bg-slate-100 text-xs text-slate-600">
-                <tr>
-                  <th className="w-12 px-2 py-1.5">SL</th>
-                  <th className="w-28 px-2 py-1.5">{t("Code No.")}</th>
-                  <th className="px-2 py-1.5">{t("Description")}</th>
-                  <th className="w-20 px-2 py-1.5">{t("Qty")}</th>
-                  <th className="w-24 px-2 py-1.5">{t("Unit")}</th>
-                  <th className="w-24 px-2 py-1.5">{t("Unit Price")}</th>
-                  <th className="w-24 px-2 py-1.5">{t("Total Price")}</th>
-                  <th className="w-8" />
-                </tr>
-              </thead>
-              <tbody>
-                {editing.items.map((it, i) => (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="px-2 text-center text-slate-500">{i + 1}</td>
-                    <td className="px-1 py-1"><input className="input-cell w-full" value={it.code_no} onChange={(e) => setItem(i, { code_no: e.target.value })} /></td>
-                    <td className="px-1 py-1"><input className="input-cell w-full" list="mr-items" value={it.description} onChange={(e) => setItem(i, { description: e.target.value })} /></td>
-                    <td className="px-1 py-1"><input className="input-cell w-full text-center" inputMode="decimal" value={it.qty} onChange={(e) => setItem(i, { qty: e.target.value })} /></td>
-                    <td className="px-1 py-1"><input className="input-cell w-full" value={it.unit} onChange={(e) => setItem(i, { unit: e.target.value })} /></td>
-                    <td className="px-1 py-1"><input className="input-cell w-full text-center" inputMode="decimal" value={it.unit_price} onChange={(e) => setItem(i, { unit_price: e.target.value })} /></td>
-                    <td className="px-2 text-center text-slate-600">{money(lineTotal(it))}</td>
-                    <td>
-                      <button onClick={() => setEditing({ ...editing, items: editing.items.filter((_, k) => k !== i) })} className="text-slate-400 hover:text-red-500" title={t("Remove")}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] border-collapse text-[12px]">
+                <thead>
+                  <tr className="bg-slate-200 text-[11px]">
+                    {[
+                      ["SL NO", "", "w-[7%]"],
+                      ["Code No.", "رقم الصنف", "w-[12%]"],
+                      ["Description", "الوصف", ""],
+                      ["Qty", "الكمية", "w-[8%]"],
+                      ["Unit", "الوحدة", "w-[9%]"],
+                      ["Unit Price", "سعر الوحدة", "w-[10%]"],
+                      ["Total Price", "إجمالي السعر", "w-[11%]"],
+                    ].map(([en, ar, w]) => (
+                      <th key={en} className={`border border-slate-900 px-1 py-1 font-bold ${w}`}>
+                        {en}
+                        {ar && <div className="font-normal" dir="rtl">{ar}</div>}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-slate-200 bg-slate-50 font-semibold">
-                  <td colSpan={6} className="px-2 py-1.5 text-start">{t("Total Value")}</td>
-                  <td className="px-2 text-center">{total ? money(total) : ""}</td>
-                  <td />
+                </thead>
+                <tbody>
+                  {editing.items.map((it, i) => (
+                    <tr key={i}>
+                      <td className="border border-slate-900 text-center">{i + 1}</td>
+                      <td className="border border-slate-900 p-0"><input className="h-6 w-full border-none bg-transparent px-1 text-center text-[12px] focus:bg-teal-50" value={it.code_no} onChange={(e) => setItem(i, { code_no: e.target.value })} /></td>
+                      <td className="border border-slate-900 p-0"><input className="h-6 w-full border-none bg-transparent px-1 text-center text-[12px] focus:bg-teal-50" list="mr-items" value={it.description} onChange={(e) => setItem(i, { description: e.target.value })} /></td>
+                      <td className="border border-slate-900 p-0"><input className="h-6 w-full border-none bg-transparent text-center text-[12px] focus:bg-teal-50" inputMode="decimal" value={it.qty} onChange={(e) => setItem(i, { qty: e.target.value })} /></td>
+                      <td className="border border-slate-900 p-0"><input className="h-6 w-full border-none bg-transparent text-center text-[12px] focus:bg-teal-50" value={it.unit} onChange={(e) => setItem(i, { unit: e.target.value })} /></td>
+                      <td className="border border-slate-900 p-0"><input className="h-6 w-full border-none bg-transparent text-center text-[12px] focus:bg-teal-50" inputMode="decimal" value={it.unit_price} onChange={(e) => setItem(i, { unit_price: e.target.value })} /></td>
+                      <td className="border border-slate-900 text-center">{money(lineTotal(it))}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-slate-200 font-bold">
+                    <td colSpan={3} className="border border-slate-900 px-2 py-1">
+                      Total Value <span dir="rtl">إجمالي القيمة</span>
+                    </td>
+                    <td colSpan={4} className="border border-slate-900 px-2 text-center">{total ? money(total) : ""}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <table className="w-full border-collapse text-[12px]">
+              <tbody>
+                <tr>
+                  <td rowSpan={5} className="w-[20%] border border-slate-900 p-1 text-center align-top font-bold" dir="rtl">أمين المستودع</td>
+                  <td className="w-[40%] border border-slate-900 py-1.5 text-center font-bold">APPLICANT NAME</td>
+                  <td className="w-[18%] border border-slate-900 text-center font-bold">EMP ID</td>
+                  <td className="border border-slate-900 text-center font-bold">DATE</td>
                 </tr>
-              </tfoot>
+                <tr>
+                  <td className="border border-slate-900 p-0"><input className="h-8 w-full border-none bg-transparent text-center text-[12px] focus:bg-teal-50" placeholder={t("Applicant name")} value={editing.applicant_name} onChange={(e) => setEditing({ ...editing, applicant_name: e.target.value })} /></td>
+                  <td className="border border-slate-900 p-0"><input className="h-8 w-full border-none bg-transparent text-center text-[12px] focus:bg-teal-50" placeholder={t("Emp ID")} value={editing.emp_id} onChange={(e) => setEditing({ ...editing, emp_id: e.target.value })} /></td>
+                  <td className="border border-slate-900 text-center">{fmtDate(editing.request_date)}</td>
+                </tr>
+                <tr><td colSpan={3} className="h-9 border border-slate-900 px-2 font-bold">HEAD OF THE DEPT;</td></tr>
+                <tr><td colSpan={3} className="h-9 border border-slate-900 px-2 font-bold">General Manger: <span dir="rtl">المدير العام</span></td></tr>
+                <tr><td colSpan={3} className="h-9 border border-slate-900 px-2 font-bold">Finance Manger: <span dir="rtl">المدير المالي</span></td></tr>
+              </tbody>
             </table>
-            {editing.items.length < FORM_ROWS && (
-              <button onClick={() => setEditing({ ...editing, items: [...editing.items, emptyItem()] })} className="mt-2 flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline">
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {editing.items.length < 60 && (
+              <button onClick={() => setEditing({ ...editing, items: [...editing.items, emptyItem()] })} className="flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline">
                 <Plus className="h-3.5 w-3.5" />
                 {t("Add row")}
               </button>
             )}
-          </div>
-          <div className="grid gap-2 border-t border-slate-200 p-3 sm:grid-cols-3">
-            <label className="flex flex-col gap-1 text-xs">
-              <span className="font-medium text-slate-600">{t("Applicant name")}</span>
-              <input className="input" value={editing.applicant_name} onChange={(e) => setEditing({ ...editing, applicant_name: e.target.value })} />
-            </label>
-            <label className="flex flex-col gap-1 text-xs">
-              <span className="font-medium text-slate-600">{t("Emp ID")}</span>
-              <input className="input" value={editing.emp_id} onChange={(e) => setEditing({ ...editing, emp_id: e.target.value })} />
-            </label>
-            <label className="flex flex-col gap-1 text-xs">
-              <span className="font-medium text-slate-600">{t("Notes")}</span>
-              <input className="input" value={editing.notes} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
-            </label>
-          </div>
-          <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 p-3">
-            <button onClick={() => setEditing(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">{t("Cancel")}</button>
-            <button onClick={() => save(false)} className="rounded-lg border border-teal-600 px-4 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50">{t("Save")}</button>
-            <button onClick={() => save(true)} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
-              <Printer className="h-4 w-4" />
-              {t("Save & print")}
-            </button>
+            <input className="input ms-2 w-64 text-xs" placeholder={t("Notes")} value={editing.notes} onChange={(e) => setEditing({ ...editing, notes: e.target.value })} />
+            <div className="ms-auto flex gap-2">
+              <button onClick={() => setEditing(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">{t("Cancel")}</button>
+              <button onClick={() => save(false)} className="rounded-lg border border-teal-600 px-4 py-2 text-sm font-medium text-teal-700 hover:bg-teal-50">{t("Save")}</button>
+              <button onClick={() => save(true)} className="flex items-center gap-1 rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700">
+                <Printer className="h-4 w-4" />
+                {t("Save & print")}
+              </button>
+            </div>
           </div>
         </div>
       )}
-
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative w-full sm:w-72">
           <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -322,7 +337,11 @@ export default function MaterialRequests() {
                     <button onClick={() => printRequest(r)} className="text-teal-700 hover:text-teal-900" title={t("Print")}>
                       <Printer className="h-4 w-4" />
                     </button>
-                    <button onClick={() => setEditing({ ...r, items: (r.items || []).map((it) => ({ ...emptyItem(), ...it })), notes: r.notes || "", emp_id: r.emp_id || "" })} className="text-slate-500 hover:text-slate-800" title={t("Edit")}>
+                    <button onClick={() => {
+                        const items = (r.items || []).map((it) => ({ ...emptyItem(), ...it }));
+                        while (items.length < FORM_ROWS) items.push(emptyItem());
+                        setEditing({ ...r, items, notes: r.notes || "", emp_id: r.emp_id || "" });
+                      }} className="text-slate-500 hover:text-slate-800" title={t("Edit")}>
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button onClick={() => remove(r)} className="text-slate-400 hover:text-red-500" title={t("Delete")}>
