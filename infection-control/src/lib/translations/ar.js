@@ -1067,5 +1067,6 @@ export const ar = {
   "post-op follow-up visits are overdue (1st by day 10, 2nd by day 20, 3rd by day 30 after surgery).": "زيارة متابعة بعد العملية متأخرة (الأولى خلال 10 أيام، الثانية خلال 20، الثالثة خلال 30 يوم من العملية).",
   "Show them": "اعرضها",
   "Due in": "باقي",
+  "Visit": "الزيارة",
   "Cumulative antibiogram (CLSI M39) from the hospital's culture isolates.": "الأنتي بايوغرام التراكمي (CLSI M39) من عزلات مزارع المستشفى.",
 };
