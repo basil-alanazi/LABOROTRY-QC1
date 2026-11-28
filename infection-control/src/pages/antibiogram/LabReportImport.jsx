@@ -28,8 +28,10 @@ export default function LabReportImport({ frameRef }) {
     if (!files.length || !win?.AntibiogramEngine) return;
     setBusy(true);
     const { parseLabReport } = await import("../../lib/labReportParser");
-    const existing = win.AntibiogramApp.getIsolates();
-    const seen = new Set(existing.map((x) => [x.mrn, x.orderId, x.organism].join("|")));
+    const engine = win.AntibiogramEngine;
+    // Already saved isolates plus the ones earlier in this batch: a report is
+    // refused when it duplicates any of them (see engine.findDuplicate).
+    const known = win.AntibiogramApp.getIsolates();
     const out = [];
     const notes = [];
     for (const f of files) {
@@ -37,9 +39,9 @@ export default function LabReportImport({ frameRef }) {
         const res = await parseLabReport(f, win.AntibiogramEngine);
         res.notes.forEach((n) => notes.push(`${f.name}: ${n}`));
         res.isolates.forEach((r, i) => {
-          const k = [r.isolate.mrn, r.isolate.orderId, r.isolate.organism].join("|");
-          const duplicate = seen.has(k);
-          seen.add(k);
+          const dup = engine.findDuplicate ? engine.findDuplicate(known, r.isolate) : null;
+          const duplicate = dup ? (win.AntibiogramDupMessage ? win.AntibiogramDupMessage(dup) : "Duplicate") : "";
+          if (!dup) known.push({ ...r.isolate, id: `batch-${f.name}-${i}` });
           out.push({
             key: `${f.name}-${i}`,
             file: f.name,
@@ -59,12 +61,14 @@ export default function LabReportImport({ frameRef }) {
   }
 
   function update(key, patch) {
+    // A duplicate stays refused.
+    if (patch.include && rows.find((r) => r.key === key)?.duplicate) return;
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch, isolate: { ...r.isolate, ...(patch.isolate || {}) } } : r)));
   }
 
   function addSelected() {
     const win = app();
-    const chosen = rows.filter((r) => r.include);
+    const chosen = rows.filter((r) => r.include && !r.duplicate);
     if (!win || !chosen.length) return;
     const stamp = Date.now().toString(36);
     const added = chosen.map((r, i) => ({ ...r.isolate, id: `I${stamp}${i.toString(36)}` }));
@@ -122,7 +126,7 @@ export default function LabReportImport({ frameRef }) {
                       const n = (v) => Object.values(res).filter((x) => x === v).length;
                       return (
                         <tr key={r.key} className={`border-b border-slate-100 align-top ${r.include ? "" : "opacity-60"}`}>
-                          <td className="p-2"><input type="checkbox" checked={r.include} onChange={(e) => update(r.key, { include: e.target.checked })} /></td>
+                          <td className="p-2"><input type="checkbox" checked={r.include} disabled={!!r.duplicate} onChange={(e) => update(r.key, { include: e.target.checked })} /></td>
                           <td className="p-2 font-mono text-xs">{r.isolate.mrn || "—"}<div className="text-[11px] text-slate-400">{r.isolate.orderId}</div></td>
                           <td className="p-2 whitespace-nowrap">
                             <input type="date" value={r.isolate.collectedAt} onChange={(e) => update(r.key, { isolate: { collectedAt: e.target.value } })} className="rounded border border-slate-200 px-1 py-0.5 text-xs" />
@@ -152,7 +156,7 @@ export default function LabReportImport({ frameRef }) {
                             </div>
                           </td>
                           <td className="p-2 text-[11px] text-amber-700">
-                            {r.duplicate && <div className="text-red-700">{t("Already in the antibiogram")}</div>}
+                            {r.duplicate && <div className="font-medium text-red-700">⛔ {r.duplicate}</div>}
                             {r.notes.map((x) => <div key={x}>{x}</div>)}
                           </td>
                         </tr>
