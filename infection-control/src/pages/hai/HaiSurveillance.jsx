@@ -448,12 +448,11 @@ export default function HaiSurveillance() {
       .filter((c) => !fileNo || (c.mrn || "").toLowerCase().includes(fileNo))
       .filter((c) => !since || (c.date_of_procedure && c.date_of_procedure >= since))
       .forEach((c) => {
-        (c.follow_ups ?? []).slice(0, 3).forEach((f, i) => {
-          const status = followUpStatus(c, i, today);
-          if (followUpStatusFilter === "overdue" && status.key !== "overdue") return;
-          if (followUpStatusFilter === "pending" && status.key === "done") return;
-          rows.push({ case: c, followUp: f, index: i, status });
-        });
+        const visits = (c.follow_ups ?? []).slice(0, 3).map((f, i) => ({ case: c, followUp: f, index: i, status: followUpStatus(c, i, today) }));
+        // The filter picks patients; all three of their visits stay listed.
+        if (followUpStatusFilter === "overdue" && !visits.some((v) => v.status.key === "overdue")) return;
+        if (followUpStatusFilter === "pending" && visits.every((v) => v.status.key === "done")) return;
+        rows.push(...visits);
       });
     // Newest surgery first, then 1st/2nd/3rd visit; missing dates last.
     rows.sort((a, b) => (b.case.date_of_procedure || "").localeCompare(a.case.date_of_procedure || "") || (a.case.id < b.case.id ? -1 : a.case.id > b.case.id ? 1 : 0) || a.index - b.index);
@@ -1286,63 +1285,103 @@ const FOLLOW_UP_STATUS_CLS = {
   nodate: "bg-slate-100 text-slate-400",
 };
 
+// One row per patient with the three visits side by side. Clicking a
+// visit's header collapses its columns to a single status cell (and opens
+// them again), so each visit can be closed on its own.
+const VISIT_FIELD_HEADERS = ["Due By", "Status", "Date of Follow Up", "Fever", "Pain/Tenderness", "Redness", "Swelling", "Purulent Discharge", "Wound Dehiscence", "Surgical Site Swab Sent"];
+function FollowUpStatusChip({ status }) {
+  const { t } = useLanguage();
+  const text = status.key === "overdue" ? `${t("Overdue")} ${status.days} ${t("days")}` : status.key === "soon" && status.days > 0 ? `${t("Due in")} ${status.days} ${t("days")}` : t(followUpStatusText(status));
+  return <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${FOLLOW_UP_STATUS_CLS[status.key]}`}>{text}</span>;
+}
 function DoctorTrackerTable({ rows, onFollowUpFieldChange, onFieldBlurSave, onCommentChange }) {
   const { t } = useLanguage();
+  const [open, setOpen] = useState([true, true, true]);
+  const toggle = (i) => setOpen((o) => o.map((v, k) => (k === i ? !v : v)));
+  // rows come one per visit (also used for the exports); group them per case.
+  const patients = [];
+  const byId = new Map();
+  for (const r of rows) {
+    let p = byId.get(r.case.id);
+    if (!p) {
+      p = { case: r.case, visits: [] };
+      byId.set(r.case.id, p);
+      patients.push(p);
+    }
+    p.visits[r.index] = r;
+  }
+  const base = ["Month", "Name", "File No", "Date of Surgery", "Name of Surgeon"];
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
       <table className="w-full text-sm hai-grid">
         <thead className="bg-slate-50 text-left text-xs text-slate-500">
           <tr>
-            {["Month", "Name", "File No", "Date of Surgery", "Name of Surgeon", "Follow Up", "Due By", "Status", "Date of Follow Up", "Fever", "Pain/Tenderness", "Redness", "Swelling", "Purulent Discharge", "Wound Dehiscence", "Surgical Site Swab Sent", "Comment"].map((h) => (
-              <th key={h} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium">{t(h)}</th>
+            {base.map((h) => (
+              <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
             ))}
+            {[0, 1, 2].map((i) => (
+              <th key={i} colSpan={open[i] ? VISIT_FIELD_HEADERS.length : 1} className="border-b border-l-2 border-slate-300 p-0 text-center">
+                <button type="button" onClick={() => toggle(i)} className="flex w-full items-center justify-center gap-1 px-2 py-1 font-semibold text-slate-700 hover:bg-slate-100">
+                  {t(FOLLOW_UP_LABELS[i])}
+                  <span className="text-[10px] text-slate-400">{open[i] ? "▾" : "▸"}</span>
+                </button>
+              </th>
+            ))}
+            <th rowSpan={2} className="whitespace-nowrap border-b border-l-2 border-slate-300 px-1.5 py-1 font-medium align-bottom">{t("Comment")}</th>
+          </tr>
+          <tr>
+            {[0, 1, 2].flatMap((i) =>
+              open[i]
+                ? VISIT_FIELD_HEADERS.map((h, k) => (
+                    <th key={`${i}-${h}`} className={`whitespace-nowrap border-b border-slate-200 px-1.5 py-0.5 font-medium ${k === 0 ? "border-l-2 border-l-slate-300" : ""}`}>{t(h)}</th>
+                  ))
+                : [<th key={`${i}-closed`} className="border-b border-l-2 border-slate-200 border-l-slate-300 px-1.5 py-0.5 font-medium">{t("Status")}</th>]
+            )}
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ case: c, followUp: f, index: i, status }) => (
-            <tr key={`${c.id}-${i}`} className={`border-t ${i === 0 ? "border-slate-300" : "border-slate-100"}`}>
+          {patients.map(({ case: c, visits }) => (
+            <tr key={c.id} className="border-t border-slate-100">
               <td className="whitespace-nowrap px-2 py-1.5">{formatMonthLabel(c.date_of_procedure) || "—"}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.patient_name}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.mrn}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{fmtDate(c.date_of_procedure) || "—"}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.treating_doctor}</td>
-              <td className="whitespace-nowrap px-2 py-1.5 font-medium">{t(FOLLOW_UP_LABELS[i])}</td>
-              <td className="whitespace-nowrap px-2 py-1.5">{fmtDate(status.due) || "—"}</td>
-              <td className="whitespace-nowrap px-2 py-1.5">
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${FOLLOW_UP_STATUS_CLS[status.key]}`}>{status.key === "overdue" ? `${t("Overdue")} ${status.days} ${t("days")}` : status.key === "soon" && status.days > 0 ? `${t("Due in")} ${status.days} ${t("days")}` : t(followUpStatusText(status))}</span>
-              </td>
-              <td className="px-1.5 py-0.5">
-                <GridDate value={f.date} onChange={(e) => onFollowUpFieldChange(c, i, { date: e.target.value })} onBlur={() => onFieldBlurSave(c)} />
-              </td>
-              {SIGN_FIELDS.map((field) => (
-                <td key={field} className="px-1.5 py-0.5">
-                  <SignSelect
-                    value={f[field]}
-                    onChange={(e) => onFollowUpFieldChange(c, i, { [field]: e.target.value })}
-                    onBlur={() => onFieldBlurSave(c)}
-                  />
-                </td>
-              ))}
-              <td className="px-1.5 py-0.5">
-                <SwabSelect
-                  value={f.surgical_site_swab_sent}
-                  onChange={(e) => onFollowUpFieldChange(c, i, { surgical_site_swab_sent: e.target.value })}
-                  onBlur={() => onFieldBlurSave(c)}
-                />
-              </td>
-              <td className="px-1.5 py-0.5">
-                <GridText
-                  value={c.comments}
-                  onChange={(e) => onCommentChange(c, e.target.value)}
-                  onBlur={() => onFieldBlurSave(c)}
-                  className="min-w-[7rem]"
-                />
+              {[0, 1, 2].flatMap((i) => {
+                const v = visits[i];
+                if (!v) return [<td key={`${i}-none`} colSpan={open[i] ? VISIT_FIELD_HEADERS.length : 1} className="border-l-2 border-slate-300 px-2 text-slate-300">—</td>];
+                const { followUp: f, status } = v;
+                if (!open[i]) {
+                  return [
+                    <td key={`${i}-closed`} className="border-l-2 border-slate-300 px-2 py-1.5">
+                      <FollowUpStatusChip status={status} />
+                    </td>,
+                  ];
+                }
+                return [
+                  <td key={`${i}-due`} className="whitespace-nowrap border-l-2 border-slate-300 px-2 py-1.5">{fmtDate(status.due) || "—"}</td>,
+                  <td key={`${i}-status`} className="px-2 py-1.5"><FollowUpStatusChip status={status} /></td>,
+                  <td key={`${i}-date`} className="px-1.5 py-0.5">
+                    <GridDate value={f.date} onChange={(e) => onFollowUpFieldChange(c, i, { date: e.target.value })} onBlur={() => onFieldBlurSave(c)} />
+                  </td>,
+                  ...SIGN_FIELDS.map((field) => (
+                    <td key={`${i}-${field}`} className="px-1.5 py-0.5">
+                      <SignSelect value={f[field]} onChange={(e) => onFollowUpFieldChange(c, i, { [field]: e.target.value })} onBlur={() => onFieldBlurSave(c)} />
+                    </td>
+                  )),
+                  <td key={`${i}-swab`} className="px-1.5 py-0.5">
+                    <SwabSelect value={f.surgical_site_swab_sent} onChange={(e) => onFollowUpFieldChange(c, i, { surgical_site_swab_sent: e.target.value })} onBlur={() => onFieldBlurSave(c)} />
+                  </td>,
+                ];
+              })}
+              <td className="border-l-2 border-slate-300 px-1.5 py-0.5">
+                <GridText value={c.comments} onChange={(e) => onCommentChange(c, e.target.value)} onBlur={() => onFieldBlurSave(c)} className="min-w-[7rem]" />
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      {rows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No follow-up visits match these filters.")}</p>}
+      {patients.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No follow-up visits match these filters.")}</p>}
     </div>
   );
 }
