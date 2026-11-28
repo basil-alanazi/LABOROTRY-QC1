@@ -129,6 +129,9 @@
     "أوكسازوليدينون": "Oxazolidinone",
     "ليبوببتيد": "Lipopeptide",
     "ريفاميسين": "Rifamycin",
+    "غليسيلسيكلين": "Glycylcycline",
+    "Salmonella: لا تُعرض السيفالوسبورينات من الجيل الأول والثاني والسيفاميسينات والأمينوغليكوزيدات لأنها غير فعّالة سريرياً (CLSI M{n}).":
+      "Salmonella: 1st/2nd-generation cephalosporins, cephamycins and aminoglycosides are not reported as they are not clinically effective (CLSI M{n}).",
     // values found in entered isolates
     "مقاومة غير نمطية — للمراجعة": "Atypical resistance — for review",
     "يُشتبه ESBL — يلزم التأكيد": "Suspected ESBL — confirmation needed"
