@@ -1310,14 +1310,15 @@ function DoctorTrackerTable({ rows, onFollowUpFieldChange, onFieldBlurSave, onCo
     }
     p.visits[r.index] = r;
   }
-  const base = ["Month", "Name", "File No", "Date of Surgery", "Name of Surgeon"];
+  const base = ["File No", "Name", "Month", "Date of Surgery", "Name of Surgeon"];
+  const pinned = { "File No": "sticky left-0 z-10 w-24 min-w-[6rem]", Name: "sticky left-24 z-10 w-44 min-w-[11rem] border-r border-slate-200" };
   return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className="max-h-[calc(100vh-14rem)] min-h-[300px] overflow-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
       <table className="w-full text-sm hai-grid">
-        <thead className="bg-slate-50 text-left text-xs text-slate-500">
+        <thead className="sticky top-0 z-20 bg-slate-50 text-left text-xs text-slate-500 shadow-[0_1px_0_#e2e8f0]">
           <tr>
             {base.map((h) => (
-              <th key={h} rowSpan={2} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium align-bottom">{t(h)}</th>
+              <th key={h} rowSpan={2} className={`whitespace-nowrap border-b border-slate-200 bg-slate-50 px-1.5 py-1 font-medium align-bottom ${pinned[h] || ""}`}>{t(h)}</th>
             ))}
             {[0, 1, 2].map((i) => (
               <th key={i} colSpan={open[i] ? VISIT_FIELD_HEADERS.length : 1} className="border-b border-l-2 border-slate-300 p-0 text-center">
@@ -1342,9 +1343,9 @@ function DoctorTrackerTable({ rows, onFollowUpFieldChange, onFieldBlurSave, onCo
         <tbody>
           {patients.map(({ case: c, visits }) => (
             <tr key={c.id} className="border-t border-slate-100">
+              <td className={`whitespace-nowrap bg-white px-2 py-1.5 font-medium ${pinned["File No"]}`}>{c.mrn}</td>
+              <td className={`truncate bg-white px-2 py-1.5 ${pinned.Name}`} title={c.patient_name}>{c.patient_name}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{formatMonthLabel(c.date_of_procedure) || "—"}</td>
-              <td className="whitespace-nowrap px-2 py-1.5">{c.patient_name}</td>
-              <td className="whitespace-nowrap px-2 py-1.5">{c.mrn}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{fmtDate(c.date_of_procedure) || "—"}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.treating_doctor}</td>
               {[0, 1, 2].flatMap((i) => {
