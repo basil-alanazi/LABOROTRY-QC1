@@ -35,6 +35,7 @@ const SPECIMENS = [
   [/sputum|tracheal|\bbal\b|bronch|respiratory|endotracheal|\bett\b/i, "sputum"],
   [/stool|faec|fec/i, "stool"],
   [/urethral/i, "urethral"],
+  [/vagin|\bhvs\b|cervi/i, "other"],
   [/wound|pus|swab|abscess|tissue|ulcer|aspirate/i, "pus"],
 ];
 
@@ -52,23 +53,63 @@ const ABX_ALIASES = {
   "tazocin": "Piperacillin/Tazobactam",
   "ceftazidimeavibactam": "Ceftazidime/Avibactam",
   "rifampin": "Rifampicin",
+  "cefuroximeaxetil": "Cefuroxime",
+  "ticarcillinclavulanicacid": "Ticarcillin/Clavulanate",
+  "ceftolozanetazobactam": "Ceftolozane/Tazobactam",
   "imipenemcilastatin": "Imipenem",
 };
 const norm = (s) => s.toLowerCase().replace(/[^a-z]/g, "");
+// Two-part names the report wraps onto two lines ("Piperacillin /" then
+// "Tazobactam" below): the part before the slash, with the slash, names the
+// combination — never the single drug.
+const SLASH_PREFIX = {
+  piperacillin: "Piperacillin/Tazobactam",
+  trimethoprim: "Trimethoprim/Sulfamethoxazole",
+  sulfamethoxazole: "Trimethoprim/Sulfamethoxazole",
+  amoxicillin: "Amoxicillin/Clavulanate",
+  ampicillin: "Ampicillin/Sulbactam",
+  ceftazidime: "Ceftazidime/Avibactam",
+  ceftolozane: "Ceftolozane/Tazobactam",
+  ticarcillin: "Ticarcillin/Clavulanate",
+  imipenem: "Imipenem",
+};
 
-function toIso(d) {
-  const m = /(\d{1,2})\/(\d{1,2})\/(\d{2,4})/.exec(d || "");
-  if (!m) return "";
-  const y = m[3].length === 2 ? "20" + m[3] : m[3];
-  return `${y}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+// RaiDx reports print dates either day/month/year or month/day/year. A part
+// above 12 settles it; otherwise pick the order that keeps collection,
+// receipt and report closest together (they are days apart, not months).
+function readDates(text) {
+  const tokens = [];
+  const re = /(Registered|Collected|Received|Reported) At\s+(\d{1,2})\/(\d{1,2})\/(\d{2,4})/gi;
+  let m;
+  while ((m = re.exec(text))) tokens.push({ k: m[1].toLowerCase(), a: +m[2], b: +m[3], y: m[4].length === 2 ? 2000 + +m[4] : +m[4] });
+  if (!tokens.length) return { collected: "", order: "" };
+  const iso = (t, dmy) => {
+    const d = dmy ? t.a : t.b, mo = dmy ? t.b : t.a;
+    return `${t.y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  };
+  let dmy;
+  if (tokens.some((t) => t.a > 12)) dmy = true;
+  else if (tokens.some((t) => t.b > 12)) dmy = false;
+  else {
+    const span = (flag) => {
+      const ts = tokens.map((t) => Date.parse(iso(t, flag)));
+      return Math.max(...ts) - Math.min(...ts);
+    };
+    dmy = span(true) <= span(false);
+  }
+  const c = tokens.find((t) => t.k === "collected") || tokens.find((t) => t.k === "registered") || tokens[0];
+  return { collected: iso(c, dmy), order: dmy ? "day/month" : "month/day" };
 }
+
+const NOT_AN_ORGANISM = /no (bacterial )?growth|normal (skin |flora|commensal)|mixed growth|contaminated specimen|no pathogen/i;
 
 function matchOrganism(raw, organisms) {
   const clean = raw.replace(/\s+(ssp|subsp|spp)\.?(\s.*)?$/i, "").replace(/\s+/g, " ").trim();
-  const words = clean.toLowerCase().split(" ");
+  const lower = clean.toLowerCase();
+  // "Methicillin Resistant Staphylococcus aureus (MRSA)" -> the genus + species inside it
   const key = Object.keys(organisms).find((k) => {
-    const kw = k.toLowerCase().replace(/\s*\(.*\)/, "").split(" ");
-    return kw[0] === words[0] && kw[1] === words[1];
+    const kw = k.toLowerCase().replace(/\s*\(.*\)/, "");
+    return lower === kw || lower.startsWith(kw + " ") || lower.includes(" " + kw) || lower.startsWith(kw);
   });
   return { name: key || clean, known: !!key };
 }
@@ -84,16 +125,19 @@ export async function parseLabReport(file, engine) {
   const notes = [];
   const mrn = (/MRN:\s*([A-Za-z0-9-]+)/.exec(text) || [])[1] || "";
   const orderId = (/(?:Reservation ID|Order(?: No\.?| ID)?):\s*([A-Za-z0-9-]+)/i.exec(text) || [])[1] || "";
-  const collected = toIso((/Collected At\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i.exec(text) || [])[1]);
+  const { collected } = readDates(text);
   const abxByNorm = {};
   engine.ANTIBIOTICS.forEach((a) => (abxByNorm[norm(a.name)] = a.name));
-  const abxName = (s) => abxByNorm[norm(s)] || ABX_ALIASES[norm(s)] || null;
+  const abxName = (s) => {
+    if (/\/\s*$/.test(s)) return SLASH_PREFIX[norm(s)] || null;
+    return abxByNorm[norm(s)] || ABX_ALIASES[norm(s)] || null;
+  };
 
   // Each "Isolated Organism" starts a block running until the next one or the page end.
   const isolates = [];
   lines.forEach((line, i) => {
     const m = /Isolated Organism\s*\d*\s*:\s*(.+)$/i.exec(line);
-    if (!m) return;
+    if (!m || NOT_AN_ORGANISM.test(m[1])) return;
     let title = "";
     for (let j = i; j >= 0 && j > i - 30; j--) if (/Culture/i.test(lines[j]) && !/Culture Result/i.test(lines[j])) { title = lines[j]; break; }
     const specimen = (SPECIMENS.find(([re]) => re.test(title)) || [null, "other"])[1];
@@ -119,13 +163,17 @@ export async function parseLabReport(file, engine) {
     const org = matchOrganism(m[1].trim(), engine.ORGANISMS);
     let organism = org.name;
     let mdro = "";
-    if (/^Staphylococcus aureus/.test(organism) || /^staphylococcus aureus/i.test(m[1])) {
-      const mrsa = results.Oxacillin === "R" || results.Cefoxitin === "R" || /MRSA/i.test(comment);
+    if (/staphylococcus aureus/i.test(m[1])) {
+      const mrsa = results.Oxacillin === "R" || results.Cefoxitin === "R" || /MRSA|methicillin.?resistant/i.test(comment + " " + m[1]);
       organism = mrsa ? "Staphylococcus aureus (MRSA)" : "Staphylococcus aureus (MSSA)";
-      if (mrsa) mdro = "MRSA";
     }
-    if (!mdro) mdro = (/\b(ESBL|CRE|VRE|MRSA)\b/i.exec(comment) || [])[1]?.toUpperCase() || (/carbapenem.?resistant/i.test(comment) ? "CRE" : "");
-    const cons = /epidermidis|hominis|haemolyticus/.test(organism);
+    // MDRO type from the MOH surveillance definitions, plus what the report says (ESBL etc.)
+    const tags = new Set(engine.classifyMdro ? engine.classifyMdro(organism, results) : []);
+    if (organism === "Staphylococcus aureus (MRSA)") tags.add("MRSA");
+    for (const t of (comment.match(/\b(ESBL|CRE|VRE|MRSA)\b/gi) || [])) tags.add(t.toUpperCase());
+    if (/carbapenem.?resistant/i.test(comment)) tags.add("CRE");
+    mdro = [...tags].join(", ");
+    const cons = /^Staphylococcus (epidermidis|hominis|haemolyticus)/.test(organism);
     const isolateNotes = [];
     if (!org.known) isolateNotes.push(`"${organism}" is not in the antibiogram organism list`);
     if (unknown.length) isolateNotes.push("Not recognised: " + [...new Set(unknown)].join(", "));
