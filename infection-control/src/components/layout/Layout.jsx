@@ -29,6 +29,7 @@ import {
 import { useAuth } from "../../lib/auth.jsx";
 import { useLanguage } from "../../lib/i18n.jsx";
 import { supabase } from "../../lib/supabaseClient";
+import { ALERT_LOOKBACK_DAYS, addDays, overdueFollowUps, todayIso } from "../../pages/hai/ssiFollowUp";
 import rabiaLogo from "../../assets/rabia-logo.jpg";
 
 const linkClass = ({ isActive }) =>
@@ -42,6 +43,7 @@ export default function Layout({ children }) {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [overdueFollowUpCount, setOverdueFollowUpCount] = useState(0);
 
   function handleLogout() {
     logout();
@@ -75,6 +77,28 @@ export default function Layout({ children }) {
     };
   }, [session?.username]);
 
+  // Missed OB/GYN post-op follow-up visits — a badge on HAI Surveillance
+  // for the owner and IC accounts only. Rechecked every 30 minutes.
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    async function loadOverdue() {
+      const since = addDays(todayIso(), -ALERT_LOOKBACK_DAYS);
+      const { data } = await supabase
+        .from("hai_ssi_surveillance")
+        .select("id,date_of_procedure,date_of_discharge,follow_up_duration,follow_ups,deleted")
+        .eq("deleted", false)
+        .gte("date_of_procedure", since);
+      if (!cancelled) setOverdueFollowUpCount(overdueFollowUps(data ?? []).length);
+    }
+    loadOverdue();
+    const interval = setInterval(loadOverdue, 30 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [isAdmin]);
+
   // Sidebar, grouped by area so the ~16 pages are quick to scan. A group
   // only shows when the account can see at least one page in it.
   const stockVisible =
@@ -90,7 +114,7 @@ export default function Layout({ children }) {
     {
       title: "Surveillance",
       items: [
-        canViewHaiSurveillance && { to: "/hai-surveillance", icon: Activity, label: "HAI Surveillance" },
+        canViewHaiSurveillance && { to: "/hai-surveillance", icon: Activity, label: "HAI Surveillance", badge: overdueFollowUpCount },
         canViewHaiSurveillance && !(session?.haiScope && !isAdmin) && { to: "/hai-monthly-indicators", icon: Dna, label: "Monthly IPC Indicator" },
         canViewHaiSurveillance && { to: "/hai-care-bundles", icon: ClipboardList, label: "IPC Care Bundles" },
         isAdmin && { to: "/cases", icon: ShieldAlert, label: "Suspected/Confirmed Cases" },

@@ -7,6 +7,7 @@ import { downloadExcel } from "../../lib/exportExcel";
 import { downloadPdf } from "../../lib/exportPdf";
 import { fetchAllRows } from "../../lib/fetchAll";
 import { fmtDate } from "../../lib/dates";
+import { FOLLOW_UP_LABELS, followUpStatus, overdueFollowUps, addDays, todayIso } from "./ssiFollowUp";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const addDaysToDateStr = (dateStr, days) => {
@@ -329,6 +330,8 @@ export default function HaiSurveillance() {
   const [ssiView, setSsiView] = useState("all"); // "all" | "doctor"
   const [selectedDoctor, setSelectedDoctor] = useState("");
   const [doctorFileNoFilter, setDoctorFileNoFilter] = useState("");
+  const [followUpPeriod, setFollowUpPeriod] = useState("all"); // "all" | "30" | "60" (days since surgery)
+  const [followUpStatusFilter, setFollowUpStatusFilter] = useState("all"); // "all" | "overdue" | "pending"
   // An account assigned to a single doctor (Settings -> SSI "Assigned
   // Doctor") only ever sees that doctor's own By Doctor tracker — never the
   // unfiltered All Patients list, and never another doctor's queue.
@@ -426,9 +429,7 @@ export default function HaiSurveillance() {
     [ssiCases]
   );
   const doctorTrackerRows = useMemo(() => {
-    if (!selectedDoctor) return [];
     const fileNo = doctorFileNoFilter.trim().toLowerCase();
-    const rows = [];
     // Case/punctuation-insensitive — a doctor-locked account's configured
     // name (users.ssi_doctor) and the treating_doctor values actually
     // typed into cases have drifted out of exact sync before (e.g.
@@ -436,25 +437,30 @@ export default function HaiSurveillance() {
     // doctor's cases from their own tracker.
     const normalizeDoctorName = (name) => (name || "").trim().toUpperCase().replace(/[.\s]+/g, "");
     const selectedNormalized = normalizeDoctorName(selectedDoctor);
+    const today = todayIso();
+    const since = followUpPeriod === "all" ? "" : addDays(today, -Number(followUpPeriod));
+    const rows = [];
+    // OB/GYN follow-up: every case gets its three post-op visits (due 10 /
+    // 20 / 30 days after surgery), filled in or not, so a missed visit is
+    // visible here instead of only the ones someone remembered to date.
     ssiCases
-      .filter((c) => normalizeDoctorName(c.treating_doctor) === selectedNormalized)
+      .filter((c) => !selectedDoctor || normalizeDoctorName(c.treating_doctor) === selectedNormalized)
       .filter((c) => !fileNo || (c.mrn || "").toLowerCase().includes(fileNo))
+      .filter((c) => !since || (c.date_of_procedure && c.date_of_procedure >= since))
       .forEach((c) => {
-        (c.follow_ups ?? []).forEach((f, i) => {
-          if (!f.date) return;
-          rows.push({ case: c, followUp: f, index: i });
+        (c.follow_ups ?? []).slice(0, 3).forEach((f, i) => {
+          const status = followUpStatus(c, i, today);
+          if (followUpStatusFilter === "overdue" && status.key !== "overdue") return;
+          if (followUpStatusFilter === "pending" && status.key === "done") return;
+          rows.push({ case: c, followUp: f, index: i, status });
         });
       });
-    // Sorted by Date of Surgery (earliest first) so the doctor's own tracker
-    // reads as an ordered list rather than whatever order cases were entered.
-    // Missing dates sort last instead of jumbling in at the top.
-    rows.sort((a, b) => {
-      const da = a.case.date_of_procedure ? new Date(a.case.date_of_procedure).getTime() : Infinity;
-      const db = b.case.date_of_procedure ? new Date(b.case.date_of_procedure).getTime() : Infinity;
-      return da - db;
-    });
+    // Newest surgery first, then 1st/2nd/3rd visit; missing dates last.
+    rows.sort((a, b) => (b.case.date_of_procedure || "").localeCompare(a.case.date_of_procedure || "") || (a.case.id < b.case.id ? -1 : a.case.id > b.case.id ? 1 : 0) || a.index - b.index);
     return rows;
-  }, [ssiCases, selectedDoctor, doctorFileNoFilter]);
+  }, [ssiCases, selectedDoctor, doctorFileNoFilter, followUpPeriod, followUpStatusFilter]);
+  // Missed post-op visits — shown to the owner and IC accounts only.
+  const overdueVisits = useMemo(() => (isAdmin ? overdueFollowUps(ssiCases) : []), [ssiCases, isAdmin]);
   const visibleObCases = useMemo(
     () => obCases.filter((c) => heldRowIds.has(c.id) || matchesStatusFilter(c.current_status, statusFilter)).slice().sort(byUpdatedInSehaLast),
     [obCases, statusFilter, heldRowIds]
@@ -692,19 +698,9 @@ export default function HaiSurveillance() {
       current_status = "discharged";
       updateSsiField(c.id, { current_status });
     }
-    // Once discharged (with a discharge date), auto-schedule the FIRST
-    // follow-up's due date — discharge date + the case's follow-up duration
-    // (30/90 days) — so it shows up on the doctor's tracker without needing
-    // a separate manual step. This only ever runs once per case: it fires
-    // only while every follow-up slot is still completely empty, so saving
-    // the row again later (or toggling admitted/discharged back and forth)
-    // never re-fires it into a second/third slot with the same date.
-    let follow_ups = c.follow_ups ?? [];
-    if (current_status === "discharged" && c.date_of_discharge && follow_ups.every((f) => !f.date)) {
-      const dueDate = addDaysToDateStr(c.date_of_discharge, c.follow_up_duration || 30);
-      follow_ups = follow_ups.map((f, i) => (i === 0 ? { ...f, date: dueDate } : f));
-      updateSsiField(c.id, { follow_ups });
-    }
+    // Follow-up due dates are computed from the date of surgery (see
+    // ssiFollowUp.js), so nothing is pre-filled into the visit dates here.
+    const follow_ups = c.follow_ups ?? [];
     // Current Status can't move away from Admitted on its own — the Date of
     // Discharge has to be filled in too (see savePatient's identical guard
     // for ICU/NICU, including why this no longer calls loadAll()).
@@ -824,24 +820,25 @@ export default function HaiSurveillance() {
   }
 
   const DOCTOR_TRACKER_HEADERS = [
-    "Month", "Name", "File No", "Date of Surgery", "Name of Surgeon", "Date of Follow Up",
+    "Month", "Name", "File No", "Date of Surgery", "Name of Surgeon", "Follow Up", "Due By", "Status", "Date of Follow Up",
     "Fever", "Pain/Tenderness", "Redness", "Swelling", "Purulent Discharge", "Wound Dehiscence", "Surgical Site Swab Sent", "Comment",
   ];
-  function doctorTrackerRow({ case: c, followUp: f }) {
+  function doctorTrackerRow({ case: c, followUp: f, index, status }) {
     return [
-      formatMonthLabel(c.date_of_procedure), c.patient_name, c.mrn, c.date_of_procedure || "", c.treating_doctor, f.date || "",
+      formatMonthLabel(c.date_of_procedure), c.patient_name, c.mrn, c.date_of_procedure || "", c.treating_doctor,
+      FOLLOW_UP_LABELS[index], status.due, followUpStatusText(status), f.date || "",
       f.fever || "", f.pain_tenderness || "", f.redness || "", f.swelling || "", f.purulent_discharge || "", f.wound_dehiscence || "", f.surgical_site_swab_sent || "", c.comments,
     ];
   }
 
   function exportDoctorTrackerExcel() {
-    downloadExcel(`infection-control-ssi-tracker-${selectedDoctor}-${todayStr()}`, [
-      { name: `SSI Tracker (${selectedDoctor})`, headers: DOCTOR_TRACKER_HEADERS, rows: doctorTrackerRows.map(doctorTrackerRow) },
+    downloadExcel(`infection-control-obgyn-follow-up-${selectedDoctor || "all"}-${todayStr()}`, [
+      { name: `Follow-up (${selectedDoctor || "All doctors"})`.slice(0, 31), headers: DOCTOR_TRACKER_HEADERS, rows: doctorTrackerRows.map(doctorTrackerRow) },
     ]);
   }
 
   function exportDoctorTrackerPdf() {
-    downloadPdf(`infection-control-ssi-tracker-${selectedDoctor}-${todayStr()}`, `SSI Tracker — ${selectedDoctor}`, [
+    downloadPdf(`infection-control-obgyn-follow-up-${selectedDoctor || "all"}-${todayStr()}`, `OB/GYN Follow-up — ${selectedDoctor || "All doctors"}`, [
       { headers: DOCTOR_TRACKER_HEADERS, rows: doctorTrackerRows.map(doctorTrackerRow) },
     ]);
   }
@@ -1145,13 +1142,28 @@ export default function HaiSurveillance() {
         />
       )}
 
+      {tab === "ssi" && isAdmin && overdueVisits.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            <b>{overdueVisits.length}</b> {t("post-op follow-up visits are overdue (1st by day 10, 2nd by day 20, 3rd by day 30 after surgery).")}
+          </span>
+          <button
+            onClick={() => { setSsiView("doctor"); setSelectedDoctor(""); setFollowUpStatusFilter("overdue"); setFollowUpPeriod("60"); }}
+            className="rounded-lg border border-red-300 bg-white px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+          >
+            {t("Show them")}
+          </button>
+        </div>
+      )}
+
       {tab === "ssi" && (
         <div className="flex flex-wrap items-center gap-2">
           {(isAdmin || lockedDoctor) && (
             <div className="tab-bar flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
               {[
                 { key: "all", label: "All Patients" },
-                { key: "doctor", label: "By Doctor" },
+                { key: "doctor", label: "OB/GYN Follow-up" },
               ].map((v) => (
                 <button
                   key={v.key}
@@ -1170,13 +1182,13 @@ export default function HaiSurveillance() {
               value={selectedDoctor}
               onChange={(e) => setSelectedDoctor(e.target.value)}
             >
-              <option value="">{t("Select doctor")}</option>
+              <option value="">{t("All doctors")}</option>
               {ssiDoctors.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
           )}
-          {ssiView === "doctor" && selectedDoctor && (
+          {ssiView === "doctor" && (
             <input
               className="input w-40"
               value={doctorFileNoFilter}
@@ -1184,7 +1196,31 @@ export default function HaiSurveillance() {
               placeholder={t("Filter by File No...")}
             />
           )}
-          {ssiView === "doctor" && selectedDoctor && (
+          {ssiView === "doctor" && (
+            <div className="tab-bar flex rounded-lg border border-slate-200 p-0.5 text-xs w-fit">
+              {[
+                { key: "all", label: "All dates" },
+                { key: "30", label: "Last 30 days" },
+                { key: "60", label: "Last 60 days" },
+              ].map((v) => (
+                <button
+                  key={v.key}
+                  onClick={() => setFollowUpPeriod(v.key)}
+                  className={`rounded-md px-3 py-1 font-medium ${followUpPeriod === v.key ? "bg-teal-600 text-white" : "text-slate-500"}`}
+                >
+                  {t(v.label)}
+                </button>
+              ))}
+            </div>
+          )}
+          {ssiView === "doctor" && (
+            <select className="input w-40" value={followUpStatusFilter} onChange={(e) => setFollowUpStatusFilter(e.target.value)}>
+              <option value="all">{t("All visits")}</option>
+              <option value="pending">{t("Not done yet")}</option>
+              <option value="overdue">{t("Overdue only")}</option>
+            </select>
+          )}
+          {ssiView === "doctor" && (
             <div className="flex gap-2">
               <button onClick={exportDoctorTrackerExcel} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
                 <FileSpreadsheet className="h-3.5 w-3.5" />
@@ -1219,7 +1255,6 @@ export default function HaiSurveillance() {
 
       {tab === "ssi" && ssiView === "doctor" && (isAdmin || lockedDoctor) && (
         <DoctorTrackerTable
-          doctor={selectedDoctor}
           rows={doctorTrackerRows}
           onFollowUpFieldChange={(c, i, patch) => updateFollowUp(c, i, patch)}
           onFieldBlurSave={(c) => saveSsiCase(c)}
@@ -1236,29 +1271,46 @@ export default function HaiSurveillance() {
 // SSI tracker sheets. One row per follow-up visit that has a date; the
 // follow-up columns (signs, swab, comment) are filled in from here, same
 // as from the All Patients grid.
-function DoctorTrackerTable({ doctor, rows, onFollowUpFieldChange, onFieldBlurSave, onCommentChange }) {
+function followUpStatusText(status) {
+  if (status.key === "done") return "Done";
+  if (status.key === "overdue") return `Overdue ${status.days} day${status.days === 1 ? "" : "s"}`;
+  if (status.key === "soon") return status.days === 0 ? "Due today" : `Due in ${status.days} day${status.days === 1 ? "" : "s"}`;
+  if (status.key === "upcoming") return "Upcoming";
+  return "No surgery date";
+}
+const FOLLOW_UP_STATUS_CLS = {
+  done: "bg-emerald-50 text-emerald-700",
+  overdue: "bg-red-50 text-red-700",
+  soon: "bg-amber-50 text-amber-700",
+  upcoming: "bg-slate-100 text-slate-500",
+  nodate: "bg-slate-100 text-slate-400",
+};
+
+function DoctorTrackerTable({ rows, onFollowUpFieldChange, onFieldBlurSave, onCommentChange }) {
   const { t } = useLanguage();
-  if (!doctor) {
-    return <p className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-400">{t("Pick a doctor to see her SSI tracker.")}</p>;
-  }
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
       <table className="w-full text-sm hai-grid">
         <thead className="bg-slate-50 text-left text-xs text-slate-500">
           <tr>
-            {["Month", "Name", "File No", "Date of Surgery", "Name of Surgeon", "Date of Follow Up", "Fever", "Pain/Tenderness", "Redness", "Swelling", "Purulent Discharge", "Wound Dehiscence", "Surgical Site Swab Sent", "Comment"].map((h) => (
+            {["Month", "Name", "File No", "Date of Surgery", "Name of Surgeon", "Follow Up", "Due By", "Status", "Date of Follow Up", "Fever", "Pain/Tenderness", "Redness", "Swelling", "Purulent Discharge", "Wound Dehiscence", "Surgical Site Swab Sent", "Comment"].map((h) => (
               <th key={h} className="whitespace-nowrap border-b border-slate-200 px-1.5 py-1 font-medium">{t(h)}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ case: c, followUp: f, index: i }) => (
-            <tr key={`${c.id}-${i}`} className="border-t border-slate-100">
+          {rows.map(({ case: c, followUp: f, index: i, status }) => (
+            <tr key={`${c.id}-${i}`} className={`border-t ${i === 0 ? "border-slate-300" : "border-slate-100"}`}>
               <td className="whitespace-nowrap px-2 py-1.5">{formatMonthLabel(c.date_of_procedure) || "—"}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.patient_name}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.mrn}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{fmtDate(c.date_of_procedure) || "—"}</td>
               <td className="whitespace-nowrap px-2 py-1.5">{c.treating_doctor}</td>
+              <td className="whitespace-nowrap px-2 py-1.5 font-medium">{t(FOLLOW_UP_LABELS[i])}</td>
+              <td className="whitespace-nowrap px-2 py-1.5">{fmtDate(status.due) || "—"}</td>
+              <td className="whitespace-nowrap px-2 py-1.5">
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${FOLLOW_UP_STATUS_CLS[status.key]}`}>{status.key === "overdue" ? `${t("Overdue")} ${status.days} ${t("days")}` : status.key === "soon" && status.days > 0 ? `${t("Due in")} ${status.days} ${t("days")}` : t(followUpStatusText(status))}</span>
+              </td>
               <td className="px-1.5 py-0.5">
                 <GridDate value={f.date} onChange={(e) => onFollowUpFieldChange(c, i, { date: e.target.value })} onBlur={() => onFieldBlurSave(c)} />
               </td>
@@ -1290,7 +1342,7 @@ function DoctorTrackerTable({ doctor, rows, onFollowUpFieldChange, onFieldBlurSa
           ))}
         </tbody>
       </table>
-      {rows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No follow-up visits recorded for this doctor yet.")}</p>}
+      {rows.length === 0 && <p className="p-6 text-center text-sm text-slate-400">{t("No follow-up visits match these filters.")}</p>}
     </div>
   );
 }
@@ -1890,7 +1942,8 @@ function SsiSurveillanceTab({ cases, loading, units, session, isAdmin, onAddCase
   // The 3-visit follow-up tracker is the OB/GYN doctors' own clinical
   // record — DR/OR/FW ward-stage accounts (no session.ssiDoctor) shouldn't
   // even see these columns, not just have them disabled.
-  const followUpVisible = isAdmin || !!session?.ssiDoctor;
+  // Follow-up visits are recorded on the OB/GYN Follow-up view only.
+  const followUpVisible = false;
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-slate-500">
