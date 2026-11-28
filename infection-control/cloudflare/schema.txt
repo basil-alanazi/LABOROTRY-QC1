@@ -54,3 +54,5 @@ antibiogram_isolates|id:s!;data:j!={};collected_at:d;organism:s!=;updated_by:s;u
 lectures|id:u!=@uuid;title:s!;presenter:s!=;lecture_date:d;location:s!=;audience:s!=;notes:s!=;attachments:j!=[];created_by:s;updated_by:s;updated_at:z;deleted:b!=false;deleted_by:s;deleted_at:z;created_at:z!=@now
 lecture_attendance|id:u!=@uuid;lecture_id:u!;employee_no:s!;employee_name:s!=;department:s!=;signature_path:s;created_at:z!=@now
 ic_team_records|id:u!=@uuid;kind:s!;category:s!=;title:s!=;person:s!=;department:s!=;period:s!=;record_date:d;notes:s!=;attachments:j!=[];created_by:s;updated_by:s;updated_at:z;deleted:b!=false;deleted_by:s;deleted_at:z;created_at:z!=@now
+duty_rosters|id:u!=@uuid;dept:s!;month:s!;data:j!={};created_by:s;updated_by:s;updated_at:z;created_at:z!=@now
+material_requests|id:u!=@uuid;dept:s!;request_no:s!=;request_date:d;items:j!=[];applicant_name:s!=;emp_id:s!=;notes:s!=;created_by:s;updated_by:s;updated_at:z;deleted:b!=false;deleted_by:s;deleted_at:z;created_at:z!=@now

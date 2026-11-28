@@ -924,3 +924,34 @@ CREATE TABLE IF NOT EXISTS "ic_team_records" (
 );
 CREATE INDEX IF NOT EXISTS "ic_team_records_kind_idx" ON "ic_team_records" ("kind");
 
+CREATE TABLE IF NOT EXISTS "duty_rosters" (
+  "id" TEXT PRIMARY KEY,
+  "dept" TEXT,
+  "month" TEXT,
+  "data" TEXT DEFAULT '{}',
+  "created_by" TEXT,
+  "updated_by" TEXT,
+  "updated_at" TEXT,
+  "created_at" TEXT,
+  UNIQUE ("dept", "month")
+);
+
+CREATE TABLE IF NOT EXISTS "material_requests" (
+  "id" TEXT PRIMARY KEY,
+  "dept" TEXT,
+  "request_no" TEXT DEFAULT '',
+  "request_date" TEXT,
+  "items" TEXT DEFAULT '[]',
+  "applicant_name" TEXT DEFAULT '',
+  "emp_id" TEXT DEFAULT '',
+  "notes" TEXT DEFAULT '',
+  "created_by" TEXT,
+  "updated_by" TEXT,
+  "updated_at" TEXT,
+  "deleted" INTEGER DEFAULT 0,
+  "deleted_by" TEXT,
+  "deleted_at" TEXT,
+  "created_at" TEXT
+);
+CREATE INDEX IF NOT EXISTS "material_requests_request_date_idx" ON "material_requests" ("request_date");
+

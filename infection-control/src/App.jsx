@@ -26,6 +26,8 @@ const Memos = lazy(() => import("./pages/Memos.jsx"));
 const Lectures = lazy(() => import("./pages/lectures/Lectures.jsx"));
 const LectureAttend = lazy(() => import("./pages/lectures/LectureAttend.jsx"));
 const IcTeamRecords = lazy(() => import("./pages/ic-team/IcTeamRecords.jsx"));
+const DutyRoster = lazy(() => import("./pages/ic-team/DutyRoster.jsx"));
+const MaterialRequests = lazy(() => import("./pages/ic-team/MaterialRequests.jsx"));
 const CommunicableCases = lazy(() => import("./pages/cases/CommunicableCases.jsx"));
 const ICRounds = lazy(() => import("./pages/ic-rounds/ICRounds.jsx"));
 const HandHygiene = lazy(() => import("./pages/hand-hygiene/HandHygiene.jsx"));
@@ -148,7 +150,17 @@ export default function App() {
           element={
             <ProtectedRoute adminOnly>
               <Layout>
-                <IcTeamRecords key="schedule" kind="schedule" />
+                <DutyRoster />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/material-requests"
+          element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <MaterialRequests />
               </Layout>
             </ProtectedRoute>
           }
