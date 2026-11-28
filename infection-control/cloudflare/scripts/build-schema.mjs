@@ -25,6 +25,7 @@ const UNIQUE = {
   stock_daily_checks: [["date", "item_id"]],
   users: [["username"]],
   lecture_attendance: [["lecture_id", "employee_no"]],
+  duty_rosters: [["dept", "month"]],
   vaccine_lots: [["code"]],
 };
 // Plain indexes for the columns pages filter on most.
@@ -49,6 +50,7 @@ const INDEX = {
   antibiogram_isolates: [["collected_at"]],
   lectures: [["lecture_date"]],
   ic_team_records: [["kind"]],
+  material_requests: [["request_date"]],
 };
 
 const SQL_TYPE = { u: "TEXT", s: "TEXT", d: "TEXT", z: "TEXT", h: "TEXT", j: "TEXT", b: "INTEGER", i: "INTEGER", n: "REAL" };

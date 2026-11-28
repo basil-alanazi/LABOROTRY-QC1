@@ -35,7 +35,7 @@ const ANON_READ = {
 
 // Infection Control team pages: only Owner/IC accounts may read or change
 // them (the public attendance page only adds a signed row, see below).
-const IC_ONLY = new Set(["lectures", "lecture_attendance", "ic_team_records"]);
+const IC_ONLY = new Set(["lectures", "lecture_attendance", "ic_team_records", "duty_rosters", "material_requests"]);
 const ATTENDANCE_COLS = new Set(["lecture_id", "employee_no", "employee_name", "department", "signature_path"]);
 
 function eqValue(q, col) {

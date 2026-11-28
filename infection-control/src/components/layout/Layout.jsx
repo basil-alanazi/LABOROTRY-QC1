@@ -28,6 +28,7 @@ import {
   Presentation,
   Award,
   CalendarClock,
+  ClipboardPen,
 } from "lucide-react";
 import { useAuth } from "../../lib/auth.jsx";
 import { useLanguage } from "../../lib/i18n.jsx";
@@ -152,6 +153,7 @@ export default function Layout({ children }) {
         isAdmin && { to: "/lectures", icon: Presentation, label: "Lectures & Attendance" },
         isAdmin && { to: "/awards", icon: Award, label: "Certificates & Awards" },
         isAdmin && { to: "/staff-schedule", icon: CalendarClock, label: "Staff Schedule" },
+        isAdmin && { to: "/material-requests", icon: ClipboardPen, label: "Material Requests" },
       ],
     },
     {
