@@ -29,7 +29,14 @@ const ANON_READ = {
   ic_test_questions: "department",
   ic_test_access: "employee_id",
   ic_test_attempts: "employee_id",
+  // The lecture attendance page (public QR) shows the lecture it is for.
+  lectures: "id",
 };
+
+// Infection Control team pages: only Owner/IC accounts may read or change
+// them (the public attendance page only adds a signed row, see below).
+const IC_ONLY = new Set(["lectures", "lecture_attendance", "ic_team_records"]);
+const ATTENDANCE_COLS = new Set(["lecture_id", "employee_no", "employee_name", "department", "signature_path"]);
 
 function eqValue(q, col) {
   const f = (q.filters || []).find((f) => f[0] === "eq" && f[1] === col);
@@ -56,6 +63,11 @@ export function checkAccess(q, session) {
       if (pins && !pins.some(pinned)) throw new ApiError("Not signed in", "AUTH");
       return;
     }
+    // The lecture attendance page adds one signed row (name, number, signature).
+    if (op === "insert" && q.table === "lecture_attendance") {
+      const rows = [].concat(q.payload || []);
+      if (rows.length === 1 && Object.keys(rows[0]).every((k) => ATTENDANCE_COLS.has(k))) return;
+    }
     // The public test page saves the attempt and can redeem a retake code.
     if (op === "insert" && q.table === "ic_test_attempts") return;
     // ...and attach the employee's signature to the attempt it just saved.
@@ -69,6 +81,8 @@ export function checkAccess(q, session) {
     }
     throw new ApiError("Not signed in", "AUTH");
   }
+
+  if (IC_ONLY.has(q.table) && !ADMIN_ROLES.has(session.role)) forbid("Only the Infection Control team can open this page");
 
   if (q.table === "users" && op !== "select") {
     if (ADMIN_ROLES.has(session.role)) return;

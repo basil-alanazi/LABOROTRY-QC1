@@ -25,6 +25,9 @@ import {
   ScrollText,
   FlaskConical,
   Syringe,
+  Presentation,
+  Award,
+  CalendarClock,
 } from "lucide-react";
 import { useAuth } from "../../lib/auth.jsx";
 import { useLanguage } from "../../lib/i18n.jsx";
@@ -141,6 +144,14 @@ export default function Layout({ children }) {
         },
         isAdmin && { to: "/ic-knowledge-test", icon: GraduationCap, label: "IC Knowledge Test" },
         isAdmin && { to: "/memos", icon: ScrollText, label: "Memo" },
+      ],
+    },
+    {
+      title: "IC Team",
+      items: [
+        isAdmin && { to: "/lectures", icon: Presentation, label: "Lectures & Attendance" },
+        isAdmin && { to: "/awards", icon: Award, label: "Certificates & Awards" },
+        isAdmin && { to: "/staff-schedule", icon: CalendarClock, label: "Staff Schedule" },
       ],
     },
     {

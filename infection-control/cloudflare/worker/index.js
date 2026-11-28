@@ -105,7 +105,8 @@ async function handleDb(request, env, session) {
 // QR test page); everything else needs a signed-in account.
 function canUpload(session, bucket, path) {
   if (session) return true;
-  return bucket === "employee-health-attachments" && path.startsWith("ic-test-signatures/");
+  if (bucket === "employee-health-attachments" && path.startsWith("ic-test-signatures/")) return true;
+  return bucket === "tracker-attachments" && path.startsWith("lecture-signatures/");
 }
 
 const BUCKETS = new Set([
