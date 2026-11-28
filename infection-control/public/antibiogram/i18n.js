@@ -130,6 +130,10 @@
     "ليبوببتيد": "Lipopeptide",
     "ريفاميسين": "Rifamycin",
     "غليسيلسيكلين": "Glycylcycline",
+    "هذا الطلب مسجّل من قبل لنفس البكتيريا. لا يُقبل التكرار.": "This order is already recorded for the same organism. Duplicates are not accepted.",
+    "مكررة: نفس المريض ونفس البكتيريا مسجلة بتاريخ": "Duplicate: the same patient and organism is already recorded on",
+    "لا يُقبل التكرار خلال": "duplicates are not accepted within",
+    "يوم": "days",
     "Salmonella: لا تُعرض السيفالوسبورينات من الجيل الأول والثاني والسيفاميسينات والأمينوغليكوزيدات لأنها غير فعّالة سريرياً (CLSI M{n}).":
       "Salmonella: 1st/2nd-generation cephalosporins, cephamycins and aminoglycosides are not reported as they are not clinically effective (CLSI M{n}).",
     // values found in entered isolates

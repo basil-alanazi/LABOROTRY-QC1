@@ -186,8 +186,8 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <datalist id="orgList"></datalist>
 <datalist id="mdroList"><option value="MRSA"><option value="ESBL"><option value="CRE"><option value="VRE"><option value="MDR"></datalist>
 
-<script src="i18n.js"></script>
-<script src="antibiogram-engine.js"></script>
+<script src="i18n.js?v=3"></script>
+<script src="antibiogram-engine.js?v=3"></script>
 <script src="seed-data.js"></script>
 <script>
 (function(){
@@ -359,6 +359,19 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
     var i = isolates.findIndex(function(x){return x.id===rec.id;});
     if (i>=0) isolates[i] = Object.assign({}, isolates[i], rec); else isolates.push(rec);
     save();
+  });
+  // Duplicates are refused (same MRN + organism within 14 days for blood, 30 otherwise; same order always).
+  function dupMessage(d){
+    if (d.sameOrder) return tr("هذا الطلب مسجّل من قبل لنفس البكتيريا. لا يُقبل التكرار.");
+    return tr("مكررة: نفس المريض ونفس البكتيريا مسجلة بتاريخ") + " " + d.isolate.collectedAt + " — " +
+      tr("لا يُقبل التكرار خلال") + " " + d.window + " " + tr("يوم") + ".";
+  }
+  window.AntibiogramDupMessage = dupMessage;
+  $("btnSave").addEventListener("click", function(e){
+    var f = $("isoForm");
+    if (!f.mrn.value.trim() || !f.organism.value.trim() || !f.collectedAt.value) return; // let the browser show the required fields
+    var d = E.findDuplicate(isolates, { id: editing, mrn: f.mrn.value, orderId: f.orderId.value, organism: f.organism.value.trim(), collectedAt: f.collectedAt.value, specimen: f.specimen.value });
+    if (d) { e.preventDefault(); alert(dupMessage(d)); }
   });
   $("btnAdd").addEventListener("click", function(){ openForm(null); });
   $("isoTable").addEventListener("click", function(e){

@@ -180,8 +180,37 @@
     return "﻿" + lines.join("\n");
   }
 
+  // Duplicate entry rule (hospital policy): the same patient (MRN) with the
+  // same organism again within 14 days for blood cultures, or 30 days for any
+  // other specimen, is a duplicate and is not accepted. The same order number
+  // with the same organism is always a duplicate. MRSA/MSSA count as the same
+  // organism (S. aureus).
+  var DUP_DAYS_BLOOD = 14, DUP_DAYS_OTHER = 30;
+  function sameOrg(a, b) {
+    var n = function (o) { return String(o || "").replace(/\s*\(.*\)\s*/g, "").trim().toLowerCase(); };
+    return n(a) === n(b);
+  }
+  function findDuplicate(isolates, rec) {
+    var mrn = String(rec.mrn || "").trim().toLowerCase();
+    if (!mrn || !rec.organism) return null;
+    var t = Date.parse(rec.collectedAt);
+    for (var i = 0; i < isolates.length; i++) {
+      var x = isolates[i];
+      if (x.id && rec.id && x.id === rec.id) continue;
+      if (String(x.mrn || "").trim().toLowerCase() !== mrn || !sameOrg(x.organism, rec.organism)) continue;
+      if (rec.orderId && x.orderId && String(rec.orderId).trim() === String(x.orderId).trim()) {
+        return { isolate: x, days: 0, window: 0, sameOrder: true };
+      }
+      var window = rec.specimen === "blood" || x.specimen === "blood" ? DUP_DAYS_BLOOD : DUP_DAYS_OTHER;
+      var days = Math.abs(Math.round((t - Date.parse(x.collectedAt)) / 86400000));
+      if (!isNaN(days) && days <= window) return { isolate: x, days: days, window: window, sameOrder: false };
+    }
+    return null;
+  }
+
   return {
     ANTIBIOTICS: ANTIBIOTICS, ORGANISMS: ORGANISMS, GROUPS: GROUPS, MIN_ISOLATES: MIN_ISOLATES, URINE_ONLY: URINE_ONLY,
-    compute: compute, band: band, toCSV: toCSV, reportKey: reportKey, orgInfo: orgInfo
+    compute: compute, band: band, toCSV: toCSV, reportKey: reportKey, orgInfo: orgInfo,
+    findDuplicate: findDuplicate, DUP_DAYS_BLOOD: DUP_DAYS_BLOOD, DUP_DAYS_OTHER: DUP_DAYS_OTHER
   };
 });
