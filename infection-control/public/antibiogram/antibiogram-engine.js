@@ -36,7 +36,8 @@
     ["Erythromycin", "ERY", "ماكروليد"], ["Azithromycin", "AZM", "ماكروليد"], ["Clindamycin", "CLI", "لينكوزاميد"],
     ["Tetracycline", "TCY", "تتراسيكلين"], ["Doxycycline", "DOX", "تتراسيكلين"],
     ["Vancomycin", "VAN", "غليكوببتيد"], ["Teicoplanin", "TEC", "غليكوببتيد"], ["Linezolid", "LZD", "أوكسازوليدينون"],
-    ["Daptomycin", "DAP", "ليبوببتيد"], ["Rifampicin", "RIF", "ريفاميسين"]
+    ["Daptomycin", "DAP", "ليبوببتيد"], ["Rifampicin", "RIF", "ريفاميسين"],
+    ["Tigecycline", "TGC", "غليسيلسيكلين"]
   ].map(function (a) { return { name: a[0], code: a[1], cls: a[2] }; });
 
   var URINE_ONLY = { "Nitrofurantoin": true };
@@ -60,6 +61,11 @@
     "Enterobacter cloacae": { group: "GN", panel: without(ENT, ["Ampicillin", "Amoxicillin/Clavulanate", "Ampicillin/Sulbactam", "Cefazolin", "Cefoxitin"]) },
     "Serratia marcescens": { group: "GN", panel: without(ENT, ["Ampicillin", "Amoxicillin/Clavulanate", "Ampicillin/Sulbactam", "Cefazolin", "Cefuroxime", "Cefoxitin", "Nitrofurantoin"]) },
     "Pseudomonas aeruginosa": { group: "GN", panel: ["Piperacillin/Tazobactam", "Ceftazidime", "Cefepime", "Ceftazidime/Avibactam", "Aztreonam", "Imipenem", "Meropenem", "Gentamicin", "Amikacin", "Tobramycin", "Ciprofloxacin", "Levofloxacin"] },
+    // Salmonella (CLSI M100): 1st/2nd-generation cephalosporins, cephamycins and
+    // aminoglycosides can test susceptible but are not clinically effective, so
+    // they are not reported.
+    "Salmonella enterica": { group: "GN", panel: ["Ampicillin", "Piperacillin/Tazobactam", "Ceftriaxone", "Cefotaxime", "Ceftazidime", "Cefepime",
+      "Aztreonam", "Ertapenem", "Imipenem", "Meropenem", "Ciprofloxacin", "Levofloxacin", "Trimethoprim/Sulfamethoxazole", "Azithromycin", "Tigecycline"] },
     "Acinetobacter baumannii": { group: "GN", panel: ["Ampicillin/Sulbactam", "Piperacillin/Tazobactam", "Ceftazidime", "Cefepime", "Imipenem", "Meropenem", "Gentamicin", "Amikacin", "Tobramycin", "Ciprofloxacin", "Levofloxacin", "Trimethoprim/Sulfamethoxazole"] },
     "Staphylococcus aureus (MSSA)": { group: "GP", panel: STAPH },
     "Staphylococcus aureus (MRSA)": { group: "GP", panel: without(STAPH, ["Oxacillin", "Penicillin"]) },
