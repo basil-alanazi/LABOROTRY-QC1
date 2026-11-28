@@ -37,7 +37,12 @@
     ["Tetracycline", "TCY", "تتراسيكلين"], ["Doxycycline", "DOX", "تتراسيكلين"],
     ["Vancomycin", "VAN", "غليكوببتيد"], ["Teicoplanin", "TEC", "غليكوببتيد"], ["Linezolid", "LZD", "أوكسازوليدينون"],
     ["Daptomycin", "DAP", "ليبوببتيد"], ["Rifampicin", "RIF", "ريفاميسين"],
-    ["Tigecycline", "TGC", "غليسيلسيكلين"]
+    ["Tigecycline", "TGC", "غليسيلسيكلين"],
+    ["Piperacillin", "PIP", "بنسلينات"], ["Ticarcillin", "TIC", "بنسلينات"], ["Ticarcillin/Clavulanate", "TIM", "بنسلين+مثبط"],
+    ["Cefaclor", "CEC", "سيفالوسبورين ج2"], ["Cefdinir", "CDR", "سيفالوسبورين ج3 فموي"], ["Cefpodoxime", "CPD", "سيفالوسبورين ج3 فموي"],
+    ["Ceftolozane/Tazobactam", "C/T", "سيفالوسبورين+مثبط"], ["Doripenem", "DOR", "كاربابينيم"],
+    ["Norfloxacin", "NOR", "فلوروكينولون"], ["Ofloxacin", "OFX", "فلوروكينولون"],
+    ["Colistin", "CST", "بوليميكسين"], ["Fosfomycin", "FOS", "فوسفونيك"], ["Fusidic Acid", "FA", "فوسيدان"]
   ].map(function (a) { return { name: a[0], code: a[1], cls: a[2] }; });
 
   var URINE_ONLY = { "Nitrofurantoin": true };
@@ -66,6 +71,9 @@
     // they are not reported.
     "Salmonella enterica": { group: "GN", panel: ["Ampicillin", "Piperacillin/Tazobactam", "Ceftriaxone", "Cefotaxime", "Ceftazidime", "Cefepime",
       "Aztreonam", "Ertapenem", "Imipenem", "Meropenem", "Ciprofloxacin", "Levofloxacin", "Trimethoprim/Sulfamethoxazole", "Azithromycin", "Tigecycline"] },
+    "Klebsiella aerogenes": { group: "GN", panel: without(ENT, ["Ampicillin", "Amoxicillin/Clavulanate", "Ampicillin/Sulbactam", "Cefazolin", "Cefoxitin", "Cefuroxime"]) },
+    "Acinetobacter haemolyticus": { group: "GN", panel: ["Ampicillin/Sulbactam", "Piperacillin/Tazobactam", "Ceftazidime", "Cefepime", "Imipenem", "Meropenem", "Gentamicin", "Amikacin", "Tobramycin", "Ciprofloxacin", "Levofloxacin", "Trimethoprim/Sulfamethoxazole"] },
+    "Streptococcus anginosus": { group: "GP", panel: ["Penicillin", "Ampicillin", "Ceftriaxone", "Cefotaxime", "Erythromycin", "Clindamycin", "Vancomycin", "Levofloxacin", "Linezolid"] },
     "Acinetobacter baumannii": { group: "GN", panel: ["Ampicillin/Sulbactam", "Piperacillin/Tazobactam", "Ceftazidime", "Cefepime", "Imipenem", "Meropenem", "Gentamicin", "Amikacin", "Tobramycin", "Ciprofloxacin", "Levofloxacin", "Trimethoprim/Sulfamethoxazole"] },
     "Staphylococcus aureus (MSSA)": { group: "GP", panel: STAPH },
     "Staphylococcus aureus (MRSA)": { group: "GP", panel: without(STAPH, ["Oxacillin", "Penicillin"]) },
@@ -180,9 +188,11 @@
     return "﻿" + lines.join("\n");
   }
 
-  // Duplicate entry rule (hospital policy): the same patient (MRN) with the
-  // same organism again within 14 days for blood cultures, or 30 days for any
-  // other specimen, is a duplicate and is not accepted. The same order number
+  // Duplicate entry rule (MOH MDRO surveillance, applied to every organism):
+  // a blood isolate is a duplicate when the same patient (MRN) had the same
+  // organism in a blood culture within the last 14 days; a non-blood isolate
+  // when they had it from any non-blood specimen within 30 days. Blood and
+  // non-blood are counted separately. The same order number
   // with the same organism is always a duplicate. MRSA/MSSA count as the same
   // organism (S. aureus).
   var DUP_DAYS_BLOOD = 14, DUP_DAYS_OTHER = 30;
@@ -201,14 +211,37 @@
       if (rec.orderId && x.orderId && String(rec.orderId).trim() === String(x.orderId).trim()) {
         return { isolate: x, days: 0, window: 0, sameOrder: true };
       }
-      var window = rec.specimen === "blood" || x.specimen === "blood" ? DUP_DAYS_BLOOD : DUP_DAYS_OTHER;
+      if ((rec.specimen === "blood") !== (x.specimen === "blood")) continue;
+      var window = rec.specimen === "blood" ? DUP_DAYS_BLOOD : DUP_DAYS_OTHER;
       var days = Math.abs(Math.round((t - Date.parse(x.collectedAt)) / 86400000));
       if (!isNaN(days) && days <= window) return { isolate: x, days: days, window: window, sameOrder: false };
     }
     return null;
   }
 
+  // MDRO type, per the MOH MDRO surveillance summary (R results only).
+  var AMINO = ["Amikacin", "Gentamicin", "Tobramycin"];
+  var CEPH4 = ["Cefepime", "Ceftazidime", "Cefotaxime", "Ceftriaxone"];
+  var CARB = ["Imipenem", "Meropenem", "Doripenem"];
+  var FQ = ["Ciprofloxacin", "Levofloxacin"];
+  var BLBLI = ["Piperacillin/Tazobactam"];
+  function classifyMdro(organism, results) {
+    var o = String(organism || "").toLowerCase(), r = results || {}, out = [];
+    var anyR = function (list) { return list.some(function (a) { return r[a] === "R"; }); };
+    var classesR = function (classes) { return classes.filter(anyR).length; };
+    if (/^staphylococcus aureus/.test(o) && (anyR(["Oxacillin", "Cefoxitin", "Methicillin"]) || /mrsa/.test(o))) out.push("MRSA");
+    if (/^enterococcus (faecalis|faecium)/.test(o) && anyR(["Vancomycin"])) out.push("VRE");
+    if (/^klebsiella (pneumoniae|oxytoca)/.test(o) && anyR(["Ceftazidime", "Cefotaxime", "Ceftriaxone", "Cefepime", "Ceftazidime/Avibactam", "Ceftolozane/Tazobactam"])) out.push("CephR-Klebsiella");
+    if (/^(escherichia coli|klebsiella (oxytoca|pneumoniae|aerogenes)|enterobacter)/.test(o) && anyR(["Imipenem", "Meropenem", "Doripenem", "Ertapenem"])) out.push("CRE");
+    if (/^acinetobacter/.test(o) && classesR([AMINO, CEPH4, CARB, FQ, BLBLI, ["Ampicillin/Sulbactam"]]) >= 3) out.push("MDR Acinetobacter");
+    if (/^klebsiella/.test(o) && classesR([AMINO, CEPH4, CARB, FQ, BLBLI]) >= 3) out.push("MDR Klebsiella");
+    if (/^pseudomonas/.test(o) && classesR([AMINO, ["Cefepime", "Ceftazidime"], CARB, FQ, BLBLI]) >= 3) out.push("MDR Pseudomonas");
+    if (/^candida auris/.test(o)) out.push("Candida auris");
+    return out;
+  }
+
   return {
+    classifyMdro: classifyMdro,
     ANTIBIOTICS: ANTIBIOTICS, ORGANISMS: ORGANISMS, GROUPS: GROUPS, MIN_ISOLATES: MIN_ISOLATES, URINE_ONLY: URINE_ONLY,
     compute: compute, band: band, toCSV: toCSV, reportKey: reportKey, orgInfo: orgInfo,
     findDuplicate: findDuplicate, DUP_DAYS_BLOOD: DUP_DAYS_BLOOD, DUP_DAYS_OTHER: DUP_DAYS_OTHER
